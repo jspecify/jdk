@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,6 @@ import sun.swing.SwingUtilities2;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
-import javax.swing.BorderFactory;
-import javax.swing.border.Border;
 import javax.swing.plaf.*;
 import javax.swing.plaf.basic.BasicToolTipUI;
 import javax.swing.plaf.basic.BasicHTML;
@@ -45,7 +43,7 @@ import javax.swing.text.View;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -120,6 +118,11 @@ public class MetalToolTipUI extends BasicToolTipUI {
             insets.top,
             size.width - (insets.left + insets.right) - 6 - accelSpacing,
             size.height - (insets.top + insets.bottom));
+
+        if (paintTextR.width <= 0 || paintTextR.height <= 0) {
+            return;
+        }
+
         View v = (View) c.getClientProperty(BasicHTML.propertyKey);
         if (v != null) {
             v.paint(g, paintTextR);
@@ -132,7 +135,7 @@ public class MetalToolTipUI extends BasicToolTipUI {
             accelBL = metrics.getAscent();
         }
 
-        if (!accelString.equals("")) {
+        if (!accelString.isEmpty()) {
             g.setFont(smallFont);
             g.setColor( MetalLookAndFeel.getPrimaryControlDarkShadow() );
             SwingUtilities2.drawString(tip, g, accelString,
@@ -145,7 +148,7 @@ public class MetalToolTipUI extends BasicToolTipUI {
     }
 
     private int calcAccelSpacing(JComponent c, FontMetrics fm, String accel) {
-        return accel.equals("")
+        return accel.isEmpty()
                ? 0
                : padSpaceBetweenStrings +
                  SwingUtilities2.stringWidth(c, fm, accel);
@@ -155,7 +158,7 @@ public class MetalToolTipUI extends BasicToolTipUI {
         Dimension d = super.getPreferredSize(c);
 
         String key = getAcceleratorString((JToolTip)c);
-        if (!(key.equals(""))) {
+        if (!key.isEmpty()) {
             d.width += calcAccelSpacing(c, c.getFontMetrics(smallFont), key);
         }
         return d;

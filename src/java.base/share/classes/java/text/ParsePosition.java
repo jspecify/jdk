@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,26 +38,22 @@
 
 package java.text;
 
-import org.jspecify.annotations.Nullable;
-
-
 
 /**
- * <code>ParsePosition</code> is a simple class used by <code>Format</code>
+ * {@code ParsePosition} is a simple class used by {@code Format}
  * and its subclasses to keep track of the current position during parsing.
- * The <code>parseObject</code> method in the various <code>Format</code>
- * classes requires a <code>ParsePosition</code> object as an argument.
+ * The {@code parseObject} method in the various {@code Format}
+ * classes requires a {@code ParsePosition} object as an argument.
  *
  * <p>
  * By design, as you parse through a string with different formats,
- * you can use the same <code>ParsePosition</code>, since the index parameter
+ * you can use the same {@code ParsePosition}, since the index parameter
  * records the current position.
  *
  * @author      Mark Davis
  * @since 1.1
  * @see         java.text.Format
  */
-
 
 public class ParsePosition {
 
@@ -67,8 +63,8 @@ public class ParsePosition {
      * This is designed to be used serially,
      * with each call setting index up for the next one.
      */
-     int index = 0;
-     int errorIndex = -1;
+    int index = 0;
+    int errorIndex = -1;
 
     /**
      * Retrieve the current parse position.  On input to a parse method, this
@@ -77,7 +73,7 @@ public class ParsePosition {
      *
      * @return the current parse position
      */
-    public  int getIndex() {
+    public int getIndex() {
         return index;
     }
 
@@ -86,7 +82,7 @@ public class ParsePosition {
      *
      * @param index the current parse position
      */
-    public void setIndex( int index) {
+    public void setIndex(int index) {
         this.index = index;
     }
 
@@ -95,7 +91,7 @@ public class ParsePosition {
      *
      * @param index initial index
      */
-    public ParsePosition( int index) {
+    public ParsePosition(int index) {
         this.index = index;
     }
     /**
@@ -106,7 +102,7 @@ public class ParsePosition {
      * @param ei the index at which an error occurred
      * @since 1.2
      */
-    public void setErrorIndex( int ei)
+    public void setErrorIndex(int ei)
     {
         errorIndex = ei;
     }
@@ -118,7 +114,7 @@ public class ParsePosition {
      * @return the index at which an error occurred
      * @since 1.2
      */
-    public  int getErrorIndex()
+    public int getErrorIndex()
     {
         return errorIndex;
     }
@@ -126,21 +122,17 @@ public class ParsePosition {
     /**
      * Overrides equals
      */
-    
-    
-    public boolean equals(@Nullable Object obj)
+    @Override
+    public boolean equals(Object obj)
     {
-        if (obj == null) return false;
-        if (!(obj instanceof ParsePosition))
-            return false;
-        ParsePosition other = (ParsePosition) obj;
-        return (index == other.index && errorIndex == other.errorIndex);
+        return obj instanceof ParsePosition other
+                && index == other.index && errorIndex == other.errorIndex;
     }
 
     /**
-     * Returns a hash code for this ParsePosition.
-     * @return a hash code value for this object
+     * {@return a hash code for this ParsePosition}
      */
+    @Override
     public int hashCode() {
         return (errorIndex << 16) | index;
     }

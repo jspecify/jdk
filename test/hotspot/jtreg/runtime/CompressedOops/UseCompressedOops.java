@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,26 +25,30 @@
  * @test
  * @bug 8022865
  * @summary Tests for different combination of UseCompressedOops options
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. UseCompressedOops
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=480 -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. UseCompressedOops
  */
 import java.util.ArrayList;
 import java.util.Collections;
 import jdk.test.lib.Platform;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.whitebox.gc.GC;
 
-import sun.hotspot.code.Compiler;
+import jdk.test.whitebox.code.Compiler;
 
 public class UseCompressedOops {
 
     public static void main(String[] args) throws Exception {
         testCompressedOopsModesGCs();
-        testCompressedOopsModesGCs("-XX:+UseLargePages");
+        if (!Platform.isOSX() && !Platform.isAix()) {
+            testCompressedOopsModesGCs("-XX:+UseLargePages");
+        }
     }
 
     public static void testCompressedOopsModesGCs(String... flags) throws Exception {
@@ -55,12 +59,11 @@ public class UseCompressedOops {
         testCompressedOopsModes(args);
         // Test GCs.
         testCompressedOopsModes(args, "-XX:+UseG1GC");
-        if (!Compiler.isGraalEnabled()) { // Graal does not support CMS
-            testCompressedOopsModes(args, "-XX:+UseConcMarkSweepGC");
-        }
         testCompressedOopsModes(args, "-XX:+UseSerialGC");
         testCompressedOopsModes(args, "-XX:+UseParallelGC");
-        testCompressedOopsModes(args, "-XX:+UseParallelOldGC");
+        if (GC.Shenandoah.isSupported()) {
+            testCompressedOopsModes(args, "-XX:+UnlockExperimentalVMOptions", "-XX:+UseShenandoahGC");
+        }
     }
 
     public static void testCompressedOopsModes(ArrayList<String> flags1, String... flags2) throws Exception {
@@ -69,7 +72,7 @@ public class UseCompressedOops {
         Collections.addAll(args, flags2);
 
         if (Platform.is64bit()) {
-            // Explicitly turn of compressed oops
+            // Explicitly turn off compressed oops
             testCompressedOops(args, "-XX:-UseCompressedOops", "-Xmx32m")
                 .shouldNotContain("Compressed Oops")
                 .shouldHaveExitValue(0);
@@ -84,11 +87,12 @@ public class UseCompressedOops {
                 .shouldContain("Compressed Oops mode")
                 .shouldHaveExitValue(0);
 
-            // Skip the following three test cases if we're on OSX or Solaris.
+            // Skip the following seven test cases if we're on OSX or Windows.
             //
-            // OSX doesn't seem to care about HeapBaseMinAddress and Solaris
-            // puts the heap way up, forcing different behaviour.
-            if (!Platform.isOSX() && !Platform.isSolaris()) {
+            // OSX doesn't seem to care about HeapBaseMinAddress.  Windows memory
+            // locations are affected by ASLR.
+            if (!Platform.isOSX() && !Platform.isWindows()) {
+
                 // Larger than 4gb heap should result in zero based with shift 3
                 testCompressedOops(args, "-XX:+UseCompressedOops", "-Xmx5g")
                     .shouldContain("Zero based")
@@ -175,8 +179,8 @@ public class UseCompressedOops {
     private static OutputAnalyzer testCompressedOops(ArrayList<String> flags1, String... flags2) throws Exception {
         ArrayList<String> args = new ArrayList<>();
 
-        // Always run with these three:
-        args.add("-XX:+PrintCompressedOopsMode");
+        // Always run with these two:
+        args.add("-Xlog:gc+heap+coops=trace");
         args.add("-Xms32m");
 
         // Add the extra flags
@@ -185,7 +189,7 @@ public class UseCompressedOops {
 
         args.add("-version");
 
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(args.toArray(new String[0]));
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(args);
         return new OutputAnalyzer(pb.start());
     }
 }

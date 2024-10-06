@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,12 @@
  * @test
  * @bug 8199307
  * @summary NPE in jdk.javadoc.internal.doclets.toolkit.util.Utils.getLineNumber
- * @library /tools/lib ../lib
+ * @library /tools/lib ../../lib
  * @modules
  *      jdk.javadoc/jdk.javadoc.internal.tool
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.main
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestSerializedFormWithClassFile
  */
 
@@ -43,13 +43,15 @@ import builder.ClassBuilder.MethodBuilder;
 import toolbox.ToolBox;
 import toolbox.JavacTask;
 
+import javadoc.tester.JavadocTester;
+
 public class TestSerializedFormWithClassFile extends JavadocTester {
 
     final ToolBox tb;
 
     public static void main(String... args) throws Exception {
-        TestSerializedFormWithClassFile tester = new TestSerializedFormWithClassFile();
-        tester.runTests(m -> new Object[]{Paths.get(m.getName())});
+        var tester = new TestSerializedFormWithClassFile();
+        tester.runTests();
     }
 
     TestSerializedFormWithClassFile() {
@@ -57,13 +59,14 @@ public class TestSerializedFormWithClassFile extends JavadocTester {
     }
 
     @Test
-    void test(Path base) throws Exception {
+    public void test(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         createTestClass(base, srcDir);
 
         Path outDir = base.resolve("out");
         javadoc("-d", outDir.toString(),
                 "-linksource",
+                "--no-platform-links",
                 "-classpath", base.resolve("classes").toString(),
                 "-sourcepath", "",
                 srcDir.resolve("B.java").toString());
@@ -71,10 +74,13 @@ public class TestSerializedFormWithClassFile extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("serialized-form.html", true,
-                "<pre class=\"methodSignature\">public&nbsp;void&nbsp;readObject&#8203;"
-                + "(java.io.ObjectInputStream&nbsp;arg0)\n"
-                + "                throws java.lang.ClassNotFoundException,\n"
-                + "                       java.io.IOException</pre>\n");
+                """
+                    <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span c\
+                    lass="return-type">void</span>&nbsp;<span class="element-name">readObject</span>\
+                    <wbr><span class="parameters">(java.io.ObjectInputStream&nbsp;arg0)</span>
+                                    throws <span class="exceptions">java.lang.ClassNotFoundException,
+                    java.io.IOException</span></div>
+                    """);
     }
 
     void createTestClass(Path base, Path srcDir) throws Exception {

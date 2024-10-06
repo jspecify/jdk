@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,14 @@
  * @test
  * @bug 8202113
  * @summary Test the caller class loader is not kept strongly reachable
-  *         by reflection API
+ *         by reflection API
  * @library /test/lib/
+ * @modules jdk.compiler
  * @build ReflectionCallerCacheTest Members jdk.test.lib.compiler.CompilerUtils
  * @run testng/othervm ReflectionCallerCacheTest
  */
 
 import java.io.IOException;
-import java.lang.ref.Cleaner;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.*;
 import java.net.MalformedURLException;
@@ -41,11 +41,9 @@ import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BooleanSupplier;
 
 import jdk.test.lib.compiler.CompilerUtils;
+import jdk.test.lib.util.ForceGC;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -76,7 +74,8 @@ public class ReflectionCallerCacheTest {
             { "AccessTest$PublicFinalField"},
             { "AccessTest$PrivateFinalField"},
             { "AccessTest$PublicStaticFinalField"},
-            { "AccessTest$PrivateStaticFinalField"}
+            { "AccessTest$PrivateStaticFinalField"},
+            { "AccessTest$NewInstance"}
         };
     }
 
@@ -108,9 +107,7 @@ public class ReflectionCallerCacheTest {
         WeakReference<?> weakLoader = loadAndRunClass(classname);
 
         // Force garbage collection to trigger unloading of class loader
-        new ForceGC().await(() -> weakLoader.get() == null);
-
-        if (weakLoader.get() != null) {
+        if (!ForceGC.wait(() -> weakLoader.refersTo(null))) {
             throw new RuntimeException("Class " + classname + " not unloaded!");
         }
     }
@@ -137,39 +134,6 @@ public class ReflectionCallerCacheTest {
 
         TestLoader() {
             super("testloader", toURLs(), ClassLoader.getSystemClassLoader());
-        }
-    }
-
-    /**
-     * Utility class to invoke System.gc()
-     */
-    static class ForceGC {
-        private  final CountDownLatch cleanerInvoked = new CountDownLatch(1);
-        private  final Cleaner cleaner = Cleaner.create();
-
-        ForceGC() {
-            cleaner.register(new Object(), () -> cleanerInvoked.countDown());
-        }
-
-        void doit() {
-            try {
-                for (int i = 0; i < 10; i++) {
-                    System.gc();
-                    if (cleanerInvoked.await(1L, TimeUnit.SECONDS)) {
-                        return;
-                    }
-                }
-            } catch (InterruptedException unexpected) {
-                throw new AssertionError("unexpected InterruptedException");
-            }
-        }
-
-        void await(BooleanSupplier s) {
-            for (int i = 0; i < 10; i++) {
-                if (s.getAsBoolean()) return;
-                doit();
-            }
-            throw new AssertionError("failed to satisfy condition");
         }
     }
 }

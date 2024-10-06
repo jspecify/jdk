@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,14 +42,15 @@
 #include <X11/extensions/XI.h>
 #include <jni.h>
 #include <sizecalc.h>
-#include "robot_common.h"
 #include "canvas.h"
 #include "wsutils.h"
 #include "list.h"
 #include "multiVis.h"
 #include "gtk_interface.h"
 
-#if defined(__linux__) || defined(MACOSX)
+#include "java_awt_event_InputEvent.h"
+
+#if defined(__linux__)
 #include <sys/socket.h>
 #endif
 
@@ -149,7 +150,7 @@ static Bool hasXCompositeOverlayExtension(Display *display) {
 static jboolean isXCompositeDisplay(Display *display, int screenNumber) {
 
     char NET_WM_CM_Sn[25];
-    snprintf(NET_WM_CM_Sn, sizeof(NET_WM_CM_Sn), "_NET_WM_CM_S%d\0", screenNumber);
+    snprintf(NET_WM_CM_Sn, sizeof(NET_WM_CM_Sn), "_NET_WM_CM_S%d", screenNumber);
 
     Atom managerSelection = XInternAtom(display, NET_WM_CM_Sn, 0);
     Window owner = XGetSelectionOwner(display, managerSelection);
@@ -242,7 +243,7 @@ Java_sun_awt_X11_XRobotPeer_setup (JNIEnv * env, jclass cls, jint numberOfButton
     DTRACE_PRINTLN("RobotPeer: setup()");
 
     num_buttons = numberOfButtons;
-    tmp = (*env)->GetIntArrayElements(env, buttonDownMasks, JNI_FALSE);
+    tmp = (*env)->GetIntArrayElements(env, buttonDownMasks, NULL);
     CHECK_NULL(tmp);
 
     masks = (jint *)SAFE_SIZE_ARRAY_ALLOC(malloc, sizeof(jint), num_buttons);
@@ -333,7 +334,7 @@ Java_sun_awt_X11_XRobotPeer_getRGBPixelsImpl( JNIEnv *env,
     if (useGtk) {
         gtk->gdk_threads_enter();
         gtk_failed = gtk->get_drawable_data(env, pixelArray, x, y, width,
-                                            height, jwidth, dx, dy, 1);
+                                            height, jwidth, dx, dy);
         gtk->gdk_threads_leave();
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,13 +42,13 @@ import sun.security.jca.GetInstance;
  */
 public class KeyManagerFactory {
     // The provider
-    private Provider provider;
+    private final Provider provider;
 
     // The provider implementation (delegate)
-    private KeyManagerFactorySpi factorySpi;
+    private final KeyManagerFactorySpi factorySpi;
 
     // The name of the key management algorithm.
-    private String algorithm;
+    private final String algorithm;
 
     /**
      * Obtains the default KeyManagerFactory algorithm name.
@@ -62,15 +62,11 @@ public class KeyManagerFactory {
      *          {@code ssl.KeyManagerFactory.algorithm} security property, or an
      *          implementation-specific default if no such property exists.
      */
+    @SuppressWarnings("removal")
     public static final String getDefaultAlgorithm() {
         String type;
-        type = AccessController.doPrivileged(new PrivilegedAction<>() {
-            @Override
-            public String run() {
-                return Security.getProperty(
-                    "ssl.KeyManagerFactory.algorithm");
-            }
-        });
+        type = AccessController.doPrivileged((PrivilegedAction<String>) () ->
+            Security.getProperty("ssl.KeyManagerFactory.algorithm"));
         if (type == null) {
             type = "SunX509";
         }
@@ -122,14 +118,15 @@ public class KeyManagerFactory {
      * {@code jdk.security.provider.preferred}
      * {@link Security#getProperty(String) Security} property to determine
      * the preferred provider order for the specified algorithm. This
-     * may be different than the order of providers returned by
+     * may be different from the order of providers returned by
      * {@link Security#getProviders() Security.getProviders()}.
      *
      * @param algorithm the standard name of the requested algorithm.
      *          See the <a href=
-     *          "{@docRoot}/../specs/security/standard-names.html">
-     *          Java Security Standard Algorithm Names</a> document
-     *          for information about standard algorithm names.
+     *          "{@docRoot}/../specs/security/standard-names.html#keymanagerfactory-algorithms">
+     *          KeyManagerFactory section</a> in the Java Security Standard
+     *          Algorithm Names Specification for information about standard
+     *          algorithm names.
      *
      * @return the new {@code KeyManagerFactory} object
      *
@@ -162,12 +159,13 @@ public class KeyManagerFactory {
      *
      * <p> Note that the list of registered providers may be retrieved via
      * the {@link Security#getProviders() Security.getProviders()} method.
-
+     *
      * @param algorithm the standard name of the requested algorithm.
      *          See the <a href=
-     *          "{@docRoot}/../specs/security/standard-names.html">
-     *          Java Security Standard Algorithm Names</a> document
-     *          for information about standard algorithm names.
+     *          "{@docRoot}/../specs/security/standard-names.html#keymanagerfactory-algorithms">
+     *          KeyManagerFactory section</a> in the Java Security Standard
+     *          Algorithm Names Specification for information about standard
+     *          algorithm names.
      *
      * @param provider the name of the provider.
      *
@@ -209,9 +207,10 @@ public class KeyManagerFactory {
      *
      * @param algorithm the standard name of the requested algorithm.
      *          See the <a href=
-     *          "{@docRoot}/../specs/security/standard-names.html">
-     *          Java Security Standard Algorithm Names</a> document
-     *          for information about standard algorithm names.
+     *          "{@docRoot}/../specs/security/standard-names.html#keymanagerfactory-algorithms">
+     *          KeyManagerFactory section</a> in the Java Security Standard
+     *          Algorithm Names Specification for information about standard
+     *          algorithm names.
      *
      * @param provider an instance of the provider.
      *

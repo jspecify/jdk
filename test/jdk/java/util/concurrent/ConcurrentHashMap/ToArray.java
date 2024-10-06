@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,82 +24,81 @@
 /*
  * @test
  * @bug 4486658 8010293
- * @summary thread safety of toArray methods of subCollections
+ * @summary thread safety of toArray methods of collection views
  * @author Martin Buchholz
  */
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class ToArray {
 
     public static void main(String[] args) throws Throwable {
-        // Execute a number of times to increase the probability of
-        // failure if there is an issue
-        for (int i = 0; i < 16; i++) {
+        final int runsPerTest = Integer.getInteger("jsr166.runsPerTest", 1);
+        final int reps = 10 * runsPerTest;
+        for (int i = reps; i--> 0; )
             executeTest();
-        }
     }
 
     static void executeTest() throws Throwable {
-        final Throwable[] throwable = new Throwable[1];
-        final ConcurrentHashMap<Integer, Integer> m = new ConcurrentHashMap<>();
+        try (var executor = Executors.newCachedThreadPool()) {
+            final ConcurrentHashMap<Integer, Integer> m = new ConcurrentHashMap<>();
+            final ThreadLocalRandom rnd = ThreadLocalRandom.current();
+            final int nCPU = Runtime.getRuntime().availableProcessors();
+            final int minWorkers = 2;
+            final int maxWorkers = Math.max(minWorkers, Math.min(32, nCPU));
+            final int nWorkers = rnd.nextInt(minWorkers, maxWorkers + 1);
+            final int sizePerWorker = 1024;
+            final int maxSize = nWorkers * sizePerWorker;
 
-        // Number of workers equal to the number of processors
-        // Each worker will put globally unique keys into the map
-        final int nWorkers = Runtime.getRuntime().availableProcessors();
-        final int sizePerWorker = 1024;
-        final int maxSize = nWorkers * sizePerWorker;
+            // The foreman busy-checks that the size of the arrays obtained
+            // from the keys and values views grows monotonically until it
+            // reaches the maximum size.
 
-        // The foreman keeps checking that the size of the arrays
-        // obtained from the key and value sets is never less than the
-        // previously observed size and is never greater than the maximum size
-        // NOTE: these size constraints are not specific to toArray and are
-        // applicable to any form of traversal of the collection views
-        CompletableFuture<?> foreman = CompletableFuture.runAsync(new Runnable() {
-            private int prevSize = 0;
+            // NOTE: these size constraints are not specific to toArray and are
+            // applicable to any form of traversal of the collection views
+            CompletableFuture<?> foreman = CompletableFuture.runAsync(new Runnable() {
+                private int prevSize = 0;
 
-            private boolean checkProgress(Object[] a) {
-                int size = a.length;
-                if (size < prevSize) throw new RuntimeException("WRONG WAY");
-                if (size > maxSize) throw new RuntimeException("OVERSHOOT");
-                if (size == maxSize) return true;
-                prevSize = size;
-                return false;
-            }
+                private boolean checkProgress(Object[] a) {
+                    int size = a.length;
+                    if (size < prevSize || size > maxSize)
+                        throw new AssertionError(
+                                String.format("prevSize=%d size=%d maxSize=%d",
+                                        prevSize, size, maxSize));
+                    prevSize = size;
+                    return size == maxSize;
+                }
 
-            @Override
-            public void run() {
-                try {
+                public void run() {
                     Integer[] empty = new Integer[0];
-                    while (true) {
-                        if (checkProgress(m.values().toArray())) return;
-                        if (checkProgress(m.keySet().toArray())) return;
-                        if (checkProgress(m.values().toArray(empty))) return;
-                        if (checkProgress(m.keySet().toArray(empty))) return;
-                    }
+                    for (; ; )
+                        if (checkProgress(m.values().toArray())
+                                & checkProgress(m.keySet().toArray())
+                                & checkProgress(m.values().toArray(empty))
+                                & checkProgress(m.keySet().toArray(empty)))
+                            return;
                 }
-                catch (Throwable t) {
-                    throwable[0] = t;
-                }
-            }
-        });
+            }, executor);
 
-        // Create workers
-        // Each worker will put globally unique keys into the map
-        CompletableFuture<?>[] workers = IntStream.range(0, nWorkers).
-                mapToObj(w -> CompletableFuture.runAsync(() -> {
-                    for (int i = 0, o = w * sizePerWorker; i < sizePerWorker; i++)
-                        m.put(o + i, i);
-                })).
-                toArray(CompletableFuture<?>[]::new);
+            // Each worker puts globally unique keys into the map
+            List<CompletableFuture<?>> workers =
+                    IntStream.range(0, nWorkers)
+                            .mapToObj(w -> (Runnable) () -> {
+                                for (int i = 0, o = w * sizePerWorker; i < sizePerWorker; i++)
+                                    m.put(o + i, i);
+                            })
+                            .map(r -> CompletableFuture.runAsync(r, executor))
+                            .collect(Collectors.toList());
 
-        // Wait for workers and then foreman to complete
-        CompletableFuture.allOf(workers).join();
-        foreman.join();
-
-        if (throwable[0] != null)
-            throw throwable[0];
+            // Wait for workers and foreman to complete
+            workers.forEach(CompletableFuture<?>::join);
+            foreman.join();
+        }
     }
 }

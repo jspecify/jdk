@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,59 +24,19 @@
 #ifndef SHARE_GC_Z_ZTHREAD_HPP
 #define SHARE_GC_Z_ZTHREAD_HPP
 
-#include "memory/allocation.hpp"
-#include "utilities/debug.hpp"
+#include "gc/shared/concurrentGCThread.hpp"
 
-class ZThread : public AllStatic {
-  friend class ZTask;
+// A ZThread is a ConcurrentGCThread with some ZGC-specific handling of GC shutdown
 
+class ZThread : public ConcurrentGCThread {
 private:
-  static __thread bool      _initialized;
-  static __thread uintptr_t _id;
-  static __thread bool      _is_vm;
-  static __thread bool      _is_java;
-  static __thread bool      _is_worker;
-  static __thread uint      _worker_id;
-
-  static void initialize();
-
-  static void ensure_initialized() {
-    if (!_initialized) {
-      initialize();
-    }
-  }
-
-  static bool has_worker_id();
-  static void set_worker_id(uint worker_id);
-  static void clear_worker_id();
+  virtual void run_service();
+  virtual void stop_service();
 
 public:
-  static const char* name();
 
-  static uintptr_t id() {
-    ensure_initialized();
-    return _id;
-  }
-
-  static bool is_vm() {
-    ensure_initialized();
-    return _is_vm;
-  }
-
-  static bool is_java() {
-    ensure_initialized();
-    return _is_java;
-  }
-
-  static bool is_worker() {
-    ensure_initialized();
-    return _is_worker;
-  }
-
-  static uint worker_id() {
-    assert(has_worker_id(), "Worker id not initialized");
-    return _worker_id;
-  }
+  virtual void run_thread() = 0;
+  virtual void terminate() = 0;
 };
 
 #endif // SHARE_GC_Z_ZTHREAD_HPP

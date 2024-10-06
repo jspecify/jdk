@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "ci/ciSymbol.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "runtime/signature.hpp"
 
 // ciObjArrayKlass
 //
@@ -47,7 +48,7 @@ ciObjArrayKlass::ciObjArrayKlass(Klass* k) : ciArrayKlass(k) {
   if (dimension() == 1) {
     _element_klass = _base_element_klass;
   } else {
-    _element_klass = NULL;
+    _element_klass = nullptr;
   }
   if (!ciObjectFactory::is_initialized()) {
     assert(_element_klass->is_java_lang_Object(), "only arrays of object are shared");
@@ -69,7 +70,7 @@ ciObjArrayKlass::ciObjArrayKlass(ciSymbol* array_name,
     if (dimension == 1) {
       _element_klass = base_element_klass;
     } else {
-      _element_klass = NULL;
+      _element_klass = nullptr;
     }
 }
 
@@ -78,8 +79,8 @@ ciObjArrayKlass::ciObjArrayKlass(ciSymbol* array_name,
 //
 // What is the one-level element type of this array?
 ciKlass* ciObjArrayKlass::element_klass() {
-  if (_element_klass == NULL) {
-    assert(dimension() > 1, "_element_klass should not be NULL");
+  if (_element_klass == nullptr) {
+    assert(dimension() > 1, "_element_klass should not be null");
     // Produce the element klass.
     if (is_loaded()) {
       VM_ENTRY_MARK;
@@ -108,37 +109,23 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
                                                 int dimension) {
   EXCEPTION_CONTEXT;
   int element_len = element_name->utf8_length();
-
+  int buflen = dimension + element_len + 3;  // '['+ + 'L'? + (element) + ';'? + '\0'
+  char* name = CURRENT_THREAD_ENV->name_buffer(buflen);
+  int pos = 0;
+  for ( ; pos < dimension; pos++) {
+    name[pos] = JVM_SIGNATURE_ARRAY;
+  }
   Symbol* base_name_sym = element_name->get_symbol();
-  char* name;
 
-  if (base_name_sym->byte_at(0) == '[' ||
-      (base_name_sym->byte_at(0) == 'L' &&  // watch package name 'Lxx'
-       base_name_sym->byte_at(element_len-1) == ';')) {
-
-    int new_len = element_len + dimension + 1; // for the ['s and '\0'
-    name = CURRENT_THREAD_ENV->name_buffer(new_len);
-
-    int pos = 0;
-    for ( ; pos < dimension; pos++) {
-      name[pos] = '[';
-    }
-    strncpy(name+pos, (char*)element_name->base(), element_len);
-    name[new_len-1] = '\0';
+  if (Signature::is_array(base_name_sym) ||
+      Signature::has_envelope(base_name_sym)) {
+    strncpy(&name[pos], (char*)element_name->base(), element_len);
+    name[pos + element_len] = '\0';
   } else {
-    int new_len =   3                       // for L, ;, and '\0'
-                  + dimension               // for ['s
-                  + element_len;
-
-    name = CURRENT_THREAD_ENV->name_buffer(new_len);
-    int pos = 0;
-    for ( ; pos < dimension; pos++) {
-      name[pos] = '[';
-    }
-    name[pos++] = 'L';
-    strncpy(name+pos, (char*)element_name->base(), element_len);
-    name[new_len-2] = ';';
-    name[new_len-1] = '\0';
+    name[pos++] = JVM_SIGNATURE_CLASS;
+    strncpy(&name[pos], (char*)element_name->base(), element_len);
+    name[pos + element_len] = JVM_SIGNATURE_ENDCLASS;
+    name[pos + element_len + 1] = '\0';
   }
   return ciSymbol::make(name);
 }
@@ -180,15 +167,23 @@ ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass) {
   GUARDED_VM_ENTRY(return make_impl(element_klass);)
 }
 
+ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, int dims) {
+  ciKlass* klass = element_klass;
+  for (int i = 0; i < dims; i++) {
+    klass = ciObjArrayKlass::make(klass);
+  }
+  return klass->as_obj_array_klass();
+}
+
 ciKlass* ciObjArrayKlass::exact_klass() {
   ciType* base = base_element_type();
   if (base->is_instance_klass()) {
     ciInstanceKlass* ik = base->as_instance_klass();
-    if (ik->exact_klass() != NULL) {
+    if (ik->exact_klass() != nullptr) {
       return this;
     }
   } else if (base->is_primitive_type()) {
     return this;
   }
-  return NULL;
+  return nullptr;
 }

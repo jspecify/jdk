@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,13 @@
  * @bug      4368820 8025633 8026567 8182765
  * @summary  Inherited comment should link directly to member, not just
  *           class
- * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestOverriddenMethodDocCopy
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestOverriddenMethodDocCopy extends JavadocTester {
 
@@ -40,34 +41,20 @@ public class TestOverriddenMethodDocCopy extends JavadocTester {
      * @param args the array of command line arguments.
      */
     public static void main(String... args) throws Exception {
-        TestOverriddenMethodDocCopy tester = new TestOverriddenMethodDocCopy();
+        var tester = new TestOverriddenMethodDocCopy();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg1", "pkg2");
         checkExit(Exit.OK);
 
         checkOutput("pkg1/SubClass.html", true,
-                "<span class=\"descfrmTypeLabel\">Description copied from class:&nbsp;<code>"
-                + "<a href=\"BaseClass.html#overridenMethodWithDocsToCopy()\">"
-                + "BaseClass</a></code></span>");
-    }
-
-    @Test
-    void test_html4() {
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-sourcepath", testSrc,
-                "pkg1", "pkg2");
-        checkExit(Exit.OK);
-
-        checkOutput("pkg1/SubClass.html", true,
-                "<span class=\"descfrmTypeLabel\">Description copied from class:&nbsp;<code>"
-                + "<a href=\"BaseClass.html#overridenMethodWithDocsToCopy--\">"
-                + "BaseClass</a></code></span>");
+                """
+                    <span class="description-from-type-label">Description copied from class:&nbsp;<code><a hr\
+                    ef="BaseClass.html#overriddenMethodWithDocsToCopy()">BaseClass</a></code></span>""");
     }
 }

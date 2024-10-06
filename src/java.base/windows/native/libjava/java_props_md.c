@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,6 @@
  * questions.
  */
 
-/* Access APIs for Windows Vista and above */
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0601
-#endif
-
 #include "jni.h"
 #include "jni_util.h"
 
@@ -45,10 +40,6 @@
 #include "locale_str.h"
 #include "java_props.h"
 
-#ifndef VER_PLATFORM_WIN32_WINDOWS
-#define VER_PLATFORM_WIN32_WINDOWS 1
-#endif
-
 #ifndef PROCESSOR_ARCHITECTURE_AMD64
 #define PROCESSOR_ARCHITECTURE_AMD64 9
 #endif
@@ -63,22 +54,24 @@ static boolean SetupI18nProps(LCID lcid, char** language, char** script, char** 
 static char *
 getEncodingInternal(LCID lcid)
 {
-    int codepage;
+    int codepage = 0;
     char * ret = malloc(16);
     if (ret == NULL) {
         return NULL;
     }
 
-    if (GetLocaleInfo(lcid,
+    if (lcid == 0) { // for sun.jnu.encoding
+        codepage = GetACP();
+        _itoa_s(codepage, ret + 2, 14, 10);
+    } else if (GetLocaleInfo(lcid,
                       LOCALE_IDEFAULTANSICODEPAGE,
-                      ret+2, 14) == 0) {
-        codepage = 1252;
-    } else {
-        codepage = atoi(ret+2);
+                      ret + 2, 14) != 0) {
+        codepage = atoi(ret + 2);
     }
 
     switch (codepage) {
     case 0:
+    case 65001:
         strcpy(ret, "UTF-8");
         break;
     case 874:     /*  9:Thai     */
@@ -137,16 +130,19 @@ getEncodingInternal(LCID lcid)
 
 static char* getConsoleEncoding()
 {
-    char* buf = malloc(16);
+    size_t buflen = 16;
+    char* buf = malloc(buflen);
     int cp;
     if (buf == NULL) {
         return NULL;
     }
     cp = GetConsoleCP();
     if (cp >= 874 && cp <= 950)
-        sprintf(buf, "ms%d", cp);
+        snprintf(buf, buflen, "ms%d", cp);
+    else if (cp == 65001)
+        snprintf(buf, buflen, "UTF-8");
     else
-        sprintf(buf, "cp%d", cp);
+        snprintf(buf, buflen, "cp%d", cp);
     return buf;
 }
 
@@ -170,6 +166,10 @@ getJavaIDFromLangID(LANGID langID)
         return NULL;
     }
 
+    for (index = 0; index < 5; index++) {
+        elems[index] = NULL;
+    }
+
     if (SetupI18nProps(MAKELCID(langID, SORT_DEFAULT),
                    &(elems[0]), &(elems[1]), &(elems[2]), &(elems[3]), &(elems[4]))) {
 
@@ -183,13 +183,15 @@ getJavaIDFromLangID(LANGID langID)
                 strcat(ret, elems[index]);
             }
         }
-
-        for (index = 0; index < 5; index++) {
-            free(elems[index]);
-        }
     } else {
         free(ret);
         ret = NULL;
+    }
+
+    for (index = 0; index < 5; index++) {
+        if (elems[index] != NULL) {
+            free(elems[index]);
+        }
     }
 
     return ret;
@@ -207,39 +209,13 @@ getHomeFromShell32()
      */
     static WCHAR *u_path = NULL;
     if (u_path == NULL) {
-        HRESULT hr;
-
-        /*
-         * SHELL32 DLL is delay load DLL and we can use the trick with
-         * __try/__except block.
-         */
-        __try {
-            /*
-             * For Windows Vista and later (or patched MS OS) we need to use
-             * [SHGetKnownFolderPath] call to avoid MAX_PATH length limitation.
-             * Shell32.dll (version 6.0.6000 or later)
-             */
-            hr = SHGetKnownFolderPath(&FOLDERID_Profile, KF_FLAG_DONT_VERIFY, NULL, &u_path);
-        } __except(EXCEPTION_EXECUTE_HANDLER) {
-            /* Exception: no [SHGetKnownFolderPath] entry */
-            hr = E_FAIL;
-        }
+        WCHAR *tmpPath = NULL;
+        HRESULT hr = SHGetKnownFolderPath(&FOLDERID_Profile, KF_FLAG_DONT_VERIFY, NULL, &tmpPath);
 
         if (FAILED(hr)) {
-            WCHAR path[MAX_PATH+1];
-
-            /* fallback solution for WinXP and Windows 2000 */
-            hr = SHGetFolderPathW(NULL, CSIDL_FLAG_DONT_VERIFY | CSIDL_PROFILE, NULL, SHGFP_TYPE_CURRENT, path);
-            if (FAILED(hr)) {
-                /* we can't find the shell folder. */
-                u_path = NULL;
-            } else {
-                /* Just to be sure about the path length until Windows Vista approach.
-                 * [S_FALSE] could not be returned due to [CSIDL_FLAG_DONT_VERIFY] flag and UNICODE version.
-                 */
-                path[MAX_PATH] = 0;
-                u_path = _wcsdup(path);
-            }
+            CoTaskMemFree(tmpPath);
+        } else {
+            u_path = tmpPath;
         }
     }
     return u_path;
@@ -257,9 +233,6 @@ cpu_isalist(void)
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     switch (info.wProcessorArchitecture) {
-#ifdef PROCESSOR_ARCHITECTURE_IA64
-    case PROCESSOR_ARCHITECTURE_IA64: return "ia64";
-#endif
 #ifdef PROCESSOR_ARCHITECTURE_AMD64
     case PROCESSOR_ARCHITECTURE_AMD64: return "amd64";
 #endif
@@ -353,13 +326,11 @@ GetJavaProperties(JNIEnv* env)
     static java_props_t sprops = {0};
     int majorVersion;
     int minorVersion;
+    int buildNumber = 0;
 
     if (sprops.line_separator) {
         return &sprops;
     }
-
-    /* AWT properties */
-    sprops.awt_toolkit = "sun.awt.windows.WToolkit";
 
     /* tmp dir */
     {
@@ -367,17 +338,6 @@ GetJavaProperties(JNIEnv* env)
         /* we might want to check that this succeed */
         GetTempPathW(MAX_PATH + 1, tmpdir);
         sprops.tmp_dir = _wcsdup(tmpdir);
-    }
-
-    /* Printing properties */
-    sprops.printerJob = "sun.awt.windows.WPrinterJob";
-
-    /* Java2D properties */
-    sprops.graphics_env = "sun.awt.Win32GraphicsEnvironment";
-
-    {    /* This is used only for debugging of font problems. */
-        WCHAR *path = _wgetenv(L"JAVA2D_FONTPATH");
-        sprops.font_dir = (path != NULL) ? _wcsdup(path) : NULL;
     }
 
     /* OS properties */
@@ -392,6 +352,8 @@ GetJavaProperties(JNIEnv* env)
             GetVersionEx((OSVERSIONINFO *) &ver);
             majorVersion = ver.dwMajorVersion;
             minorVersion = ver.dwMinorVersion;
+            /* distinguish Windows Server 2016+ by build number */
+            buildNumber = ver.dwBuildNumber;
             is_workstation = (ver.wProductType == VER_NT_WORKSTATION);
             platformId = ver.dwPlatformId;
             sprops.patch_level = _strdup(ver.szCSDVersion);
@@ -442,6 +404,7 @@ GetJavaProperties(JNIEnv* env)
             }
             majorVersion = HIWORD(file_info->dwProductVersionMS);
             minorVersion = LOWORD(file_info->dwProductVersionMS);
+            buildNumber  = HIWORD(file_info->dwProductVersionLS);
             free(version_info);
         } while (0);
 
@@ -471,7 +434,15 @@ GetJavaProperties(JNIEnv* env)
          * Windows Server 2012          6               2  (!VER_NT_WORKSTATION)
          * Windows Server 2012 R2       6               3  (!VER_NT_WORKSTATION)
          * Windows 10                   10              0  (VER_NT_WORKSTATION)
+         * Windows 11                   10              0  (VER_NT_WORKSTATION)
+         *       where (buildNumber >= 22000)
          * Windows Server 2016          10              0  (!VER_NT_WORKSTATION)
+         * Windows Server 2019          10              0  (!VER_NT_WORKSTATION)
+         *       where (buildNumber > 17762)
+         * Windows Server 2022          10              0  (!VER_NT_WORKSTATION)
+         *       where (buildNumber > 20347)
+         * Windows Server 2025          10              0  (!VER_NT_WORKSTATION)
+         *       where (buildNumber > 26039)
          *
          * This mapping will presumably be augmented as new Windows
          * versions are released.
@@ -540,12 +511,32 @@ GetJavaProperties(JNIEnv* env)
             } else if (majorVersion == 10) {
                 if (is_workstation) {
                     switch (minorVersion) {
-                    case  0: sprops.os_name = "Windows 10";           break;
+                    case  0:
+                        /* Windows 11 21H2 (original release) build number is 22000 */
+                        if (buildNumber >= 22000) {
+                            sprops.os_name = "Windows 11";
+                        } else {
+                            sprops.os_name = "Windows 10";
+                        }
+                        break;
                     default: sprops.os_name = "Windows NT (unknown)";
                     }
                 } else {
                     switch (minorVersion) {
-                    case  0: sprops.os_name = "Windows Server 2016";           break;
+                    case  0:
+                        /* Windows server 2019 GA 10/2018 build number is 17763 */
+                        /* Windows server 2022 build number is 20348 */
+                        /* Windows server 2025 Preview build is 26040 */
+                        if (buildNumber > 26039) {
+                            sprops.os_name = "Windows Server 2025";
+                        } else if (buildNumber > 20347) {
+                            sprops.os_name = "Windows Server 2022";
+                        } else if (buildNumber > 17762) {
+                            sprops.os_name = "Windows Server 2019";
+                        } else {
+                            sprops.os_name = "Windows Server 2016";
+                        }
+                        break;
                     default: sprops.os_name = "Windows NT (unknown)";
                     }
                 }
@@ -557,16 +548,17 @@ GetJavaProperties(JNIEnv* env)
             sprops.os_name = "Windows (unknown)";
             break;
         }
-        sprintf(buf, "%d.%d", majorVersion, minorVersion);
+        snprintf(buf, sizeof(buf), "%d.%d", majorVersion, minorVersion);
         sprops.os_version = _strdup(buf);
-#if _M_AMD64
+#if defined(_M_AMD64)
         sprops.os_arch = "amd64";
-#elif _X86_
+#elif defined(_X86_)
         sprops.os_arch = "x86";
+#elif defined(_M_ARM64)
+        sprops.os_arch = "aarch64";
 #else
         sprops.os_arch = "unknown";
 #endif
-        sprops.desktop = "windows";
     }
 
     /* Endianness of platform */
@@ -636,8 +628,8 @@ GetJavaProperties(JNIEnv* env)
          * (which is a Windows LCID value),
          */
         LCID userDefaultLCID = GetUserDefaultLCID();
-        LCID systemDefaultLCID = GetSystemDefaultLCID();
-        LCID userDefaultUILang = GetUserDefaultUILanguage();
+        LANGID userDefaultUILang = GetUserDefaultUILanguage();
+        LCID userDefaultUILCID = MAKELCID(userDefaultUILang, SORTIDFROMLCID(userDefaultLCID));
 
         {
             char * display_encoding;
@@ -651,30 +643,27 @@ GetJavaProperties(JNIEnv* env)
             // for the UI Language, if the "language" portion of those
             // two locales are the same.
             if (PRIMARYLANGID(LANGIDFROMLCID(userDefaultLCID)) ==
-                PRIMARYLANGID(LANGIDFROMLCID(userDefaultUILang))) {
-                userDefaultUILang = userDefaultLCID;
+                PRIMARYLANGID(userDefaultUILang)) {
+                userDefaultUILCID = userDefaultLCID;
             }
 
-            SetupI18nProps(userDefaultUILang,
-                           &sprops.language,
-                           &sprops.script,
-                           &sprops.country,
-                           &sprops.variant,
-                           &display_encoding);
             SetupI18nProps(userDefaultLCID,
                            &sprops.format_language,
                            &sprops.format_script,
                            &sprops.format_country,
                            &sprops.format_variant,
                            &sprops.encoding);
-            SetupI18nProps(userDefaultUILang,
+            SetupI18nProps(userDefaultUILCID,
                            &sprops.display_language,
                            &sprops.display_script,
                            &sprops.display_country,
                            &sprops.display_variant,
                            &display_encoding);
 
-            sprops.sun_jnu_encoding = getEncodingInternal(systemDefaultLCID);
+            sprops.sun_jnu_encoding = getEncodingInternal(0);
+            if (sprops.sun_jnu_encoding == NULL) {
+                sprops.sun_jnu_encoding = "UTF-8";
+            }
             if (LANGIDFROMLCID(userDefaultLCID) == 0x0c04 && majorVersion == 6) {
                 // MS claims "Vista has built-in support for HKSCS-2004.
                 // All of the HKSCS-2004 characters have Unicode 4.1.
@@ -690,31 +679,26 @@ GetJavaProperties(JNIEnv* env)
             hStdOutErr = GetStdHandle(STD_OUTPUT_HANDLE);
             if (hStdOutErr != INVALID_HANDLE_VALUE &&
                 GetFileType(hStdOutErr) == FILE_TYPE_CHAR) {
-                sprops.sun_stdout_encoding = getConsoleEncoding();
+                sprops.stdout_encoding = getConsoleEncoding();
             }
             hStdOutErr = GetStdHandle(STD_ERROR_HANDLE);
             if (hStdOutErr != INVALID_HANDLE_VALUE &&
                 GetFileType(hStdOutErr) == FILE_TYPE_CHAR) {
-                if (sprops.sun_stdout_encoding != NULL)
-                    sprops.sun_stderr_encoding = sprops.sun_stdout_encoding;
+                if (sprops.stdout_encoding != NULL)
+                    sprops.stderr_encoding = sprops.stdout_encoding;
                 else
-                    sprops.sun_stderr_encoding = getConsoleEncoding();
+                    sprops.stderr_encoding = getConsoleEncoding();
             }
         }
     }
 
     sprops.unicode_encoding = "UnicodeLittle";
-    /* User TIMEZONE */
-    {
-        /*
-         * We defer setting up timezone until it's actually necessary.
-         * Refer to TimeZone.getDefault(). However, the system
-         * property is necessary to be able to be set by the command
-         * line interface -D. Here temporarily set a null string to
-         * timezone.
-         */
-        sprops.timezone = "";
-    }
+
+    /* User TIMEZONE
+     * We defer setting up timezone until it's actually necessary.
+     * Refer to TimeZone.getDefault(). The system property
+     * is able to be set by the command line interface -Duser.timezone.
+     */
 
     /* Current directory */
     {

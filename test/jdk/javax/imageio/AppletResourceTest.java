@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,15 +24,12 @@
 /*
  * @test
  * @bug 4481957
- * @key headful
  * @summary Tests that applet-supplied ImageReader, ImageWriter, and
  *          IIOMetadataFormat implementations do not throw unexpected exceptions
  *          when indirectly attempting to access ResourceBundles
  * @run main AppletResourceTest
- * @run applet AppletResourceTest.html
  */
 
-import java.applet.Applet;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -40,6 +37,7 @@ import java.util.Iterator;
 import java.util.ListResourceBundle;
 import java.util.Locale;
 import java.util.MissingResourceException;
+import java.util.Objects;
 import java.util.Vector;
 
 import javax.imageio.IIOException;
@@ -53,7 +51,7 @@ import javax.imageio.spi.ImageReaderSpi;
 
 import org.w3c.dom.Node;
 
-public class AppletResourceTest extends Applet {
+public class AppletResourceTest {
 
     public static void main(String[] argv) {
         new AppletResourceTest().init();
@@ -62,13 +60,13 @@ public class AppletResourceTest extends Applet {
     public void init() {
         DummyImageReaderImpl reader;
         MyReadWarningListener listener = new MyReadWarningListener();
-        Locale[] locales = {new Locale("ru"),
-                            new Locale("fr"),
-                            new Locale("uk")};
+        Locale[] locales = {Locale.of("ru"),
+                            Locale.FRENCH,
+                            Locale.of("uk")};
 
         reader = new DummyImageReaderImpl(new DummyImageReaderSpiImpl());
         reader.setAvailableLocales(locales);
-        reader.setLocale(new Locale("fr"));
+        reader.setLocale(Locale.FRENCH);
         reader.addIIOReadWarningListener(listener);
 
         String baseName = "AppletResourceTest$BugStats";
@@ -117,8 +115,7 @@ public class AppletResourceTest extends Applet {
         public int getWidth(int imageIndex) throws IOException {
             if (input == null)
                 throw new IllegalStateException();
-            if (imageIndex >= 5 || imageIndex < 0)
-                throw new IndexOutOfBoundsException();
+            Objects.checkIndex(imageIndex, 5);
 
             return 10;
         }
@@ -126,8 +123,7 @@ public class AppletResourceTest extends Applet {
         public int getHeight(int imageIndex) throws IOException {
             if (input == null)
                 throw new IllegalStateException();
-            if (imageIndex >= 5 || imageIndex < 0)
-                throw new IndexOutOfBoundsException();
+            Objects.checkIndex(imageIndex, 5);
 
             return 15;
         }
@@ -135,8 +131,7 @@ public class AppletResourceTest extends Applet {
         public Iterator getImageTypes(int imageIndex) throws IOException {
             if (input == null)
                 throw new IllegalStateException();
-            if (imageIndex >= 5 || imageIndex < 0)
-                throw new IndexOutOfBoundsException();
+            Objects.checkIndex(imageIndex, 5);
 
             Vector imageTypes = new Vector();
             imageTypes.add(ImageTypeSpecifier.createFromBufferedImageType
@@ -153,8 +148,7 @@ public class AppletResourceTest extends Applet {
 
             if (input == null)
                 throw new IllegalStateException();
-            if (imageIndex >= 5 || imageIndex < 0)
-                throw new IndexOutOfBoundsException();
+            Objects.checkIndex(imageIndex, 5);
             if (seekForwardOnly) {
                 if (imageIndex < minIndex)
                     throw new IndexOutOfBoundsException();
@@ -168,8 +162,7 @@ public class AppletResourceTest extends Applet {
           throws IOException {
             if (input == null)
                 throw new IllegalStateException();
-            if (imageIndex >= 5 || imageIndex < 0)
-                throw new IndexOutOfBoundsException();
+            Objects.checkIndex(imageIndex, 5);
             if (seekForwardOnly) {
                 if (imageIndex < minIndex)
                     throw new IndexOutOfBoundsException();

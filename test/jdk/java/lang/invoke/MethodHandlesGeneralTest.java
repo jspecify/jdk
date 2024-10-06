@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,9 @@
  */
 
 /* @test
+ * @bug 8216558
  * @summary unit tests for java.lang.invoke.MethodHandles
- * @library /lib/testlibrary /java/lang/invoke/common
+ * @library /test/lib /java/lang/invoke/common
  * @compile MethodHandlesTest.java MethodHandlesGeneralTest.java remote/RemoteExample.java
  * @run junit/othervm/timeout=2500 -XX:+IgnoreUnrecognizedVMOptions
  *                                 -XX:-VerifyDependencies
@@ -186,14 +187,9 @@ public class MethodHandlesGeneralTest extends MethodHandlesTest {
         // test some ad hoc system methods
         testFindVirtual(false, PUBLIC, Object.class, Object.class, "clone");
 
-        // ##### FIXME - disable tests for clone until we figure out how they should work with modules
-
-        /*
-        testFindVirtual(true, PUBLIC, Object[].class, Object.class, "clone");
-        testFindVirtual(true, PUBLIC, int[].class, Object.class, "clone");
-        for (Class<?> cls : new Class<?>[]{ boolean[].class, long[].class, float[].class, char[].class })
+        for (Class<?> cls : new Class<?>[]{ Object[].class, int[].class, boolean[].class, long[].class, float[].class, char[].class }) {
             testFindVirtual(true, PUBLIC, cls, Object.class, "clone");
-         */
+        }
     }
 
     void testFindVirtual(Class<?> defc, Class<?> ret, String name, Class<?>... params) throws Throwable {
@@ -263,8 +259,8 @@ public class MethodHandlesGeneralTest extends MethodHandlesTest {
             assertEquals(MethodType.methodType(Object.class, rcvc), target.type());
             Object orig = argsWithSelf[0];
             assertEquals(orig.getClass(), res.getClass());
-            if (res instanceof Object[])
-                assertArrayEquals((Object[])res, (Object[])argsWithSelf[0]);
+            if (res instanceof Object[] arr)
+                assertArrayEquals(arr, (Object[])argsWithSelf[0]);
             assert(Arrays.deepEquals(new Object[]{res}, new Object[]{argsWithSelf[0]}));
         } else {
             assert(false) : Arrays.asList(positive, lookup, rcvc, defc, ret, name, deepToString(params));
@@ -634,7 +630,7 @@ public class MethodHandlesGeneralTest extends MethodHandlesTest {
 
     public void testGetter(int testMode) throws Throwable {
         Lookup lookup = PRIVATE;  // FIXME: test more lookups than this one
-        for (Object[] c : HasFields.CASES) {
+        for (Object[] c : HasFields.testCasesFor(testMode)) {
             boolean positive = (c[1] != Error.class);
             testGetter(positive, lookup, c[0], c[1], testMode);
             if (positive)
@@ -723,15 +719,20 @@ public class MethodHandlesGeneralTest extends MethodHandlesTest {
             if (verbosity >= 5)  ex.printStackTrace(System.out);
         }
         if (verbosity >= 3)
-            System.out.println("find"+(isStatic?"Static":"")+(isGetter?"Getter":"Setter")+" "+fclass.getName()+"."+fname+"/"+ftype
-                               +" => "+mh
-                               +(noAccess == null ? "" : " !! "+noAccess));
+            System.out.format("%s%s %s.%s/%s => %s %s%n",
+                              (testMode0 & TEST_UNREFLECT) != 0
+                                  ? "unreflect"
+                                  : "find" + ((testMode0 & TEST_FIND_STATIC) != 0 ? "Static" : ""),
+                              (isGetter ? "Getter" : "Setter"),
+                              fclass.getName(), fname, ftype, mh,
+                              (noAccess == null ? "" : " !! "+noAccess));
+        // negative test case and expected noAccess, then done.
+        if (!positive && noAccess != null) return;
+        // positive test case but found noAccess, then error
         if (positive && !testNPE && noAccess != null)  throw new RuntimeException(noAccess);
         assertEquals(positive0 ? "positive test" : "negative test erroneously passed", positive0, mh != null);
         if (!positive && !testNPE)  return; // negative access test failed as expected
         assertEquals((isStatic ? 0 : 1)+(isGetter ? 0 : 1), mh.type().parameterCount());
-
-
         assertSame(mh.type(), expType);
         //assertNameStringContains(mh, fname);  // This does not hold anymore with LFs
         HasFields fields = new HasFields();
@@ -755,6 +756,9 @@ public class MethodHandlesGeneralTest extends MethodHandlesTest {
             assertEquals(f.get(fields), value);  // clean to start with
         }
         Throwable caughtEx = null;
+        // non-final field and setAccessible(true) on instance field will have write access
+        boolean writeAccess = !Modifier.isFinal(f.getModifiers()) ||
+                              (!Modifier.isStatic(f.getModifiers()) && f.isAccessible());
         if (isGetter) {
             Object expValue = value;
             for (int i = 0; i <= 1; i++) {
@@ -778,8 +782,7 @@ public class MethodHandlesGeneralTest extends MethodHandlesTest {
                     }
                 }
                 assertEquals(sawValue, expValue);
-                if (f != null && f.getDeclaringClass() == HasFields.class
-                    && !Modifier.isFinal(f.getModifiers())) {
+                if (f != null && f.getDeclaringClass() == HasFields.class && writeAccess) {
                     Object random = randomArg(ftype);
                     f.set(fields, random);
                     expValue = random;
@@ -813,8 +816,8 @@ public class MethodHandlesGeneralTest extends MethodHandlesTest {
                 }
             }
         }
-        if (f != null && f.getDeclaringClass() == HasFields.class) {
-            f.set(fields, value);  // put it back
+        if (f != null && f.getDeclaringClass() == HasFields.class && writeAccess) {
+            f.set(fields, value);  // put it back if it has write access
         }
         if (testNPE) {
             if (caughtEx == null || !(caughtEx instanceof NullPointerException))
@@ -862,8 +865,8 @@ public class MethodHandlesGeneralTest extends MethodHandlesTest {
 
     public void testSetter(int testMode) throws Throwable {
         Lookup lookup = PRIVATE;  // FIXME: test more lookups than this one
-        startTest("unreflectSetter");
-        for (Object[] c : HasFields.CASES) {
+        startTest("testSetter");
+        for (Object[] c : HasFields.testCasesFor(testMode|TEST_SETTER)) {
             boolean positive = (c[1] != Error.class);
             testSetter(positive, lookup, c[0], c[1], testMode);
             if (positive)

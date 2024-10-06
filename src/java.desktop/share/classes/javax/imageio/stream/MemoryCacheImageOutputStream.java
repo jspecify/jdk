@@ -55,7 +55,7 @@ public class MemoryCacheImageOutputStream extends ImageOutputStreamImpl {
      *
      * @param stream an {@code OutputStream} to write to.
      *
-     * @exception IllegalArgumentException if {@code stream} is
+     * @throws IllegalArgumentException if {@code stream} is
      * {@code null}.
      */
     public MemoryCacheImageOutputStream(OutputStream stream) {
@@ -104,7 +104,7 @@ public class MemoryCacheImageOutputStream extends ImageOutputStreamImpl {
 
         // guaranteed by now that bytesLeftInCache > 0 && len > 0
         // and so the rest of the error checking is done by cache.read()
-        // NOTE that alot of error checking is duplicated
+        // NOTE that a lot of error checking is duplicated
         len = (int)Math.min(bytesLeftInCache, (long)len);
         cache.read(b, off, len, streamPos);
         streamPos += len;
@@ -188,6 +188,11 @@ public class MemoryCacheImageOutputStream extends ImageOutputStreamImpl {
         stream = null;
     }
 
+    /**
+     * {@inheritDoc ImageOutputStream}
+     * @param pos {@inheritDoc ImageOutputStream}
+     * @throws IOException {@inheritDoc ImageOutputStream}
+     */
     public void flushBefore(long pos) throws IOException {
         long oFlushedPos = flushedPos;
         super.flushBefore(pos); // this will call checkClosed() for us

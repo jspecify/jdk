@@ -30,8 +30,8 @@
 #import "sun_awt_image_BufImgSurfaceData.h"
 #import "sun_java2d_OSXOffScreenSurfaceData.h"
 
-#import "jni_util.h"
-#import <JavaNativeFoundation/JavaNativeFoundation.h>
+#import "ThreadUtilities.h"
+#import "JNIUtilities.h"
 
 #import "BufImgSurfaceData.h"
 
@@ -100,19 +100,11 @@ static ImageInfo sDefaultImageInfo[sun_java2d_OSXOffScreenSurfaceData_TYPE_3BYTE
 
 static jfieldID        rgbID;
 static jfieldID        mapSizeID;
-static jfieldID        CMpDataID;
 static jfieldID        allGrayID;
 
-
-static JNF_CLASS_CACHE(jc_OSXOffScreenSurfaceData, "sun/java2d/OSXOffScreenSurfaceData");
-static JNF_MEMBER_CACHE(jm_syncFromCustom, jc_OSXOffScreenSurfaceData, "syncFromCustom", "()V");
-static JNF_MEMBER_CACHE(jm_syncToCustom, jc_OSXOffScreenSurfaceData, "syncToCustom", "()V");
-static JNF_CLASS_CACHE(jc_BufferedImage, "java/awt/image/BufferedImage");
-static JNF_MEMBER_CACHE(jm_SurfaceData, jc_BufferedImage, "sData", "Lsun/java2d/SurfaceData;");
-static JNF_CLASS_CACHE(jc_IndexColorModel, "java/awt/image/IndexColorModel");
-static JNF_MEMBER_CACHE(jm_rgb, jc_IndexColorModel, "rgb", "[I");
-static JNF_MEMBER_CACHE(jm_transparency, jc_IndexColorModel, "transparency", "I");
-static JNF_MEMBER_CACHE(jm_transparent_index, jc_IndexColorModel, "transparent_index", "I");
+static jclass jc_OSXOffScreenSurfaceData = NULL;
+#define GET_OSXOSD_CLASS() \
+    GET_CLASS(jc_OSXOffScreenSurfaceData, "sun/java2d/OSXOffScreenSurfaceData");
 
 CGColorSpaceRef gColorspaceRGB = NULL;
 CGColorSpaceRef gColorspaceGray = NULL;
@@ -192,7 +184,11 @@ IMAGE_SURFACE_INLINE void customPixelsFromJava(JNIEnv *env, ImageSDOps *isdo)
 PRINT("    customPixelsFromJava")
 
     SurfaceDataOps *sdo = (SurfaceDataOps*)isdo;
-    JNFCallVoidMethod(env, sdo->sdObject, jm_syncFromCustom); // AWT_THREADING Safe (known object)
+    GET_OSXOSD_CLASS();
+    DECLARE_METHOD(jm_syncFromCustom, jc_OSXOffScreenSurfaceData, "syncFromCustom", "()V");
+
+    (*env)->CallVoidMethod(env, sdo->sdObject, jm_syncFromCustom); // AWT_THREADING Safe (known object)
+    CHECK_EXCEPTION();
 }
 
 IMAGE_SURFACE_INLINE void copyBits(jint w, jint h, jint javaPixelsBytesPerRow, Pixel8bit *pixelsSrc, jint dstPixelsBytesPerRow, Pixel8bit *pixelsDst)
@@ -423,7 +419,10 @@ IMAGE_SURFACE_INLINE void customPixelsToJava(JNIEnv *env, ImageSDOps *isdo)
 PRINT("    customPixelsToJava")
 
     SurfaceDataOps *sdo = (SurfaceDataOps*)isdo;
-    JNFCallVoidMethod(env, sdo->sdObject, jm_syncToCustom); // AWT_THREADING Safe (known object)
+    GET_OSXOSD_CLASS();
+    DECLARE_METHOD(jm_syncToCustom, jc_OSXOffScreenSurfaceData, "syncToCustom", "()V");
+    (*env)->CallVoidMethod(env, sdo->sdObject, jm_syncToCustom); // AWT_THREADING Safe (known object)
+    CHECK_EXCEPTION();
 }
 
 IMAGE_SURFACE_INLINE void removeAlphaPre_32bit(jint w, jint h, jint javaPixelsBytesPerRow, jint javaPixelBytes, Pixel32bit *pixelsSrc)
@@ -767,7 +766,7 @@ PRINT("    copyARGB_PRE_32bitToGray_16bit")
 
 // 1. first "dither" the true color down by creating a 16 bit value of the real color that will serve as an index into the cache of indexes
 // 2. if the cache has a valid entry use it otherwise go through 3 and 4
-// 3. go through the color table and calculate Euclidian distance between the true color and the indexed colors
+// 3. go through the color table and calculate Euclidean distance between the true color and the indexed colors
 // 4. map the shortest distance into the one and true index color and stick it into the dst (and cache)
 IMAGE_SURFACE_INLINE UInt16* copyARGB_PRE_bitToIndexed_8bit(jint w, jint h, jint nativePixelsBytesPerRow, Pixel32bit *pixelsSrc, jint javaPixelsBytesPerRow, jint javaPixelBytes, Pixel8bit *pixelsDst, Pixel32bit* lutdata, UInt32 lutDataSize, UInt16 *indexedColorTable)
 {
@@ -1022,7 +1021,7 @@ PRINT("syncFromJavaPixels")
             size_t bitsPerComponent = isdo->imageInfo.bitsPerComponent;
             size_t bitsPerPixel = isdo->imageInfo.bitsPerPixel;
             size_t bytesPerRow = 0;
-            size_t extraBytesPerRow = 0; // these are the extra bytesPerRow used for alignement
+            size_t extraBytesPerRow = 0; // these are the extra bytesPerRow used for alignment
 
             switch (isdo->type)
             {
@@ -1240,7 +1239,7 @@ PRINT("xorSurfacePixels")
 
     jboolean handled = JNI_FALSE;
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
     ImageSDOps* srcIsdo = LockImagePixels(env, srcIsd);
     ImageSDOps* dstIsdo = LockImagePixels(env, dstIsd);
 
@@ -1319,7 +1318,7 @@ fprintf(stderr, "   dstIsdo->width=%d, dstIsdo->height=%d, biqsdoPixels->width=%
     UnlockImagePixels(env, srcIsdo);
     UnlockImagePixels(env, dstIsdo);
 
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
     return handled;
 }
 
@@ -1328,7 +1327,7 @@ IMAGE_SURFACE_INLINE jboolean clearSurfacePixels(JNIEnv *env, jobject bisd, jint
 PRINT("clearSurfacePixels")
     jboolean handled = JNI_FALSE;
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
     ImageSDOps *isdo = LockImagePixels(env, bisd);
 
@@ -1360,7 +1359,7 @@ JNF_COCOA_ENTER(env);
     }
     UnlockImagePixels(env, isdo);
 
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
 
     return handled;
 }
@@ -1451,7 +1450,7 @@ PRINT("ImageSD_dispose")
         qsdo->graphicsStateInfo.batchedLines = NULL;
     }
 
-    JNFDeleteGlobalRef(env, qsdo->javaGraphicsStatesObjects);
+    (*env)->DeleteGlobalRef(env, qsdo->javaGraphicsStatesObjects);
 
     if (qsdo->cgRef != NULL)
     {
@@ -1483,12 +1482,12 @@ PRINT("ImageSD_dispose")
     }
     if (isdo->array != NULL)
     {
-        JNFDeleteGlobalRef(env, isdo->array);
+        (*env)->DeleteGlobalRef(env, isdo->array);
         isdo->array = NULL;
     }
     if (isdo->icm != NULL)
     {
-        JNFDeleteGlobalRef(env, isdo->icm);
+        (*env)->DeleteGlobalRef(env, isdo->icm);
         isdo->icm = NULL;
     }
 
@@ -1614,7 +1613,6 @@ JNIEXPORT void JNICALL Java_sun_java2d_OSXOffScreenSurfaceData_initIDs(JNIEnv *e
         CHECK_NULL(rgbID = (*env)->GetFieldID(env, icm, "rgb", "[I"));
         CHECK_NULL(allGrayID = (*env)->GetFieldID(env, icm, "allgrayopaque", "Z"));
         CHECK_NULL(mapSizeID = (*env)->GetFieldID(env, icm, "map_size", "I"));
-        CHECK_NULL(CMpDataID = (*env)->GetFieldID(env, icm, "pData", "J"));
     }
 
     gColorspaceRGB = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
@@ -1622,12 +1620,16 @@ JNIEXPORT void JNICALL Java_sun_java2d_OSXOffScreenSurfaceData_initIDs(JNIEnv *e
 //fprintf(stderr, "gColorspaceRGB=%p, gColorspaceGray=%p\n", gColorspaceRGB, gColorspaceGray);
 }
 
+static jclass jc_BufferedImage = NULL;
+static jfieldID jm_SurfaceData = NULL;
+
 JNIEXPORT jobject JNICALL Java_sun_java2d_OSXOffScreenSurfaceData_getSurfaceData
     (JNIEnv *env, jclass bisd, jobject bufImg)
 {
 PRINT("getSurfaceData")
-
-    return JNFGetObjectField(env, bufImg, jm_SurfaceData);
+    GET_CLASS_RETURN(jc_BufferedImage, "java/awt/image/BufferedImage", NULL);
+    GET_FIELD_RETURN(jm_SurfaceData, jc_BufferedImage, "sData", "Lsun/java2d/SurfaceData;", NULL);
+    return (*env)->GetObjectField(env, bufImg, jm_SurfaceData);
 }
 
 JNIEXPORT void JNICALL Java_sun_java2d_OSXOffScreenSurfaceData_setSurfaceData
@@ -1635,7 +1637,9 @@ JNIEXPORT void JNICALL Java_sun_java2d_OSXOffScreenSurfaceData_setSurfaceData
 {
 PRINT("setSurfaceData")
 
-    JNFSetObjectField(env, bufImg, jm_SurfaceData, sData);
+    GET_CLASS(jc_BufferedImage, "java/awt/image/BufferedImage");
+    GET_FIELD(jm_SurfaceData, jc_BufferedImage, "sData", "Lsun/java2d/SurfaceData;");
+    (*env)->SetObjectField(env, bufImg, jm_SurfaceData, sData);
 }
 
 static jint ImageSD_Lock(JNIEnv *env, SurfaceDataOps *ops, SurfaceDataRasInfo *pRasInfo, jint lockflags)
@@ -1768,6 +1772,10 @@ JNIEXPORT void JNICALL Java_sun_java2d_OSXOffScreenSurfaceData_initRaster(JNIEnv
 PRINT("Java_sun_java2d_OSXOffScreenSurfaceData_initRaster")
 
     ImageSDOps* isdo = (ImageSDOps*)SurfaceData_InitOps(env, bisd, sizeof(ImageSDOps));
+    if (isdo == NULL) {
+        JNU_ThrowOutOfMemoryError(env, "Initialization of SurfaceData failed.");
+        return;
+    }
 
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -1837,13 +1845,13 @@ PRINT("Java_sun_java2d_OSXOffScreenSurfaceData_initRaster")
 
     // parameters specifying this image given to us from Java
     isdo->javaImageInfo                    = (jint*)((*env)->GetDirectBufferAddress(env, jImageInfo));
-    isdo->array                            = (array != NULL) ? JNFNewGlobalRef(env, array) : NULL;
+    isdo->array                            = (array != NULL) ? (*env)->NewGlobalRef(env, array) : NULL;
     isdo->offset                        = offset;
     isdo->width                            = width;
     isdo->height                        = height;
     isdo->javaPixelBytes                = pixelStride;
     isdo->javaPixelsBytesPerRow            = scanStride;
-    isdo->icm                            = (icm != NULL) ? JNFNewGlobalRef(env, icm) : NULL;
+    isdo->icm                            = (icm != NULL) ? (*env)->NewGlobalRef(env, icm) : NULL;
     isdo->type                            = type;
 
     if ((isdo->javaImageInfo[sun_java2d_OSXOffScreenSurfaceData_kImageStolenIndex] == 1) ||
@@ -1859,15 +1867,24 @@ PRINT("Java_sun_java2d_OSXOffScreenSurfaceData_initRaster")
     isdo->lutDataSize                    = 0;
     if ((type == java_awt_image_BufferedImage_TYPE_BYTE_INDEXED) && ((*env)->IsSameObject(env, icm, NULL) == NO))
     {
-        jarray lutarray = JNFGetObjectField(env, icm, jm_rgb);
+        static jclass jc_IndexColorModel = NULL;
+        if (jc_IndexColorModel == NULL) {
+            jc_IndexColorModel = (*env)->FindClass(env, "java/awt/image/IndexColorModel");
+        }
+        CHECK_NULL(jc_IndexColorModel);
+        DECLARE_FIELD(jm_rgb, jc_IndexColorModel, "rgb", "[I");
+        DECLARE_FIELD(jm_transparency, jc_IndexColorModel, "transparency", "I");
+        DECLARE_FIELD(jm_transparent_index, jc_IndexColorModel, "transparent_index", "I");
+
+        jarray lutarray = (*env)->GetObjectField(env, icm, jm_rgb);
         isdo->lutDataSize = (*env)->GetArrayLength(env, lutarray);
         if (isdo->lutDataSize > 0)
         {
-            jint transparency = JNFGetIntField(env, icm, jm_transparency);
+            jint transparency = (*env)->GetIntField(env, icm, jm_transparency);
             jint transparent_index = -1;
             if (transparency == java_awt_Transparency_BITMASK)
             {
-                transparent_index = JNFGetIntField(env, icm, jm_transparent_index);
+                transparent_index = (*env)->GetIntField(env, icm, jm_transparent_index);
             }
 
             Pixel32bit* lutdata = (Pixel32bit*)((*env)->GetPrimitiveArrayCritical(env, lutarray, NULL));
@@ -1942,7 +1959,7 @@ PRINT("Java_sun_java2d_OSXOffScreenSurfaceData_initRaster")
     qsdo->FinishSurface                    = ImageSD_finishCGContext;
 
     qsdo->javaGraphicsStates            = (jint*)((*env)->GetDirectBufferAddress(env, jGraphicsState));
-    qsdo->javaGraphicsStatesObjects        = JNFNewGlobalRef(env, jGraphicsStateObject);
+    qsdo->javaGraphicsStatesObjects        = (*env)->NewGlobalRef(env, jGraphicsStateObject);
 
     qsdo->graphicsStateInfo.batchedLines = NULL;
     qsdo->graphicsStateInfo.batchedLinesCount = 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -184,7 +184,7 @@ public final class InternalLocaleBuilder {
                     ukeywords.clear();
                 }
             } else {
-                if (extensions != null && extensions.containsKey(key)) {
+                if (extensions != null) {
                     extensions.remove(key);
                 }
             }
@@ -313,7 +313,7 @@ public final class InternalLocaleBuilder {
         clearExtensions();
 
         if (!LocaleUtils.isEmpty(bcpExtensions)) {
-            Set<CaseInsensitiveChar> done = new HashSet<>(bcpExtensions.size());
+            Set<CaseInsensitiveChar> done = HashSet.newHashSet(bcpExtensions.size());
             for (String bcpExt : bcpExtensions) {
                 CaseInsensitiveChar key = new CaseInsensitiveChar(bcpExt);
                 // ignore duplicates
@@ -331,7 +331,7 @@ public final class InternalLocaleBuilder {
                 done.add(key);
             }
         }
-        if (privateuse != null && privateuse.length() > 0) {
+        if (privateuse != null && !privateuse.isEmpty()) {
             // privateuse string contains prefix, e.g. "x-abc-def"
             if (extensions == null) {
                 extensions = new HashMap<>(1);
@@ -406,19 +406,19 @@ public final class InternalLocaleBuilder {
         // Validate base locale fields before updating internal state.
         // LocaleExtensions always store validated/canonicalized values,
         // so no checks are necessary.
-        if (language.length() > 0 && !LanguageTag.isLanguage(language)) {
+        if (!language.isEmpty() && !LanguageTag.isLanguage(language)) {
             throw new LocaleSyntaxException("Ill-formed language: " + language);
         }
 
-        if (script.length() > 0 && !LanguageTag.isScript(script)) {
+        if (!script.isEmpty() && !LanguageTag.isScript(script)) {
             throw new LocaleSyntaxException("Ill-formed script: " + script);
         }
 
-        if (region.length() > 0 && !LanguageTag.isRegion(region)) {
+        if (!region.isEmpty() && !LanguageTag.isRegion(region)) {
             throw new LocaleSyntaxException("Ill-formed region: " + region);
         }
 
-        if (variant.length() > 0) {
+        if (!variant.isEmpty()) {
             int errIdx = checkVariants(variant, BaseLocale.SEP);
             if (errIdx != -1) {
                 throw new LocaleSyntaxException("Ill-formed variant: " + variant, errIdx);

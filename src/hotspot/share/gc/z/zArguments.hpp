@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,20 @@
 
 class CollectedHeap;
 
-class ZArguments : public GCArguments {
+class ZArguments : AllStatic {
+private:
+  static void select_max_gc_threads();
+
 public:
-  virtual void initialize();
-  virtual size_t conservative_max_heap_alignment();
-  virtual CollectedHeap* create_heap();
+  static void initialize_alignments();
+  static void initialize_heap_flags_and_sizes();
+  static void initialize();
+  static size_t heap_virtual_to_physical_ratio();
+  static CollectedHeap* create_heap();
+
+  static bool is_supported();
+
+  static bool is_os_supported();
 };
 
 #endif // SHARE_GC_Z_ZARGUMENTS_HPP

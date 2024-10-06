@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,17 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1CONCURRENTMARKOBJARRAYPROCESSOR_INLINE_HPP
-#define SHARE_VM_GC_G1_G1CONCURRENTMARKOBJARRAYPROCESSOR_INLINE_HPP
+#ifndef SHARE_GC_G1_G1CONCURRENTMARKOBJARRAYPROCESSOR_INLINE_HPP
+#define SHARE_GC_G1_G1CONCURRENTMARKOBJARRAYPROCESSOR_INLINE_HPP
+
+#include "gc/g1/g1ConcurrentMarkObjArrayProcessor.hpp"
 
 #include "oops/oop.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
-#include "runtime/globals.hpp"
+#include "gc/shared/gc_globals.hpp"
 
 inline bool G1CMObjArrayProcessor::should_be_sliced(oop obj) {
-  return obj->is_objArray() && ((size_t)((objArrayOop)obj)->size()) >= 2 * ObjArrayMarkingStride;
+  return obj->is_objArray() && ((objArrayOop)obj)->size() >= 2 * ObjArrayMarkingStride;
 }
 
-#endif /* SHARE_VM_GC_G1_G1CONCURRENTMARKOBJARRAYPROCESSOR_INLINE_HPP */
+#endif // SHARE_GC_G1_G1CONCURRENTMARKOBJARRAYPROCESSOR_INLINE_HPP

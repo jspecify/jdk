@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,43 +25,39 @@
 
 package java.util.zip;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.OutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.Vector;
 import java.util.HashSet;
 import static java.util.zip.ZipConstants64.*;
 import static java.util.zip.ZipUtils.*;
-import sun.security.action.GetPropertyAction;
+import sun.nio.cs.UTF_8;
+import sun.security.action.GetBooleanAction;
 
 /**
  * This class implements an output stream filter for writing files in the
  * ZIP file format. Includes support for both compressed and uncompressed
  * entries.
- *
+ * <p> Unless otherwise noted, passing a {@code null} argument to a constructor
+ * or method in this class will cause a {@link NullPointerException} to be
+ * thrown.
  * @author      David Connelly
  * @since 1.1
  */
-@AnnotatedFor({"index", "signedness"})
-public
-class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
+public class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
 
     /**
-     * Whether to use ZIP64 for zip files with more than 64k entries.
-     * Until ZIP64 support in zip implementations is ubiquitous, this
-     * system property allows the creation of zip files which can be
-     * read by legacy zip implementations which tolerate "incorrect"
+     * Whether to use ZIP64 for ZIP files with more than 64k entries.
+     * Until ZIP64 support in ZIP implementations is ubiquitous, this
+     * system property allows the creation of ZIP files which can be
+     * read by legacy ZIP implementations which tolerate "incorrect"
      * total entry count fields, such as the ones in jdk6, and even
      * some in jdk7.
      */
     private static final boolean inhibitZip64 =
-        Boolean.parseBoolean(
-            GetPropertyAction.privilegedGetProperty("jdk.util.zip.inhibitZip64"));
+        GetBooleanAction.privilegedGetProperty("jdk.util.zip.inhibitZip64");
 
     private static class XEntry {
         final ZipEntry entry;
@@ -87,11 +83,11 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     private final ZipCoder zc;
 
     private static int version(ZipEntry e) throws ZipException {
-        switch (e.method) {
-        case DEFLATED: return 20;
-        case STORED:   return 10;
-        default: throw new ZipException("unsupported compression method");
-        }
+        return switch (e.method) {
+        case DEFLATED -> 20;
+        case STORED   -> 10;
+        default       -> throw new ZipException("unsupported compression method");
+        };
     }
 
     /**
@@ -122,7 +118,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
      * @param out the actual output stream
      */
     public ZipOutputStream(OutputStream out) {
-        this(out, StandardCharsets.UTF_8);
+        this(out, UTF_8.INSTANCE);
     }
 
     /**
@@ -136,7 +132,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
      * @since 1.7
      */
     public ZipOutputStream(OutputStream out, Charset charset) {
-        super(out, new Deflater(Deflater.DEFAULT_COMPRESSION, true));
+        super(out, out != null ? new Deflater(Deflater.DEFAULT_COMPRESSION, true) : null);
         if (charset == null)
             throw new NullPointerException("charset is null");
         this.zc = ZipCoder.get(charset);
@@ -145,24 +141,27 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
 
     /**
      * Sets the ZIP file comment.
-     * @param comment the comment string
-     * @exception IllegalArgumentException if the length of the specified
+     * @param     comment the comment string
+     * @throws    IllegalArgumentException if the length of the specified
      *            ZIP file comment is greater than 0xFFFF bytes
      */
     public void setComment(String comment) {
+        byte[] bytes = null;
         if (comment != null) {
-            this.comment = zc.getBytes(comment);
-            if (this.comment.length > 0xffff)
-                throw new IllegalArgumentException("ZIP file comment too long.");
+            bytes = zc.getBytes(comment);
+            if (bytes.length > 0xffff) {
+                throw new IllegalArgumentException("ZIP file comment too long");
+            }
         }
+        this.comment = bytes;
     }
 
     /**
      * Sets the default compression method for subsequent entries. This
      * default will be used whenever the compression method is not specified
      * for an individual ZIP file entry, and is initially set to DEFLATED.
-     * @param method the default compression method
-     * @exception IllegalArgumentException if the specified compression method
+     * @param     method the default compression method
+     * @throws    IllegalArgumentException if the specified compression method
      *            is invalid
      */
     public void setMethod(int method) {
@@ -175,8 +174,8 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /**
      * Sets the compression level for subsequent entries which are DEFLATED.
      * The default setting is DEFAULT_COMPRESSION.
-     * @param level the compression level (0-9)
-     * @exception IllegalArgumentException if the compression level is invalid
+     * @param     level the compression level (0-9)
+     * @throws    IllegalArgumentException if the compression level is invalid
      */
     public void setLevel(int level) {
         def.setLevel(level);
@@ -185,12 +184,33 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /**
      * Begins writing a new ZIP file entry and positions the stream to the
      * start of the entry data. Closes the current entry if still active.
+     * <p>
      * The default compression method will be used if no compression method
-     * was specified for the entry, and the current time will be used if
-     * the entry has no set modification time.
-     * @param e the ZIP entry to be written
-     * @exception ZipException if a ZIP format error has occurred
-     * @exception IOException if an I/O error has occurred
+     * was specified for the entry. When writing a compressed (DEFLATED)
+     * entry, and the compressed size has not been explicitly set with the
+     * {@link ZipEntry#setCompressedSize(long)} method, then the compressed
+     * size will be set to the actual compressed size after deflation.
+     * <p>
+     * The current time will be used if the entry has no set modification time.
+     *
+     * @apiNote When writing a directory entry, the STORED compression method
+     * should be used and the size and CRC-32 values should be set to 0:
+     *
+     * {@snippet lang = "java":
+     *     ZipEntry e = new ZipEntry(entryName);
+     *     if (e.isDirectory()) {
+     *         e.setMethod(ZipEntry.STORED);
+     *         e.setSize(0);
+     *         e.setCrc(0);
+     *     }
+     *     stream.putNextEntry(e);
+     *}
+     *
+     * This allows optimal performance when processing directory entries.
+     *
+     * @param     e the ZIP entry to be written
+     * @throws    ZipException if a ZIP format error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
     public void putNextEntry(ZipEntry e) throws IOException {
         ensureOpen();
@@ -209,11 +229,14 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
         e.flag = 0;
         switch (e.method) {
         case DEFLATED:
-            // store size, compressed size, and crc-32 in data descriptor
-            // immediately following the compressed entry data
-            if (e.size  == -1 || e.csize == -1 || e.crc   == -1)
+            // If not set, store size, compressed size, and crc-32 in data
+            // descriptor immediately following the compressed entry data.
+            // Ignore the compressed size of a ZipEntry if it was implcitely set
+            // while reading that ZipEntry from a  ZipFile or ZipInputStream because
+            // we can't know the compression level of the source ZIP file/stream.
+            if (e.size  == -1 || e.csize == -1 || e.crc   == -1 || !e.csizeSet) {
                 e.flag = 8;
-
+            }
             break;
         case STORED:
             // compressed size, uncompressed size, and crc-32 must all be
@@ -247,84 +270,88 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /**
      * Closes the current ZIP entry and positions the stream for writing
      * the next entry.
-     * @exception ZipException if a ZIP format error has occurred
-     * @exception IOException if an I/O error has occurred
+     * @throws    ZipException if a ZIP format error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
     public void closeEntry() throws IOException {
         ensureOpen();
         if (current != null) {
-            ZipEntry e = current.entry;
-            switch (e.method) {
-            case DEFLATED:
-                def.finish();
-                while (!def.finished()) {
-                    deflate();
-                }
-                if ((e.flag & 8) == 0) {
-                    // verify size, compressed size, and crc-32 settings
-                    if (e.size != def.getBytesRead()) {
-                        throw new ZipException(
-                            "invalid entry size (expected " + e.size +
-                            " but got " + def.getBytesRead() + " bytes)");
+            try {
+                ZipEntry e = current.entry;
+                switch (e.method) {
+                    case DEFLATED -> {
+                        def.finish();
+                        while (!def.finished()) {
+                            deflate();
+                        }
+                        if ((e.flag & 8) == 0) {
+                            // verify size, compressed size, and crc-32 settings
+                            if (e.size != def.getBytesRead()) {
+                                throw new ZipException(
+                                    "invalid entry size (expected " + e.size +
+                                    " but got " + def.getBytesRead() + " bytes)");
+                            }
+                            if (e.csize != def.getBytesWritten()) {
+                                throw new ZipException(
+                                    "invalid entry compressed size (expected " +
+                                    e.csize + " but got " + def.getBytesWritten() + " bytes)");
+                            }
+                            if (e.crc != crc.getValue()) {
+                                throw new ZipException(
+                                    "invalid entry CRC-32 (expected 0x" +
+                                    Long.toHexString(e.crc) + " but got 0x" +
+                                    Long.toHexString(crc.getValue()) + ")");
+                            }
+                        } else {
+                            e.size = def.getBytesRead();
+                            e.csize = def.getBytesWritten();
+                            e.crc = crc.getValue();
+                            writeEXT(e);
+                        }
+                        def.reset();
+                        written += e.csize;
                     }
-                    if (e.csize != def.getBytesWritten()) {
-                        throw new ZipException(
-                            "invalid entry compressed size (expected " +
-                            e.csize + " but got " + def.getBytesWritten() + " bytes)");
+                    case STORED -> {
+                        // we already know that both e.size and e.csize are the same
+                        if (e.size != written - locoff) {
+                            throw new ZipException(
+                                "invalid entry size (expected " + e.size +
+                                " but got " + (written - locoff) + " bytes)");
+                        }
+                        if (e.crc != crc.getValue()) {
+                            throw new ZipException(
+                                "invalid entry crc-32 (expected 0x" +
+                                Long.toHexString(e.crc) + " but got 0x" +
+                                Long.toHexString(crc.getValue()) + ")");
+                        }
                     }
-                    if (e.crc != crc.getValue()) {
-                        throw new ZipException(
-                            "invalid entry CRC-32 (expected 0x" +
-                            Long.toHexString(e.crc) + " but got 0x" +
-                            Long.toHexString(crc.getValue()) + ")");
-                    }
-                } else {
-                    e.size  = def.getBytesRead();
-                    e.csize = def.getBytesWritten();
-                    e.crc = crc.getValue();
-                    writeEXT(e);
+                    default -> throw new ZipException("invalid compression method");
                 }
-                def.reset();
-                written += e.csize;
-                break;
-            case STORED:
-                // we already know that both e.size and e.csize are the same
-                if (e.size != written - locoff) {
-                    throw new ZipException(
-                        "invalid entry size (expected " + e.size +
-                        " but got " + (written - locoff) + " bytes)");
-                }
-                if (e.crc != crc.getValue()) {
-                    throw new ZipException(
-                         "invalid entry crc-32 (expected 0x" +
-                         Long.toHexString(e.crc) + " but got 0x" +
-                         Long.toHexString(crc.getValue()) + ")");
-                }
-                break;
-            default:
-                throw new ZipException("invalid compression method");
+                crc.reset();
+                current = null;
+            } catch (IOException e) {
+                if (def.shouldFinish() && usesDefaultDeflater && !(e instanceof ZipException))
+                    def.end();
+                throw e;
             }
-            crc.reset();
-            current = null;
         }
     }
 
     /**
      * Writes an array of bytes to the current ZIP entry data. This method
      * will block until all the bytes are written.
-     * @param b the data to be written
-     * @param off the start offset in the data
-     * @param len the number of bytes that are written
-     * @exception ZipException if a ZIP file error has occurred
-     * @exception IOException if an I/O error has occurred
+     * @param     b the data to be written
+     * @param     off the start offset in the data
+     * @param     len the number of bytes that are written
+     * @throws    ZipException if a ZIP file error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
-    public synchronized void write(@PolySigned byte[] b, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len)
+    public synchronized void write(byte[] b, int off, int len)
         throws IOException
     {
         ensureOpen();
-        if (off < 0 || len < 0 || off > b.length - len) {
-            throw new IndexOutOfBoundsException();
-        } else if (len == 0) {
+        Objects.checkFromIndexSize(off, len, b.length);
+        if (len == 0) {
             return;
         }
 
@@ -333,19 +360,16 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
         }
         ZipEntry entry = current.entry;
         switch (entry.method) {
-        case DEFLATED:
-            super.write(b, off, len);
-            break;
-        case STORED:
-            written += len;
-            if (written - locoff > entry.size) {
-                throw new ZipException(
-                    "attempt to write past end of STORED entry");
+            case DEFLATED -> super.write(b, off, len);
+            case STORED -> {
+                written += len;
+                if (written - locoff > entry.size) {
+                    throw new ZipException(
+                        "attempt to write past end of STORED entry");
+                }
+                out.write(b, off, len);
             }
-            out.write(b, off, len);
-            break;
-        default:
-            throw new ZipException("invalid compression method");
+            default -> throw new ZipException("invalid compression method");
         }
         crc.update(b, off, len);
     }
@@ -354,8 +378,12 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
      * Finishes writing the contents of the ZIP output stream without closing
      * the underlying stream. Use this method when applying multiple filters
      * in succession to the same output stream.
-     * @exception ZipException if a ZIP file error has occurred
-     * @exception IOException if an I/O exception has occurred
+     * <p>
+     * A ZipException will be thrown if the combined length, after encoding,
+     * of the entry name, the extra field data, the entry comment and
+     * {@linkplain #CENHDR CEN Header size}, exceeds 65,535 bytes.
+     * @throws    ZipException if a ZIP file error has occurred
+     * @throws    IOException if an I/O exception has occurred
      */
     public void finish() throws IOException {
         ensureOpen();
@@ -374,9 +402,11 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     }
 
     /**
-     * Closes the ZIP output stream as well as the stream being filtered.
-     * @exception ZipException if a ZIP file error has occurred
-     * @exception IOException if an I/O error has occurred
+     * Closes the underlying stream and the stream being filtered after
+     * the contents of the ZIP output stream are fully written.
+     *
+     * @throws    ZipException if a ZIP file error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
     public void close() throws IOException {
         if (!closed) {
@@ -461,7 +491,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
         writeShort(elen);
         writeBytes(nameBytes, 0, nameBytes.length);
         if (hasZip64) {
-            writeShort(ZIP64_EXTID);
+            writeShort(EXTID_ZIP64);
             writeShort(16);
             writeLong(e.size);
             writeLong(e.csize);
@@ -512,6 +542,15 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
         }
     }
 
+    /**
+     * Adds information about compatibility of file attribute information
+     * to a version value.
+     */
+    private int versionMadeBy(ZipEntry e, int version) {
+        return (e.externalFileAttributes < 0) ? version :
+                VERSION_MADE_BY_BASE_UNIX | (version & 0xff);
+    }
+
     /*
      * Write central directory (CEN) header for specified entry.
      * REMIND: add support for file attributes
@@ -543,10 +582,10 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
         }
         writeInt(CENSIG);           // CEN header signature
         if (hasZip64) {
-            writeShort(45);         // ver 4.5 for zip64
+            writeShort(versionMadeBy(e,45));         // ver 4.5 for zip64
             writeShort(45);
         } else {
-            writeShort(version);    // version made by
+            writeShort(versionMadeBy(e, version));    // version made by
             writeShort(version);    // version needed to extract
         }
         writeShort(flag);           // general purpose bit flag
@@ -556,7 +595,8 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
         writeInt(csize);            // compressed size
         writeInt(size);             // uncompressed size
         byte[] nameBytes = zc.getBytes(e.name);
-        writeShort(nameBytes.length);
+        int nlen = nameBytes.length;
+        writeShort(nlen);
 
         int elen = getExtraLen(e.extra);
         if (hasZip64) {
@@ -587,27 +627,29 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
                 uctime > UPPER_UNIXTIME_BOUND) {
                 elen += 36;         // NTFS time total 36 bytes
             } else {
-                elen += 9;          // headid(2) + sz(2) + flag(1) + mtime (4)
+                elen += 5;          // headid(2) + sz(2) + flag(1)
+                if (e.mtime != null)
+                    elen += 4;      // + mtime (4)
             }
         }
         writeShort(elen);
-        byte[] commentBytes;
+        byte[] commentBytes = null;
+        int clen = 0;
         if (e.comment != null) {
             commentBytes = zc.getBytes(e.comment);
-            writeShort(Math.min(commentBytes.length, 0xffff));
-        } else {
-            commentBytes = null;
-            writeShort(0);
+            clen = Math.min(commentBytes.length, 0xffff);
         }
+        writeShort(clen);              // file comment length
         writeShort(0);              // starting disk number
         writeShort(0);              // internal file attributes (unused)
-        writeInt(0);                // external file attributes (unused)
+        // extra file attributes, used for storing posix permissions etc.
+        writeInt(e.externalFileAttributes > 0 ? e.externalFileAttributes << 16 : 0);
         writeInt(offset);           // relative offset of local header
-        writeBytes(nameBytes, 0, nameBytes.length);
+        writeBytes(nameBytes, 0, nlen);
 
         // take care of EXTID_ZIP64 and EXTID_EXTT
         if (hasZip64) {
-            writeShort(ZIP64_EXTID);// Zip64 extra
+            writeShort(EXTID_ZIP64);// Zip64 extra
             writeShort(elenZIP64);
             if (size == ZIP64_MAGICVAL)
                 writeLong(e.size);
@@ -643,9 +685,17 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
                 }
             }
         }
+
+        // CEN header size + name length + comment length + extra length
+        // should not exceed 65,535 bytes per the PKWare APP.NOTE
+        // 4.4.10, 4.4.11, & 4.4.12.
+        long headerSize = (long)CENHDR + nlen + clen + elen;
+        if (headerSize > 0xFFFF ) {
+            throw new ZipException("invalid CEN header (bad header size)");
+        }
         writeExtra(e.extra);
         if (commentBytes != null) {
-            writeBytes(commentBytes, 0, Math.min(commentBytes.length, 0xffff));
+            writeBytes(commentBytes, 0, clen);
         }
     }
 
@@ -680,8 +730,8 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
             writeShort(45);                // version needed to extract
             writeInt(0);                   // number of this disk
             writeInt(0);                   // central directory start disk
-            writeLong(xentries.size());    // number of directory entires on disk
-            writeLong(xentries.size());    // number of directory entires
+            writeLong(xentries.size());    // number of directory entries on disk
+            writeLong(xentries.size());    // number of directory entries
             writeLong(len);                // length of central directory
             writeLong(off);                // offset of central directory
 
@@ -698,7 +748,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
         writeShort(count);                // total number of directory entries
         writeInt(xlen);                   // length of central directory
         writeInt(xoff);                   // offset of central directory
-        if (comment != null) {            // zip file comment
+        if (comment != null) {            // ZIP file comment
             writeShort(comment.length);
             writeBytes(comment, 0, comment.length);
         } else {
@@ -760,7 +810,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /*
      * Writes a 8-bit byte to the output stream.
      */
-    private void writeByte(@PolySigned int v) throws IOException {
+    private void writeByte(int v) throws IOException {
         OutputStream out = this.out;
         out.write(v & 0xff);
         written += 1;
@@ -769,7 +819,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /*
      * Writes a 16-bit short to the output stream in little-endian byte order.
      */
-    private void writeShort(@PolySigned int v) throws IOException {
+    private void writeShort(int v) throws IOException {
         OutputStream out = this.out;
         out.write((v >>> 0) & 0xff);
         out.write((v >>> 8) & 0xff);
@@ -779,7 +829,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /*
      * Writes a 32-bit int to the output stream in little-endian byte order.
      */
-    private void writeInt(@PolySigned long v) throws IOException {
+    private void writeInt(long v) throws IOException {
         OutputStream out = this.out;
         out.write((int)((v >>>  0) & 0xff));
         out.write((int)((v >>>  8) & 0xff));
@@ -791,7 +841,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /*
      * Writes a 64-bit int to the output stream in little-endian byte order.
      */
-    private void writeLong(@PolySigned long v) throws IOException {
+    private void writeLong(long v) throws IOException {
         OutputStream out = this.out;
         out.write((int)((v >>>  0) & 0xff));
         out.write((int)((v >>>  8) & 0xff));
@@ -807,7 +857,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
     /*
      * Writes an array of bytes to the output stream.
      */
-    private void writeBytes(@PolySigned byte[] b, int off, int len) throws IOException {
+    private void writeBytes(byte[] b, int off, int len) throws IOException {
         super.out.write(b, off, len);
         written += len;
     }

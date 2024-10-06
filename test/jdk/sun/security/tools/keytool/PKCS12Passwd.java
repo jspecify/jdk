@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8192988
+ * @bug 8192988 8266220
  * @summary keytool should support -storepasswd for pkcs12 keystores
  * @library /test/lib
  * @build jdk.test.lib.SecurityTools
@@ -49,11 +49,11 @@ public class PKCS12Passwd {
     public static void main(String[] args) throws Exception {
 
         // A PrivateKeyEntry
-        kt("-genkeypair -alias a -dname CN=A")
+        kt("-genkeypair -alias a -dname CN=A -keyalg DSA")
                 .shouldHaveExitValue(0);
 
         // A TrustedCertificateEntry (genkeypair, export, delete, import)
-        kt("-genkeypair -alias b -dname CN=B")
+        kt("-genkeypair -alias b -dname CN=B -keyalg DSA")
                 .shouldHaveExitValue(0);
         kt("-exportcert -alias b -file b.cert")
                 .shouldHaveExitValue(0);
@@ -90,7 +90,7 @@ public class PKCS12Passwd {
         // A PKCS12 keystore can be loaded as a JKS, and it follows JKS rules
         // which means the storepass and keypass can be changed separately!
 
-        ktFull("-genkeypair -alias a -dname CN=A -storetype pkcs12 "
+        ktFull("-genkeypair -alias a -dname CN=A -storetype pkcs12 -keyalg DSA "
                     + "-storepass changeit -keypass changeit -keystore p12")
                 .shouldHaveExitValue(0);
 
@@ -108,11 +108,11 @@ public class PKCS12Passwd {
 
         check("p12", "newpass", "newpass");
 
-        // Conversely, a JKS keystore can be laoded as a PKCS12, and it follows
+        // Conversely, a JKS keystore can be loaded as a PKCS12, and it follows
         // PKCS12 rules that both passwords are changed at the same time and
         // some commands are rejected.
 
-        ktFull("-genkeypair -alias a -dname CN=A -storetype jks "
+        ktFull("-genkeypair -alias a -dname CN=A -storetype jks -keyalg DSA "
                     + "-storepass changeit -keypass changeit -keystore jks")
                 .shouldHaveExitValue(0);
 
@@ -134,6 +134,21 @@ public class PKCS12Passwd {
                 .shouldHaveExitValue(0);
 
         check("jks", "newpass", "newerpass");
+
+        // A password-less keystore
+        ktFull("-keystore nopass -genkeypair -keyalg EC "
+                + "-storepass changeit -alias no -dname CN=no "
+                + "-J-Dkeystore.pkcs12.certProtectionAlgorithm=NONE "
+                + "-J-Dkeystore.pkcs12.macAlgorithm=NONE")
+                .shouldHaveExitValue(0);
+
+        ktFull("-keystore nopass -list")
+                .shouldHaveExitValue(0)
+                .shouldNotContain("Enter keystore password:");
+
+        ktFull("-keystore nopass -list -storetype pkcs12")
+                .shouldHaveExitValue(0)
+                .shouldNotContain("Enter keystore password:");
     }
 
     // Makes sure we can load entries in a keystore

@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -24,142 +23,144 @@ package com.sun.org.apache.bcel.internal.classfile;
 import java.io.DataInput;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 
 import com.sun.org.apache.bcel.internal.Const;
+import com.sun.org.apache.bcel.internal.util.Args;
 
 /**
- * This class represents a stack map attribute used for
- * preverification of Java classes for the <a
- * href="http://java.sun.com/j2me/"> Java 2 Micro Edition</a>
- * (J2ME). This attribute is used by the <a
- * href="http://java.sun.com/products/cldc/">KVM</a> and contained
- * within the Code attribute of a method. See CLDC specification
- * 5.3.1.2
+ * This class represents a stack map attribute used for preverification of Java classes for the
+ * <a href="http://java.sun.com/j2me/"> Java 2 Micro Edition</a> (J2ME). This attribute is used by the
+ * <a href="http://java.sun.com/products/cldc/">KVM</a> and contained within the Code attribute of a method. See CLDC
+ * specification 5.3.1.2
  *
- * @version $Id: StackMap.java 1749603 2016-06-21 20:50:19Z ggregory $
- * @see     Code
- * @see     StackMapEntry
- * @see     StackMapType
+ * <pre>
+ * StackMapTable_attribute {
+ *   u2              attribute_name_index;
+ *   u4              attribute_length;
+ *   u2              number_of_entries;
+ *   stack_map_frame entries[number_of_entries];
+ * }
+ * </pre>
+ *
+ * @see Code
+ * @see StackMapEntry
+ * @see StackMapType
+ * @LastModified: Oct 2020
  */
 public final class StackMap extends Attribute {
 
-    private StackMapEntry[] map; // Table of stack map entries
-
-
-    /*
-     * @param name_index Index of name
-     * @param length Content length in bytes
-     * @param map Table of stack map entries
-     * @param constant_pool Array of constants
-     */
-    public StackMap(final int name_index, final int length, final StackMapEntry[] map, final ConstantPool constant_pool) {
-        super(Const.ATTR_STACK_MAP, name_index, length, constant_pool);
-        this.map = map;
-    }
-
+    private StackMapEntry[] table; // Table of stack map entries
 
     /**
      * Construct object from input stream.
      *
-     * @param name_index Index of name
+     * @param nameIndex Index of name
      * @param length Content length in bytes
-     * @param input Input stream
-     * @param constant_pool Array of constants
-     * @throws IOException
+     * @param dataInput Input stream
+     * @param constantPool Array of constants
+     * @throws IOException if an I/O error occurs.
      */
-    StackMap(final int name_index, final int length, final DataInput input, final ConstantPool constant_pool) throws IOException {
-        this(name_index, length, (StackMapEntry[]) null, constant_pool);
-        final int map_length = input.readUnsignedShort();
-        map = new StackMapEntry[map_length];
-        for (int i = 0; i < map_length; i++) {
-            map[i] = new StackMapEntry(input, constant_pool);
+    StackMap(final int nameIndex, final int length, final DataInput dataInput, final ConstantPool constantPool) throws IOException {
+        this(nameIndex, length, (StackMapEntry[]) null, constantPool);
+        final int mapLength = dataInput.readUnsignedShort();
+        table = new StackMapEntry[mapLength];
+        for (int i = 0; i < mapLength; i++) {
+            table[i] = new StackMapEntry(dataInput, constantPool);
         }
     }
 
-
-    /**
-     * Dump line number table attribute to file stream in binary format.
+    /*
+     * @param nameIndex Index of name
      *
-     * @param file Output file stream
-     * @throws IOException
+     * @param length Content length in bytes
+     *
+     * @param map Table of stack map entries
+     *
+     * @param constantPool Array of constants
+     */
+    public StackMap(final int nameIndex, final int length, final StackMapEntry[] table, final ConstantPool constantPool) {
+        super(Const.ATTR_STACK_MAP, nameIndex, length, constantPool);
+        this.table = table != null ? table : StackMapEntry.EMPTY_ARRAY;
+        Args.requireU2(this.table.length, "table.length");
+    }
+
+    /**
+     * Called by objects that are traversing the nodes of the tree implicitly defined by the contents of a Java class.
+     * I.e., the hierarchy of methods, fields, attributes, etc. spawns a tree of objects.
+     *
+     * @param v Visitor object
      */
     @Override
-    public final void dump( final DataOutputStream file ) throws IOException {
-        super.dump(file);
-        file.writeShort(map.length);
-        for (final StackMapEntry entry : map) {
-            entry.dump(file);
-        }
+    public void accept(final Visitor v) {
+        v.visitStackMap(this);
     }
-
-
-    /**
-     * @return Array of stack map entries
-     */
-    public final StackMapEntry[] getStackMap() {
-        return map;
-    }
-
-
-    /**
-     * @param map Array of stack map entries
-     */
-    public final void setStackMap( final StackMapEntry[] map ) {
-        this.map = map;
-        int len = 2; // Length of 'number_of_entries' field prior to the array of stack maps
-        for (final StackMapEntry element : map) {
-            len += element.getMapEntrySize();
-        }
-        setLength(len);
-    }
-
-
-    /**
-     * @return String representation.
-     */
-    @Override
-    public final String toString() {
-        final StringBuilder buf = new StringBuilder("StackMap(");
-        for (int i = 0; i < map.length; i++) {
-            buf.append(map[i]);
-            if (i < map.length - 1) {
-                buf.append(", ");
-            }
-        }
-        buf.append(')');
-        return buf.toString();
-    }
-
 
     /**
      * @return deep copy of this attribute
      */
     @Override
-    public Attribute copy( final ConstantPool _constant_pool ) {
+    public Attribute copy(final ConstantPool constantPool) {
         final StackMap c = (StackMap) clone();
-        c.map = new StackMapEntry[map.length];
-        for (int i = 0; i < map.length; i++) {
-            c.map[i] = map[i].copy();
-        }
-        c.setConstantPool(_constant_pool);
+        c.table = new StackMapEntry[table.length];
+        Arrays.setAll(c.table, i -> table[i].copy());
+        c.setConstantPool(constantPool);
         return c;
     }
 
-
     /**
-     * Called by objects that are traversing the nodes of the tree implicitely
-     * defined by the contents of a Java class. I.e., the hierarchy of methods,
-     * fields, attributes, etc. spawns a tree of objects.
+     * Dump stack map table attribute to file stream in binary format.
      *
-     * @param v Visitor object
+     * @param file Output file stream
+     * @throws IOException if an I/O error occurs.
      */
     @Override
-    public void accept( final Visitor v ) {
-        v.visitStackMap(this);
+    public void dump(final DataOutputStream file) throws IOException {
+        super.dump(file);
+        file.writeShort(table.length);
+        for (final StackMapEntry entry : table) {
+            entry.dump(file);
+        }
     }
 
+    public int getMapLength() {
+        return table.length;
+    }
 
-    public final int getMapLength() {
-        return map == null ? 0 : map.length;
+    /**
+     * @return Array of stack map entries
+     */
+    public StackMapEntry[] getStackMap() {
+        return table;
+    }
+
+    /**
+     * @param table Array of stack map entries
+     */
+    public void setStackMap(final StackMapEntry[] table) {
+        this.table = table != null ? table : StackMapEntry.EMPTY_ARRAY;
+        int len = 2; // Length of 'number_of_entries' field prior to the array of stack maps
+        for (final StackMapEntry element : this.table) {
+            len += element.getMapEntrySize();
+        }
+        setLength(len);
+    }
+
+    /**
+     * @return String representation.
+     */
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder("StackMap(");
+        int runningOffset = -1; // no +1 on first entry
+        for (int i = 0; i < table.length; i++) {
+            runningOffset = table[i].getByteCodeOffset() + runningOffset + 1;
+            buf.append(String.format("%n@%03d %s", runningOffset, table[i]));
+            if (i < table.length - 1) {
+                buf.append(", ");
+            }
+        }
+        buf.append(')');
+        return buf.toString();
     }
 }

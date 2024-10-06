@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,22 +22,37 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
-import javax.swing.event.*;
-import javax.swing.plaf.*;
-import javax.accessibility.*;
-
-import java.io.Serializable;
-import java.io.ObjectOutputStream;
-import java.io.IOException;
-
-import java.awt.*;
-import java.util.*;
-import java.beans.JavaBean;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Font;
+import java.awt.Image;
 import java.beans.BeanProperty;
+import java.beans.JavaBean;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.Dictionary;
+import java.util.Enumeration;
+import java.util.Hashtable;
+
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleAction;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleState;
+import javax.accessibility.AccessibleStateSet;
+import javax.accessibility.AccessibleValue;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.event.EventListenerList;
+import javax.swing.plaf.SliderUI;
+import javax.swing.plaf.UIResource;
 
 /**
  * A component that lets the user graphically select a value by sliding
@@ -56,7 +71,7 @@ import java.beans.PropertyChangeListener;
  * <p>
  * For further information and examples see
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/slider.html">How to Use Sliders</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/slider.html">How to Use Sliders</a>,
  * a section in <em>The Java Tutorial.</em>
  * <p>
  * <strong>Warning:</strong> Swing is not thread safe. For more
@@ -69,7 +84,7 @@ import java.beans.PropertyChangeListener;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -335,7 +350,7 @@ public class JSlider extends JComponent implements SwingConstants, Accessible {
     /**
      * Returns the name of the L&amp;F class that renders this component.
      *
-     * @return "SliderUI"
+     * @return the string "SliderUI"
      * @see JComponent#getUIClassID
      * @see UIDefaults#getUI
      */
@@ -346,7 +361,7 @@ public class JSlider extends JComponent implements SwingConstants, Accessible {
 
 
     /**
-     * We pass Change events along to the listeners with the
+     * We pass Change events along to the listeners with
      * the slider (instead of the model itself) as the event source.
      */
     private class ModelListener implements ChangeListener, Serializable {
@@ -534,13 +549,6 @@ public class JSlider extends JComponent implements SwingConstants, Accessible {
             return;
         }
         m.setValue(n);
-
-        if (accessibleContext != null) {
-            accessibleContext.firePropertyChange(
-                                                AccessibleContext.ACCESSIBLE_VALUE_PROPERTY,
-                                                Integer.valueOf(oldValue),
-                                                Integer.valueOf(m.getValue()));
-        }
     }
 
 
@@ -912,7 +920,7 @@ public class JSlider extends JComponent implements SwingConstants, Accessible {
      * @return a new {@code Hashtable} of labels
      * @see #setLabelTable
      * @see #setPaintLabels
-     * @exception IllegalArgumentException if {@code start} is
+     * @throws IllegalArgumentException if {@code start} is
      *          out of range, or if {@code increment} is less than or equal
      *          to zero
      */
@@ -922,7 +930,7 @@ public class JSlider extends JComponent implements SwingConstants, Accessible {
         }
 
         if ( increment <= 0 ) {
-            throw new IllegalArgumentException( "Label incremement must be > 0" );
+            throw new IllegalArgumentException( "Label increment must be > 0" );
         }
 
         class SmartHashtable extends Hashtable<Integer, JComponent> implements PropertyChangeListener {
@@ -1010,8 +1018,8 @@ public class JSlider extends JComponent implements SwingConstants, Accessible {
         @SuppressWarnings("rawtypes")
         Dictionary labelTable = getLabelTable();
 
-        if (labelTable != null && (labelTable instanceof PropertyChangeListener)) {
-            removePropertyChangeListener((PropertyChangeListener) labelTable);
+        if (labelTable instanceof PropertyChangeListener listener) {
+            removePropertyChangeListener(listener);
         }
 
         addPropertyChangeListener( table );
@@ -1326,6 +1334,7 @@ public class JSlider extends JComponent implements SwingConstants, Accessible {
      * See readObject() and writeObject() in JComponent for more
      * information about serialization in Swing.
      */
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
         if (getUIClassID().equals(uiClassID)) {
@@ -1407,14 +1416,25 @@ public class JSlider extends JComponent implements SwingConstants, Accessible {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
     @SuppressWarnings("serial") // Same-version serialization only
     protected class AccessibleJSlider extends AccessibleJComponent
-    implements AccessibleValue {
+    implements AccessibleValue, ChangeListener, AccessibleAction {
 
+
+        private int oldModelValue;
+
+        /**
+         * constructs an AccessibleJSlider
+         */
+        protected AccessibleJSlider() {
+            // model is guaranteed to be non-null
+            oldModelValue = getModel().getValue();
+            JSlider.this.addChangeListener(this);
+        }
         /**
          * Get the state set of this object.
          *
@@ -1434,6 +1454,26 @@ public class JSlider extends JComponent implements SwingConstants, Accessible {
                 states.add(AccessibleState.HORIZONTAL);
             }
             return states;
+        }
+
+        /**
+         * Invoked when the target of the listener has changed its state.
+         *
+         * @param e  a {@code ChangeEvent} object. Must not be {@code null}
+         * @throws NullPointerException if the parameter is {@code null}
+         *
+         * @since 16
+         */
+        public void stateChanged(ChangeEvent e) {
+            if (e == null) {
+                throw new NullPointerException();
+            }
+            int newModelValue = getModel().getValue();
+            firePropertyChange(
+                    AccessibleContext.ACCESSIBLE_VALUE_PROPERTY,
+                    Integer.valueOf(oldModelValue),
+                    Integer.valueOf(newModelValue));
+            oldModelValue = newModelValue;
         }
 
         /**
@@ -1499,5 +1539,77 @@ public class JSlider extends JComponent implements SwingConstants, Accessible {
             BoundedRangeModel model = JSlider.this.getModel();
             return Integer.valueOf(model.getMaximum() - model.getExtent());
         }
+
+        /**
+         * Gets the AccessibleAction associated with this object that supports
+         * one or more actions.
+         *
+         * @return AccessibleAction if supported by object; else return null
+         * @see AccessibleAction
+         */
+        public AccessibleAction getAccessibleAction() {
+            return this;
+        }
+
+        /* ===== Begin AccessibleAction impl ===== */
+
+        /**
+         * Returns the number of accessible actions available in this object
+         * If there are more than one, the first one is considered the "default"
+         * action of the object.
+         *
+         * Two actions are supported: AccessibleAction.INCREMENT which
+         * increments the slider value and AccessibleAction.DECREMENT
+         * which decrements the slider value
+         *
+         * @return the zero-based number of Actions in this object
+         *
+         * @since 17
+         */
+        public int getAccessibleActionCount() {
+            return 2;
+        }
+
+        /**
+         * Returns a description of the specified action of the object.
+         *
+         * @param i zero-based index of the actions
+         * @return a String description of the action
+         * @see #getAccessibleActionCount
+         *
+         * @since 17
+         */
+        public String getAccessibleActionDescription(int i) {
+            if (i == 0) {
+                return AccessibleAction.INCREMENT;
+            } else if (i == 1) {
+                return AccessibleAction.DECREMENT;
+            }
+            return null;
+        }
+
+        /**
+         * Performs the specified Action on the object
+         *
+         * @param i zero-based index of actions. The first action
+         * (index 0) is AccessibleAction.INCREMENT and the second
+         * action (index 1) is AccessibleAction.DECREMENT.
+         * @return true if the action was performed, otherwise false
+         * @see #getAccessibleActionCount
+         *
+         * @since 17
+         */
+        public boolean doAccessibleAction(int i) {
+            if (i < 0 || i > 1) {
+                return false;
+            }
+            //0 is increment, 1 is decrement
+            int delta = ((i > 0) ? -1 : 1);
+            JSlider.this.setValue(oldModelValue + delta);
+            return true;
+        }
+
+        /* ===== End AccessibleAction impl ===== */
+
     } // AccessibleJSlider
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,7 @@ public class BytecodeDescriptor {
             int start, int end, ClassLoader loader) {
         String str = bytecodeSignature;
         int[] i = {start};
-        ArrayList<Class<?>> ptypes = new ArrayList<Class<?>>();
+        var ptypes = new ArrayList<Class<?>>();
         if (i[0] < end && str.charAt(i[0]) == '(') {
             ++i[0];  // skip '('
             while (i[0] < end && str.charAt(i[0]) != ')') {
@@ -90,16 +90,14 @@ public class BytecodeDescriptor {
             i[0] = endc+1;
             String name = str.substring(begc, endc).replace('/', '.');
             try {
-                return (loader == null)
-                    ? Class.forName(name, false, null)
-                    : loader.loadClass(name);
+                return Class.forName(name, false, loader);
             } catch (ClassNotFoundException ex) {
                 throw new TypeNotPresentException(name, ex);
             }
         } else if (c == '[') {
             Class<?> t = parseSig(str, i, end, loader);
             if (t != null)
-                t = java.lang.reflect.Array.newInstance(t, 0).getClass();
+                t = t.arrayType();
             return t;
         } else {
             return Wrapper.forBasicType(c).primitiveType();
@@ -112,20 +110,14 @@ public class BytecodeDescriptor {
         } else if (type == int.class) {
             return "I";
         }
-        StringBuilder sb = new StringBuilder();
-        unparseSig(type, sb);
-        return sb.toString();
-    }
-
-    public static String unparse(MethodType type) {
-        return unparseMethod(type.returnType(), type.parameterArray());
+        return type.descriptorString();
     }
 
     public static String unparse(Object type) {
-        if (type instanceof Class<?>)
-            return unparse((Class<?>) type);
-        if (type instanceof MethodType)
-            return unparse((MethodType) type);
+        if (type instanceof Class<?> cl)
+            return unparse(cl);
+        if (type instanceof MethodType mt)
+            return mt.toMethodDescriptorString();
         return (String) type;
     }
 
@@ -156,11 +148,7 @@ public class BytecodeDescriptor {
         } else if (t == Object.class) {
             sb.append("Ljava/lang/Object;");
         } else {
-            boolean lsemi = (!t.isArray());
-            if (lsemi)  sb.append('L');
-            sb.append(t.getName().replace('.', '/'));
-            if (lsemi)  sb.append(';');
+            sb.append(t.descriptorString());
         }
     }
-
 }

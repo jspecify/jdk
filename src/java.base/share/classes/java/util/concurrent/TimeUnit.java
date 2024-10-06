@@ -35,7 +35,7 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.NullMarked;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -74,7 +74,7 @@ import java.util.Objects;
  * @since 1.5
  * @author Doug Lea
  */
-@AnnotatedFor({"lock"})
+@NullMarked
 public enum TimeUnit {
     /**
      * Time unit representing one thousandth of a microsecond.

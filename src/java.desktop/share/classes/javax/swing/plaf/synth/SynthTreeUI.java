@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing.plaf.synth;
 
 import java.awt.Color;
@@ -32,6 +33,7 @@ import java.awt.Rectangle;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.Enumeration;
+
 import javax.swing.DefaultCellEditor;
 import javax.swing.Icon;
 import javax.swing.JComponent;
@@ -71,7 +73,15 @@ public class SynthTreeUI extends BasicTreeUI
 
     private boolean useTreeColors;
 
-    private Icon expandedIconWrapper = new ExpandedIconWrapper();
+    private Icon expandedIconWrapper;
+
+    private Icon collapsedIconWrapper;
+
+    /**
+     *
+     * Constructs a {@code SynthTreeUI}.
+     */
+    public SynthTreeUI() {}
 
     /**
      * Creates a new UI object for the given component.
@@ -91,12 +101,19 @@ public class SynthTreeUI extends BasicTreeUI
         return expandedIconWrapper;
     }
 
+    @Override
+    public Icon getCollapsedIcon() {
+        return collapsedIconWrapper;
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
     protected void installDefaults() {
         updateStyle(tree);
+        expandedIconWrapper = new IconWrapper(expandedIcon);
+        collapsedIconWrapper = new IconWrapper(collapsedIcon);
     }
 
     private void updateStyle(JTree tree) {
@@ -195,9 +212,8 @@ public class SynthTreeUI extends BasicTreeUI
         TreeCellRenderer renderer = tree.getCellRenderer();
         DefaultTreeCellEditor editor;
 
-        if(renderer != null && (renderer instanceof DefaultTreeCellRenderer)) {
-            editor = new SynthTreeCellEditor(tree, (DefaultTreeCellRenderer)
-                                             renderer);
+        if (renderer instanceof DefaultTreeCellRenderer defaultRenderer) {
+            editor = new SynthTreeCellEditor(tree, defaultRenderer);
         }
         else {
             editor = new SynthTreeCellEditor(tree, null);
@@ -674,6 +690,10 @@ public class SynthTreeUI extends BasicTreeUI
         return super.getRowX(row, depth) + padding;
     }
 
+    /**
+     * A subclass of {@code DefaultTreeCellRenderer} that implements
+     * {@code UIResource}.
+     */
     @SuppressWarnings("serial") // Superclass is not serializable across versions
     private class SynthTreeCellRenderer extends DefaultTreeCellRenderer
                                implements UIResource {
@@ -767,44 +787,40 @@ public class SynthTreeUI extends BasicTreeUI
     }
 
     //
-    // BasicTreeUI directly uses expandIcon outside of the Synth methods.
+    // BasicTreeUI directly uses expandIcon and collapsedIcon outside of the
+    // Synth methods.
     // To get the correct context we return an instance of this that fetches
     // the SynthContext as needed.
     //
-    private class ExpandedIconWrapper implements SynthIcon {
+
+    private class IconWrapper implements SynthIcon {
+        Icon iconType;
+
+        public IconWrapper(Icon type) {
+            super();
+            iconType = type;
+        }
+
         public void paintIcon(SynthContext context, Graphics g, int x,
                               int y, int w, int h) {
             if (context == null) {
                 context = getContext(tree);
-                SynthGraphicsUtils.paintIcon(expandedIcon, context, g, x, y, w, h);
             }
-            else {
-                SynthGraphicsUtils.paintIcon(expandedIcon, context, g, x, y, w, h);
-            }
+            SynthGraphicsUtils.paintIcon(iconType, context, g, x, y, w, h);
         }
 
         public int getIconWidth(SynthContext context) {
-            int width;
             if (context == null) {
                 context = getContext(tree);
-                width = SynthGraphicsUtils.getIconWidth(expandedIcon, context);
             }
-            else {
-                width = SynthGraphicsUtils.getIconWidth(expandedIcon, context);
-            }
-            return width;
+            return SynthGraphicsUtils.getIconWidth(iconType, context);
         }
 
         public int getIconHeight(SynthContext context) {
-            int height;
             if (context == null) {
                 context = getContext(tree);
-                height = SynthGraphicsUtils.getIconHeight(expandedIcon, context);
             }
-            else {
-                height = SynthGraphicsUtils.getIconHeight(expandedIcon, context);
-            }
-            return height;
+            return SynthGraphicsUtils.getIconHeight(iconType, context);
         }
     }
 }

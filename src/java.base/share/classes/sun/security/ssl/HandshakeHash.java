@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.LinkedList;
 import javax.crypto.SecretKey;
@@ -48,12 +49,11 @@ final class HandshakeHash {
     // fix the negotiated protocol version and cipher suite
     void determine(ProtocolVersion protocolVersion,
             CipherSuite cipherSuite) {
-        if (!(transcriptHash instanceof CacheOnlyHash)) {
+        if (!(transcriptHash instanceof CacheOnlyHash coh)) {
             throw new IllegalStateException(
                     "Not expected instance of transcript hash");
         }
 
-        CacheOnlyHash coh = (CacheOnlyHash)transcriptHash;
         if (protocolVersion.useTLS13PlusSpec()) {
             transcriptHash = new T13HandshakeHash(cipherSuite);
         } else if (protocolVersion.useTLS12PlusSpec()) {
@@ -246,7 +246,7 @@ final class HandshakeHash {
             try {
                 baos.writeTo(result.baos);
             } catch (IOException ex) {
-                throw new RuntimeException("unable to to clone hash state");
+                throw new RuntimeException("unable to clone hash state");
             }
             return result;
         }
@@ -269,8 +269,13 @@ final class HandshakeHash {
         private final ByteArrayOutputStream baos;
 
         S30HandshakeHash(CipherSuite cipherSuite) {
-            this.mdMD5 = JsseJce.getMessageDigest("MD5");
-            this.mdSHA = JsseJce.getMessageDigest("SHA");
+            try {
+                this.mdMD5 = MessageDigest.getInstance("MD5");
+                this.mdSHA = MessageDigest.getInstance("SHA");
+            } catch (NoSuchAlgorithmException nsae) {
+                throw new RuntimeException(
+                    "Hash algorithm MD5 or SHA is not available", nsae);
+            }
 
             boolean hasArchived = false;
             if (mdMD5 instanceof Cloneable) {
@@ -379,7 +384,12 @@ final class HandshakeHash {
                             "MessageDigest does no support clone operation");
                 }
             } else {
-                md5Clone = JsseJce.getMessageDigest("MD5");
+                try {
+                    md5Clone = MessageDigest.getInstance("MD5");
+                } catch (NoSuchAlgorithmException nsae) {
+                    throw new RuntimeException(
+                        "Hash algorithm MD5 is not available", nsae);
+                }
                 md5Clone.update(md5.archived());
             }
 
@@ -396,7 +406,12 @@ final class HandshakeHash {
                             "MessageDigest does no support clone operation");
                 }
             } else {
-                shaClone = JsseJce.getMessageDigest("SHA");
+                try {
+                    shaClone = MessageDigest.getInstance("SHA");
+                } catch (NoSuchAlgorithmException nsae) {
+                    throw new RuntimeException(
+                        "Hash algorithm SHA is not available", nsae);
+                }
                 shaClone.update(sha.archived());
             }
 
@@ -447,8 +462,15 @@ final class HandshakeHash {
         private final ByteArrayOutputStream baos;
 
         T10HandshakeHash(CipherSuite cipherSuite) {
-            MessageDigest mdMD5 = JsseJce.getMessageDigest("MD5");
-            MessageDigest mdSHA = JsseJce.getMessageDigest("SHA");
+            MessageDigest mdMD5;
+            MessageDigest mdSHA;
+            try {
+                mdMD5 = MessageDigest.getInstance("MD5");
+                mdSHA = MessageDigest.getInstance("SHA");
+            } catch (NoSuchAlgorithmException nsae) {
+                throw new RuntimeException(
+                    "Hash algorithm MD5 or SHA is not available", nsae);
+            }
 
             boolean hasArchived = false;
             if (mdMD5 instanceof Cloneable) {
@@ -514,14 +536,21 @@ final class HandshakeHash {
         private final ByteArrayOutputStream baos;
 
         T12HandshakeHash(CipherSuite cipherSuite) {
-            MessageDigest md =
-                    JsseJce.getMessageDigest(cipherSuite.hashAlg.name);
+            MessageDigest md;
+            try {
+                md = MessageDigest.getInstance(cipherSuite.hashAlg.name);
+            } catch (NoSuchAlgorithmException nsae) {
+                throw new RuntimeException(
+                        "Hash algorithm " +
+                        cipherSuite.hashAlg.name + " is not available", nsae);
+            }
+
             if (md instanceof Cloneable) {
                 transcriptHash = new CloneableHash(md);
-                this.baos = null;
+                this.baos = new ByteArrayOutputStream();
             } else {
                 transcriptHash = new NonCloneableHash(md);
-                this.baos = new ByteArrayOutputStream();
+                this.baos = null;
             }
         }
 
@@ -550,26 +579,27 @@ final class HandshakeHash {
 
     static final class T13HandshakeHash implements TranscriptHash {
         private final TranscriptHash transcriptHash;
-        private final ByteArrayOutputStream baos;
 
         T13HandshakeHash(CipherSuite cipherSuite) {
-            MessageDigest md =
-                    JsseJce.getMessageDigest(cipherSuite.hashAlg.name);
+            MessageDigest md;
+            try {
+                md = MessageDigest.getInstance(cipherSuite.hashAlg.name);
+            } catch (NoSuchAlgorithmException nsae) {
+                throw new RuntimeException(
+                        "Hash algorithm " +
+                        cipherSuite.hashAlg.name + " is not available", nsae);
+            }
+
             if (md instanceof Cloneable) {
                 transcriptHash = new CloneableHash(md);
-                this.baos = null;
             } else {
                 transcriptHash = new NonCloneableHash(md);
-                this.baos = new ByteArrayOutputStream();
             }
         }
 
         @Override
         public void update(byte[] input, int offset, int length) {
             transcriptHash.update(input, offset, length);
-            if (baos != null) {
-                baos.write(input, offset, length);
-            }
         }
 
         @Override
@@ -579,13 +609,9 @@ final class HandshakeHash {
 
         @Override
         public byte[] archived() {
-            if (baos != null) {
-                return baos.toByteArray();
-            } else {
-                return transcriptHash.archived();
-            }
-
-            // throw new UnsupportedOperationException("Not supported yet.");
+            // This method is not necessary in T13
+            throw new UnsupportedOperationException(
+                    "TLS 1.3 does not require archived.");
         }
     }
 

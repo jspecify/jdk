@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.beans;
 
+import java.io.Serial;
 import java.util.EventObject;
 
 /**
@@ -47,6 +48,11 @@ import java.util.EventObject;
  * @since 1.1
  */
 public class PropertyChangeEvent extends EventObject {
+
+    /**
+     * Use serialVersionUID from JDK 1.7 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = 7042693688939648123L;
 
     /**
@@ -130,12 +136,14 @@ public class PropertyChangeEvent extends EventObject {
      * New value for property.  May be null if not known.
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private Object newValue;
 
     /**
      * Previous value for property.  May be null if not known.
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private Object oldValue;
 
     /**
@@ -143,6 +151,7 @@ public class PropertyChangeEvent extends EventObject {
      * @serial
      * @see #getPropagationId
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private Object propagationId;
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,18 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.*;
-import java.lang.ref.WeakReference;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
 import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 
 /**
  * A package-private PropertyChangeListener which listens for
@@ -41,7 +46,7 @@ import java.lang.ref.ReferenceQueue;
  * </p>
  * <p>
  * WARNING WARNING WARNING WARNING WARNING WARNING:<br>
- * Do NOT create an annonymous inner class that extends this!  If you do
+ * Do NOT create an anonymous inner class that extends this!  If you do,
  * a strong reference will be held to the containing class, which in most
  * cases defeats the purpose of this class.
  *
@@ -125,11 +130,13 @@ abstract class ActionPropertyChangeListener<T extends JComponent>
           return action;
     }
 
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
         s.writeObject(getTarget());
     }
 
+    @Serial
     @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream s)
                      throws IOException, ClassNotFoundException {

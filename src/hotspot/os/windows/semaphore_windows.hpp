@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,18 @@
  *
  */
 
-#ifndef OS_WINDOWS_VM_SEMAPHORE_WINDOWS_HPP
-#define OS_WINDOWS_VM_SEMAPHORE_WINDOWS_HPP
+#ifndef OS_WINDOWS_SEMAPHORE_WINDOWS_HPP
+#define OS_WINDOWS_SEMAPHORE_WINDOWS_HPP
 
 #include "memory/allocation.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 #include <windows.h>
 
 class WindowsSemaphore : public CHeapObj<mtInternal> {
   HANDLE _semaphore;
 
-  // Prevent copying and assignment.
-  WindowsSemaphore(const WindowsSemaphore&);
-  WindowsSemaphore& operator=(const WindowsSemaphore&);
+  NONCOPYABLE(WindowsSemaphore);
 
  public:
   WindowsSemaphore(uint value = 0);
@@ -49,4 +48,4 @@ class WindowsSemaphore : public CHeapObj<mtInternal> {
 
 typedef WindowsSemaphore SemaphoreImpl;
 
-#endif // OS_WINDOWS_VM_SEMAPHORE_WINDOWS_HPP
+#endif // OS_WINDOWS_SEMAPHORE_WINDOWS_HPP

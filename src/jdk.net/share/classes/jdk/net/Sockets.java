@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,20 @@
 
 package jdk.net;
 
-import java.net.*;
+import jdk.net.ExtendedSocketOptions.PlatformSocketOptions;
+
 import java.io.IOException;
+import java.net.DatagramSocket;
+import java.net.MulticastSocket;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketOption;
+import java.net.StandardSocketOptions;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import jdk.net.ExtendedSocketOptions.PlatformSocketOptions;
 
 /**
  * Defines static methods to set and get socket options defined by the
@@ -50,8 +56,16 @@ import jdk.net.ExtendedSocketOptions.PlatformSocketOptions;
  * The details are specified in {@link ExtendedSocketOptions}. No permission
  * is required for {@link java.net.StandardSocketOptions}.
  *
+ * @deprecated
+ * Java SE 9 added standard methods to set/get socket options, and retrieve the per-Socket
+ * supported options effectively rendering this API redundant. Please refer to the corresponding
+ * socket's class for the equivalent method to set/get a socket option or retrieve available socket options.
+ *
  * @see java.nio.channels.NetworkChannel
+ *
+ * @since 1.8
  */
+@Deprecated(since = "16")
 public class Sockets {
 
     private static final Map<Class<?>,Set<SocketOption<?>>>
@@ -66,6 +80,7 @@ public class Sockets {
      * @param name The socket option
      * @param value The value of the socket option. May be null for some
      *              options.
+     * @param <T> The type of the socket option
      *
      * @throws UnsupportedOperationException if the socket does not support
      *         the option.
@@ -80,8 +95,11 @@ public class Sockets {
      *
      * @throws NullPointerException if name is null
      *
+     * @deprecated use {@link java.net.Socket#setOption(SocketOption, Object)} instead.
+     *
      * @see java.net.StandardSocketOptions
      */
+    @Deprecated(since = "16")
     public static <T> void setOption(Socket s, SocketOption<T> name, T value) throws IOException
     {
         s.setOption(name, value);
@@ -92,6 +110,7 @@ public class Sockets {
      *
      * @param s the socket
      * @param name The socket option
+     * @param <T> The type of the socket option
      *
      * @return The value of the socket option.
      *
@@ -105,8 +124,11 @@ public class Sockets {
      *
      * @throws NullPointerException if name is null
      *
+     * @deprecated use {@link java.net.Socket#getOption(SocketOption)} instead.
+     *
      * @see java.net.StandardSocketOptions
      */
+    @Deprecated(since = "16")
     public static <T> T getOption(Socket s, SocketOption<T> name) throws IOException
     {
         return s.getOption(name);
@@ -117,7 +139,8 @@ public class Sockets {
      *
      * @param s the socket
      * @param name The socket option
-     * @param value The value of the socket option.
+     * @param value The value of the socket option
+     * @param <T> The type of the socket option
      *
      * @throws UnsupportedOperationException if the socket does not support
      *         the option.
@@ -132,8 +155,11 @@ public class Sockets {
      * @throws SecurityException if a security manager is set and the
      *         caller does not have any required permission.
      *
+     * @deprecated use {@link java.net.ServerSocket#setOption(SocketOption, Object)} instead.
+     *
      * @see java.net.StandardSocketOptions
      */
+    @Deprecated(since = "16")
     public static <T> void setOption(ServerSocket s, SocketOption<T> name, T value) throws IOException
     {
         s.setOption(name, value);
@@ -144,6 +170,7 @@ public class Sockets {
      *
      * @param s the socket
      * @param name The socket option
+     * @param <T> The type of the socket option
      *
      * @return The value of the socket option.
      *
@@ -157,8 +184,11 @@ public class Sockets {
      * @throws SecurityException if a security manager is set and the
      *         caller does not have any required permission.
      *
+     * @deprecated use {@link java.net.ServerSocket#getOption(SocketOption)} instead.
+     *
      * @see java.net.StandardSocketOptions
      */
+    @Deprecated(since = "16")
     public static <T> T getOption(ServerSocket s, SocketOption<T> name) throws IOException
     {
         return s.getOption(name);
@@ -170,7 +200,8 @@ public class Sockets {
      *
      * @param s the socket
      * @param name The socket option
-     * @param value The value of the socket option.
+     * @param value The value of the socket option
+     * @param <T> The type of the socket option
      *
      * @throws UnsupportedOperationException if the socket does not support
      *         the option.
@@ -185,8 +216,11 @@ public class Sockets {
      * @throws SecurityException if a security manager is set and the
      *         caller does not have any required permission.
      *
+     * @deprecated use {@link java.net.DatagramSocket#setOption(SocketOption, Object)} instead.
+     *
      * @see java.net.StandardSocketOptions
      */
+    @Deprecated(since = "16")
     public static <T> void setOption(DatagramSocket s, SocketOption<T> name, T value) throws IOException
     {
         s.setOption(name, value);
@@ -198,6 +232,7 @@ public class Sockets {
      *
      * @param s the socket
      * @param name The socket option
+     * @param <T> The type of the socket option
      *
      * @return The value of the socket option.
      *
@@ -211,8 +246,11 @@ public class Sockets {
      * @throws SecurityException if a security manager is set and the
      *         caller does not have any required permission.
      *
+     * @deprecated use {@link java.net.DatagramSocket#getOption(SocketOption)} instead.
+     *
      * @see java.net.StandardSocketOptions
      */
+    @Deprecated(since = "16")
     public static <T> T getOption(DatagramSocket s, SocketOption<T> name) throws IOException
     {
         return s.getOption(name);
@@ -225,9 +263,15 @@ public class Sockets {
      *
      * @param socketType the type of java.net socket
      *
+     * @return A set of socket options
+     *
      * @throws IllegalArgumentException if socketType is not a valid
      *         socket type from the java.net package.
+     *
+     * @deprecated use {@link Socket#supportedOptions()}, {@link ServerSocket#supportedOptions()},
+     *             or {@link DatagramSocket#supportedOptions()} instead.
      */
+    @Deprecated(since = "16", forRemoval=true)
     public static Set<SocketOption<?>> supportedOptions(Class<?> socketType) {
         Set<SocketOption<?>> set = options.get(socketType);
         if (set == null) {
@@ -259,9 +303,11 @@ public class Sockets {
         return isReusePortAvailable;
     }
 
+    @SuppressWarnings("removal")
     private static Map<Class<?>,Set<SocketOption<?>>> optionSets() {
         Map<Class<?>,Set<SocketOption<?>>> options = new HashMap<>();
-        boolean flowsupported = PlatformSocketOptions.get().flowSupported();
+        boolean incomingNapiIdsupported = PlatformSocketOptions.get().incomingNapiIdSupported();
+
         boolean reuseportsupported = isReusePortAvailable();
         // Socket
 
@@ -276,9 +322,6 @@ public class Sockets {
         set.add(StandardSocketOptions.SO_LINGER);
         set.add(StandardSocketOptions.IP_TOS);
         set.add(StandardSocketOptions.TCP_NODELAY);
-        if (flowsupported) {
-            set.add(ExtendedSocketOptions.SO_FLOW_SLA);
-        }
         if (QuickAck.available) {
             set.add(ExtendedSocketOptions.TCP_QUICKACK);
         }
@@ -286,6 +329,9 @@ public class Sockets {
             set.addAll(Set.of(ExtendedSocketOptions.TCP_KEEPCOUNT,
                     ExtendedSocketOptions.TCP_KEEPIDLE,
                     ExtendedSocketOptions.TCP_KEEPINTERVAL));
+        }
+        if (incomingNapiIdsupported) {
+            set.add(ExtendedSocketOptions.SO_INCOMING_NAPI_ID);
         }
         set = Collections.unmodifiableSet(set);
         options.put(Socket.class, set);
@@ -307,6 +353,9 @@ public class Sockets {
                     ExtendedSocketOptions.TCP_KEEPINTERVAL));
         }
         set.add(StandardSocketOptions.IP_TOS);
+        if (incomingNapiIdsupported) {
+            set.add(ExtendedSocketOptions.SO_INCOMING_NAPI_ID);
+        }
         set = Collections.unmodifiableSet(set);
         options.put(ServerSocket.class, set);
 
@@ -320,8 +369,8 @@ public class Sockets {
             set.add(StandardSocketOptions.SO_REUSEPORT);
         }
         set.add(StandardSocketOptions.IP_TOS);
-        if (flowsupported) {
-            set.add(ExtendedSocketOptions.SO_FLOW_SLA);
+        if (incomingNapiIdsupported) {
+            set.add(ExtendedSocketOptions.SO_INCOMING_NAPI_ID);
         }
         set = Collections.unmodifiableSet(set);
         options.put(DatagramSocket.class, set);
@@ -339,9 +388,6 @@ public class Sockets {
         set.add(StandardSocketOptions.IP_MULTICAST_IF);
         set.add(StandardSocketOptions.IP_MULTICAST_TTL);
         set.add(StandardSocketOptions.IP_MULTICAST_LOOP);
-        if (flowsupported) {
-            set.add(ExtendedSocketOptions.SO_FLOW_SLA);
-        }
         set = Collections.unmodifiableSet(set);
         options.put(MulticastSocket.class, set);
 

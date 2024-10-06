@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 package java.lang.invoke;
 
 import sun.invoke.util.Wrapper;
+import jdk.internal.constant.ConstantUtils;
 
 import static java.lang.invoke.MethodHandleNatives.mapLookupExceptionToError;
 import static java.util.Objects.requireNonNull;
@@ -40,6 +41,11 @@ import static java.util.Objects.requireNonNull;
  * @since 11
  */
 public final class ConstantBootstraps {
+    /**
+     * Do not call.
+     */
+    private ConstantBootstraps() {throw new AssertionError();}
+
     // implements the upcall from the JVM, MethodHandleNatives.linkDynamicConstant:
     /*non-public*/
     static Object makeConstant(MethodHandle bootstrapMethod,
@@ -91,7 +97,7 @@ public final class ConstantBootstraps {
      * descriptor is specified by {@code name}.
      *
      * @param lookup unused
-     * @param name the descriptor (JVMS 4.3) of the desired primitive type
+     * @param name the descriptor (JVMS {@jvms 4.3}) of the desired primitive type
      * @param type the required result type (must be {@code Class.class})
      * @return the {@link Class} mirror
      * @throws IllegalArgumentException if the name is not a descriptor for a
@@ -103,11 +109,11 @@ public final class ConstantBootstraps {
         if (type != Class.class) {
             throw new IllegalArgumentException();
         }
-        if (name.length() == 0 || name.length() > 1) {
+        if (name.length() != 1) {
             throw new IllegalArgumentException(String.format("not primitive: %s", name));
         }
 
-        return Wrapper.forPrimitiveType(name.charAt(0)).primitiveType();
+        return ConstantUtils.forPrimitiveType(name, 0).resolveConstantDesc(lookup);
     }
 
     /**
@@ -350,10 +356,74 @@ public final class ConstantBootstraps {
         return MethodHandles.arrayElementVarHandle(validateClassAccess(lookup, arrayClass));
     }
 
+    /**
+     * Applies a conversion from a source type to a destination type.
+     * <p>
+     * Given a destination type {@code dstType} and an input
+     * value {@code value}, one of the following will happen:
+     * <ul>
+     * <li>If {@code dstType} is {@code void.class},
+     *     a {@link ClassCastException} is thrown.
+     * <li>If {@code dstType} is {@code Object.class}, {@code value} is returned as is.
+     * </ul>
+     * <p>
+     * Otherwise one of the following conversions is applied to {@code value}:
+     * <ol>
+     * <li>If {@code dstType} is a reference type, a reference cast
+     *     is applied to {@code value} as if by calling {@code dstType.cast(value)}.
+     * <li>If {@code dstType} is a primitive type, then, if the runtime type
+     *     of {@code value} is a primitive wrapper type (such as {@link Integer}),
+     *     a Java unboxing conversion is applied {@jls 5.1.8} followed by a
+     *     Java casting conversion {@jls 5.5} converting either directly to
+     *     {@code dstType}, or, if {@code dstType} is {@code boolean},
+     *     to {@code int}, which is then converted to either {@code true}
+     *     or {@code false} depending on whether the least-significant-bit
+     *     is 1 or 0 respectively. If the runtime type of {@code value} is
+     *     not a primitive wrapper type a {@link ClassCastException} is thrown.
+     * </ol>
+     * <p>
+     * The result is the same as when using the following code:
+     * <blockquote><pre>{@code
+     * MethodHandle id = MethodHandles.identity(dstType);
+     * MethodType mt = MethodType.methodType(dstType, Object.class);
+     * MethodHandle conv = MethodHandles.explicitCastArguments(id, mt);
+     * return conv.invoke(value);
+     * }</pre></blockquote>
+     *
+     * @param lookup unused
+     * @param name unused
+     * @param dstType the destination type of the conversion
+     * @param value the value to be converted
+     * @return the converted value
+     * @throws ClassCastException when {@code dstType} is {@code void},
+     *         when a cast per (1) fails, or when {@code dstType} is a primitive type
+     *         and the runtime type of {@code value} is not a primitive wrapper type
+     *         (such as {@link Integer})
+     *
+     * @since 15
+     */
+    public static Object explicitCast(MethodHandles.Lookup lookup, String name, Class<?> dstType, Object value)
+            throws ClassCastException {
+        if (dstType == void.class)
+            throw new ClassCastException("Can not convert to void");
+        if (dstType == Object.class)
+            return value;
+
+        MethodHandle id = MethodHandles.identity(dstType);
+        MethodType mt = MethodType.methodType(dstType, Object.class);
+        MethodHandle conv = MethodHandles.explicitCastArguments(id, mt);
+        try {
+            return conv.invoke(value);
+        } catch (RuntimeException|Error e) {
+            throw e; // let specified CCE and other runtime exceptions/errors through
+        } catch (Throwable throwable) {
+            throw new InternalError(throwable); // Not specified, throw InternalError
+        }
+    }
+
     private static <T> Class<T> validateClassAccess(MethodHandles.Lookup lookup, Class<T> type) {
         try {
-            lookup.accessClass(type);
-            return type;
+            return lookup.accessClass(type);
         }
         catch (ReflectiveOperationException ex) {
             throw mapLookupExceptionToError(ex);

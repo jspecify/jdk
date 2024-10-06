@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,7 +44,6 @@ import java.awt.image.VolatileImage;
 import java.util.HashSet;
 import sun.java2d.DestSurfaceProvider;
 import sun.java2d.Surface;
-import sun.java2d.pipe.BufferedContext;
 import sun.java2d.pipe.RenderQueue;
 import sun.java2d.pipe.hw.AccelGraphicsConfig;
 import sun.java2d.pipe.hw.AccelSurface;
@@ -76,7 +75,7 @@ public class RSLAPITest {
         if (ret != 0l) {
             System.err.printf(
                     "FAILED: surface.getNativeResource(%d) returned" +
-                    " 0x%s. It should have have returned 0L\n",
+                    " 0x%s. It should have returned 0L\n",
                     type, ret);
             failed = true;
         }
@@ -160,8 +159,6 @@ public class RSLAPITest {
         System.out.println("AccelGraphicsConfig exists, testing.");
         AccelGraphicsConfig agc = (AccelGraphicsConfig) gc;
         printAGC(agc);
-
-        testContext(agc);
 
         VolatileImage vi = gc.createCompatibleVolatileImage(10, 10);
         vi.validate(gc);
@@ -247,22 +244,6 @@ public class RSLAPITest {
                 throw new RuntimeException("Failed: created VI for " +
                                            "unsupported cap=" + cap);
             }
-        }
-    }
-
-    private static void testContext(final AccelGraphicsConfig agc) {
-        BufferedContext c = agc.getContext();
-
-        RenderQueue rq = c.getRenderQueue();
-        rq.lock();
-        try {
-            c.saveState();
-            rq.flushNow();
-            c.restoreState();
-            rq.flushNow();
-            System.out.println("Passed: Save/Restore");
-        } finally {
-            rq.unlock();
         }
     }
 

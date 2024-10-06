@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,11 @@
 
 /**
  * @test
+ * @bug 8178380 8282444
  * @modules jdk.zipfs
- * @library /lib/testlibrary
- * @build ModulesInCustomFileSystem JarUtils m1/* m2/*
+ * @library /test/lib
+ * @build ModulesInCustomFileSystem m1/* m2/*
+ *        jdk.test.lib.util.JarUtils
  * @run testng/othervm ModulesInCustomFileSystem
  * @summary Test ModuleFinder to find modules in a custom file system
  */
@@ -42,6 +44,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
+import java.util.stream.Stream;
+
+import jdk.test.lib.util.JarUtils;
 
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
@@ -51,9 +56,9 @@ public class ModulesInCustomFileSystem {
     private static final Path HERE = Paths.get("");
 
     /**
-     * Test exploded modules in a JAR file system.
+     * Test exploded modules in a Zip file system.
      */
-    public void testExplodedModulesInJarFileSystem() throws Exception {
+    public void testExplodedModulesInZipFileSystem() throws Exception {
         Path m1 = findModuleDirectory("m1");
         Path m2 = findModuleDirectory("m2");
         Path mlib = m1.getParent();
@@ -62,13 +67,13 @@ public class ModulesInCustomFileSystem {
         // create JAR file containing m1/** and m2/**
         Path jar = Files.createTempDirectory(HERE, "mlib").resolve("modules.jar");
         JarUtils.createJarFile(jar, mlib);
-        testJarFileSystem(jar);
+        testZipFileSystem(jar);
     }
 
     /**
-     * Test modular JARs in a JAR file system
+     * Test modular JARs in a Zip file system.
      */
-    public void testModularJARsInJarFileSystem() throws Exception {
+    public void testModularJARsInZipFileSystem() throws Exception {
         Path m1 = findModuleDirectory("m1");
         Path m2 = findModuleDirectory("m2");
         Path contents = Files.createTempDirectory(HERE, "contents");
@@ -78,15 +83,14 @@ public class ModulesInCustomFileSystem {
         // create JAR file containing m1.jar and m2.jar
         Path jar = Files.createTempDirectory(HERE, "mlib").resolve("modules.jar");
         JarUtils.createJarFile(jar, contents);
-        testJarFileSystem(jar);
+        testZipFileSystem(jar);
     }
 
     /**
      * Opens a JAR file as a file system
      */
-    private void testJarFileSystem(Path jar) throws Exception {
-        ClassLoader scl = ClassLoader.getSystemClassLoader();
-        try (FileSystem fs = FileSystems.newFileSystem(jar, scl)) {
+    private void testZipFileSystem(Path zip) throws Exception {
+        try (FileSystem fs = FileSystems.newFileSystem(zip)) {
             // ModuleFinder to find modules in top-level directory
             Path top = fs.getPath("/");
             ModuleFinder finder = ModuleFinder.of(top);
@@ -105,8 +109,9 @@ public class ModulesInCustomFileSystem {
     private void listAllModules(ModuleFinder finder) throws Exception {
         for (ModuleReference mref : finder.findAll()) {
             System.out.println(mref.descriptor());
-            try (ModuleReader reader = mref.open()) {
-                reader.list().forEach(name -> System.out.format("  %s%n", name));
+            try (ModuleReader reader = mref.open();
+                 Stream<String> stream = reader.list()) {
+                stream.forEach(name -> System.out.format("  %s%n", name));
             }
         }
     }

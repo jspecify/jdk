@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,13 @@ package com.sun.tools.javac.api;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.BreakIterator;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -49,6 +49,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements.DocCommentKind;
 import javax.tools.Diagnostic;
 import javax.tools.FileObject;
 import javax.tools.ForwardingFileObject;
@@ -60,18 +61,16 @@ import javax.tools.StandardLocation;
 
 import com.sun.source.doctree.DocCommentTree;
 import com.sun.source.doctree.DocTree;
-import com.sun.source.doctree.EndElementTree;
-import com.sun.source.doctree.StartElementTree;
+import com.sun.source.doctree.EntityTree;
 import com.sun.source.tree.CatchTree;
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Scope;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.DocSourcePositions;
 import com.sun.source.util.DocTreePath;
-import com.sun.source.util.DocTreeScanner;
 import com.sun.source.util.DocTrees;
 import com.sun.source.util.JavacTask;
-import com.sun.source.util.SimpleDocTreeVisitor;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Scope.NamedImportScope;
@@ -88,12 +87,11 @@ import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ArrayType;
 import com.sun.tools.javac.code.Type.ClassType;
-import com.sun.tools.javac.code.Type.ErrorType;
 import com.sun.tools.javac.code.Type.UnionClassType;
 import com.sun.tools.javac.code.Types;
-import com.sun.tools.javac.code.Types.TypeRelation;
 import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.comp.AttrContext;
+import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.comp.MemberEnter;
@@ -103,21 +101,17 @@ import com.sun.tools.javac.file.BaseFileManager;
 import com.sun.tools.javac.model.JavacElements;
 import com.sun.tools.javac.parser.DocCommentParser;
 import com.sun.tools.javac.parser.ParserFactory;
+import com.sun.tools.javac.parser.ReferenceParser;
 import com.sun.tools.javac.parser.Tokens.Comment;
-import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.DCTree;
-import com.sun.tools.javac.tree.DCTree.DCBlockTag;
 import com.sun.tools.javac.tree.DCTree.DCDocComment;
-import com.sun.tools.javac.tree.DCTree.DCEndPosTree;
-import com.sun.tools.javac.tree.DCTree.DCErroneous;
 import com.sun.tools.javac.tree.DCTree.DCIdentifier;
 import com.sun.tools.javac.tree.DCTree.DCParam;
 import com.sun.tools.javac.tree.DCTree.DCReference;
-import com.sun.tools.javac.tree.DCTree.DCText;
 import com.sun.tools.javac.tree.DocCommentTable;
 import com.sun.tools.javac.tree.DocTreeMaker;
 import com.sun.tools.javac.tree.EndPosTable;
@@ -133,6 +127,7 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeCopier;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
+import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.Abort;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
@@ -150,7 +145,6 @@ import com.sun.tools.javac.util.Pair;
 import com.sun.tools.javac.util.Position;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
-import static com.sun.tools.javac.code.TypeTag.*;
 
 /**
  * Provides an implementation of Trees.
@@ -163,39 +157,41 @@ import static com.sun.tools.javac.code.TypeTag.*;
  * @author Peter von der Ah&eacute;
  */
 public class JavacTrees extends DocTrees {
+    private final Modules modules;
+    private final Resolve resolve;
+    private final Enter enter;
+    private final Log log;
+    private final MemberEnter memberEnter;
+    private final Attr attr;
+    private final Check chk;
+    private final TreeMaker treeMaker;
+    private final JavacElements elements;
+    private final JavacTaskImpl javacTaskImpl;
+    private final Names names;
+    private final Types types;
+    private final DocTreeMaker docTreeMaker;
+    private final JavaFileManager fileManager;
+    private final Symtab syms;
 
-    // in a world of a single context per compilation, these would all be final
-    private Modules modules;
-    private Resolve resolve;
-    private Enter enter;
-    private Log log;
-    private MemberEnter memberEnter;
-    private Attr attr;
-    private TreeMaker treeMaker;
-    private JavacElements elements;
-    private JavacTaskImpl javacTaskImpl;
-    private Names names;
-    private Types types;
-    private DocTreeMaker docTreeMaker;
     private BreakIterator breakIterator;
-    private JavaFileManager fileManager;
-    private ParserFactory parser;
-    private Symtab syms;
+    private final ParserFactory parserFactory;
+
+    private DocCommentTreeTransformer docCommentTreeTransformer;
 
     private final Map<Type, Type> extraType2OriginalMap = new WeakHashMap<>();
 
     // called reflectively from Trees.instance(CompilationTask task)
     public static JavacTrees instance(JavaCompiler.CompilationTask task) {
-        if (!(task instanceof BasicJavacTask))
+        if (!(task instanceof BasicJavacTask basicJavacTask))
             throw new IllegalArgumentException();
-        return instance(((BasicJavacTask)task).getContext());
+        return instance(basicJavacTask.getContext());
     }
 
     // called reflectively from Trees.instance(ProcessingEnvironment env)
     public static JavacTrees instance(ProcessingEnvironment env) {
-        if (!(env instanceof JavacProcessingEnvironment))
+        if (!(env instanceof JavacProcessingEnvironment javacProcessingEnvironment))
             throw new IllegalArgumentException();
-        return instance(((JavacProcessingEnvironment)env).getContext());
+        return instance(javacProcessingEnvironment.getContext());
     }
 
     public static JavacTrees instance(Context context) {
@@ -205,19 +201,14 @@ public class JavacTrees extends DocTrees {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected JavacTrees(Context context) {
         this.breakIterator = null;
         context.put(JavacTrees.class, this);
-        init(context);
-    }
 
-    public void updateContext(Context context) {
-        init(context);
-    }
-
-    private void init(Context context) {
         modules = Modules.instance(context);
         attr = Attr.instance(context);
+        chk = Check.instance(context);
         enter = Enter.instance(context);
         elements = JavacElements.instance(context);
         log = Log.instance(context);
@@ -227,12 +218,11 @@ public class JavacTrees extends DocTrees {
         names = Names.instance(context);
         types = Types.instance(context);
         docTreeMaker = DocTreeMaker.instance(context);
-        parser = ParserFactory.instance(context);
+        parserFactory = ParserFactory.instance(context);
         syms = Symtab.instance(context);
         fileManager = context.get(JavaFileManager.class);
-        JavacTask t = context.get(JavacTask.class);
-        if (t instanceof JavacTaskImpl)
-            javacTaskImpl = (JavacTaskImpl) t;
+        var task = context.get(JavacTask.class);
+        javacTaskImpl = (task instanceof JavacTaskImpl taskImpl) ? taskImpl : null;
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
@@ -256,61 +246,16 @@ public class JavacTrees extends DocTrees {
 
                 @Override @DefinedBy(Api.COMPILER_TREE)
                 public long getStartPosition(CompilationUnitTree file, DocCommentTree comment, DocTree tree) {
-                    return ((DCTree) tree).getSourcePosition((DCDocComment) comment);
+                    DCDocComment dcComment = (DCDocComment) comment;
+                    DCTree dcTree = (DCTree) tree;
+                    return dcComment.getSourcePosition(dcTree.getStartPosition());
                 }
-                @Override  @DefinedBy(Api.COMPILER_TREE) @SuppressWarnings("fallthrough")
+
+                @Override  @DefinedBy(Api.COMPILER_TREE)
                 public long getEndPosition(CompilationUnitTree file, DocCommentTree comment, DocTree tree) {
                     DCDocComment dcComment = (DCDocComment) comment;
-                    if (tree instanceof DCEndPosTree) {
-                        int endPos = ((DCEndPosTree) tree).getEndPos(dcComment);
-
-                        if (endPos != Position.NOPOS) {
-                            return endPos;
-                        }
-                    }
-                    int correction = 0;
-                    switch (tree.getKind()) {
-                        case TEXT:
-                            DCText text = (DCText) tree;
-
-                            return dcComment.comment.getSourcePos(text.pos + text.text.length());
-                        case ERRONEOUS:
-                            DCErroneous err = (DCErroneous) tree;
-
-                            return dcComment.comment.getSourcePos(err.pos + err.body.length());
-                        case IDENTIFIER:
-                            DCIdentifier ident = (DCIdentifier) tree;
-
-                            return dcComment.comment.getSourcePos(ident.pos + (ident.name != names.error ? ident.name.length() : 0));
-                        case PARAM:
-                            DCParam param = (DCParam) tree;
-
-                            if (param.isTypeParameter && param.getDescription().isEmpty()) {
-                                correction = 1;
-                            }
-                        case AUTHOR: case DEPRECATED: case RETURN: case SEE:
-                        case SERIAL: case SERIAL_DATA: case SERIAL_FIELD: case SINCE:
-                        case THROWS: case UNKNOWN_BLOCK_TAG: case VERSION: {
-                            DocTree last = getLastChild(tree);
-
-                            if (last != null) {
-                                return getEndPosition(file, comment, last) + correction;
-                            }
-
-                            DCBlockTag block = (DCBlockTag) tree;
-
-                            return dcComment.comment.getSourcePos(block.pos + block.getTagName().length() + 1);
-                        }
-                        default:
-                            DocTree last = getLastChild(tree);
-
-                            if (last != null) {
-                                return getEndPosition(file, comment, last);
-                            }
-                            break;
-                    }
-
-                    return Position.NOPOS;
+                    DCTree dcTree = (DCTree) tree;
+                    return dcComment.getSourcePosition(dcTree.getEndPosition());
                 }
             };
     }
@@ -318,20 +263,6 @@ public class JavacTrees extends DocTrees {
     @Override @DefinedBy(Api.COMPILER_TREE)
     public DocTreeMaker getDocTreeFactory() {
         return docTreeMaker;
-    }
-
-    private DocTree getLastChild(DocTree tree) {
-        final DocTree[] last = new DocTree[] {null};
-
-        tree.accept(new DocTreeScanner<Void, Void>() {
-            @Override @DefinedBy(Api.COMPILER_TREE)
-            public Void scan(DocTree node, Void p) {
-                if (node != null) last[0] = node;
-                return null;
-            }
-        }, null);
-
-        return last[0];
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
@@ -409,15 +340,40 @@ public class JavacTrees extends DocTrees {
 
     @Override @DefinedBy(Api.COMPILER_TREE)
     public Element getElement(DocTreePath path) {
-        DocTree forTree = path.getLeaf();
-        if (forTree instanceof DCReference)
-            return attributeDocReference(path.getTreePath(), ((DCReference) forTree));
-        if (forTree instanceof DCIdentifier) {
-            if (path.getParentPath().getLeaf() instanceof DCParam) {
-                return attributeParamIdentifier(path.getTreePath(), (DCParam) path.getParentPath().getLeaf());
+        DocTree tree = path.getLeaf();
+        if (tree instanceof DCReference dcReference)
+            return attributeDocReference(path.getTreePath(), dcReference);
+        if (tree instanceof DCIdentifier) {
+            if (path.getParentPath().getLeaf() instanceof DCParam dcParam) {
+                return attributeParamIdentifier(path.getTreePath(), dcParam);
             }
         }
         return null;
+    }
+
+    @Override @DefinedBy(Api.COMPILER_TREE)
+    public TypeMirror getType(DocTreePath path) {
+        DocTree tree = path.getLeaf();
+        if (tree instanceof DCReference dcReference) {
+            JCTree qexpr = dcReference.qualifierExpression;
+            if (qexpr != null) {
+                Log.DeferredDiagnosticHandler deferredDiagnosticHandler =
+                        new Log.DeferredDiagnosticHandler(log);
+                try {
+                    Env<AttrContext> env = getAttrContext(path.getTreePath());
+                    Type t = attr.attribType(dcReference.qualifierExpression, env);
+                    if (t != null && !t.isErroneous()) {
+                        return t;
+                    }
+                } catch (Abort e) { // may be thrown by Check.completionError in case of bad class file
+                    return null;
+                } finally {
+                    log.popDiagnosticHandler(deferredDiagnosticHandler);
+                }
+            }
+        }
+        Element e = getElement(path);
+        return e == null ? null : e.asType();
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
@@ -428,28 +384,50 @@ public class JavacTrees extends DocTrees {
     private Symbol attributeDocReference(TreePath path, DCReference ref) {
         Env<AttrContext> env = getAttrContext(path);
         if (env == null) return null;
-
+        if (ref.moduleName != null && ref.qualifierExpression == null && ref.memberName != null) {
+            // module name and member name without type
+            return null;
+        }
         Log.DeferredDiagnosticHandler deferredDiagnosticHandler =
                 new Log.DeferredDiagnosticHandler(log);
         try {
             final TypeSymbol tsym;
             final Name memberName;
+            final ModuleSymbol mdlsym;
+
+            if (ref.moduleName != null) {
+                mdlsym = modules.modulesInitialized() ?
+                        modules.getObservableModule(names.fromString(ref.moduleName.toString()))
+                        : null;
+                if (mdlsym == null) {
+                    return null;
+                } else if (ref.qualifierExpression == null) {
+                    return mdlsym;
+                }
+            } else {
+                mdlsym = modules.getDefaultModule();
+            }
+
             if (ref.qualifierExpression == null) {
                 tsym = env.enclClass.sym;
                 memberName = (Name) ref.memberName;
             } else {
-                // newSeeTree if the qualifierExpression is a type or package name.
-                // javac does not provide the exact method required, so
-                // we first check if qualifierExpression identifies a type,
-                // and if not, then we check to see if it identifies a package.
-                Type t = attr.attribType(ref.qualifierExpression, env);
-                if (t.isErroneous()) {
+                // Check if qualifierExpression is a type or package, using the methods javac provides.
+                // If no module name is given we check if qualifierExpression identifies a type.
+                // If that fails or we have a module name, use that to resolve qualifierExpression to
+                // a package or type.
+                Type t = ref.moduleName == null ? attr.attribType(ref.qualifierExpression, env) : null;
+
+                if (t == null || t.isErroneous()) {
                     JCCompilationUnit toplevel =
                         treeMaker.TopLevel(List.nil());
-                    final ModuleSymbol msym = modules.getDefaultModule();
-                    toplevel.modle = msym;
-                    toplevel.packge = msym.unnamedPackage;
+                    toplevel.modle = mdlsym;
+                    toplevel.packge = mdlsym.unnamedPackage;
                     Symbol sym = attr.attribIdent(ref.qualifierExpression, toplevel);
+
+                    if (sym == null) {
+                        return null;
+                    }
 
                     sym.complete();
 
@@ -461,7 +439,15 @@ public class JavacTrees extends DocTrees {
                             return null;
                         }
                     } else {
-                        if (ref.qualifierExpression.hasTag(JCTree.Tag.IDENT)) {
+                        if (modules.modulesInitialized() && ref.moduleName == null && ref.memberName == null) {
+                            // package/type does not exist, check if there is a matching module
+                            ModuleSymbol moduleSymbol = modules.getObservableModule(names.fromString(ref.signature));
+                            if (moduleSymbol != null) {
+                                return moduleSymbol;
+                            }
+                        }
+                        if (ref.qualifierExpression.hasTag(JCTree.Tag.IDENT) && ref.moduleName == null
+                                && ref.memberName == null) {
                             // fixup:  allow "identifier" instead of "#identifier"
                             // for compatibility with javadoc
                             tsym = env.enclClass.sym;
@@ -471,7 +457,11 @@ public class JavacTrees extends DocTrees {
                         }
                     }
                 } else {
-                    tsym = t.tsym;
+                    Type e = t;
+                    // If this is an array type convert to element type
+                    while (e instanceof ArrayType arrayType)
+                        e = arrayType.elemtype;
+                    tsym = e.tsym;
                     memberName = (Name) ref.memberName;
                 }
             }
@@ -493,16 +483,23 @@ public class JavacTrees extends DocTrees {
             }
 
             ClassSymbol sym = (ClassSymbol) types.skipTypeVars(tsym.type, false).tsym;
-
+            boolean explicitType = ref.qualifierExpression != null;
             Symbol msym = (memberName == sym.name)
-                    ? findConstructor(sym, paramTypes)
-                    : findMethod(sym, memberName, paramTypes);
+                    ? findConstructor(sym, paramTypes, true)
+                    : findMethod(sym, memberName, paramTypes, true, explicitType);
+
+            if (msym == null) {
+                msym = (memberName == sym.name)
+                        ? findConstructor(sym, paramTypes, false)
+                        : findMethod(sym, memberName, paramTypes, false, explicitType);
+            }
+
             if (paramTypes != null) {
                 // explicit (possibly empty) arg list given, so cannot be a field
                 return msym;
             }
 
-            VarSymbol vsym = (ref.paramTypes != null) ? null : findField(sym, memberName);
+            VarSymbol vsym = (ref.paramTypes != null) ? null : findField(sym, memberName, explicitType);
             // prefer a field over a method with no parameters
             if (vsym != null &&
                     (msym == null ||
@@ -518,7 +515,7 @@ public class JavacTrees extends DocTrees {
         }
     }
 
-    private Symbol attributeParamIdentifier(TreePath path, DCParam ptag) {
+    private Symbol attributeParamIdentifier(TreePath path, DCParam paramTag) {
         Symbol javadocSymbol = getElement(path);
         if (javadocSymbol == null)
             return null;
@@ -526,29 +523,29 @@ public class JavacTrees extends DocTrees {
         List<? extends Symbol> params = List.nil();
         if (kind == ElementKind.METHOD || kind == ElementKind.CONSTRUCTOR) {
             MethodSymbol ee = (MethodSymbol) javadocSymbol;
-            params = ptag.isTypeParameter()
+            params = paramTag.isTypeParameter()
                     ? ee.getTypeParameters()
                     : ee.getParameters();
         } else if (kind.isClass() || kind.isInterface()) {
             ClassSymbol te = (ClassSymbol) javadocSymbol;
-            params = te.getTypeParameters();
+            params = paramTag.isTypeParameter()
+                    ? te.getTypeParameters()
+                    : te.getRecordComponents();
         }
 
         for (Symbol param : params) {
-            if (param.getSimpleName() == ptag.getName().getName()) {
+            if (param.getSimpleName() == paramTag.getName().getName()) {
                 return param;
             }
         }
         return null;
     }
 
-    /** @see com.sun.tools.javadoc.ClassDocImpl#findField */
-    private VarSymbol findField(ClassSymbol tsym, Name fieldName) {
-        return searchField(tsym, fieldName, new HashSet<>());
+    private VarSymbol findField(ClassSymbol tsym, Name fieldName, boolean explicitType) {
+        return searchField(tsym, fieldName, explicitType, new HashSet<>());
     }
 
-    /** @see com.sun.tools.javadoc.ClassDocImpl#searchField */
-    private VarSymbol searchField(ClassSymbol tsym, Name fieldName, Set<ClassSymbol> searched) {
+    private VarSymbol searchField(ClassSymbol tsym, Name fieldName, boolean explicitType, Set<ClassSymbol> searched) {
         if (searched.contains(tsym)) {
             return null;
         }
@@ -563,18 +560,20 @@ public class JavacTrees extends DocTrees {
         //### If we found a VarSymbol above, but which did not pass
         //### the modifier filter, we should return failure here!
 
-        ClassSymbol encl = tsym.owner.enclClass();
-        if (encl != null) {
-            VarSymbol vsym = searchField(encl, fieldName, searched);
-            if (vsym != null) {
-                return vsym;
+        if (!explicitType) {
+            ClassSymbol encl = tsym.owner.enclClass();
+            if (encl != null) {
+                VarSymbol vsym = searchField(encl, fieldName, explicitType, searched);
+                if (vsym != null) {
+                    return vsym;
+                }
             }
         }
 
         // search superclass
         Type superclass = tsym.getSuperclass();
         if (superclass.tsym != null) {
-            VarSymbol vsym = searchField((ClassSymbol) superclass.tsym, fieldName, searched);
+            VarSymbol vsym = searchField((ClassSymbol) superclass.tsym, fieldName, explicitType, searched);
             if (vsym != null) {
                 return vsym;
             }
@@ -585,7 +584,7 @@ public class JavacTrees extends DocTrees {
         for (List<Type> l = intfs; l.nonEmpty(); l = l.tail) {
             Type intf = l.head;
             if (intf.isErroneous()) continue;
-            VarSymbol vsym = searchField((ClassSymbol) intf.tsym, fieldName, searched);
+            VarSymbol vsym = searchField((ClassSymbol) intf.tsym, fieldName, explicitType, searched);
             if (vsym != null) {
                 return vsym;
             }
@@ -594,11 +593,10 @@ public class JavacTrees extends DocTrees {
         return null;
     }
 
-    /** @see com.sun.tools.javadoc.ClassDocImpl#findConstructor */
-    MethodSymbol findConstructor(ClassSymbol tsym, List<Type> paramTypes) {
+    MethodSymbol findConstructor(ClassSymbol tsym, List<Type> paramTypes, boolean strict) {
         for (Symbol sym : tsym.members().getSymbolsByName(names.init)) {
             if (sym.kind == MTH) {
-                if (hasParameterTypes((MethodSymbol) sym, paramTypes)) {
+                if (hasParameterTypes((MethodSymbol) sym, paramTypes, strict)) {
                     return (MethodSymbol) sym;
                 }
             }
@@ -606,14 +604,13 @@ public class JavacTrees extends DocTrees {
         return null;
     }
 
-    /** @see com.sun.tools.javadoc.ClassDocImpl#findMethod */
-    private MethodSymbol findMethod(ClassSymbol tsym, Name methodName, List<Type> paramTypes) {
-        return searchMethod(tsym, methodName, paramTypes, new HashSet<>());
+    private MethodSymbol findMethod(ClassSymbol tsym, Name methodName, List<Type> paramTypes,
+                                    boolean strict, boolean explicitType) {
+        return searchMethod(tsym, methodName, paramTypes, strict, explicitType, new HashSet<>());
     }
 
-    /** @see com.sun.tools.javadoc.ClassDocImpl#searchMethod */
-    private MethodSymbol searchMethod(ClassSymbol tsym, Name methodName,
-                                       List<Type> paramTypes, Set<ClassSymbol> searched) {
+    private MethodSymbol searchMethod(ClassSymbol tsym, Name methodName, List<Type> paramTypes,
+                                      boolean strict, boolean explicitType, Set<ClassSymbol> searched) {
         //### Note that this search is not necessarily what the compiler would do!
 
         // do not match constructors
@@ -651,7 +648,7 @@ public class JavacTrees extends DocTrees {
             for (Symbol sym : tsym.members().getSymbolsByName(methodName)) {
                 if (sym != null &&
                     sym.kind == MTH) {
-                    if (hasParameterTypes((MethodSymbol) sym, paramTypes)) {
+                    if (hasParameterTypes((MethodSymbol) sym, paramTypes, strict)) {
                         return (MethodSymbol) sym;
                     }
                 }
@@ -664,7 +661,8 @@ public class JavacTrees extends DocTrees {
         // search superclass
         Type superclass = tsym.getSuperclass();
         if (superclass.tsym != null) {
-            MethodSymbol msym = searchMethod((ClassSymbol) superclass.tsym, methodName, paramTypes, searched);
+            MethodSymbol msym = searchMethod((ClassSymbol) superclass.tsym, methodName, paramTypes,
+                    strict, explicitType, searched);
             if (msym != null) {
                 return msym;
             }
@@ -675,108 +673,48 @@ public class JavacTrees extends DocTrees {
         for (List<Type> l = intfs; l.nonEmpty(); l = l.tail) {
             Type intf = l.head;
             if (intf.isErroneous()) continue;
-            MethodSymbol msym = searchMethod((ClassSymbol) intf.tsym, methodName, paramTypes, searched);
+            MethodSymbol msym = searchMethod((ClassSymbol) intf.tsym, methodName, paramTypes,
+                    strict, explicitType, searched);
             if (msym != null) {
                 return msym;
             }
         }
 
         // search enclosing class
-        ClassSymbol encl = tsym.owner.enclClass();
-        if (encl != null) {
-            MethodSymbol msym = searchMethod(encl, methodName, paramTypes, searched);
-            if (msym != null) {
-                return msym;
+        if (!explicitType) {
+            ClassSymbol encl = tsym.owner.enclClass();
+            if (encl != null) {
+                MethodSymbol msym = searchMethod(encl, methodName, paramTypes, strict,
+                        explicitType, searched);
+                if (msym != null) {
+                    return msym;
+                }
             }
         }
 
         return null;
     }
 
-    /** @see com.sun.tools.javadoc.ClassDocImpl */
-    private boolean hasParameterTypes(MethodSymbol method, List<Type> paramTypes) {
+    private boolean hasParameterTypes(MethodSymbol method, List<Type> paramTypes, boolean strict) {
         if (paramTypes == null)
             return true;
 
         if (method.params().size() != paramTypes.size())
             return false;
 
-        List<Type> methodParamTypes = types.erasureRecursive(method.asType()).getParameterTypes();
+        List<Type> methodParamTypes = method.asType().getParameterTypes();
+        if (!strict && !Type.isErroneous(paramTypes) && types.isSubtypes(paramTypes, methodParamTypes)) {
+            return true;
+        }
 
-        return (Type.isErroneous(paramTypes))
-            ? fuzzyMatch(paramTypes, methodParamTypes)
-            : types.isSameTypes(paramTypes, methodParamTypes);
+        methodParamTypes = types.erasureRecursive(methodParamTypes);
+        return types.isSameTypes(paramTypes, methodParamTypes);
     }
-
-    boolean fuzzyMatch(List<Type> paramTypes, List<Type> methodParamTypes) {
-        List<Type> l1 = paramTypes;
-        List<Type> l2 = methodParamTypes;
-        while (l1.nonEmpty()) {
-            if (!fuzzyMatch(l1.head, l2.head))
-                return false;
-            l1 = l1.tail;
-            l2 = l2.tail;
-        }
-        return true;
-    }
-
-    boolean fuzzyMatch(Type paramType, Type methodParamType) {
-        Boolean b = fuzzyMatcher.visit(paramType, methodParamType);
-        return (b == Boolean.TRUE);
-    }
-
-    TypeRelation fuzzyMatcher = new TypeRelation() {
-        @Override
-        public Boolean visitType(Type t, Type s) {
-            if (t == s)
-                return true;
-
-            if (s.isPartial())
-                return visit(s, t);
-
-            switch (t.getTag()) {
-            case BYTE: case CHAR: case SHORT: case INT: case LONG: case FLOAT:
-            case DOUBLE: case BOOLEAN: case VOID: case BOT: case NONE:
-                return t.hasTag(s.getTag());
-            default:
-                throw new AssertionError("fuzzyMatcher " + t.getTag());
-            }
-        }
-
-        @Override
-        public Boolean visitArrayType(ArrayType t, Type s) {
-            if (t == s)
-                return true;
-
-            if (s.isPartial())
-                return visit(s, t);
-
-            return s.hasTag(ARRAY)
-                && visit(t.elemtype, types.elemtype(s));
-        }
-
-        @Override
-        public Boolean visitClassType(ClassType t, Type s) {
-            if (t == s)
-                return true;
-
-            if (s.isPartial())
-                return visit(s, t);
-
-            return t.tsym == s.tsym;
-        }
-
-        @Override
-        public Boolean visitErrorType(ErrorType t, Type s) {
-            return s.hasTag(CLASS)
-                    && t.tsym.name == ((ClassType) s).tsym.name;
-        }
-    };
 
     @Override @DefinedBy(Api.COMPILER_TREE)
     public TypeMirror getTypeMirror(TreePath path) {
-        Tree t = path.getLeaf();
-        Type ty = ((JCTree)t).type;
+        Tree leaf = path.getLeaf();
+        Type ty = ((JCTree) leaf).type;
         return ty == null ? null : ty.stripMetadataIfNeeded();
     }
 
@@ -786,27 +724,39 @@ public class JavacTrees extends DocTrees {
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
+    public DocCommentKind getDocCommentKind(TreePath path) {
+        var compUnit = path.getCompilationUnit();
+        var leaf = path.getLeaf();
+        if (compUnit instanceof JCTree.JCCompilationUnit cu && leaf instanceof JCTree l
+                && cu.docComments != null) {
+            Comment c = cu.docComments.getComment(l);
+            return (c == null) ? null : switch (c.getStyle()) {
+                case JAVADOC_BLOCK -> DocCommentKind.TRADITIONAL;
+                case JAVADOC_LINE -> DocCommentKind.END_OF_LINE;
+                default -> null;
+            };
+        }
+        return null;
+    }
+
+    @Override @DefinedBy(Api.COMPILER_TREE)
     public String getDocComment(TreePath path) {
-        CompilationUnitTree t = path.getCompilationUnit();
-        Tree leaf = path.getLeaf();
-        if (t instanceof JCTree.JCCompilationUnit && leaf instanceof JCTree) {
-            JCCompilationUnit cu = (JCCompilationUnit) t;
-            if (cu.docComments != null) {
-                return cu.docComments.getCommentText((JCTree) leaf);
-            }
+        var compUnit = path.getCompilationUnit();
+        var leaf = path.getLeaf();
+        if (compUnit instanceof JCTree.JCCompilationUnit cu && leaf instanceof JCTree l
+                && cu.docComments != null) {
+            return cu.docComments.getCommentText(l);
         }
         return null;
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
     public DocCommentTree getDocCommentTree(TreePath path) {
-        CompilationUnitTree t = path.getCompilationUnit();
-        Tree leaf = path.getLeaf();
-        if (t instanceof JCTree.JCCompilationUnit && leaf instanceof JCTree) {
-            JCCompilationUnit cu = (JCCompilationUnit) t;
-            if (cu.docComments != null) {
-                return cu.docComments.getCommentTree((JCTree) leaf);
-            }
+        var compUnit = path.getCompilationUnit();
+        var leaf = path.getLeaf();
+        if (compUnit instanceof JCTree.JCCompilationUnit cu && leaf instanceof JCTree l
+                && cu.docComments != null) {
+            return cu.docComments.getCommentTree(l);
         }
         return null;
     }
@@ -834,22 +784,17 @@ public class JavacTrees extends DocTrees {
 
     @Override @DefinedBy(Api.COMPILER_TREE)
     public boolean isAccessible(Scope scope, TypeElement type) {
-        if (scope instanceof JavacScope && type instanceof ClassSymbol) {
-            Env<AttrContext> env = ((JavacScope) scope).env;
-            return resolve.isAccessible(env, (ClassSymbol)type, true);
-        } else
-            return false;
+        return (scope instanceof JavacScope javacScope)
+                && (type instanceof ClassSymbol classSymbol)
+                && resolve.isAccessible(javacScope.env, classSymbol, true);
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
     public boolean isAccessible(Scope scope, Element member, DeclaredType type) {
-        if (scope instanceof JavacScope
-                && member instanceof Symbol
-                && type instanceof com.sun.tools.javac.code.Type) {
-            Env<AttrContext> env = ((JavacScope) scope).env;
-            return resolve.isAccessible(env, (com.sun.tools.javac.code.Type)type, (Symbol)member, true);
-        } else
-            return false;
+        return (scope instanceof JavacScope javacScope)
+                && (member instanceof Symbol symbol)
+                && (type instanceof com.sun.tools.javac.code.Type codeType)
+                && resolve.isAccessible(javacScope.env, codeType, symbol, true);
     }
 
     private Env<AttrContext> getAttrContext(TreePath path) {
@@ -889,6 +834,7 @@ public class JavacTrees extends DocTrees {
                 case CLASS:
                 case ENUM:
                 case INTERFACE:
+                case RECORD:
 //                    System.err.println("CLASS: " + ((JCClassDecl)tree).sym.getSimpleName());
                     env = enter.getClassEnv(((JCClassDecl)tree).sym);
                     if (env == null) return null;
@@ -908,13 +854,13 @@ public class JavacTrees extends DocTrees {
                         try {
                             Assert.check(method.body == tree);
                             method.body = copier.copy((JCBlock)tree, (JCTree) path.getLeaf());
-                            env = attribStatToTree(method.body, env, copier.leafCopy);
+                            env = attribStatToTree(method.body, env, copier.leafCopy, copier.copiedClasses);
                         } finally {
                             method.body = (JCBlock) tree;
                         }
                     } else {
                         JCBlock body = copier.copy((JCBlock)tree, (JCTree) path.getLeaf());
-                        env = attribStatToTree(body, env, copier.leafCopy);
+                        env = attribStatToTree(body, env, copier.leafCopy, copier.copiedClasses);
                     }
                     return env;
                 }
@@ -923,7 +869,7 @@ public class JavacTrees extends DocTrees {
                     if (field != null && field.getInitializer() == tree) {
                         env = memberEnter.getInitEnv(field, env);
                         JCExpression expr = copier.copy((JCExpression)tree, (JCTree) path.getLeaf());
-                        env = attribExprToTree(expr, env, copier.leafCopy);
+                        env = attribExprToTree(expr, env, copier.leafCopy, copier.copiedClasses);
                         return env;
                     }
             }
@@ -931,52 +877,157 @@ public class JavacTrees extends DocTrees {
         return (field != null) ? memberEnter.getInitEnv(field, env) : env;
     }
 
-    private Env<AttrContext> attribStatToTree(JCTree stat, Env<AttrContext>env, JCTree tree) {
-        JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
-        try {
-            return attr.attribStatToTree(stat, env, tree);
-        } finally {
-            log.useSource(prev);
+    private Env<AttrContext> attribStatToTree(JCTree stat, Env<AttrContext>env,
+                                              JCTree tree, Map<JCClassDecl, JCClassDecl> copiedClasses) {
+        Env<AttrContext> result = attr.attribStatToTree(stat, env, tree);
+
+        fixLocalClassNames(copiedClasses, env);
+
+        return result;
+    }
+
+    private Env<AttrContext> attribExprToTree(JCExpression expr, Env<AttrContext>env,
+                                              JCTree tree, Map<JCClassDecl, JCClassDecl> copiedClasses) {
+        Env<AttrContext> result = attr.attribExprToTree(expr, env, tree);
+
+        fixLocalClassNames(copiedClasses, env);
+
+        return result;
+    }
+
+    /* Change the flatnames of the local and anonymous classes in the Scope to
+     * the names they would have if the whole file was attributed normally.
+     */
+    private void fixLocalClassNames(Map<JCClassDecl, JCClassDecl> copiedClasses,
+                                    Env<AttrContext> lastEnv) {
+        Map<JCClassDecl, Name> flatnameForClass = null;
+
+        for (Entry<JCClassDecl, JCClassDecl> e : copiedClasses.entrySet()) {
+            if (e.getKey().sym != null) {
+                Name origName;
+                if (e.getValue().sym != null) {
+                    //if the source tree was already attributed, use the flatname
+                    //from the source tree's Symbol:
+                    origName = e.getValue().sym.flatname;
+                } else {
+                    //otherwise, compute the flatnames (for source trees) as
+                    //if the full source code would be attributed:
+                    if (flatnameForClass == null) {
+                        flatnameForClass = prepareFlatnameForClass(lastEnv);
+                    }
+                    origName = flatnameForClass.get(e.getValue());
+                }
+                if (origName != null) {
+                    e.getKey().sym.flatname = origName;
+                }
+            }
         }
     }
 
-    private Env<AttrContext> attribExprToTree(JCExpression expr, Env<AttrContext>env, JCTree tree) {
-        JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
-        try {
-            return attr.attribExprToTree(expr, env, tree);
-        } finally {
-            log.useSource(prev);
+    /* This method computes and assigns flatnames to trees, as if they would be
+     * normally assigned during attribution of the full source code.
+     */
+    private Map<JCTree.JCClassDecl, Name> prepareFlatnameForClass(Env<AttrContext> env) {
+        Map<JCClassDecl, Name> flatNameForClass = new HashMap<>();
+        Symbol enclClass = env.enclClass.sym;
+
+        if (enclClass != null && (enclClass.flags_field & Flags.UNATTRIBUTED) != 0) {
+            ListBuffer<ClassSymbol> toClear = new ListBuffer<>();
+            new TreeScanner() {
+                Symbol owner;
+                boolean localContext;
+                @Override
+                public void visitClassDef(JCClassDecl tree) {
+                    //compute the name (and ClassSymbol) which would be used
+                    //for this class for full attribution
+                    Symbol prevOwner = owner;
+                    try {
+                        ClassSymbol c;
+                        if (tree.sym != null) {
+                            //already entered:
+                            c = tree.sym;
+                        } else {
+                            c = syms.defineClass(tree.name, owner);
+                            if (owner.kind != TYP) {
+                                //for local classes, assign the flatname
+                                c.flatname = chk.localClassName(c);
+                                chk.putCompiled(c);
+                                toClear.add(c);
+                            }
+                            flatNameForClass.put(tree, c.flatname);
+                        }
+                        owner = c;
+                        super.visitClassDef(tree);
+                    } finally {
+                        owner = prevOwner;
+                    }
+                }
+
+                @Override
+                public void visitBlock(JCBlock tree) {
+                    Symbol prevOwner = owner;
+                    try {
+                        owner = new MethodSymbol(0, names.empty, Type.noType, owner);
+                        super.visitBlock(tree);
+                    } finally {
+                        owner = prevOwner;
+                    }
+                }
+                @Override
+                public void visitVarDef(JCVariableDecl tree) {
+                    Symbol prevOwner = owner;
+                    try {
+                        owner = new MethodSymbol(0, names.empty, Type.noType, owner);
+                        super.visitVarDef(tree);
+                    } finally {
+                        owner = prevOwner;
+                    }
+                }
+            }.scan(env.enclClass);
+            //revert changes done by the visitor:
+            toClear.forEach(c -> {
+                chk.clearLocalClassNameIndexes(c);
+                chk.removeCompiled(c);
+            });
         }
+
+        return flatNameForClass;
     }
 
-    static JavaFileObject asJavaFileObject(FileObject fileObject) {
-        JavaFileObject jfo = null;
+    private static boolean isHtmlFile(FileObject fo) {
+        return fo.getName().endsWith(".html");
+    }
 
-        if (fileObject instanceof JavaFileObject) {
-            jfo = (JavaFileObject) fileObject;
-            checkHtmlKind(fileObject, Kind.HTML);
-            return jfo;
+    private static boolean isMarkdownFile(FileObject fo) {
+        return fo.getName().endsWith(".md");
+    }
+
+
+    static JavaFileObject asDocFileObject(FileObject fo) {
+        if (fo instanceof JavaFileObject jfo) {
+            switch (jfo.getKind()) {
+                case HTML -> {
+                    return jfo;
+                }
+                case OTHER -> {
+                    if (isMarkdownFile(jfo)) {
+                        return jfo;
+                    }
+                }
+            }
+        } else {
+            if (isHtmlFile(fo) || isMarkdownFile(fo)) {
+                return new DocFileObject(fo);
+            }
         }
 
-        checkHtmlKind(fileObject);
-        jfo = new HtmlFileObject(fileObject);
-        return jfo;
+        throw new IllegalArgumentException(("Not a documentation file: " + fo.getName()));
     }
 
-    private static void checkHtmlKind(FileObject fileObject) {
-        checkHtmlKind(fileObject, BaseFileManager.getKind(fileObject.getName()));
-    }
-
-    private static void checkHtmlKind(FileObject fileObject, JavaFileObject.Kind kind) {
-        if (kind != JavaFileObject.Kind.HTML) {
-            throw new IllegalArgumentException("HTML file expected:" + fileObject.getName());
-        }
-    }
-
-    private static class HtmlFileObject extends ForwardingFileObject<FileObject>
+    private static class DocFileObject extends ForwardingFileObject<FileObject>
             implements JavaFileObject {
 
-        public HtmlFileObject(FileObject fileObject) {
+        public DocFileObject(FileObject fileObject) {
             super(fileObject);
         }
 
@@ -1003,7 +1054,7 @@ public class JavacTrees extends DocTrees {
 
     @Override @DefinedBy(Api.COMPILER_TREE)
     public DocCommentTree getDocCommentTree(FileObject fileObject) {
-        JavaFileObject jfo = asJavaFileObject(fileObject);
+        JavaFileObject jfo = asDocFileObject(fileObject);
         DiagnosticSource diagSource = new DiagnosticSource(jfo, log);
 
         final Comment comment = new Comment() {
@@ -1020,27 +1071,37 @@ public class JavacTrees extends DocTrees {
             }
 
             @Override
+            public JCDiagnostic.DiagnosticPosition getPos() {
+                return null;
+            }
+
+            @Override
             public int getSourcePos(int index) {
                 return offset + index;
             }
 
             @Override
             public CommentStyle getStyle() {
-                throw new UnsupportedOperationException();
+                return isHtmlFile(fileObject) ? CommentStyle.JAVADOC_BLOCK
+                        : isMarkdownFile(fileObject) ? CommentStyle.JAVADOC_LINE
+                        : null;
             }
 
             @Override
             public boolean isDeprecated() {
-                throw new UnsupportedOperationException();
+                return false;
             }
         };
 
-        return new DocCommentParser(parser, diagSource, comment, true).parse();
+        boolean isHtmlFile = jfo.getKind() == Kind.HTML;
+
+        var dct = new DocCommentParser(parserFactory, diagSource, comment, isHtmlFile).parse();
+        return transform(dct);
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
     public DocTreePath getDocTreePath(FileObject fileObject, PackageElement packageElement) {
-        JavaFileObject jfo = asJavaFileObject(fileObject);
+        JavaFileObject jfo = asDocFileObject(fileObject);
         DocCommentTree docCommentTree = getDocCommentTree(jfo);
         if (docCommentTree == null)
             return null;
@@ -1053,11 +1114,114 @@ public class JavacTrees extends DocTrees {
         this.breakIterator = breakiterator;
     }
 
+    @Override @DefinedBy(Api.COMPILER_TREE)
+    public String getCharacters(EntityTree tree) {
+        return Entity.getCharacters(tree);
+    }
+
+    /**
+     * {@return the doc comment tree for a given comment}
+     *
+     * @param diagSource the source containing the comment, used when displaying any diagnostics
+     * @param c the comment
+     */
+    public DocCommentTree getDocCommentTree(DiagnosticSource diagSource, Comment c) {
+        var dct = new DocCommentParser(parserFactory, diagSource, c).parse();
+        return transform(dct);
+    }
+
+    /**
+     * An interface for transforming a {@code DocCommentTree}.
+     * It is primarily used as the service-provider interface for an implementation
+     * that embodies the JDK extensions to CommonMark, such as reference links to
+     * program elements.
+     */
+    public interface DocCommentTreeTransformer {
+        /**
+         * The name used by the implementation that embodies the JDK extensions to CommonMark.
+         */
+        public final String STANDARD = "standard";
+
+        /**
+         * {@return the name of this transformer}
+         */
+        String name();
+
+        /**
+         * Transforms a documentation comment tree.
+         *
+         * @param trees an instance of the {@link DocTrees} utility interface.
+         * @param tree the tree to be transformed
+         * @return the transformed tree
+         */
+        DocCommentTree transform(DocTrees trees, DocCommentTree tree);
+    }
+
+    /**
+     * A class that provides the identity transform on instances of {@code DocCommentTree}.
+     */
+    public static class IdentityTransformer implements DocCommentTreeTransformer {
+        @Override
+        public String name() {
+            return "identity";
+        }
+
+        @Override
+        public DocCommentTree transform(DocTrees trees, DocCommentTree tree) {
+            return tree;
+        }
+    }
+
+    public DocCommentTreeTransformer getDocCommentTreeTransformer() {
+        return docCommentTreeTransformer;
+    }
+
+    public void setDocCommentTreeTransformer(DocCommentTreeTransformer transformer) {
+        docCommentTreeTransformer = transformer;
+    }
+
+    /**
+     * Initialize {@link #docCommentTreeTransformer} if it is {@code null},
+     * using a service provider to look up an implementation with the name "standard".
+     * If none is found, an identity transformer is used, with the name "identity".
+     */
+    public void initDocCommentTreeTransformer() {
+        if (docCommentTreeTransformer == null) {
+            var sl = ServiceLoader.load(DocCommentTreeTransformer.class);
+            docCommentTreeTransformer = sl.stream()
+                    .map(ServiceLoader.Provider::get)
+                    .filter(t -> t.name().equals(DocCommentTreeTransformer.STANDARD))
+                    .findFirst()
+                    .orElseGet(() -> new IdentityTransformer());
+        }
+    }
+
+    /**
+     * Transforms the given tree using the current {@linkplain #getDocCommentTreeTransformer() transformer},
+     * after ensuring it has been {@linkplain #initDocCommentTreeTransformer() initialized}.
+     *
+     * @param tree the tree
+     * @return the transformed tree
+     */
+    private DocCommentTree transform(DocCommentTree tree) {
+        initDocCommentTreeTransformer();
+        return docCommentTreeTransformer.transform(this, tree);
+    }
+
+    /**
+     * {@return the {@linkplain ParserFactory} parser factory}
+     * The factory can be used to create a {@link ReferenceParser}, to parse link references.
+     */
+    public ParserFactory getParserFactory() {
+        return parserFactory;
+    }
+
     /**
      * Makes a copy of a tree, noting the value resulting from copying a particular leaf.
      **/
     protected static class Copier extends TreeCopier<JCTree> {
         JCTree leafCopy = null;
+        private Map<JCClassDecl, JCClassDecl> copiedClasses = new HashMap<>();
 
         protected Copier(TreeMaker M) {
             super(M);
@@ -1070,6 +1234,14 @@ public class JavacTrees extends DocTrees {
                 leafCopy = t2;
             return t2;
         }
+
+        @Override
+        public JCTree visitClass(ClassTree node, JCTree p) {
+            JCTree nue = super.visitClass(node, p);
+            copiedClasses.put((JCClassDecl) nue, (JCClassDecl) node);
+            return nue;
+        }
+
     }
 
     protected Copier createCopier(TreeMaker maker) {
@@ -1084,17 +1256,16 @@ public class JavacTrees extends DocTrees {
      */
     @Override @DefinedBy(Api.COMPILER_TREE)
     public TypeMirror getOriginalType(javax.lang.model.type.ErrorType errorType) {
-        if (errorType instanceof com.sun.tools.javac.code.Type.ErrorType) {
-            return ((com.sun.tools.javac.code.Type.ErrorType)errorType).getOriginalType();
+        if (errorType instanceof com.sun.tools.javac.code.Type.ErrorType targetErrorType) {
+            return targetErrorType.getOriginalType();
         }
-        if (errorType instanceof com.sun.tools.javac.code.Type.ClassType &&
+        if (errorType instanceof com.sun.tools.javac.code.Type.ClassType classType &&
             errorType.getKind() == TypeKind.ERROR) {
-            ClassType ct = (ClassType) errorType;
-            return extraType2OriginalMap.computeIfAbsent(ct, tt ->
-                    new ClassType(ct.getEnclosingType(), ct.typarams_field,
-                                  ct.tsym, ct.getMetadata()) {
+            return extraType2OriginalMap.computeIfAbsent(classType, tt ->
+                    new ClassType(classType.getEnclosingType(), classType.typarams_field,
+                            classType.tsym, classType.getMetadata()) {
                         @Override
-                        public Type baseType() { return ct; }
+                        public Type baseType() { return classType; }
                         @Override
                         public TypeKind getKind() {
                             return TypeKind.DECLARED;
@@ -1129,13 +1300,17 @@ public class JavacTrees extends DocTrees {
         printMessage(kind, msg, ((DCTree) t).pos((DCDocComment) c), root);
     }
 
+    public void printMessage(Diagnostic.Kind kind, CharSequence msg) {
+        printMessage(kind, msg, (JCDiagnostic.DiagnosticPosition) null, null);
+    }
+
     private void printMessage(Diagnostic.Kind kind, CharSequence msg,
             JCDiagnostic.DiagnosticPosition pos,
             com.sun.source.tree.CompilationUnitTree root) {
         JavaFileObject oldSource = null;
         JavaFileObject newSource = null;
 
-        newSource = root.getSourceFile();
+        newSource = root == null ? null : root.getSourceFile();
         if (newSource == null) {
             pos = null;
         } else {
@@ -1144,20 +1319,10 @@ public class JavacTrees extends DocTrees {
 
         try {
             switch (kind) {
-            case ERROR:
-                log.error(DiagnosticFlag.MULTIPLE, pos, Errors.ProcMessager(msg.toString()));
-                break;
-
-            case WARNING:
-                log.warning(pos, Warnings.ProcMessager(msg.toString()));
-                break;
-
-            case MANDATORY_WARNING:
-                log.mandatoryWarning(pos, Warnings.ProcMessager(msg.toString()));
-                break;
-
-            default:
-                log.note(pos, Notes.ProcMessager(msg.toString()));
+                case ERROR ->             log.error(DiagnosticFlag.API, pos, Errors.ProcMessager(msg.toString()));
+                case WARNING ->           log.warning(pos, Warnings.ProcMessager(msg.toString()));
+                case MANDATORY_WARNING -> log.mandatoryWarning(pos, Warnings.ProcMessager(msg.toString()));
+                default ->                log.note(pos, Notes.ProcMessager(msg.toString()));
             }
         } finally {
             if (oldSource != null)
@@ -1207,6 +1372,11 @@ public class JavacTrees extends DocTrees {
 
             @Override
             public Comment getComment(JCTree tree) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public DocCommentKind getCommentKind(JCTree tree) {
                 throw new UnsupportedOperationException();
             }
 

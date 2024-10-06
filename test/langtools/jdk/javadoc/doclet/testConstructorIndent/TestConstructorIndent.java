@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,36 +23,37 @@
 
 /*
  * @test
- * @bug      4904037 8026567
+ * @bug      4904037 8026567 8239804
  * @summary  The constructor comments should be surrounded by
  *           <dl></dl>.  Check for this in the output.
- * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestConstructorIndent
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestConstructorIndent extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestConstructorIndent tester = new TestConstructorIndent();
+        var tester = new TestConstructorIndent();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 testSrc("C.java"));
         checkExit(Exit.OK);
 
         checkOutput("C.html", true,
-                "<div class=\"block\">"
-                + "This is just a simple constructor.</div>\n"
-                + "<dl>\n"
-                + "<dt><span class=\"paramLabel\">Parameters:</span></dt>\n"
-                + "<dd><code>i</code> - a param.</dd>\n"
-                + "</dl>");
+                """
+                    <div class="block">This is just a simple constructor.</div>
+                    <dl class="notes">
+                    <dt>Parameters:</dt>
+                    <dd><code>i</code> - a param.</dd>
+                    </dl>""");
     }
 }

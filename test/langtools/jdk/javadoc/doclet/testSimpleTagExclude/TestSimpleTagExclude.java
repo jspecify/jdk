@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,23 @@
  * @bug 4628181
  * @summary Test the parsing of the -tag option.  The user should be able to
  * exclude a simple tag by using -tag tagname:X
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestSimpleTagExclude
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestSimpleTagExclude extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestSimpleTagExclude tester = new TestSimpleTagExclude();
+        var tester = new TestSimpleTagExclude();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "-tag", "todo:X",

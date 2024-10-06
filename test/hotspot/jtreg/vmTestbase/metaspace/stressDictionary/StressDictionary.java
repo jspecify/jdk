@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,13 @@
 
 /*
  * @test
+ * @key randomness
  *
  * @summary converted from VM Testbase metaspace/stressDictionary.
  * VM Testbase keywords: [nonconcurrent, javac]
  *
  * @library /vmTestbase /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
- * @run main/othervm metaspace.stressDictionary.StressDictionary -stressTime 30
+ * @run main/othervm/timeout=600 metaspace.stressDictionary.StressDictionary -stressTime 30
  */
 
 package metaspace.stressDictionary;
@@ -60,6 +60,10 @@ public class StressDictionary extends GCTestBase {
     private static byte[] bytecode;
 
     private class FillingDictionaryWorker implements Callable<Object> {
+        private final Random random;
+        public FillingDictionaryWorker(long seed) {
+            this.random = new Random(seed);
+        }
         @Override
         public Object call() throws Exception {
             while (stresser.continueExecution()) {
@@ -117,16 +121,59 @@ public class StressDictionary extends GCTestBase {
         bytecode = generateAndCompile();
         List<Callable<Object>> tasks = new LinkedList<Callable<Object>>();
         for (int i = 0; i < NUMBER_OF_CORRUPTING_THREADS; i++) {
-            tasks.add(this.new FillingDictionaryWorker());
+            tasks.add(this.new FillingDictionaryWorker(random.nextLong()));
         }
         for (int i = 0; i < NUMBER_OF_NOT_CORRUPTING_THREADS; i++) {
             tasks.add(this.new RegularWorker());
         }
         ExecutorService executorService = Executors.newCachedThreadPool();
+        List<Future<Object>> results = null;
         try {
-            executorService.invokeAll(tasks);
+            results = executorService.invokeAll(tasks);
         } catch (InterruptedException e) {
             e.printStackTrace();
+        }
+
+        int act_results = results.size();
+        int exp_results = NUMBER_OF_CORRUPTING_THREADS +
+                          NUMBER_OF_NOT_CORRUPTING_THREADS;
+        if (act_results == exp_results) {
+            System.err.println("INFO: There are " + act_results + " results.");
+        } else {
+            throw new RuntimeException("Wrong # of results from invokeAll(); "
+                                       + "exp_results=" + exp_results + "; "
+                                       + "act_results=" + act_results + ".");
+        }
+
+        int cancelled_cnt = 0;
+        int not_done_cnt = 0;
+        for (int i = 0; i < act_results; i++) {
+            if (!results.get(i).isDone()) {
+                not_done_cnt++;
+                System.err.println("ERROR: task #" + i + " is not done.");
+            }
+            if (results.get(i).isCancelled()) {
+                cancelled_cnt++;
+                System.err.println("ERROR: task #" + i + " was canceled.");
+            }
+        }
+
+        if (cancelled_cnt == 0) {
+            System.err.println("INFO: no tasks were cancelled.");
+        }
+        if (not_done_cnt == 0) {
+            System.err.println("INFO: all tasks are done.");
+        }
+        if (cancelled_cnt != 0 && not_done_cnt != 0) {
+            throw new RuntimeException(cancelled_cnt
+                                       + " tasks were cancelled and "
+                                       + not_done_cnt
+                                       + " tasks are not done.");
+        } else if (cancelled_cnt != 0) {
+            throw new RuntimeException(cancelled_cnt
+                                       + " tasks were cancelled.");
+        } else if (not_done_cnt != 0) {
+            throw new RuntimeException(not_done_cnt + " tasks are not done.");
         }
     }
 

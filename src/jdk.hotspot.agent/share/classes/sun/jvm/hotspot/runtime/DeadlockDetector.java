@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,16 +55,14 @@ public class DeadlockDetector {
         heap = VM.getVM().getObjectHeap();
         createThreadTable();
 
-        Iterator i = threadTable.entrySet().iterator();
-        while (i.hasNext()) {
-            Entry e = (Entry)i.next();
-            if (dfn(e) >= 0) {
+        for (Entry<JavaThread, Integer> e : threadTable.entrySet()) {
+            if (e.getValue() >= 0) {
                 // this thread was already visited
                 continue;
             }
 
             thisDfn = globalDfn;
-            JavaThread thread = (JavaThread)e.getKey();
+            JavaThread thread = e.getKey();
             previousThread = thread;
 
             // When there is a deadlock, all the monitors involved in the dependency
@@ -104,7 +102,7 @@ public class DeadlockDetector {
                 }
                 if (dfn(currentThread) < 0) {
                     // First visit to this thread
-                    threadTable.put(currentThread, new Integer(globalDfn++));
+                    threadTable.put(currentThread, globalDfn++);
                 } else if (dfn(currentThread) < thisDfn) {
                     // Thread already visited, and not on a (new) cycle
                     break;
@@ -118,7 +116,7 @@ public class DeadlockDetector {
                     break;
                 }
                 previousThread = currentThread;
-                waitingToLockMonitor = (ObjectMonitor)currentThread.getCurrentPendingMonitor();
+                waitingToLockMonitor = currentThread.getCurrentPendingMonitor();
                 if (concurrentLocks) {
                     waitingToLockBlocker = currentThread.getCurrentParkBlocker();
                 }
@@ -142,13 +140,15 @@ public class DeadlockDetector {
     //-- Internals only below this point
     private static Threads threads;
     private static ObjectHeap heap;
-    private static HashMap threadTable;
+    private static HashMap<JavaThread, Integer> threadTable;
 
     private static void createThreadTable() {
-        threadTable = new HashMap();
-        for (JavaThread cur = threads.first(); cur != null; cur = cur.next()) {
+        threadTable = new HashMap<>();
+        Threads threads = VM.getVM().getThreads();
+        for (int i = 0; i < threads.getNumberOfThreads(); i++) {
+            JavaThread cur = threads.getJavaThreadAt(i);
             // initialize dfn for each thread to -1
-            threadTable.put(cur, new Integer(-1));
+            threadTable.put(cur, -1);
         }
     }
 
@@ -158,10 +158,6 @@ public class DeadlockDetector {
             return ((Integer)obj).intValue();
         }
         return -1;
-    }
-
-    private static int dfn(Entry e) {
-        return ((Integer)e.getValue()).intValue();
     }
 
     private static void printOneDeadlock(PrintStream tty, JavaThread thread,

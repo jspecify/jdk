@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 package java.io;
 
-import java.io.File;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.BitSet;
 import java.util.Locale;
@@ -38,14 +38,49 @@ import sun.security.action.GetPropertyAction;
  * @author Konstantin Kladko
  * @since 1.4
  */
-class WinNTFileSystem extends FileSystem {
+final class WinNTFileSystem extends FileSystem {
+
+    private static final String LONG_PATH_PREFIX = "\\\\?\\";
 
     private final char slash;
     private final char altSlash;
     private final char semicolon;
     private final String userDir;
 
-    public WinNTFileSystem() {
+    // Whether to enable alternative data streams (ADS) by suppressing
+    // checking the path for invalid characters, in particular ":".
+    // By default, ADS support is enabled and will be disabled if and
+    // only if the property is set, ignoring case, to the string "false".
+    private static final boolean ENABLE_ADS;
+    static {
+        String enableADS = GetPropertyAction.privilegedGetProperty("jdk.io.File.enableADS");
+        if (enableADS != null) {
+            ENABLE_ADS = !enableADS.equalsIgnoreCase(Boolean.FALSE.toString());
+        } else {
+            ENABLE_ADS = true;
+        }
+    }
+
+    // Strip a long path or UNC prefix and return the result.
+    // If there is no such prefix, return the parameter passed in.
+    private static String stripLongOrUNCPrefix(String path) {
+        // if a prefix is present, remove it
+        if (path.startsWith(LONG_PATH_PREFIX)) {
+            if (path.startsWith("UNC\\", 4)) {
+                path = "\\\\" + path.substring(8);
+            } else {
+                path = path.substring(4);
+                // if only "UNC" remains, a trailing "\\" was likely removed
+                if (path.equals("UNC")) {
+                    path = "\\\\";
+                }
+            }
+        }
+
+        return path;
+    }
+
+    WinNTFileSystem() {
         Properties props = GetPropertyAction.privilegedGetProperties();
         slash = props.getProperty("file.separator").charAt(0);
         semicolon = props.getProperty("path.separator").charAt(0);
@@ -62,7 +97,7 @@ class WinNTFileSystem extends FileSystem {
     }
 
     private String slashify(String p) {
-        if ((p.length() > 0) && (p.charAt(0) != slash)) return slash + p;
+        if (!p.isEmpty() && p.charAt(0) != slash) return slash + p;
         else return p;
     }
 
@@ -83,6 +118,7 @@ class WinNTFileSystem extends FileSystem {
        This way we iterate through the whole pathname string only once. */
     @Override
     public String normalize(String path) {
+        path = stripLongOrUNCPrefix(path);
         int n = path.length();
         char slash = this.slash;
         char altSlash = this.altSlash;
@@ -208,6 +244,8 @@ class WinNTFileSystem extends FileSystem {
 
     @Override
     public int prefixLength(String path) {
+        assert !path.startsWith(LONG_PATH_PREFIX);
+
         char slash = this.slash;
         int n = path.length();
         if (n == 0) return 0;
@@ -227,6 +265,8 @@ class WinNTFileSystem extends FileSystem {
 
     @Override
     public String resolve(String parent, String child) {
+        assert !child.startsWith(LONG_PATH_PREFIX);
+
         int pn = parent.length();
         if (pn == 0) return child;
         int cn = child.length();
@@ -270,6 +310,13 @@ class WinNTFileSystem extends FileSystem {
             theChars[parentEnd] = slash;
             child.getChars(childStart, cn, theChars, parentEnd + 1);
         }
+
+        // if present, strip trailing name separator unless after a ':'
+        if (theChars.length > 1
+            && theChars[theChars.length - 1] == slash
+            && theChars[theChars.length - 2] != ':')
+            return new String(theChars, 0, theChars.length - 1);
+
         return new String(theChars);
     }
 
@@ -298,14 +345,49 @@ class WinNTFileSystem extends FileSystem {
 
     @Override
     public boolean isAbsolute(File f) {
+        String path = f.getPath();
+        assert !path.startsWith(LONG_PATH_PREFIX);
+
         int pl = f.getPrefixLength();
         return (((pl == 2) && (f.getPath().charAt(0) == slash))
                 || (pl == 3));
     }
 
     @Override
+    public boolean isInvalid(File f) {
+        if (f.getPath().indexOf('\u0000') >= 0)
+            return true;
+
+        if (ENABLE_ADS)
+            return false;
+
+        // Invalid if there is a ":" at a position greater than 1, or if there
+        // is a ":" at position 1 and the first character is not a letter
+        String pathname = f.getPath();
+        int lastColon = pathname.lastIndexOf(":");
+
+        // Valid if there is no ":" present or if the last ":" present is
+        // at index 1 and the first character is a latter
+        if (lastColon < 0 ||
+            (lastColon == 1 && isLetter(pathname.charAt(0))))
+            return false;
+
+        // Invalid if path creation fails
+        Path path = null;
+        try {
+            path = sun.nio.fs.DefaultFileSystemProvider.theFileSystem().getPath(pathname);
+            return false;
+        } catch (InvalidPathException ignored) {
+        }
+
+        return true;
+    }
+
+    @Override
     public String resolve(File f) {
         String path = f.getPath();
+        assert !path.startsWith(LONG_PATH_PREFIX);
+
         int pl = f.getPrefixLength();
         if ((pl == 2) && (path.charAt(0) == slash))
             return path;                        /* UNC */
@@ -326,12 +408,12 @@ class WinNTFileSystem extends FileSystem {
                 return up + slashify(path.substring(2));
             char drive = path.charAt(0);
             String dir = getDriveDirectory(drive);
-            String np;
             if (dir != null) {
                 /* When resolving a directory-relative path that refers to a
                    drive other than the current drive, insist that the caller
                    have read permission on the result */
                 String p = drive + (':' + dir + slashify(path.substring(2)));
+                @SuppressWarnings("removal")
                 SecurityManager security = System.getSecurityManager();
                 try {
                     if (security != null) security.checkRead(p);
@@ -349,11 +431,12 @@ class WinNTFileSystem extends FileSystem {
     private String getUserPath() {
         /* For both compatibility and security,
            we must look this up every time */
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPropertyAccess("user.dir");
         }
-        return normalize(userDir);
+        return userDir;
     }
 
     private String getDrive(String path) {
@@ -361,7 +444,7 @@ class WinNTFileSystem extends FileSystem {
         return (pl == 3) ? path.substring(0, 2) : null;
     }
 
-    private static String[] driveDirCache = new String[26];
+    private static final String[] DRIVE_DIR_CACHE = new String[26];
 
     private static int driveIndex(char d) {
         if ((d >= 'a') && (d <= 'z')) return d - 'a';
@@ -374,24 +457,21 @@ class WinNTFileSystem extends FileSystem {
     private String getDriveDirectory(char drive) {
         int i = driveIndex(drive);
         if (i < 0) return null;
-        String s = driveDirCache[i];
+        // Updates might not be visible to other threads so there
+        // is no guarantee getDriveDirectory(i+1) is called just once
+        // for any given value of i.
+        String s = DRIVE_DIR_CACHE[i];
         if (s != null) return s;
         s = getDriveDirectory(i + 1);
-        driveDirCache[i] = s;
+        DRIVE_DIR_CACHE[i] = s;
         return s;
-    }
 
-    // Caches for canonicalization results to improve startup performance.
-    // The first cache handles repeated canonicalizations of the same path
-    // name. The prefix cache handles repeated canonicalizations within the
-    // same directory, and must not create results differing from the true
-    // canonicalization algorithm in canonicalize_md.c. For this reason the
-    // prefix cache is conservative and is not used for complex path names.
-    private ExpiringCache cache       = new ExpiringCache();
-    private ExpiringCache prefixCache = new ExpiringCache();
+    }
 
     @Override
     public String canonicalize(String path) throws IOException {
+        assert !path.startsWith(LONG_PATH_PREFIX);
+
         // If path is a drive letter only then skip canonicalization
         int len = path.length();
         if ((len == 2) &&
@@ -410,183 +490,101 @@ class WinNTFileSystem extends FileSystem {
                 return path;
             return "" + ((char) (c-32)) + ':' + '\\';
         }
-        if (!useCanonCaches) {
-            return canonicalize0(path);
-        } else {
-            String res = cache.get(path);
-            if (res == null) {
-                String dir = null;
-                String resDir = null;
-                if (useCanonPrefixCache) {
-                    dir = parentOrNull(path);
-                    if (dir != null) {
-                        resDir = prefixCache.get(dir);
-                        if (resDir != null) {
-                            /*
-                             * Hit only in prefix cache; full path is canonical,
-                             * but we need to get the canonical name of the file
-                             * in this directory to get the appropriate
-                             * capitalization
-                             */
-                            String filename = path.substring(1 + dir.length());
-                            res = canonicalizeWithPrefix(resDir, filename);
-                            cache.put(dir + File.separatorChar + filename, res);
-                        }
-                    }
-                }
-                if (res == null) {
-                    res = canonicalize0(path);
-                    cache.put(path, res);
-                    if (useCanonPrefixCache && dir != null) {
-                        resDir = parentOrNull(res);
-                        if (resDir != null) {
-                            File f = new File(res);
-                            if (f.exists() && !f.isDirectory()) {
-                                prefixCache.put(dir, resDir);
-                            }
-                        }
-                    }
-                }
-            }
-            return res;
+        String canonicalPath = canonicalize0(path);
+        String finalPath = null;
+        try {
+            finalPath = getFinalPath(canonicalPath);
+        } catch (IOException ignored) {
+            finalPath = canonicalPath;
         }
+        return finalPath;
     }
 
     private native String canonicalize0(String path)
             throws IOException;
 
-    private String canonicalizeWithPrefix(String canonicalPrefix,
-            String filename) throws IOException
-    {
-        return canonicalizeWithPrefix0(canonicalPrefix,
-                canonicalPrefix + File.separatorChar + filename);
+    private String getFinalPath(String path) throws IOException {
+        return getFinalPath0(path);
     }
 
-    // Run the canonicalization operation assuming that the prefix
-    // (everything up to the last filename) is canonical; just gets
-    // the canonical name of the last element of the path
-    private native String canonicalizeWithPrefix0(String canonicalPrefix,
-            String pathWithCanonicalPrefix)
+    private native String getFinalPath0(String path)
             throws IOException;
 
-    // Best-effort attempt to get parent of this path; used for
-    // optimization of filename canonicalization. This must return null for
-    // any cases where the code in canonicalize_md.c would throw an
-    // exception or otherwise deal with non-simple pathnames like handling
-    // of "." and "..". It may conservatively return null in other
-    // situations as well. Returning null will cause the underlying
-    // (expensive) canonicalization routine to be called.
-    private static String parentOrNull(String path) {
-        if (path == null) return null;
-        char sep = File.separatorChar;
-        char altSep = '/';
-        int last = path.length() - 1;
-        int idx = last;
-        int adjacentDots = 0;
-        int nonDotCount = 0;
-        while (idx > 0) {
-            char c = path.charAt(idx);
-            if (c == '.') {
-                if (++adjacentDots >= 2) {
-                    // Punt on pathnames containing . and ..
-                    return null;
-                }
-                if (nonDotCount == 0) {
-                    // Punt on pathnames ending in a .
-                    return null;
-                }
-            } else if (c == sep) {
-                if (adjacentDots == 1 && nonDotCount == 0) {
-                    // Punt on pathnames containing . and ..
-                    return null;
-                }
-                if (idx == 0 ||
-                    idx >= last - 1 ||
-                    path.charAt(idx - 1) == sep ||
-                    path.charAt(idx - 1) == altSep) {
-                    // Punt on pathnames containing adjacent slashes
-                    // toward the end
-                    return null;
-                }
-                return path.substring(0, idx);
-            } else if (c == altSep) {
-                // Punt on pathnames containing both backward and
-                // forward slashes
-                return null;
-            } else if (c == '*' || c == '?') {
-                // Punt on pathnames containing wildcards
-                return null;
-            } else {
-                ++nonDotCount;
-                adjacentDots = 0;
-            }
-            --idx;
-        }
-        return null;
-    }
 
     /* -- Attribute accessors -- */
 
     @Override
-    public native int getBooleanAttributes(File f);
+    public int getBooleanAttributes(File f) {
+        return getBooleanAttributes0(f);
+    }
+    private native int getBooleanAttributes0(File f);
 
     @Override
-    public native boolean checkAccess(File f, int access);
+    public boolean checkAccess(File f, int access) {
+        return checkAccess0(f, access);
+    }
+    private native boolean checkAccess0(File f, int access);
 
     @Override
-    public native long getLastModifiedTime(File f);
+    public long getLastModifiedTime(File f) {
+        return getLastModifiedTime0(f);
+    }
+    private native long getLastModifiedTime0(File f);
 
     @Override
-    public native long getLength(File f);
+    public long getLength(File f) {
+        return getLength0(f);
+    }
+    private native long getLength0(File f);
 
     @Override
-    public native boolean setPermission(File f, int access, boolean enable,
-            boolean owneronly);
+    public boolean setPermission(File f, int access, boolean enable, boolean owneronly) {
+        return setPermission0(f, access, enable, owneronly);
+    }
+    private native boolean setPermission0(File f, int access, boolean enable, boolean owneronly);
 
     /* -- File operations -- */
 
     @Override
-    public native boolean createFileExclusively(String path)
-            throws IOException;
+    public boolean createFileExclusively(String path) throws IOException {
+        return createFileExclusively0(path);
+    }
+    private native boolean createFileExclusively0(String path) throws IOException;
 
     @Override
-    public native String[] list(File f);
+    public String[] list(File f) {
+        return list0(f);
+    }
+    private native String[] list0(File f);
 
     @Override
-    public native boolean createDirectory(File f);
+    public boolean createDirectory(File f) {
+        return createDirectory0(f);
+    }
+    private native boolean createDirectory0(File f);
 
     @Override
-    public native boolean setLastModifiedTime(File f, long time);
+    public boolean setLastModifiedTime(File f, long time) {
+        return setLastModifiedTime0(f, time);
+    }
+    private native boolean setLastModifiedTime0(File f, long time);
 
     @Override
-    public native boolean setReadOnly(File f);
+    public boolean setReadOnly(File f) {
+        return setReadOnly0(f);
+    }
+    private native boolean setReadOnly0(File f);
 
     @Override
     public boolean delete(File f) {
-        // Keep canonicalization caches in sync after file deletion
-        // and renaming operations. Could be more clever than this
-        // (i.e., only remove/update affected entries) but probably
-        // not worth it since these entries expire after 30 seconds
-        // anyway.
-        cache.clear();
-        prefixCache.clear();
         return delete0(f);
     }
-
     private native boolean delete0(File f);
 
     @Override
     public boolean rename(File f1, File f2) {
-        // Keep canonicalization caches in sync after file deletion
-        // and renaming operations. Could be more clever than this
-        // (i.e., only remove/update affected entries) but probably
-        // not worth it since these entries expire after 30 seconds
-        // anyway.
-        cache.clear();
-        prefixCache.clear();
         return rename0(f1, f2);
     }
-
     private native boolean rename0(File f1, File f2);
 
     /* -- Filesystem interface -- */
@@ -597,14 +595,14 @@ class WinNTFileSystem extends FileSystem {
             .valueOf(new long[] {listRoots0()})
             .stream()
             .mapToObj(i -> new File((char)('A' + i) + ":" + slash))
-            .filter(f -> access(f.getPath()) && f.exists())
+            .filter(f -> access(f.getPath()))
             .toArray(File[]::new);
     }
-
     private static native int listRoots0();
 
     private boolean access(String path) {
         try {
+            @SuppressWarnings("removal")
             SecurityManager security = System.getSecurityManager();
             if (security != null) security.checkRead(path);
             return true;
@@ -622,7 +620,6 @@ class WinNTFileSystem extends FileSystem {
         }
         return 0;
     }
-
     private native long getSpace0(File f, int t);
 
     /* -- Basic infrastructure -- */
@@ -631,6 +628,7 @@ class WinNTFileSystem extends FileSystem {
     // expects the path to be null or a root component ending in a backslash
     private native int getNameMax0(String path);
 
+    @Override
     public int getNameMax(String path) {
         String s = null;
         if (path != null) {

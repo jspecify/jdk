@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
 
-static const char* name = "file=testlog.pid%p.%t.log";
+static const char* name = prepend_prefix_temp_dir("file=", "testlog.pid%p.%t.log");
 
 // Test parsing a bunch of valid file output options
 TEST_VM(LogFileOutput, parse_valid) {
@@ -46,11 +46,6 @@ TEST_VM(LogFileOutput, parse_valid) {
 
   // Override LogOutput's vm_start time to get predictable file name
   LogFileOutput::set_file_name_parameters(0);
-  char expected_filename[1 * K];
-  int ret = jio_snprintf(expected_filename, sizeof(expected_filename),
-                         "testlog.pid%d.1970-01-01_01-00-00.log",
-                         os::current_process_id());
-  ASSERT_GT(ret, 0) << "Buffer too small";
 
   for (size_t i = 0; i < ARRAY_SIZE(valid_options); i++) {
     ResourceMark rm;
@@ -60,8 +55,8 @@ TEST_VM(LogFileOutput, parse_valid) {
       EXPECT_STREQ(name, fo.name());
       EXPECT_TRUE(fo.initialize(valid_options[i], &ss))
         << "Did not accept valid option(s) '" << valid_options[i] << "': " << ss.as_string();
+      remove(fo.cur_log_file_name());
     }
-    remove(expected_filename);
   }
 }
 
@@ -79,7 +74,7 @@ TEST_VM(LogFileOutput, parse_invalid) {
     "filecount= 2", "filesize=2 ",
     "filecount=ab", "filesize=0xz",
     "filecount=1MB", "filesize=99bytes",
-    "filesize=9999999999999999999999999"
+    "filesize=9999999999999999999999999",
     "filecount=9999999999999999999999999"
   };
 
@@ -105,11 +100,11 @@ TEST_VM(LogFileOutput, filesize_overflow) {
 }
 
 TEST_VM(LogFileOutput, startup_rotation) {
+  ResourceMark rm;
   const size_t rotations = 5;
-  const char* filename = "start-rotate-test";
+  const char* filename = prepend_temp_dir("start-rotate-test");
   char* rotated_file[rotations];
 
-  ResourceMark rm;
   for (size_t i = 0; i < rotations; i++) {
     size_t len = strlen(filename) + 3;
     rotated_file[i] = NEW_RESOURCE_ARRAY(char, len);
@@ -142,8 +137,9 @@ TEST_VM(LogFileOutput, startup_rotation) {
 }
 
 TEST_VM(LogFileOutput, startup_truncation) {
-  const char* filename = "start-truncate-test";
-  const char* archived_filename = "start-truncate-test.0";
+  ResourceMark rm;
+  const char* filename = prepend_temp_dir("start-truncate-test");
+  const char* archived_filename = prepend_temp_dir("start-truncate-test.0");
 
   delete_file(filename);
   delete_file(archived_filename);
@@ -173,12 +169,26 @@ TEST_VM(LogFileOutput, invalid_file) {
   ResourceMark rm;
   stringStream ss;
 
+  // Generate sufficiently unique directory path and log spec for that path
+  ss.print("%s%s%s%d", os::get_temp_directory(), os::file_separator(), "tmplogdir", os::current_process_id());
+  char* path = ss.as_string();
+  ss.reset();
+
+  ss.print("%s%s", "file=", path);
+  char* log_spec = ss.as_string();
+  ss.reset();
+
+  ss.print("%s is not a regular file", path);
+  char* expected_output_substring = ss.as_string();
+  ss.reset();
+
   // Attempt to log to a directory (existing log not a regular file)
-  create_directory("tmplogdir");
-  LogFileOutput bad_file("file=tmplogdir");
+  create_directory(path);
+  LogFileOutput bad_file(log_spec);
   EXPECT_FALSE(bad_file.initialize("", &ss))
     << "file was initialized when there was an existing directory with the same name";
-  EXPECT_TRUE(string_contains_substring(ss.as_string(), "tmplogdir is not a regular file"))
-    << "missing expected error message, received msg: %s" << ss.as_string();
-  delete_empty_directory("tmplogdir");
+  char* logger_output = ss.as_string();
+  EXPECT_THAT(logger_output, testing::HasSubstr(expected_output_substring))
+    << "missing expected error message, received msg: %s" << logger_output;
+  delete_empty_directory(path);
 }

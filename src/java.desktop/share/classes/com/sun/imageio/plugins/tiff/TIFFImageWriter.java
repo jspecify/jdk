@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.imageio.plugins.tiff;
 
 import java.awt.Point;
@@ -34,8 +35,8 @@ import java.awt.image.ComponentSampleModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.IndexColorModel;
-import java.awt.image.RenderedImage;
 import java.awt.image.Raster;
+import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.EOFException;
@@ -44,27 +45,30 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
 import javax.imageio.IIOException;
 import javax.imageio.IIOImage;
+import javax.imageio.ImageTypeSpecifier;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
-import javax.imageio.ImageTypeSpecifier;
 import javax.imageio.metadata.IIOInvalidTreeException;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.metadata.IIOMetadataFormatImpl;
-import javax.imageio.spi.ImageWriterSpi;
-import javax.imageio.stream.ImageOutputStream;
-import org.w3c.dom.Node;
-import com.sun.imageio.plugins.common.ImageUtil;
 import javax.imageio.plugins.tiff.BaselineTIFFTagSet;
 import javax.imageio.plugins.tiff.ExifParentTIFFTagSet;
 import javax.imageio.plugins.tiff.ExifTIFFTagSet;
 import javax.imageio.plugins.tiff.TIFFField;
 import javax.imageio.plugins.tiff.TIFFTag;
 import javax.imageio.plugins.tiff.TIFFTagSet;
+import javax.imageio.spi.ImageWriterSpi;
+import javax.imageio.stream.ImageOutputStream;
+
+import com.sun.imageio.plugins.common.ImageUtil;
 import com.sun.imageio.plugins.common.SimpleRenderedImage;
 import com.sun.imageio.plugins.common.SingleTileRenderedImage;
-import java.nio.charset.StandardCharsets;
+import org.w3c.dom.Node;
+
+import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class TIFFImageWriter extends ImageWriter {
 
@@ -177,7 +181,7 @@ public class TIFFImageWriter extends ImageWriter {
     private boolean isImageSimple; // Whether image can be copied into directly
     private boolean isInverted; // Whether photometric inversion is required
 
-    private boolean isTiled; // Whether the image is tiled (true) or stipped (false).
+    private boolean isTiled; // Whether the image is tiled (true) or stripped (false).
 
     private int nativePhotometricInterpretation;
     private int photometricInterpretation;
@@ -258,10 +262,12 @@ public class TIFFImageWriter extends ImageWriter {
         super(originatingProvider);
     }
 
+    @Override
     public ImageWriteParam getDefaultWriteParam() {
         return new TIFFImageWriteParam(getLocale());
     }
 
+    @Override
     public void setOutput(Object output) {
         if (output != null) {
             if (!(output instanceof ImageOutputStream)) {
@@ -316,11 +322,13 @@ public class TIFFImageWriter extends ImageWriter {
         super.setOutput(output);
     }
 
+    @Override
     public IIOMetadata
         getDefaultStreamMetadata(ImageWriteParam param) {
         return new TIFFStreamMetadata();
     }
 
+    @Override
     public IIOMetadata
         getDefaultImageMetadata(ImageTypeSpecifier imageType,
                                 ImageWriteParam param) {
@@ -342,6 +350,7 @@ public class TIFFImageWriter extends ImageWriter {
         return imageMetadata;
     }
 
+    @Override
     public IIOMetadata convertStreamMetadata(IIOMetadata inData,
                                              ImageWriteParam param) {
         // Check arguments.
@@ -370,6 +379,7 @@ public class TIFFImageWriter extends ImageWriter {
         return outData;
     }
 
+    @Override
     public IIOMetadata
         convertImageMetadata(IIOMetadata inData,
                              ImageTypeSpecifier imageType,
@@ -1506,7 +1516,7 @@ public class TIFFImageWriter extends ImageWriter {
                         (exifTags.getTag(ExifTIFFTagSet.TAG_EXIF_VERSION),
                          TIFFTag.TIFF_UNDEFINED,
                          4,
-                         ExifTIFFTagSet.EXIF_VERSION_2_2.getBytes(StandardCharsets.US_ASCII));
+                         ExifTIFFTagSet.EXIF_VERSION_2_2.getBytes(US_ASCII));
                     exifIFD.addTIFFField(f);
                 }
 
@@ -2002,7 +2012,7 @@ public class TIFFImageWriter extends ImageWriter {
                                 currTile[tcount++] = scalel[b][sample];
                             }
                         }
-                    } else { // ByteOrder.LITLE_ENDIAN
+                    } else { // ByteOrder.LITTLE_ENDIAN
                         for (int s = 0; s < numSamples; s += xSkip) {
                             for (int b = 0; b < numBands; b++) {
                                 int sample = samples[s + b];
@@ -2022,7 +2032,7 @@ public class TIFFImageWriter extends ImageWriter {
                                     (byte)(sample & 0xff);
                             }
                         }
-                    } else { // ByteOrder.LITLE_ENDIAN
+                    } else { // ByteOrder.LITTLE_ENDIAN
                         for (int s = 0; s < numSamples; s += xSkip) {
                             for (int b = 0; b < numBands; b++) {
                                 int sample = samples[s + b];
@@ -2054,7 +2064,7 @@ public class TIFFImageWriter extends ImageWriter {
                                     (byte)(isample & 0x000000ff);
                             }
                         }
-                    } else { // ByteOrder.LITLE_ENDIAN
+                    } else { // ByteOrder.LITTLE_ENDIAN
                         for (int s = 0; s < numSamples; s += xSkip) {
                             for (int b = 0; b < numBands; b++) {
                                 float fsample = fsamples[s + b];
@@ -2097,7 +2107,7 @@ public class TIFFImageWriter extends ImageWriter {
                                         (byte)(sampleOut & 0x000000ff);
                                 }
                             }
-                        } else { // ByteOrder.LITLE_ENDIAN
+                        } else { // ByteOrder.LITTLE_ENDIAN
                             for (int s = 0; s < numSamples; s += xSkip) {
                                 for (int b = 0; b < numBands; b++) {
                                     long sampleOut =
@@ -2129,7 +2139,7 @@ public class TIFFImageWriter extends ImageWriter {
                                         (byte)(isample & 0x000000ff);
                                 }
                             }
-                        } else { // ByteOrder.LITLE_ENDIAN
+                        } else { // ByteOrder.LITTLE_ENDIAN
                             for (int s = 0; s < numSamples; s += xSkip) {
                                 for (int b = 0; b < numBands; b++) {
                                     int isample = samples[s + b];
@@ -2174,7 +2184,7 @@ public class TIFFImageWriter extends ImageWriter {
                                     (byte)(lsample & 0x00000000000000ffL);
                             }
                         }
-                    } else { // ByteOrder.LITLE_ENDIAN
+                    } else { // ByteOrder.LITTLE_ENDIAN
                         for (int s = 0; s < numSamples; s += xSkip) {
                             for (int b = 0; b < numBands; b++) {
                                 double dsample = dsamples[s + b];
@@ -2305,6 +2315,7 @@ public class TIFFImageWriter extends ImageWriter {
         }
     }
 
+    @Override
     public void write(IIOMetadata sm,
                       IIOImage iioimage,
                       ImageWriteParam p) throws IOException {
@@ -2618,10 +2629,12 @@ public class TIFFImageWriter extends ImageWriter {
         currentImage++;
     }
 
+    @Override
     public boolean canWriteSequence() {
         return true;
     }
 
+    @Override
     public void prepareWriteSequence(IIOMetadata streamMetadata)
         throws IOException {
         if (getOutput() == null) {
@@ -2644,6 +2657,7 @@ public class TIFFImageWriter extends ImageWriter {
         this.isWritingSequence = true;
     }
 
+    @Override
     public void writeToSequence(IIOImage image, ImageWriteParam param)
         throws IOException {
         // Check sequence flag.
@@ -2656,6 +2670,7 @@ public class TIFFImageWriter extends ImageWriter {
         writeInsert(-1, image, param);
     }
 
+    @Override
     public void endWriteSequence() throws IOException {
         // Check output.
         if (getOutput() == null) {
@@ -2678,6 +2693,7 @@ public class TIFFImageWriter extends ImageWriter {
         }
     }
 
+    @Override
     public boolean canInsertImage(int imageIndex) throws IOException {
         if (getOutput() == null) {
             throw new IllegalStateException("getOutput() == null!");
@@ -2764,6 +2780,7 @@ public class TIFFImageWriter extends ImageWriter {
         }
     }
 
+    @Override
     public void writeInsert(int imageIndex,
                             IIOImage image,
                             ImageWriteParam param) throws IOException {
@@ -2844,10 +2861,12 @@ public class TIFFImageWriter extends ImageWriter {
         return isInsertingEmpty || isWritingEmpty;
     }
 
+    @Override
     public boolean canInsertEmpty(int imageIndex) throws IOException {
         return canInsertImage(imageIndex);
     }
 
+    @Override
     public boolean canWriteEmpty() throws IOException {
         if (getOutput() == null) {
             throw new IllegalStateException("getOutput() == null!");
@@ -2876,7 +2895,7 @@ public class TIFFImageWriter extends ImageWriter {
             int numThumbs = thumbnails.size();
             for(int i = 0; i < numThumbs; i++) {
                 Object thumb = thumbnails.get(i);
-                if(thumb == null || !(thumb instanceof BufferedImage)) {
+                if (!(thumb instanceof BufferedImage)) {
                     throw new IllegalArgumentException
                         ("thumbnails contains null references or objects other than BufferedImages!");
                 }
@@ -2894,6 +2913,7 @@ public class TIFFImageWriter extends ImageWriter {
         }
     }
 
+    @Override
     public void prepareInsertEmpty(int imageIndex,
                                    ImageTypeSpecifier imageType,
                                    int width,
@@ -2915,6 +2935,7 @@ public class TIFFImageWriter extends ImageWriter {
                param, false);
     }
 
+    @Override
     public void prepareWriteEmpty(IIOMetadata streamMetadata,
                                   ImageTypeSpecifier imageType,
                                   int width,
@@ -2944,6 +2965,7 @@ public class TIFFImageWriter extends ImageWriter {
         }
     }
 
+    @Override
     public void endInsertEmpty() throws IOException {
         if (getOutput() == null) {
             throw new IllegalStateException("getOutput() == null!");
@@ -2967,6 +2989,7 @@ public class TIFFImageWriter extends ImageWriter {
         this.isInsertingEmpty = false;
     }
 
+    @Override
     public void endWriteEmpty() throws IOException {
         if (getOutput() == null) {
             throw new IllegalStateException("getOutput() == null!");
@@ -3021,6 +3044,7 @@ public class TIFFImageWriter extends ImageWriter {
         return rootIFD;
     }
 
+    @Override
     public boolean canReplacePixels(int imageIndex) throws IOException {
         if (getOutput() == null) {
             throw new IllegalStateException("getOutput() == null!");
@@ -3046,6 +3070,7 @@ public class TIFFImageWriter extends ImageWriter {
 
     private TIFFImageReader reader = null;
 
+    @Override
     public void prepareReplacePixels(int imageIndex,
                                      Rectangle region) throws IOException {
         synchronized(replacePixelsLock) {
@@ -3229,6 +3254,7 @@ public class TIFFImageWriter extends ImageWriter {
                               sourceBands);
     }
 
+    @Override
     public void replacePixels(RenderedImage image, ImageWriteParam param)
         throws IOException {
 
@@ -3568,6 +3594,7 @@ public class TIFFImageWriter extends ImageWriter {
         }
     }
 
+    @Override
     public void replacePixels(Raster raster, ImageWriteParam param)
         throws IOException {
         if (raster == null) {
@@ -3579,6 +3606,7 @@ public class TIFFImageWriter extends ImageWriter {
                       param);
     }
 
+    @Override
     public void endReplacePixels() throws IOException {
         synchronized(replacePixelsLock) {
             if(!this.inReplacePixelsNest) {
@@ -3612,6 +3640,7 @@ public class TIFFImageWriter extends ImageWriter {
         nextSpace = prevNextSpace;
     }
 
+    @Override
     public void reset() {
         super.reset();
 
@@ -3659,6 +3688,7 @@ class EmptyImage extends SimpleRenderedImage {
         this.colorModel = colorModel;
     }
 
+    @Override
     public Raster getTile(int tileX, int tileY) {
         return null;
     }

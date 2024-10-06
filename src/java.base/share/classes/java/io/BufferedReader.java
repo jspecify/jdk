@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,12 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import jdk.internal.misc.InternalLock;
 
 /**
  * Reads text from a character-input stream, buffering characters so as to
@@ -44,22 +46,28 @@ import java.util.stream.StreamSupport;
  *
  * <p> In general, each read request made of a Reader causes a corresponding
  * read request to be made of the underlying character or byte stream.  It is
- * therefore advisable to wrap a BufferedReader around any Reader whose read()
- * operations may be costly, such as FileReaders and InputStreamReaders.  For
+ * therefore advisable to wrap a {@code BufferedReader} around any
+ * {@code Reader} whose {@code read()} operations may be costly, such as
+ * {@code FileReader}s and {@code InputStreamReader}s.  For
  * example,
  *
- * <pre>
- * BufferedReader in
- *   = new BufferedReader(new FileReader("foo.in"));
- * </pre>
+ * {@snippet lang=java :
+ *     BufferedReader in = new BufferedReader(new FileReader("foo.in"));
+ * }
  *
  * will buffer the input from the specified file.  Without buffering, each
- * invocation of read() or readLine() could cause bytes to be read from the
- * file, converted into characters, and then returned, which can be very
- * inefficient.
+ * invocation of {@code read()} or {@code readLine()} could cause bytes to be
+ * read from the file, converted into characters, and then returned, which can
+ * be very inefficient.
  *
- * <p> Programs that use DataInputStreams for textual input can be localized by
- * replacing each DataInputStream with an appropriate BufferedReader.
+ * <p> Programs that use {@code DataInputStream}s for textual input can be
+ * localized by replacing each {@code DataInputStream} with an appropriate
+ * {@code BufferedReader}.
+ *
+ * @apiNote
+ * Once wrapped in a {@code BufferedReader}, the underlying
+ * {@code Reader} should not be used directly nor wrapped with
+ * another reader.
  *
  * @see FileReader
  * @see InputStreamReader
@@ -71,10 +79,9 @@ import java.util.stream.StreamSupport;
 
 @NullMarked
 public class BufferedReader extends Reader {
-
     private Reader in;
 
-    private char cb[];
+    private char[] cb;
     private int nChars, nextChar;
 
     private static final int INVALIDATED = -2;
@@ -88,8 +95,8 @@ public class BufferedReader extends Reader {
     /** The skipLF flag when the mark was set */
     private boolean markedSkipLF = false;
 
-    private static int defaultCharBufferSize = 8192;
-    private static int defaultExpectedLineLength = 80;
+    private static final int DEFAULT_CHAR_BUFFER_SIZE = 8192;
+    private static final int DEFAULT_EXPECTED_LINE_LENGTH = 80;
 
     /**
      * Creates a buffering character-input stream that uses an input buffer of
@@ -98,7 +105,7 @@ public class BufferedReader extends Reader {
      * @param  in   A Reader
      * @param  sz   Input-buffer size
      *
-     * @exception  IllegalArgumentException  If {@code sz <= 0}
+     * @throws IllegalArgumentException  If {@code sz <= 0}
      */
     public BufferedReader(Reader in,  int sz) {
         super(in);
@@ -116,7 +123,7 @@ public class BufferedReader extends Reader {
      * @param  in   A Reader
      */
     public BufferedReader(Reader in) {
-        this(in, defaultCharBufferSize);
+        this(in, DEFAULT_CHAR_BUFFER_SIZE);
     }
 
     /** Checks to make sure that the stream has not been closed */
@@ -149,7 +156,7 @@ public class BufferedReader extends Reader {
                     dst = delta;
                 } else {
                     /* Reallocate buffer to accommodate read-ahead limit */
-                    char ncb[] = new char[readAheadLimit];
+                    char[] ncb = new char[readAheadLimit];
                     System.arraycopy(cb, markedChar, ncb, 0, delta);
                     cb = ncb;
                     markedChar = 0;
@@ -175,26 +182,40 @@ public class BufferedReader extends Reader {
      * @return The character read, as an integer in the range
      *         0 to 65535 ({@code 0x00-0xffff}), or -1 if the
      *         end of the stream has been reached
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IOException  If an I/O error occurs
      */
-    public  int read() throws IOException {
-        synchronized (lock) {
-            ensureOpen();
-            for (;;) {
-                if (nextChar >= nChars) {
-                    fill();
-                    if (nextChar >= nChars)
-                        return -1;
-                }
-                if (skipLF) {
-                    skipLF = false;
-                    if (cb[nextChar] == '\n') {
-                        nextChar++;
-                        continue;
-                    }
-                }
-                return cb[nextChar++];
+    public int read() throws IOException {
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                return implRead();
+            } finally {
+                locker.unlock();
             }
+        } else {
+            synchronized (lock) {
+                return implRead();
+            }
+        }
+    }
+
+    private int implRead() throws IOException {
+        ensureOpen();
+        for (;;) {
+            if (nextChar >= nChars) {
+                fill();
+                if (nextChar >= nChars)
+                    return -1;
+            }
+            if (skipLF) {
+                skipLF = false;
+                if (cb[nextChar] == '\n') {
+                    nextChar++;
+                    continue;
+                }
+            }
+            return cb[nextChar++];
         }
     }
 
@@ -235,25 +256,27 @@ public class BufferedReader extends Reader {
      * Reads characters into a portion of an array.
      *
      * <p> This method implements the general contract of the corresponding
-     * <code>{@link Reader#read(char[], int, int) read}</code> method of the
-     * <code>{@link Reader}</code> class.  As an additional convenience, it
+     * {@link Reader#read(char[], int, int) read} method of the
+     * {@link Reader} class.  As an additional convenience, it
      * attempts to read as many characters as possible by repeatedly invoking
-     * the <code>read</code> method of the underlying stream.  This iterated
-     * <code>read</code> continues until one of the following conditions becomes
-     * true: <ul>
+     * the {@code read} method of the underlying stream.  This iterated
+     * {@code read} continues until one of the following conditions becomes
+     * true:
+     * <ul>
      *
      *   <li> The specified number of characters have been read,
      *
-     *   <li> The <code>read</code> method of the underlying stream returns
-     *   <code>-1</code>, indicating end-of-file, or
+     *   <li> The {@code read} method of the underlying stream returns
+     *   {@code -1}, indicating end-of-file, or
      *
-     *   <li> The <code>ready</code> method of the underlying stream
-     *   returns <code>false</code>, indicating that further input requests
+     *   <li> The {@code ready} method of the underlying stream
+     *   returns {@code false}, indicating that further input requests
      *   would block.
      *
-     * </ul> If the first <code>read</code> on the underlying stream returns
-     * <code>-1</code> to indicate end-of-file then this method returns
-     * <code>-1</code>.  Otherwise this method returns the number of characters
+     * </ul>
+     * If the first {@code read} on the underlying stream returns
+     * {@code -1} to indicate end-of-file then this method returns
+     * {@code -1}.  Otherwise this method returns the number of characters
      * actually read.
      *
      * <p> Subclasses of this class are encouraged, but not required, to
@@ -264,38 +287,49 @@ public class BufferedReader extends Reader {
      * however, the buffer is empty, the mark is not valid, and the requested
      * length is at least as large as the buffer, then this method will read
      * characters directly from the underlying stream into the given array.
-     * Thus redundant <code>BufferedReader</code>s will not copy data
+     * Thus redundant {@code BufferedReader}s will not copy data
      * unnecessarily.
      *
-     * @param      cbuf  Destination buffer
-     * @param      off   Offset at which to start storing characters
-     * @param      len   Maximum number of characters to read
+     * @param      cbuf  {@inheritDoc}
+     * @param      off   {@inheritDoc}
+     * @param      len   {@inheritDoc}
      *
-     * @return     The number of characters read, or -1 if the end of the
-     *             stream has been reached
+     * @return     {@inheritDoc}
      *
-     * @exception  IOException  If an I/O error occurs
-     * @exception  IndexOutOfBoundsException {@inheritDoc}
+     * @throws     IndexOutOfBoundsException {@inheritDoc}
+     * @throws     IOException  {@inheritDoc}
      */
-    public   int read(char cbuf[],  int off,   int len) throws IOException {
-        synchronized (lock) {
-            ensureOpen();
-            if ((off < 0) || (off > cbuf.length) || (len < 0) ||
-                ((off + len) > cbuf.length) || ((off + len) < 0)) {
-                throw new IndexOutOfBoundsException();
-            } else if (len == 0) {
-                return 0;
+    public int read(char[] cbuf, int off, int len) throws IOException {
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                return implRead(cbuf, off, len);
+            } finally {
+                locker.unlock();
             }
-
-            int n = read1(cbuf, off, len);
-            if (n <= 0) return n;
-            while ((n < len) && in.ready()) {
-                int n1 = read1(cbuf, off + n, len - n);
-                if (n1 <= 0) break;
-                n += n1;
+        } else {
+            synchronized (lock) {
+                return implRead(cbuf, off, len);
             }
-            return n;
         }
+    }
+
+    private int implRead(char[] cbuf, int off, int len) throws IOException {
+        ensureOpen();
+        Objects.checkFromIndexSize(off, len, cbuf.length);
+        if (len == 0) {
+            return 0;
+        }
+
+        int n = read1(cbuf, off, len);
+        if (n <= 0) return n;
+        while ((n < len) && in.ready()) {
+            int n1 = read1(cbuf, off + n, len - n);
+            if (n1 <= 0) break;
+            n += n1;
+        }
+        return n;
     }
 
     /**
@@ -305,6 +339,8 @@ public class BufferedReader extends Reader {
      * (EOF).
      *
      * @param      ignoreLF  If true, the next '\n' will be skipped
+     * @param      term      Output: Whether a line terminator was encountered
+     *                       while reading the line; may be {@code null}.
      *
      * @return     A String containing the contents of the line, not including
      *             any line-termination characters, or null if the end of the
@@ -312,68 +348,84 @@ public class BufferedReader extends Reader {
      *
      * @see        java.io.LineNumberReader#readLine()
      *
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IOException  If an I/O error occurs
      */
-    String readLine(boolean ignoreLF) throws IOException {
-        StringBuffer s = null;
+    String readLine(boolean ignoreLF, boolean[] term) throws IOException {
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                return implReadLine(ignoreLF, term);
+            } finally {
+                locker.unlock();
+            }
+        } else {
+            synchronized (lock) {
+                return implReadLine(ignoreLF, term);
+            }
+        }
+    }
+
+    private String implReadLine(boolean ignoreLF, boolean[] term) throws IOException {
+        StringBuilder s = null;
         int startChar;
 
-        synchronized (lock) {
-            ensureOpen();
-            boolean omitLF = ignoreLF || skipLF;
+        ensureOpen();
+        boolean omitLF = ignoreLF || skipLF;
+        if (term != null) term[0] = false;
 
-        bufferLoop:
-            for (;;) {
+      bufferLoop:
+        for (;;) {
 
-                if (nextChar >= nChars)
-                    fill();
-                if (nextChar >= nChars) { /* EOF */
-                    if (s != null && s.length() > 0)
-                        return s.toString();
-                    else
-                        return null;
-                }
-                boolean eol = false;
-                char c = 0;
-                int i;
-
-                /* Skip a leftover '\n', if necessary */
-                if (omitLF && (cb[nextChar] == '\n'))
-                    nextChar++;
-                skipLF = false;
-                omitLF = false;
-
-            charLoop:
-                for (i = nextChar; i < nChars; i++) {
-                    c = cb[i];
-                    if ((c == '\n') || (c == '\r')) {
-                        eol = true;
-                        break charLoop;
-                    }
-                }
-
-                startChar = nextChar;
-                nextChar = i;
-
-                if (eol) {
-                    String str;
-                    if (s == null) {
-                        str = new String(cb, startChar, i - startChar);
-                    } else {
-                        s.append(cb, startChar, i - startChar);
-                        str = s.toString();
-                    }
-                    nextChar++;
-                    if (c == '\r') {
-                        skipLF = true;
-                    }
-                    return str;
-                }
-
-                if (s == null)
-                    s = new StringBuffer(defaultExpectedLineLength);
-                s.append(cb, startChar, i - startChar);
+            if (nextChar >= nChars)
+                fill();
+            if (nextChar >= nChars) { /* EOF */
+                if (s != null && s.length() > 0)
+                    return s.toString();
+                else
+                    return null;
             }
+            boolean eol = false;
+            char c = 0;
+            int i;
+
+            /* Skip a leftover '\n', if necessary */
+            if (omitLF && (cb[nextChar] == '\n'))
+                nextChar++;
+            skipLF = false;
+            omitLF = false;
+
+          charLoop:
+            for (i = nextChar; i < nChars; i++) {
+                c = cb[i];
+                if ((c == '\n') || (c == '\r')) {
+                    if (term != null) term[0] = true;
+                    eol = true;
+                    break charLoop;
+                }
+            }
+
+            startChar = nextChar;
+            nextChar = i;
+
+            if (eol) {
+                String str;
+                if (s == null) {
+                    str = new String(cb, startChar, i - startChar);
+                } else {
+                    s.append(cb, startChar, i - startChar);
+                    str = s.toString();
+                }
+                nextChar++;
+                if (c == '\r') {
+                    skipLF = true;
+                }
+                return str;
+            }
+
+            if (s == null)
+                s = new StringBuilder(DEFAULT_EXPECTED_LINE_LENGTH);
+            s.append(cb, startChar, i - startChar);
         }
     }
 
@@ -387,55 +439,62 @@ public class BufferedReader extends Reader {
      *             any line-termination characters, or null if the end of the
      *             stream has been reached without reading any characters
      *
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IOException  If an I/O error occurs
      *
      * @see java.nio.file.Files#readAllLines
      */
     public @Nullable String readLine() throws IOException {
-        return readLine(false);
+        return readLine(false, null);
     }
 
     /**
-     * Skips characters.
-     *
-     * @param  n  The number of characters to skip
-     *
-     * @return    The number of characters actually skipped
-     *
-     * @exception  IllegalArgumentException  If <code>n</code> is negative.
-     * @exception  IOException  If an I/O error occurs
+     * {@inheritDoc}
      */
     public  long skip( long n) throws IOException {
         if (n < 0L) {
             throw new IllegalArgumentException("skip value is negative");
         }
-        synchronized (lock) {
-            ensureOpen();
-            long r = n;
-            while (r > 0) {
-                if (nextChar >= nChars)
-                    fill();
-                if (nextChar >= nChars) /* EOF */
-                    break;
-                if (skipLF) {
-                    skipLF = false;
-                    if (cb[nextChar] == '\n') {
-                        nextChar++;
-                    }
-                }
-                long d = nChars - nextChar;
-                if (r <= d) {
-                    nextChar += r;
-                    r = 0;
-                    break;
-                }
-                else {
-                    r -= d;
-                    nextChar = nChars;
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                return implSkip(n);
+            } finally {
+                locker.unlock();
+            }
+        } else {
+            synchronized (lock) {
+                return implSkip(n);
+            }
+        }
+    }
+
+    private long implSkip(long n) throws IOException {
+        ensureOpen();
+        long r = n;
+        while (r > 0) {
+            if (nextChar >= nChars)
+                fill();
+            if (nextChar >= nChars) /* EOF */
+                break;
+            if (skipLF) {
+                skipLF = false;
+                if (cb[nextChar] == '\n') {
+                    nextChar++;
                 }
             }
-            return n - r;
+            long d = nChars - nextChar;
+            if (r <= d) {
+                nextChar += (int)r;
+                r = 0;
+                break;
+            }
+            else {
+                r -= d;
+                nextChar = nChars;
+            }
         }
+        return n - r;
     }
 
     /**
@@ -443,33 +502,47 @@ public class BufferedReader extends Reader {
      * stream is ready if the buffer is not empty, or if the underlying
      * character stream is ready.
      *
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IOException  If an I/O error occurs
      */
     
     
     public boolean ready() throws IOException {
-        synchronized (lock) {
-            ensureOpen();
-
-            /*
-             * If newline needs to be skipped and the next char to be read
-             * is a newline character, then just skip it right away.
-             */
-            if (skipLF) {
-                /* Note that in.ready() will return true if and only if the next
-                 * read on the stream will not block.
-                 */
-                if (nextChar >= nChars && in.ready()) {
-                    fill();
-                }
-                if (nextChar < nChars) {
-                    if (cb[nextChar] == '\n')
-                        nextChar++;
-                    skipLF = false;
-                }
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                return implReady();
+            } finally {
+                locker.unlock();
             }
-            return (nextChar < nChars) || in.ready();
+        } else {
+            synchronized (lock) {
+                return implReady();
+            }
         }
+    }
+
+    private boolean implReady() throws IOException {
+        ensureOpen();
+
+        /*
+         * If newline needs to be skipped and the next char to be read
+         * is a newline character, then just skip it right away.
+         */
+        if (skipLF) {
+            /* Note that in.ready() will return true if and only if the next
+             * read on the stream will not block.
+             */
+            if (nextChar >= nChars && in.ready()) {
+                fill();
+            }
+            if (nextChar < nChars) {
+                if (cb[nextChar] == '\n')
+                    nextChar++;
+                skipLF = false;
+            }
+        }
+        return (nextChar < nChars) || in.ready();
     }
 
     /**
@@ -492,49 +565,91 @@ public class BufferedReader extends Reader {
      *                         whose size is no smaller than limit.
      *                         Therefore large values should be used with care.
      *
-     * @exception  IllegalArgumentException  If {@code readAheadLimit < 0}
-     * @exception  IOException  If an I/O error occurs
+     * @throws     IllegalArgumentException  If {@code readAheadLimit < 0}
+     * @throws     IOException  If an I/O error occurs
      */
     public void mark( int readAheadLimit) throws IOException {
         if (readAheadLimit < 0) {
             throw new IllegalArgumentException("Read-ahead limit < 0");
         }
-        synchronized (lock) {
-            ensureOpen();
-            this.readAheadLimit = readAheadLimit;
-            markedChar = nextChar;
-            markedSkipLF = skipLF;
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                implMark(readAheadLimit);
+            } finally {
+                locker.unlock();
+            }
+        } else {
+            synchronized (lock) {
+                implMark(readAheadLimit);
+            }
         }
+    }
+
+    private void implMark(int readAheadLimit) throws IOException {
+        ensureOpen();
+        this.readAheadLimit = readAheadLimit;
+        markedChar = nextChar;
+        markedSkipLF = skipLF;
     }
 
     /**
      * Resets the stream to the most recent mark.
      *
-     * @exception  IOException  If the stream has never been marked,
+     * @throws     IOException  If the stream has never been marked,
      *                          or if the mark has been invalidated
      */
     public void reset() throws IOException {
-        synchronized (lock) {
-            ensureOpen();
-            if (markedChar < 0)
-                throw new IOException((markedChar == INVALIDATED)
-                                      ? "Mark invalid"
-                                      : "Stream not marked");
-            nextChar = markedChar;
-            skipLF = markedSkipLF;
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
+            try {
+                implReset();
+            } finally {
+                locker.unlock();
+            }
+        } else {
+            synchronized (lock) {
+                implReset();
+            }
         }
     }
 
+    private void implReset() throws IOException {
+        ensureOpen();
+        if (markedChar < 0)
+            throw new IOException((markedChar == INVALIDATED)
+                                  ? "Mark invalid"
+                                  : "Stream not marked");
+        nextChar = markedChar;
+        skipLF = markedSkipLF;
+    }
+
     public void close() throws IOException {
-        synchronized (lock) {
-            if (in == null)
-                return;
+        Object lock = this.lock;
+        if (lock instanceof InternalLock locker) {
+            locker.lock();
             try {
-                in.close();
+                implClose();
             } finally {
-                in = null;
-                cb = null;
+                locker.unlock();
             }
+        } else {
+            synchronized (lock) {
+                implClose();
+            }
+        }
+    }
+
+    private void implClose() throws IOException {
+        if (in == null)
+            return;
+        try {
+            in.close();
+        } finally {
+            in = null;
+            cb = null;
         }
     }
 

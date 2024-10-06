@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,8 +87,8 @@ public abstract class Attribute implements AnnotationValue {
         }
         @DefinedBy(Api.LANGUAGE_MODEL)
         public <R, P> R accept(AnnotationValueVisitor<R, P> v, P p) {
-            if (value instanceof String)
-                return v.visitString((String) value, p);
+            if (value instanceof String str)
+                return v.visitString(str, p);
             if (value instanceof Integer) {
                 int i = (Integer) value;
                 switch (type.getTag()) {
@@ -198,12 +198,10 @@ public abstract class Attribute implements AnnotationValue {
             if (values.size() == 1) {
                 Pair<MethodSymbol, Attribute> val = values.get(0);
                 if (val.fst.getSimpleName().contentEquals("value")
-                        && val.snd instanceof Array) {
-                    Array arr = (Array) val.snd;
-                    if (arr.values.length != 0
-                            && arr.values[0] instanceof Attribute.TypeCompound)
-                        return (Attribute.TypeCompound) arr.values[0];
-                }
+                        && val.snd instanceof Array arr
+                        && arr.values.length != 0
+                        && arr.values[0] instanceof Attribute.TypeCompound compound)
+                        return compound;
             }
             return null;
         }
@@ -247,7 +245,8 @@ public abstract class Attribute implements AnnotationValue {
                 buf.append('(');
                 boolean first = true;
                 for (Pair<MethodSymbol, Attribute> value : values) {
-                    if (!first) buf.append(", ");
+                    if (!first)
+                        buf.append(", ");
                     first = false;
 
                     Name name = value.fst.name;
@@ -368,7 +367,7 @@ public abstract class Attribute implements AnnotationValue {
         public void accept(Visitor v) { v.visitEnum(this); }
         @DefinedBy(Api.LANGUAGE_MODEL)
         public String toString() {
-            return value.enclClass() + "." + value;     // qualified name
+            return value.toString();
         }
         @DefinedBy(Api.LANGUAGE_MODEL)
         public VarSymbol getValue() {

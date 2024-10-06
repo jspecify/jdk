@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,11 @@
 
 package jdk.jfr;
 
+import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.util.Set;
 
-import jdk.jfr.internal.Control;
+import jdk.jfr.internal.settings.JDKSettingControl;
 
 /**
  * Base class to extend to create setting controls.
@@ -36,32 +37,7 @@ import jdk.jfr.internal.Control;
  * The following example shows a naive implementation of a setting control for
  * regular expressions:
  *
- * <pre>
- * <code>
- * final class RegExpControl extends SettingControl {
- *   private Pattern pattern = Pattern.compile(".*");
- *
- *   {@literal @}Override
- *   public void setValue(String value) {
- *     this.pattern = Pattern.compile(value);
- *   }
- *
- *   {@literal @}Override
- *   public String combine(Set{@literal <}String{@literal >} values) {
- *     return String.join("|", values);
- *   }
- *
- *   {@literal @}Override
- *   public String getValue() {
- *     return pattern.toString();
- *   }
- *
- *   public String matches(String s) {
- *     return pattern.matcher(s).find();
- *   }
- * }
- * </code>
- * </pre>
+ * {@snippet class="Snippets" region="SettingControlOverview1"}
  *
  * The {@code setValue(String)}, {@code getValue()} and
  * {@code combine(Set<String>)} methods are invoked when a setting value
@@ -86,74 +62,45 @@ import jdk.jfr.internal.Control;
  * The following example shows how to create an event that uses the
  * regular expression filter defined above.
  *
- * <pre>
- * <code>
- * abstract class HTTPRequest extends Event {
- *   {@literal @}Label("Request URI")
- *   protected String uri;
+ * {@snippet class="Snippets" region="SettingControlOverview2"}
  *
- *   {@literal @}Label("Servlet URI Filter")
- *   {@literal @}SettingDefinition
- *   protected boolean uriFilter(RegExpControl regExp) {
- *     return regExp.matches(uri);
- *   }
- * }
- *
- * {@literal @}Label("HTTP Get Request")
- * class HTTPGetRequest extends HTTPRequest {
- * }
- *
- * {@literal @}Label("HTTP Post Request")
- * class HTTPPostRequest extends HTTPRequest {
- * }
- *
- * class ExampleServlet extends HTTPServlet {
- *   protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
- *     HTTPGetRequest request = new HTTPGetRequest();
- *     request.begin();
- *     request.uri = req.getRequestURI();
- *     ...
- *     request.commit();
- *   }
- *
- *   protected void doPost(HttpServletRequest req, HttpServletResponse resp) {
- *     HTTPPostRequest request = new HTTPPostRequest();
- *     request.begin();
- *     request.uri = req.getRequestURI();
- *     ...
- *     request.commit();
- *   }
- * }
- * </code>
- * </pre>
- *
+ * <p>
  * The following example shows how an event can be filtered by assigning the
  * {@code "uriFilter"} setting with the specified regular expressions.
  *
- * <pre>
- * <code>
- * Recording r = new Recording();
- * r.enable("HTTPGetRequest").with("uriFilter", "https://www.example.com/list/.*");
- * r.enable("HTTPPostRequest").with("uriFilter", "https://www.example.com/login/.*");
- * r.start();
- * </code>
- * </pre>
- *
- *
+ * {@snippet class="Snippets" region="SettingControlOverview3"}
  *
  * @see SettingDefinition
  *
  * @since 9
  */
 @MetadataDefinition
-public abstract class SettingControl extends Control {
+public abstract class SettingControl {
+
+    @SuppressWarnings("removal")
+    private final AccessControlContext context;
+    private final boolean initialized;
 
     /**
      * Constructor for invocation by subclass constructors.
      */
+    @SuppressWarnings("removal")
     protected SettingControl() {
-        super(AccessController.getContext());
+        context = this instanceof JDKSettingControl ? null : AccessController.getContext();
+        initialized = true;
+    }
 
+    @SuppressWarnings("removal")
+    final AccessControlContext getContext() {
+        // Ensure object state is safe
+        if (!initialized) {
+            throw new InternalError("Object must be initialized before security context can be retrieved");
+        }
+        AccessControlContext c = this.context;
+        if (c == null && !(this instanceof JDKSettingControl)) {
+            throw new InternalError("Security context can only be null for trusted setting controls");
+        }
+        return c;
     }
 
     /**
@@ -188,7 +135,6 @@ public abstract class SettingControl extends Control {
      *
      * @return the value to use, not {@code null}
      */
-    @Override
     public abstract String combine(Set<String> settingValues);
 
     /**
@@ -199,7 +145,6 @@ public abstract class SettingControl extends Control {
      *
      * @param settingValue the string value, not {@code null}
      */
-    @Override
     public abstract void setValue(String settingValue);
 
     /**
@@ -215,6 +160,5 @@ public abstract class SettingControl extends Control {
      *
      * @return the setting value, not {@code null}
      */
-    @Override
     public abstract String getValue();
 }

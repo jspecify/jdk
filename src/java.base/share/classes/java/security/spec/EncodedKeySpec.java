@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,9 @@
 
 package java.security.spec;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import jdk.internal.access.SharedSecrets;
+
+import java.util.Arrays;
 
 /**
  * This class represents a public or private key in encoded format.
@@ -43,11 +44,15 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since 1.2
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class EncodedKeySpec implements KeySpec {
+public abstract class EncodedKeySpec implements KeySpec {
 
-    private byte[] encodedKey;
+    private final byte[] encodedKey;
     private String algorithmName;
+
+    static {
+        SharedSecrets.setJavaSecuritySpecAccess(
+                EncodedKeySpec::clear);
+    }
 
     /**
      * Creates a new {@code EncodedKeySpec} with the given encoded key.
@@ -129,4 +134,11 @@ public abstract @UsesObjectEquals class EncodedKeySpec implements KeySpec {
      * @return a string representation of the encoding format.
      */
     public abstract String getFormat();
+
+    /**
+     * Clear the encoding inside.
+     */
+    void clear() {
+        Arrays.fill(encodedKey, (byte)0);
+    }
 }

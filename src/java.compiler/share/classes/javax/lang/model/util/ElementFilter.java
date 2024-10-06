@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,20 +45,16 @@ import javax.lang.model.element.ModuleElement.UsesDirective;
 /**
  * Filters for selecting just the elements of interest from a
  * collection of elements.  The returned sets and lists are new
- * collections and do use the argument as a backing store.  The
+ * collections that do <em>not</em> use the argument collection as a backing store.  The
  * methods in this class do not make any attempts to guard against
  * concurrent modifications of the arguments.  The returned sets and
- * lists are mutable but unsafe for concurrent access.  A returned set
- * has the same iteration order as the argument set to a method.
+ * lists are mutable and unsafe for concurrent access.  A returned set
+ * from a method has the same iteration order as the argument set to the method.
  *
- * <p>If iterables and sets containing {@code null} are passed as
+ * <p>If iterables or sets containing {@code null} are passed as
  * arguments to methods in this class, a {@code NullPointerException}
  * will be thrown.
  *
- * @author Joseph D. Darcy
- * @author Scott Seligman
- * @author Peter von der Ah&eacute;
- * @author Martin Buchholz
  * @since 1.6
  */
 public class ElementFilter {
@@ -83,10 +79,14 @@ public class ElementFilter {
         Collections.unmodifiableSet(EnumSet.of(ElementKind.CLASS,
                                                ElementKind.ENUM,
                                                ElementKind.INTERFACE,
+                                               ElementKind.RECORD,
                                                ElementKind.ANNOTATION_TYPE));
+
+    private static final Set<ElementKind> RECORD_COMPONENT_KIND =
+        Set.of(ElementKind.RECORD_COMPONENT);
+
     /**
-     * Returns a list of fields in {@code elements}.
-     * @return a list of fields in {@code elements}
+     * {@return a list of fields in {@code elements}}
      * @param elements the elements to filter
      */
     public static List<VariableElement>
@@ -95,8 +95,7 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a set of fields in {@code elements}.
-     * @return a set of fields in {@code elements}
+     * {@return a set of fields in {@code elements}}
      * @param elements the elements to filter
      */
     public static Set<VariableElement>
@@ -105,8 +104,27 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a list of constructors in {@code elements}.
-     * @return a list of constructors in {@code elements}
+     * {@return a list of record components in {@code elements}}
+     * @param elements the elements to filter
+     * @since 16
+     */
+    public static List<RecordComponentElement>
+        recordComponentsIn(Iterable<? extends Element> elements) {
+        return listFilter(elements, RECORD_COMPONENT_KIND, RecordComponentElement.class);
+    }
+
+    /**
+     * {@return a set of record components in {@code elements}}
+     * @param elements the elements to filter
+     * @since 16
+     */
+    public static Set<RecordComponentElement>
+    recordComponentsIn(Set<? extends Element> elements) {
+        return setFilter(elements, RECORD_COMPONENT_KIND, RecordComponentElement.class);
+    }
+
+    /**
+     * {@return a list of constructors in {@code elements}}
      * @param elements the elements to filter
      */
     public static List<ExecutableElement>
@@ -115,8 +133,7 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a set of constructors in {@code elements}.
-     * @return a set of constructors in {@code elements}
+     * {@return a set of constructors in {@code elements}}
      * @param elements the elements to filter
      */
     public static Set<ExecutableElement>
@@ -125,8 +142,7 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a list of methods in {@code elements}.
-     * @return a list of methods in {@code elements}
+     * {@return a list of methods in {@code elements}}
      * @param elements the elements to filter
      */
     public static List<ExecutableElement>
@@ -135,8 +151,7 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a set of methods in {@code elements}.
-     * @return a set of methods in {@code elements}
+     * {@return a set of methods in {@code elements}}
      * @param elements the elements to filter
      */
     public static Set<ExecutableElement>
@@ -145,8 +160,7 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a list of types in {@code elements}.
-     * @return a list of types in {@code elements}
+     * {@return a list of classes and interfaces in {@code elements}}
      * @param elements the elements to filter
      */
     public static List<TypeElement>
@@ -155,8 +169,7 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a set of types in {@code elements}.
-     * @return a set of types in {@code elements}
+     * {@return a set of classes and interfaces in {@code elements}}
      * @param elements the elements to filter
      */
     public static Set<TypeElement>
@@ -165,8 +178,7 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a list of packages in {@code elements}.
-     * @return a list of packages in {@code elements}
+     * {@return a list of packages in {@code elements}}
      * @param elements the elements to filter
      */
     public static List<PackageElement>
@@ -175,8 +187,7 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a set of packages in {@code elements}.
-     * @return a set of packages in {@code elements}
+     * {@return a set of packages in {@code elements}}
      * @param elements the elements to filter
      */
     public static Set<PackageElement>
@@ -185,11 +196,9 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a list of modules in {@code elements}.
-     * @return a list of modules in {@code elements}
+     * {@return a list of modules in {@code elements}}
      * @param elements the elements to filter
      * @since 9
-     * @spec JPMS
      */
     public static List<ModuleElement>
             modulesIn(Iterable<? extends Element> elements) {
@@ -197,11 +206,9 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a set of modules in {@code elements}.
-     * @return a set of modules in {@code elements}
+     * {@return a set of modules in {@code elements}}
      * @param elements the elements to filter
      * @since 9
-     * @spec JPMS
      */
     public static Set<ModuleElement>
             modulesIn(Set<? extends Element> elements) {
@@ -234,11 +241,9 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a list of {@code exports} directives in {@code directives}.
-     * @return a list of {@code exports} directives in {@code directives}
+     * {@return a list of {@code exports} directives in {@code directives}}
      * @param directives the directives to filter
      * @since 9
-     * @spec JPMS
      */
     public static List<ExportsDirective>
             exportsIn(Iterable<? extends Directive> directives) {
@@ -246,8 +251,7 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a list of {@code opens} directives in {@code directives}.
-     * @return a list of {@code opens} directives in {@code directives}
+     * {@return a list of {@code opens} directives in {@code directives}}
      * @param directives the directives to filter
      * @since 9
      */
@@ -257,11 +261,9 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a list of {@code provides} directives in {@code directives}.
-     * @return a list of {@code provides} directives in {@code directives}
+     * {@return a list of {@code provides} directives in {@code directives}}
      * @param directives the directives to filter
      * @since 9
-     * @spec JPMS
      */
     public static List<ProvidesDirective>
             providesIn(Iterable<? extends Directive> directives) {
@@ -269,11 +271,9 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a list of {@code requires} directives in {@code directives}.
-     * @return a list of {@code requires} directives in {@code directives}
+     * {@return a list of {@code requires} directives in {@code directives}}
      * @param directives the directives to filter
      * @since 9
-     * @spec JPMS
      */
     public static List<RequiresDirective>
             requiresIn(Iterable<? extends Directive> directives) {
@@ -281,11 +281,9 @@ public class ElementFilter {
     }
 
     /**
-     * Returns a list of {@code uses} directives in {@code directives}.
-     * @return a list of {@code uses} directives in {@code directives}
+     * {@return a list of {@code uses} directives in {@code directives}}
      * @param directives the directives to filter
      * @since 9
-     * @spec JPMS
      */
     public static List<UsesDirective>
             usesIn(Iterable<? extends Directive> directives) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,177 +29,111 @@
 #include "opto/node.hpp"
 #include "utilities/growableArray.hpp"
 
-class LoadBarrierNode : public MultiNode {
+const uint8_t ZBarrierStrong      =  1;
+const uint8_t ZBarrierWeak        =  2;
+const uint8_t ZBarrierPhantom     =  4;
+const uint8_t ZBarrierNoKeepalive =  8;
+const uint8_t ZBarrierNative      = 16;
+const uint8_t ZBarrierElided      = 32;
+
+class Block;
+class MachNode;
+
+class MacroAssembler;
+
+class ZBarrierStubC2 : public BarrierStubC2 {
+protected:
+static void register_stub(ZBarrierStubC2* stub);
+static void inc_trampoline_stubs_count();
+static int trampoline_stubs_count();
+static int stubs_start_offset();
+
+  ZBarrierStubC2(const MachNode* node);
+
+public:
+  virtual void emit_code(MacroAssembler& masm) = 0;
+};
+
+class ZLoadBarrierStubC2 : public ZBarrierStubC2 {
 private:
-  bool _weak;
-  bool _writeback;          // Controls if the barrier writes the healed oop back to memory
-                            // A swap on a memory location must never write back the healed oop
-  bool _oop_reload_allowed; // Controls if the barrier are allowed to reload the oop from memory
-                            // before healing, otherwise both the oop and the address must be
-                            // passed to the barrier from the oop
+  const Address  _ref_addr;
+  const Register _ref;
 
-  static bool is_dominator(PhaseIdealLoop* phase, bool linear_only, Node *d, Node *n);
-  void push_dominated_barriers(PhaseIterGVN* igvn) const;
+protected:
+  ZLoadBarrierStubC2(const MachNode* node, Address ref_addr, Register ref);
 
 public:
-  enum {
-    Control,
-    Memory,
-    Oop,
-    Address,
-    Number_of_Outputs = Address,
-    Similar,
-    Number_of_Inputs
-  };
+  static ZLoadBarrierStubC2* create(const MachNode* node, Address ref_addr, Register ref);
 
-  LoadBarrierNode(Compile* C,
-                  Node* c,
-                  Node* mem,
-                  Node* val,
-                  Node* adr,
-                  bool weak,
-                  bool writeback,
-                  bool oop_reload_allowed);
+  Address ref_addr() const;
+  Register ref() const;
+  address slow_path() const;
 
-  virtual int Opcode() const;
-  virtual const Type *bottom_type() const;
-  virtual const Type *Value(PhaseGVN *phase) const;
-  virtual Node *Identity(PhaseGVN *phase);
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
-
-  LoadBarrierNode* has_dominating_barrier(PhaseIdealLoop* phase,
-                                          bool linear_only,
-                                          bool look_for_similar);
-
-  void fix_similar_in_uses(PhaseIterGVN* igvn);
-
-  bool has_true_uses() const;
-
-  bool can_be_eliminated() const {
-    return !in(Similar)->is_top();
-  }
-
-  bool is_weak() const {
-    return _weak;
-  }
-
-  bool is_writeback() const {
-    return _writeback;
-  }
-
-  bool oop_reload_allowed() const {
-    return _oop_reload_allowed;
-  }
+  virtual void emit_code(MacroAssembler& masm);
 };
 
-class LoadBarrierSlowRegNode : public LoadPNode {
-public:
-  LoadBarrierSlowRegNode(Node *c,
-                         Node *mem,
-                         Node *adr,
-                         const TypePtr *at,
-                         const TypePtr* t,
-                         MemOrd mo,
-                         ControlDependency control_dependency = DependsOnlyOnTest)
-    : LoadPNode(c, mem, adr, at, t, mo, control_dependency) {}
-
-  virtual const char * name() {
-    return "LoadBarrierSlowRegNode";
-  }
-
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape) {
-    return NULL;
-  }
-
-  virtual int Opcode() const;
-};
-
-class LoadBarrierWeakSlowRegNode : public LoadPNode {
-public:
-  LoadBarrierWeakSlowRegNode(Node *c,
-                             Node *mem,
-                             Node *adr,
-                             const TypePtr *at,
-                             const TypePtr* t,
-                             MemOrd mo,
-                             ControlDependency control_dependency = DependsOnlyOnTest)
-    : LoadPNode(c, mem, adr, at, t, mo, control_dependency) {}
-
-  virtual const char * name() {
-    return "LoadBarrierWeakSlowRegNode";
-  }
-
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape) {
-    return NULL;
-  }
-
-  virtual int Opcode() const;
-};
-
-class ZBarrierSetC2State : public ResourceObj {
+class ZStoreBarrierStubC2 : public ZBarrierStubC2 {
 private:
-  // List of load barrier nodes which need to be expanded before matching
-  GrowableArray<LoadBarrierNode*>* _load_barrier_nodes;
+  const Address  _ref_addr;
+  const Register _new_zaddress;
+  const Register _new_zpointer;
+  const bool     _is_native;
+  const bool     _is_atomic;
+
+protected:
+  ZStoreBarrierStubC2(const MachNode* node, Address ref_addr, Register new_zaddress, Register new_zpointer, bool is_native, bool is_atomic);
 
 public:
-  ZBarrierSetC2State(Arena* comp_arena);
-  int load_barrier_count() const;
-  void add_load_barrier_node(LoadBarrierNode* n);
-  void remove_load_barrier_node(LoadBarrierNode* n);
-  LoadBarrierNode* load_barrier_node(int idx) const;
+  static ZStoreBarrierStubC2* create(const MachNode* node, Address ref_addr, Register new_zaddress, Register new_zpointer, bool is_native, bool is_atomic);
+
+  Address ref_addr() const;
+  Register new_zaddress() const;
+  Register new_zpointer() const;
+  bool is_native() const;
+  bool is_atomic() const;
+
+  virtual void emit_code(MacroAssembler& masm);
 };
 
 class ZBarrierSetC2 : public BarrierSetC2 {
 private:
-  ZBarrierSetC2State* state() const;
-  Node* make_cas_loadbarrier(C2AtomicAccess& access) const;
-  Node* make_cmpx_loadbarrier(C2AtomicAccess& access) const;
-  void expand_loadbarrier_basic(PhaseMacroExpand* phase, LoadBarrierNode *barrier) const;
-  void expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrierNode* barrier) const;
-  void expand_loadbarrier_optimized(PhaseMacroExpand* phase, LoadBarrierNode *barrier) const;
-  const TypeFunc* load_barrier_Type() const;
+  void analyze_dominating_barriers_impl(Node_List& accesses, Node_List& access_dominators) const;
+  void analyze_dominating_barriers() const;
 
 protected:
+  virtual Node* store_at_resolved(C2Access& access, C2AccessValue& val) const;
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
-  virtual Node* atomic_cmpxchg_val_at_resolved(C2AtomicAccess& access,
+  virtual Node* atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access,
                                                Node* expected_val,
                                                Node* new_val,
                                                const Type* val_type) const;
-  virtual Node* atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access,
+  virtual Node* atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access,
                                                 Node* expected_val,
                                                 Node* new_val,
                                                 const Type* value_type) const;
-  virtual Node* atomic_xchg_at_resolved(C2AtomicAccess& access,
+  virtual Node* atomic_xchg_at_resolved(C2AtomicParseAccess& access,
                                         Node* new_val,
                                         const Type* val_type) const;
 
 public:
-  Node* load_barrier(GraphKit* kit,
-                     Node* val,
-                     Node* adr,
-                     bool weak = false,
-                     bool writeback = true,
-                     bool oop_reload_allowed = true) const;
-
+  virtual uint estimated_barrier_size(const Node* node) const;
   virtual void* create_barrier_state(Arena* comp_arena) const;
-  virtual bool is_gc_barrier_node(Node* node) const;
-  virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const { }
-  virtual void eliminate_useless_gc_barriers(Unique_Node_List &useful) const;
-  virtual void add_users_to_worklist(Unique_Node_List* worklist) const;
-  virtual void enqueue_useful_gc_barrier(Unique_Node_List &worklist, Node* node) const;
-  virtual void register_potential_barrier_node(Node* node) const;
-  virtual void unregister_potential_barrier_node(Node* node) const;
-  virtual bool array_copy_requires_gc_barriers(BasicType type) const { return true; }
-  virtual Node* step_over_gc_barrier(Node* c) const { return c; }
-  // If the BarrierSetC2 state has kept macro nodes in its compilation unit state to be
-  // expanded later, then now is the time to do so.
-  virtual bool expand_macro_nodes(PhaseMacroExpand* macro) const;
+  virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc,
+                                               BasicType type,
+                                               bool is_clone,
+                                               bool is_clone_instance,
+                                               ArrayCopyPhase phase) const;
+  virtual void clone_at_expansion(PhaseMacroExpand* phase,
+                                  ArrayCopyNode* ac) const;
 
-  static void find_dominating_barriers(PhaseIterGVN& igvn);
-  static void loop_optimize_gc_barrier(PhaseIdealLoop* phase, Node* node, bool last_round);
+  virtual void late_barrier_analysis() const;
+  virtual int estimate_stub_size() const;
+  virtual void emit_stubs(CodeBuffer& cb) const;
+  virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const;
+  virtual void eliminate_gc_barrier_data(Node* node) const;
 
-#ifdef ASSERT
-  virtual void verify_gc_barriers(bool post_parse) const;
+#ifndef PRODUCT
+  virtual void dump_barrier_data(const MachNode* mach, outputStream* st) const;
 #endif
 };
 

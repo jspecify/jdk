@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,11 +38,12 @@ import java.security.GeneralSecurityException;
 
 public class NoSuchPaddingException extends GeneralSecurityException {
 
+    @java.io.Serial
     private static final long serialVersionUID = -4572885201200175466L;
 
     /**
-     * Constructs a NoSuchPaddingException with no detail
-     * message. A detail message is a String that describes this
+     * Constructs a {@code NoSuchPaddingException} with no detail
+     * message. A detail message is a {@code String} that describes this
      * particular exception.
      */
     public NoSuchPaddingException() {
@@ -50,7 +51,7 @@ public class NoSuchPaddingException extends GeneralSecurityException {
     }
 
     /**
-     * Constructs a NoSuchPaddingException with the specified
+     * Constructs a {@code NoSuchPaddingException} with the specified
      * detail message.
      *
      * @param msg the detail message.

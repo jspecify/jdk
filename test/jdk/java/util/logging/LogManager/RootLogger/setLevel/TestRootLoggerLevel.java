@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,7 @@ import java.util.logging.LoggingPermission;
  * @modules java.base/sun.util.logging
  *          java.logging
  * @build TestRootLoggerLevel
- * @run main/othervm -Dtest.security=on TestRootLoggerLevel
+ * @run main/othervm -Djava.security.manager=allow -Dtest.security=on TestRootLoggerLevel
  * @run main/othervm -Dtest.security=off TestRootLoggerLevel
  * @author danielfuchs
  */
@@ -119,6 +119,9 @@ public class TestRootLoggerLevel {
      }
 
     private static final class SimplePolicy extends Policy {
+
+        static final Policy DEFAULT_POLICY = Policy.getPolicy();
+
         private final Permissions perms;
 
         private static final Permissions permissions(Permission... perms) {
@@ -141,7 +144,7 @@ public class TestRootLoggerLevel {
 
         @Override
         public boolean implies(ProtectionDomain domain, Permission permission) {
-            return perms.implies(permission);
+            return perms.implies(permission) || DEFAULT_POLICY.implies(domain, permission);
         }
 
     }

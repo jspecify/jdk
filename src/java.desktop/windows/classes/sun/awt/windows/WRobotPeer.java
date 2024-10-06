@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,34 +25,18 @@
 
 package sun.awt.windows;
 
-import java.awt.GraphicsDevice;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.peer.RobotPeer;
 
-import sun.java2d.SunGraphicsEnvironment;
+import static sun.java2d.SunGraphicsEnvironment.toDeviceSpaceAbs;
 
-final class WRobotPeer extends WObjectPeer implements RobotPeer
-{
-    WRobotPeer() {
-        create();
-    }
-    WRobotPeer(GraphicsDevice screen) {
-        create();
-    }
+final class WRobotPeer implements RobotPeer {
 
-    private synchronized native void _dispose();
-
-    @Override
-    protected void disposeImpl() {
-        _dispose();
-    }
-
-    public native void create();
     public native void mouseMoveImpl(int x, int y);
     @Override
     public void mouseMove(int x, int y) {
-        Point point = SunGraphicsEnvironment.convertToDeviceSpace(x, y);
+        Point point = toDeviceSpaceAbs(x, y);
         mouseMoveImpl(point.x, point.y);
     }
     @Override
@@ -75,10 +59,15 @@ final class WRobotPeer extends WObjectPeer implements RobotPeer
 
     @Override
     public int [] getRGBPixels(Rectangle bounds) {
-        int pixelArray[] = new int[bounds.width*bounds.height];
+        int[] pixelArray = new int[bounds.width*bounds.height];
         getRGBPixels(bounds.x, bounds.y, bounds.width, bounds.height, pixelArray);
         return pixelArray;
     }
 
-    private native void getRGBPixels(int x, int y, int width, int height, int pixelArray[]);
+    @Override
+    public boolean useAbsoluteCoordinates() {
+        return true;
+    }
+
+    private native void getRGBPixels(int x, int y, int width, int height, int[] pixelArray);
 }

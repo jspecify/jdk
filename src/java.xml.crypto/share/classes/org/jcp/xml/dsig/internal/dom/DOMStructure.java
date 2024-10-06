@@ -21,21 +21,60 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id: DOMStructure.java 1788465 2017-03-24 15:10:51Z coheigea $
+ * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
  */
 package org.jcp.xml.dsig.internal.dom;
 
+import java.util.List;
+
 import javax.xml.crypto.MarshalException;
-import javax.xml.crypto.XMLCryptoContext;
+import javax.xml.crypto.XMLStructure;
+import javax.xml.crypto.dom.DOMCryptoContext;
+
+import org.w3c.dom.Node;
 
 /**
  * DOM-based abstract implementation of XMLStructure.
  *
  */
-public abstract class DOMStructure extends BaseStructure {
+public abstract class DOMStructure implements XMLStructure {
 
-    public abstract void marshal(XmlWriter xwriter, String dsPrefix, XMLCryptoContext context) throws MarshalException;
+    @Override
+    public final boolean isFeatureSupported(String feature) {
+        if (feature == null) {
+            throw new NullPointerException();
+        } else {
+            return false;
+        }
+    }
+
+    public abstract void marshal(Node parent, String dsPrefix,
+        DOMCryptoContext context) throws MarshalException;
+
+    protected boolean equalsContent(List<XMLStructure> content, List<XMLStructure> otherContent) {
+        int size = content.size();
+        if (size != otherContent.size()) {
+            return false;
+        }
+        for (int i = 0; i < size; i++) {
+            XMLStructure oxs = otherContent.get(i);
+            XMLStructure xs = content.get(i);
+            if (oxs instanceof javax.xml.crypto.dom.DOMStructure) {
+                if (!(xs instanceof javax.xml.crypto.dom.DOMStructure)) {
+                    return false;
+                }
+                Node otherNode = ((javax.xml.crypto.dom.DOMStructure)oxs).getNode();
+                Node node = ((javax.xml.crypto.dom.DOMStructure)xs).getNode();
+                if (!DOMUtils.nodesEqual(node, otherNode)) {
+                    return false;
+                }
+            } else {
+                if (!(xs.equals(oxs))) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
 }

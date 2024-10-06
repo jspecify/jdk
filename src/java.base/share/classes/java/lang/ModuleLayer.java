@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,12 +44,17 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import jdk.internal.javac.PreviewFeature;
+import jdk.internal.javac.Restricted;
 import jdk.internal.loader.ClassLoaderValue;
 import jdk.internal.loader.Loader;
 import jdk.internal.loader.LoaderPool;
 import jdk.internal.module.ServicesCatalog;
+import jdk.internal.misc.CDS;
+import jdk.internal.reflect.CallerSensitive;
+import jdk.internal.reflect.Reflection;
+import jdk.internal.vm.annotation.Stable;
 import sun.security.util.SecurityConstants;
-
 
 /**
  * A layer of modules in the Java virtual machine.
@@ -120,37 +125,38 @@ import sun.security.util.SecurityConstants;
  * in this class causes a {@link NullPointerException NullPointerException} to
  * be thrown. </p>
  *
- * <h3> Example usage: </h3>
+ * <h2> Example </h2>
  *
  * <p> This example creates a configuration by resolving a module named
  * "{@code myapp}" with the configuration for the boot layer as the parent. It
  * then creates a new layer with the modules in this configuration. All modules
  * are defined to the same class loader. </p>
  *
- * <pre>{@code
+ * {@snippet :
  *     ModuleFinder finder = ModuleFinder.of(dir1, dir2, dir3);
- *
  *     ModuleLayer parent = ModuleLayer.boot();
- *
- *     Configuration cf = parent.configuration().resolve(finder, ModuleFinder.of(), Set.of("myapp"));
- *
+ *     Configuration cf = parent.configuration()
+ *                              .resolve(finder, ModuleFinder.of(), Set.of("myapp"));
  *     ClassLoader scl = ClassLoader.getSystemClassLoader();
- *
  *     ModuleLayer layer = parent.defineModulesWithOneLoader(cf, scl);
- *
  *     Class<?> c = layer.findLoader("myapp").loadClass("app.Main");
- * }</pre>
+ * }
  *
  * @since 9
- * @spec JPMS
  * @see Module#getLayer()
  */
 
 public final class ModuleLayer {
 
-    // the empty layer
-    private static final ModuleLayer EMPTY_LAYER
-        = new ModuleLayer(Configuration.empty(), List.of(), null);
+    // the empty layer (may be initialized from the CDS archive)
+    private static @Stable ModuleLayer EMPTY_LAYER;
+    static {
+        CDS.initializeFromArchive(ModuleLayer.class);
+        if (EMPTY_LAYER == null) {
+            // create a new empty layer if there is no archived version.
+            EMPTY_LAYER = new ModuleLayer(Configuration.empty(), List.of(), null);
+        }
+    }
 
     // the configuration from which this layer was created
     private final Configuration cf;
@@ -173,7 +179,7 @@ public final class ModuleLayer {
 
         Map<String, Module> map;
         if (parents.isEmpty()) {
-            map = Collections.emptyMap();
+            map = Map.of();
         } else {
             map = Module.defineModules(cf, clf, this);
         }
@@ -193,7 +199,6 @@ public final class ModuleLayer {
      * should never be shared with untrusted code.
      *
      * @since 9
-     * @spec JPMS
      */
     public static final class Controller {
         private final ModuleLayer layer;
@@ -293,6 +298,33 @@ public final class ModuleLayer {
         public Controller addOpens(Module source, String pn, Module target) {
             ensureInLayer(source);
             source.implAddOpens(pn, target);
+            return this;
+        }
+
+        /**
+         * Enables native access for a module in the layer if the caller's module
+         * has native access.
+         *
+         * @param  target
+         *         The module to update
+         *
+         * @return This controller
+         *
+         * @throws IllegalArgumentException
+         *         If {@code target} is not in the module layer
+         *
+         * @throws IllegalCallerException
+         *         If the caller is in a module that does not have native access enabled
+         *
+         * @since 22
+         */
+        @CallerSensitive
+        @Restricted
+        public Controller enableNativeAccess(Module target) {
+            ensureInLayer(target);
+            Reflection.ensureNativeAccess(Reflection.getCallerClass(), Module.class,
+                "enableNativeAccess", false);
+            target.implAddEnableNativeAccess();
             return this;
         }
     }
@@ -489,7 +521,7 @@ public final class ModuleLayer {
                                                         List<ModuleLayer> parentLayers,
                                                         ClassLoader parentLoader)
     {
-        List<ModuleLayer> parents = new ArrayList<>(parentLayers);
+        List<ModuleLayer> parents = List.copyOf(parentLayers);
         checkConfiguration(cf, parents);
 
         checkCreateClassLoaderPermission();
@@ -565,7 +597,7 @@ public final class ModuleLayer {
                                                           List<ModuleLayer> parentLayers,
                                                           ClassLoader parentLoader)
     {
-        List<ModuleLayer> parents = new ArrayList<>(parentLayers);
+        List<ModuleLayer> parents = List.copyOf(parentLayers);
         checkConfiguration(cf, parents);
 
         checkCreateClassLoaderPermission();
@@ -623,7 +655,7 @@ public final class ModuleLayer {
      * </p>
      *
      * @apiNote It is implementation specific as to whether creating a layer
-     * with this method is an atomic operation or not. Consequentially it is
+     * with this method is an atomic operation or not. Consequently it is
      * possible for this method to fail with some modules, but not all, defined
      * to the Java virtual machine.
      *
@@ -649,7 +681,7 @@ public final class ModuleLayer {
                                            List<ModuleLayer> parentLayers,
                                            Function<String, ClassLoader> clf)
     {
-        List<ModuleLayer> parents = new ArrayList<>(parentLayers);
+        List<ModuleLayer> parents = List.copyOf(parentLayers);
         checkConfiguration(cf, parents);
         Objects.requireNonNull(clf);
 
@@ -693,12 +725,14 @@ public final class ModuleLayer {
     }
 
     private static void checkCreateClassLoaderPermission() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null)
             sm.checkPermission(SecurityConstants.CREATE_CLASSLOADER_PERMISSION);
     }
 
     private static void checkGetClassLoaderPermission() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null)
             sm.checkPermission(SecurityConstants.GET_CLASSLOADER_PERMISSION);
@@ -734,7 +768,7 @@ public final class ModuleLayer {
     }
 
     /**
-     * Creates a LayerInstantiationException with the a message formatted from
+     * Creates a LayerInstantiationException with the message formatted from
      * the given format string and arguments.
      */
     private static LayerInstantiationException fail(String fmt, Object ... args) {
@@ -752,13 +786,12 @@ public final class ModuleLayer {
         return cf;
     }
 
-
     /**
-     * Returns the list of this layer's parents unless this is the
-     * {@linkplain #empty empty layer}, which has no parents and so an
+     * Returns an unmodifiable list of this layer's parents, in search
+     * order. If this is the {@linkplain #empty() empty layer} then an
      * empty list is returned.
      *
-     * @return The list of this layer's parents
+     * @return A possibly-empty unmodifiable list of this layer's parents
      */
     public List<ModuleLayer> parents() {
         return parents;
@@ -790,8 +823,7 @@ public final class ModuleLayer {
             // push in reverse order
             for (int i = layer.parents.size() - 1; i >= 0; i--) {
                 ModuleLayer parent = layer.parents.get(i);
-                if (!visited.contains(parent)) {
-                    visited.add(parent);
+                if (visited.add(parent)) {
                     stack.push(parent);
                 }
             }
@@ -804,15 +836,14 @@ public final class ModuleLayer {
     private volatile List<ModuleLayer> allLayers;
 
     /**
-     * Returns the set of the modules in this layer.
+     * Returns an unmodifiable set of the modules in this layer.
      *
      * @return A possibly-empty unmodifiable set of the modules in this layer
      */
     public Set<Module> modules() {
         Set<Module> modules = this.modules;
         if (modules == null) {
-            this.modules = modules =
-                Collections.unmodifiableSet(new HashSet<>(nameToModule.values()));
+            this.modules = modules = Set.copyOf(nameToModule.values());
         }
         return modules;
     }
@@ -850,6 +881,24 @@ public final class ModuleLayer {
                 .findAny();
     }
 
+    /**
+     * Updates the module with the given {@code name} in this layer
+     * to allow access to restricted methods.
+     *
+     * @param name the name of the module for which the native access
+     *             should be enabled
+     * @return {@code true} iff the module is present in this layer,
+     *         {@code false} otherwise
+     */
+    boolean addEnableNativeAccess(String name) {
+        Module m = nameToModule.get(name);
+        if (m != null) {
+            m.implAddEnableNativeAccess();
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     /**
      * Returns the {@code ClassLoader} for the module with the given name. If
@@ -936,7 +985,9 @@ public final class ModuleLayer {
             servicesCatalog = this.servicesCatalog;
             if (servicesCatalog == null) {
                 servicesCatalog = ServicesCatalog.create();
-                nameToModule.values().forEach(servicesCatalog::register);
+                for (Module m : nameToModule.values()) {
+                    servicesCatalog.register(m);
+                }
                 this.servicesCatalog = servicesCatalog;
             }
         }

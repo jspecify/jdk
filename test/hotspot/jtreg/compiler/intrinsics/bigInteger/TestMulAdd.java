@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,19 @@
 
 /**
  * @test
+ * @key randomness
  * @bug 8081778
  * @summary Add C2 x86 intrinsic for BigInteger::mulAdd() method
  *
+ * @library /test/lib
  * @run main/othervm/timeout=600 -XX:-TieredCompilation -Xbatch
  *      -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:-UseSquareToLenIntrinsic -XX:-UseMultiplyToLenIntrinsic
  *      -XX:CompileCommand=dontinline,compiler.intrinsics.bigInteger.TestMulAdd::main
- *      -XX:CompileCommand=option,compiler.intrinsics.bigInteger.TestMulAdd::base_multiply,ccstr,DisableIntrinsic,_mulAdd
- *      -XX:CompileCommand=option,java.math.BigInteger::multiply,ccstr,DisableIntrinsic,_mulAdd
- *      -XX:CompileCommand=option,java.math.BigInteger::square,ccstr,DisableIntrinsic,_mulAdd
- *      -XX:CompileCommand=option,java.math.BigInteger::squareToLen,ccstr,DisableIntrinsic,_mulAdd
- *      -XX:CompileCommand=option,java.math.BigInteger::mulAdd,ccstr,DisableIntrinsic,_mulAdd
+ *      -XX:CompileCommand=option,compiler.intrinsics.bigInteger.TestMulAdd::base_multiply,ccstrlist,DisableIntrinsic,_mulAdd
+ *      -XX:CompileCommand=option,java.math.BigInteger::multiply,ccstrlist,DisableIntrinsic,_mulAdd
+ *      -XX:CompileCommand=option,java.math.BigInteger::square,ccstrlist,DisableIntrinsic,_mulAdd
+ *      -XX:CompileCommand=option,java.math.BigInteger::squareToLen,ccstrlist,DisableIntrinsic,_mulAdd
+ *      -XX:CompileCommand=option,java.math.BigInteger::mulAdd,ccstrlist,DisableIntrinsic,_mulAdd
  *      -XX:CompileCommand=inline,java.math.BigInteger::multiply
  *      -XX:CompileCommand=inline,java.math.BigInteger::square
  *      -XX:CompileCommand=inline,java.math.BigInteger::squareToLen
@@ -45,6 +47,7 @@ package compiler.intrinsics.bigInteger;
 
 import java.math.BigInteger;
 import java.util.Random;
+import jdk.test.lib.Utils;
 
 public class TestMulAdd {
 
@@ -86,12 +89,8 @@ public class TestMulAdd {
 
       BigInteger b1, b2, oldres, newres;
 
-      Random rand = new Random();
-      long seed = System.nanoTime();
-      Random rand1 = new Random();
-      long seed1 = System.nanoTime();
-      rand.setSeed(seed);
-      rand1.setSeed(seed1);
+      Random rand = new Random(Utils.getRandomInstance().nextLong());
+      Random rand1 = new Random(Utils.getRandomInstance().nextLong());
 
       for (int j = 0; j < 100000; j++) {
         int rand_int = rand1.nextInt(3136)+32;

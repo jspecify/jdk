@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * <p>
  * Otherwise, if the {@code SecureRandomSpi(SecureRandomParameters)}
  * constructor is not overridden in an implementation, the
- * {@link #SecureRandomSpi()} constructor must be overridden and it will be
+ * {@link #SecureRandomSpi()} constructor must be overridden, and it will be
  * called if an object is instantiated with one of {@code SecureRandom}'s
  * {@code getInstance} methods <em>without</em> a
  * {@code SecureRandomParameters} argument. Calling one of
@@ -88,6 +88,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 @AnnotatedFor({"interning"})
 public abstract @UsesObjectEquals class SecureRandomSpi implements java.io.Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = -2991854161009191830L;
 
     /**

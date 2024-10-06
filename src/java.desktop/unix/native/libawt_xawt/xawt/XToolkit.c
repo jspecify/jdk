@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,14 @@
  * questions.
  */
 
+#ifdef HEADLESS
+    #error This file should not be included in headless library
+#endif
+
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xos.h>
 #include <X11/Xatom.h>
-#ifdef __linux__
-#include <execinfo.h>
-#endif
 
 #include <jvm.h>
 #include <jni.h>
@@ -38,8 +39,6 @@
 
 #include "awt_p.h"
 #include "awt_Component.h"
-#include "awt_MenuComponent.h"
-#include "awt_Font.h"
 #include "awt_util.h"
 
 #include "sun_awt_X11_XToolkit.h"
@@ -55,7 +54,7 @@ Boolean  awt_ModLockIsShiftLock = False;
 static int32_t num_buttons = 0;
 int32_t getNumButtons();
 
-extern JavaVM *jvm;
+extern JavaVM *jvm_xawt;
 
 // Tracing level
 static int tracing = 0;
@@ -72,34 +71,9 @@ static int tracing = 0;
 
 struct ComponentIDs componentIDs;
 
-struct MenuComponentIDs menuComponentIDs;
-
-#ifndef HEADLESS
-
 extern Display* awt_init_Display(JNIEnv *env, jobject this);
 extern void freeNativeStringArray(char **array, jsize length);
 extern char** stringArrayToNative(JNIEnv *env, jobjectArray array, jsize * ret_length);
-
-struct XFontPeerIDs xFontPeerIDs;
-
-JNIEXPORT void JNICALL
-Java_sun_awt_X11_XFontPeer_initIDs
-  (JNIEnv *env, jclass cls)
-{
-    xFontPeerIDs.xfsname =
-      (*env)->GetFieldID(env, cls, "xfsname", "Ljava/lang/String;");
-}
-#endif /* !HEADLESS */
-
-/* This function gets called from the static initializer for FileDialog.java
-   to initialize the fieldIDs for fields that may be accessed from C */
-
-JNIEXPORT void JNICALL
-Java_java_awt_FileDialog_initIDs
-  (JNIEnv *env, jclass cls)
-{
-
-}
 
 JNIEXPORT void JNICALL
 Java_sun_awt_X11_XToolkit_initIDs
@@ -133,23 +107,21 @@ JNIEXPORT jlong JNICALL Java_sun_awt_X11_XToolkit_getTrayIconDisplayTimeout
 JNIEXPORT jlong JNICALL Java_sun_awt_X11_XToolkit_getDefaultXColormap
   (JNIEnv *env, jclass clazz)
 {
+    AWT_LOCK();
     AwtGraphicsConfigDataPtr defaultConfig =
         getDefaultConfig(DefaultScreen(awt_display));
-
+    AWT_UNLOCK();
     return (jlong) defaultConfig->awt_cmap;
 }
-
-JNIEXPORT jlong JNICALL Java_sun_awt_X11_XToolkit_getDefaultScreenData
-  (JNIEnv *env, jclass clazz)
-{
-    return ptr_to_jlong(getDefaultConfig(DefaultScreen(awt_display)));
-}
-
 
 JNIEXPORT jint JNICALL
 DEF_JNI_OnLoad(JavaVM *vm, void *reserved)
 {
-    jvm = vm;
+    jvm_xawt = vm;
+
+    //Set the gtk backend to x11 on all the systems
+    putenv("GDK_BACKEND=x11");
+
     return JNI_VERSION_1_2;
 }
 
@@ -161,9 +133,11 @@ DEF_JNI_OnLoad(JavaVM *vm, void *reserved)
 JNIEXPORT void JNICALL Java_sun_awt_X11_XToolkit_nativeLoadSystemColors
   (JNIEnv *env, jobject this, jintArray systemColors)
 {
+    AWT_LOCK();
     AwtGraphicsConfigDataPtr defaultConfig =
         getDefaultConfig(DefaultScreen(awt_display));
     awtJNI_CreateColorData(env, defaultConfig, 1);
+    AWT_UNLOCK();
 }
 
 JNIEXPORT void JNICALL
@@ -236,14 +210,6 @@ Java_java_awt_Container_initIDs
 
 }
 
-
-JNIEXPORT void JNICALL
-Java_java_awt_Button_initIDs
-  (JNIEnv *env, jclass cls)
-{
-
-}
-
 JNIEXPORT void JNICALL
 Java_java_awt_Scrollbar_initIDs
   (JNIEnv *env, jclass cls)
@@ -266,13 +232,6 @@ Java_java_awt_Frame_initIDs
 
 }
 
-
-JNIEXPORT void JNICALL
-Java_java_awt_MenuComponent_initIDs(JNIEnv *env, jclass cls)
-{
-    menuComponentIDs.appContext =
-      (*env)->GetFieldID(env, cls, "appContext", "Lsun/awt/AppContext;");
-}
 
 JNIEXPORT void JNICALL
 Java_java_awt_Cursor_initIDs(JNIEnv *env, jclass cls)
@@ -308,20 +267,6 @@ Java_java_awt_Checkbox_initIDs
 JNIEXPORT void JNICALL Java_java_awt_ScrollPane_initIDs
   (JNIEnv *env, jclass cls)
 {
-}
-
-JNIEXPORT void JNICALL
-Java_java_awt_TextField_initIDs
-  (JNIEnv *env, jclass cls)
-{
-}
-
-JNIEXPORT jboolean JNICALL AWTIsHeadless() {
-#ifdef HEADLESS
-    return JNI_TRUE;
-#else
-    return JNI_FALSE;
-#endif
 }
 
 JNIEXPORT void JNICALL Java_java_awt_Dialog_initIDs (JNIEnv *env, jclass cls)
@@ -403,7 +348,7 @@ static jlong        poll_wakeup_time = 0LL; // Used for tracing
 // considered by schedulers as zero, so this might cause unnecessary
 // CPU consumption by Java.  The values between 10 - 50 are suggested
 // for single client desktop configurations.  For SunRay servers, it
-// is highly recomended to use aging algorithm (set static poll timeout
+// is highly recommended to use aging algorithm (set static poll timeout
 // to 0).
 static int32_t static_poll_timeout = 0;
 
@@ -719,7 +664,7 @@ performPoll(JNIEnv *env, jlong nextTaskTime) {
  */
 void awt_output_flush() {
     if (awt_next_flush_time == 0) {
-        JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+        JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm_xawt, JNI_VERSION_1_2);
 
         jlong curTime = awtJNI_TimeMillis(); // current time
         jlong l_awt_last_flush_time = awt_last_flush_time; // last time we flushed queue
@@ -755,17 +700,6 @@ static void wakeUp() {
 /* ========================== End poll section ================================= */
 
 /*
- * Class:     java_awt_KeyboardFocusManager
- * Method:    initIDs
- * Signature: ()V
- */
-JNIEXPORT void JNICALL
-Java_java_awt_KeyboardFocusManager_initIDs
-    (JNIEnv *env, jclass cls)
-{
-}
-
-/*
  * Class:     sun_awt_X11_XToolkit
  * Method:    getEnv
  * Signature: (Ljava/lang/String;)Ljava/lang/String;
@@ -786,26 +720,6 @@ JNIEXPORT jstring JNICALL Java_sun_awt_X11_XToolkit_getEnv
     }
     return ret;
 }
-
-#ifdef __linux__
-void print_stack(void)
-{
-  void *array[10];
-  size_t size;
-  char **strings;
-  size_t i;
-
-  size = backtrace (array, 10);
-  strings = backtrace_symbols (array, size);
-
-  fprintf (stderr, "Obtained %zd stack frames.\n", size);
-
-  for (i = 0; i < size; i++)
-     fprintf (stderr, "%s\n", strings[i]);
-
-  free (strings);
-}
-#endif
 
 Window get_xawt_root_shell(JNIEnv *env) {
   static jclass classXRootWindow = NULL;
@@ -832,121 +746,6 @@ Window get_xawt_root_shell(JNIEnv *env) {
       }
   }
   return xawt_root_shell;
-}
-
-/*
- * Old, compatibility, backdoor for DT.  This is a different
- * implementation.  It keeps the signature, but acts on
- * awt_root_shell, not the frame passed as an argument.  Note, that
- * the code that uses the old backdoor doesn't work correctly with
- * gnome session proxy that checks for WM_COMMAND when the window is
- * firts mapped, because DT code calls this old backdoor *after* the
- * frame is shown or it would get NPE with old AWT (previous
- * implementation of this backdoor) otherwise.  Old style session
- * managers (e.g. CDE) that check WM_COMMAND only during session
- * checkpoint should work fine, though.
- *
- * NB: The function name looks deceptively like a JNI native method
- * name.  It's not!  It's just a plain function.
- */
-
-JNIEXPORT void JNICALL
-Java_sun_awt_motif_XsessionWMcommand(JNIEnv *env, jobject this,
-    jobject frame, jstring jcommand)
-{
-    const char *command;
-    XTextProperty text_prop;
-    char *c[1];
-    int32_t status;
-    Window xawt_root_window;
-
-    AWT_LOCK();
-    xawt_root_window = get_xawt_root_shell(env);
-
-    if ( xawt_root_window == None ) {
-        AWT_UNLOCK();
-        JNU_ThrowNullPointerException(env, "AWT root shell is unrealized");
-        return;
-    }
-
-    command = (char *) JNU_GetStringPlatformChars(env, jcommand, NULL);
-    if (command != NULL) {
-        c[0] = (char *)command;
-        status = XmbTextListToTextProperty(awt_display, c, 1,
-                                           XStdICCTextStyle, &text_prop);
-
-        if (status == Success || status > 0) {
-            XSetTextProperty(awt_display, xawt_root_window,
-                             &text_prop, XA_WM_COMMAND);
-            if (text_prop.value != NULL)
-                XFree(text_prop.value);
-        }
-        JNU_ReleaseStringPlatformChars(env, jcommand, command);
-    }
-    AWT_UNLOCK();
-}
-
-
-/*
- * New DT backdoor to set WM_COMMAND.  New code should use this
- * backdoor and call it *before* the first frame is shown so that
- * gnome session proxy can correctly handle it.
- *
- * NB: The function name looks deceptively like a JNI native method
- * name.  It's not!  It's just a plain function.
- */
-JNIEXPORT void JNICALL
-Java_sun_awt_motif_XsessionWMcommand_New(JNIEnv *env, jobjectArray jarray)
-{
-    jsize length;
-    char ** array;
-    XTextProperty text_prop;
-    int status;
-    Window xawt_root_window;
-
-    AWT_LOCK();
-    xawt_root_window = get_xawt_root_shell(env);
-
-    if (xawt_root_window == None) {
-      AWT_UNLOCK();
-      JNU_ThrowNullPointerException(env, "AWT root shell is unrealized");
-      return;
-    }
-
-    array = stringArrayToNative(env, jarray, &length);
-
-    if (array != NULL) {
-        status = XmbTextListToTextProperty(awt_display, array, length,
-                                           XStdICCTextStyle, &text_prop);
-        if (status < 0) {
-            switch (status) {
-            case XNoMemory:
-                JNU_ThrowOutOfMemoryError(env,
-                    "XmbTextListToTextProperty: XNoMemory");
-                break;
-            case XLocaleNotSupported:
-                JNU_ThrowInternalError(env,
-                    "XmbTextListToTextProperty: XLocaleNotSupported");
-                break;
-            case XConverterNotFound:
-                JNU_ThrowNullPointerException(env,
-                    "XmbTextListToTextProperty: XConverterNotFound");
-                break;
-            default:
-                JNU_ThrowInternalError(env,
-                    "XmbTextListToTextProperty: unknown error");
-            }
-        } else {
-            XSetTextProperty(awt_display, xawt_root_window,
-                                 &text_prop, XA_WM_COMMAND);
-        }
-
-        if (text_prop.value != NULL)
-            XFree(text_prop.value);
-
-        freeNativeStringArray(array, length);
-    }
-    AWT_UNLOCK();
 }
 
 /*
@@ -1001,7 +800,7 @@ int32_t getNumButtons() {
     int32_t local_num_buttons = 0;
 
     /* 4700242:
-     * If XTest is asked to press a non-existant mouse button
+     * If XTest is asked to press a non-existent mouse button
      * (i.e. press Button3 on a system configured with a 2-button mouse),
      * then a crash may happen.  To avoid this, we use the XInput
      * extension to query for the number of buttons on the XPointer, and check

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_REFLECTION_HPP
-#define SHARE_VM_RUNTIME_REFLECTION_HPP
+#ifndef SHARE_RUNTIME_REFLECTION_HPP
+#define SHARE_RUNTIME_REFLECTION_HPP
 
 #include "oops/oop.hpp"
 #include "runtime/fieldDescriptor.hpp"
@@ -39,8 +39,6 @@
 // using dynamic bytecode generation. The Array class has not yet been
 // rewritten using bytecodes; if it were, most of the rest of this
 // class could go away, as well as a few more entry points in jvm.cpp.
-
-class FieldStream;
 
 class Reflection: public AllStatic {
  public:
@@ -73,8 +71,6 @@ class Reflection: public AllStatic {
   // Reflective array access. Returns type code. Throws ArrayIndexOutOfBoundsException.
   static BasicType array_get(jvalue* value, arrayOop a, int index, TRAPS);
   static void      array_set(jvalue* value, arrayOop a, int index, BasicType value_type, TRAPS);
-  // Returns mirror on array element type (NULL for basic type arrays and non-arrays).
-  static oop       array_component_type(oop mirror, TRAPS);
 
   // Object creation
   static arrayOop reflect_new_array(oop element_mirror, jint length, TRAPS);
@@ -133,4 +129,4 @@ class Reflection: public AllStatic {
 
 };
 
-#endif // SHARE_VM_RUNTIME_REFLECTION_HPP
+#endif // SHARE_RUNTIME_REFLECTION_HPP

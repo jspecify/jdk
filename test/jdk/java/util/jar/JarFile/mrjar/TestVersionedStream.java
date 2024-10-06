@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,19 +23,13 @@
 
 /*
  * @test
- * @bug 8163798 8189611
+ * @bug 8163798 8189611 8211728
  * @summary basic tests for multi-release jar versioned streams
  * @library /test/lib
- * @modules jdk.jartool/sun.tools.jar java.base/jdk.internal.util.jar
  * @build jdk.test.lib.Platform
  *        jdk.test.lib.util.FileUtils
  * @run testng TestVersionedStream
  */
-
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,15 +48,22 @@ import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.spi.ToolProvider;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
 import jdk.test.lib.util.FileUtils;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 public class TestVersionedStream {
     private final Path userdir;
     private final Set<String> unversionedEntryNames;
+
+    private static final int LATEST_VERSION = Runtime.version().feature();
 
     public TestVersionedStream() throws IOException {
         userdir = Paths.get(System.getProperty("user.dir", "."));
@@ -79,12 +80,15 @@ public class TestVersionedStream {
                 "v9/p/Foo.class",
                 "v10/p/Foo.class",
                 "v10/q/Bar.class",
-                "v11/p/Bar.class",
-                "v11/p/Foo.class"
+                "v" + LATEST_VERSION + "/p/Bar.class",
+                "v" + LATEST_VERSION + "/p/Foo.class",
+                "v" + LATEST_VERSION + "/META-INF/Foo.class"
         );
 
-        jar("cf mmr.jar -C base . --release 9 -C v9 . " +
-                "--release 10 -C v10 . --release 11 -C v11 .");
+        jar("cf mmr.jar -C base . " +
+            "--release 9 -C v9 . " +
+            "--release 10 -C v10 . " +
+            "--release " + LATEST_VERSION + " -C v" + LATEST_VERSION + " .");
 
         System.out.println("Contents of mmr.jar\n=======");
 
@@ -124,7 +128,7 @@ public class TestVersionedStream {
             {Runtime.Version.parse("8")},
             {Runtime.Version.parse("9")},
             {Runtime.Version.parse("10")},
-            {Runtime.Version.parse("11")},
+            {Runtime.Version.parse(Integer.toString(LATEST_VERSION))},
             {JarFile.baseVersion()},
             {JarFile.runtimeVersion()}
         };
@@ -173,7 +177,8 @@ public class TestVersionedStream {
 
             expected.put("p/Bar.class", new String[] { "base/p/Bar.class", "p/Bar.class" });
             expected.put("p/Main.class", new String[] { "base/p/Main.class", "p/Main.class" });
-            switch (version.major()) {
+            int majorVersion  = version.major();
+            switch (majorVersion) {
                 case 8:
                     expected.put("p/Foo.class", new String[]
                         { "base/p/Foo.class", "p/Foo.class" });
@@ -189,16 +194,19 @@ public class TestVersionedStream {
                     expected.put("q/Bar.class", new String[]
                         { "v10/q/Bar.class", "META-INF/versions/10/q/Bar.class" });
                     break;
-                case 11:
-                    expected.put("p/Bar.class", new String[]
-                        { "v11/p/Bar.class", "META-INF/versions/11/p/Bar.class"});
-                    expected.put("p/Foo.class", new String[]
-                        { "v11/p/Foo.class", "META-INF/versions/11/p/Foo.class"});
-                    expected.put("q/Bar.class", new String[]
-                        { "q/Bar.class", "META-INF/versions/10/q/Bar.class"});
-                    break;
                 default:
-                    Assert.fail("Test out of date, please add more cases");
+                    if (majorVersion == LATEST_VERSION) {
+                        expected.put("p/Bar.class",
+                                     new String[] { "v" + LATEST_VERSION + "/p/Bar.class",
+                                                    "META-INF/versions/" + LATEST_VERSION + "/p/Bar.class"});
+                        expected.put("p/Foo.class",
+                                     new String[]{ "v" + LATEST_VERSION + "/p/Foo.class",
+                                                   "META-INF/versions/" + LATEST_VERSION + "/p/Foo.class"});
+                        expected.put("q/Bar.class",
+                                     new String[] { "q/Bar.class", "META-INF/versions/10/q/Bar.class"});
+                    } else {
+                        Assert.fail("Test out of date, please add more cases");
+                    }
             }
 
             expected.entrySet().stream().forEach(e -> {
@@ -216,6 +224,11 @@ public class TestVersionedStream {
                     throw new UncheckedIOException(x);
                 }
             });
+
+            if (!unversionedEntryNames.contains("META-INF/Foo.class") ||
+                versionedNames.indexOf("META-INF/Foo.class") != -1) {
+                Assert.fail("versioned META-INF/Foo.class test failed");
+            }
         }
     }
 
@@ -236,7 +249,7 @@ public class TestVersionedStream {
     }
 
     private void jar(String args) {
-        new sun.tools.jar.Main(System.out, System.err, "jar")
-                .run(args.split(" +"));
+        ToolProvider jar = ToolProvider.findFirst("jar").orElseThrow();
+        jar.run(System.out, System.err, args.split(" +"));
     }
 }

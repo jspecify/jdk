@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import java.awt.*;
  * <code>java.awt.DefaultKeyboardFocusManager</code> instead.
  * <p>
  * Please see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
  * How to Use the Focus Subsystem</a>,
  * a section in <em>The Java Tutorial</em>, and the
  * <a href="../../java/awt/doc-files/FocusSpec.html">Focus Specification</a>
@@ -65,6 +65,11 @@ public abstract class FocusManager extends DefaultKeyboardFocusManager {
     private static boolean enabled = true;
 
     /**
+     * Constructor for subclasses to call.
+     */
+    protected FocusManager() {}
+
+    /**
      * Returns the current <code>KeyboardFocusManager</code> instance
      * for the calling thread's context.
      *
@@ -90,7 +95,7 @@ public abstract class FocusManager extends DefaultKeyboardFocusManager {
      * <p>
      * If a <code>SecurityManager</code> is installed,
      * the calling thread must be granted the <code>AWTPermission</code>
-     * "replaceKeyboardFocusManager" in order to replace the
+     * "replaceKeyboardFocusManager" in order to replace
      * the current <code>KeyboardFocusManager</code>.
      * If this permission is not granted,
      * this method will throw a <code>SecurityException</code>,

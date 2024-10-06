@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OptionalDataException;
+import java.io.Serial;
 import java.io.Serializable;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
@@ -96,8 +97,9 @@ import sun.util.logging.PlatformLogger;
  * possible, as shown in the following figure.
  * <p>
  * <img src="doc-files/MultiScreen.gif"
- * alt="Diagram shows virtual device containing 4 physical screens. Primary physical screen shows coords (0,0), other screen shows (-80,-100)."
- * style="float:center; margin: 7px 10px;">
+ * alt="Diagram shows virtual device containing 4 physical screens. Primary
+ * physical screen shows coords (0,0), other screen shows (-80,-100)."
+ * style="margin: 7px 10px;">
  * <p>
  * In such an environment, when calling {@code setLocation},
  * you must pass a virtual coordinate to this method.  Similarly,
@@ -132,6 +134,11 @@ import sun.util.logging.PlatformLogger;
  * management system may ignore such requests, or modify the requested
  * geometry in order to place and size the {@code Window} in a way
  * that more closely matches the desktop settings.
+ * <p>
+ * Visual effects such as halos, shadows, motion effects and animations may be
+ * applied to the window by the desktop window management system. These are
+ * outside the knowledge and control of the AWT and so for the purposes of this
+ * specification are not considered part of the top-level window.
  * <p>
  * Due to the asynchronous nature of native event handling, the results
  * returned by {@code getBounds}, {@code getLocation},
@@ -235,7 +242,11 @@ public class Window extends Container implements Accessible {
     private transient Component temporaryLostComponent;
 
     static boolean systemSyncLWRequests = false;
-    boolean     syncLWRequests = false;
+
+    /**
+     * Focus transfers should be synchronous for lightweight component requests.
+     */
+    boolean syncLWRequests = false;
     transient boolean beforeFirstShow = true;
     private transient boolean disposing = false;
     transient WindowDisposerRecord disposerRecord = null;
@@ -371,14 +382,16 @@ public class Window extends Container implements Accessible {
      * @see #setShape(Shape)
      * @since 1.7
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private Shape shape = null;
 
     private static final String base = "win";
     private static int nameCounter = 0;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = 4497834738069338734L;
 
     private static final PlatformLogger log = PlatformLogger.getLogger("java.awt.Window");
@@ -391,18 +404,8 @@ public class Window extends Container implements Accessible {
      * These fields are initialized in the native peer code
      * or via AWTAccessor's WindowAccessor.
      */
-    private transient volatile int securityWarningWidth = 0;
-    private transient volatile int securityWarningHeight = 0;
-
-    /**
-     * These fields represent the desired location for the security
-     * warning if this window is untrusted.
-     * See com.sun.awt.SecurityWarning for more details.
-     */
-    private transient double securityWarningPointX = 2.0;
-    private transient double securityWarningPointY = 0.0;
-    private transient float securityWarningAlignmentX = RIGHT_ALIGNMENT;
-    private transient float securityWarningAlignmentY = TOP_ALIGNMENT;
+    private transient volatile int securityWarningWidth;
+    private transient volatile int securityWarningHeight;
 
     static {
         /* ensure that the necessary native libraries are loaded */
@@ -411,12 +414,14 @@ public class Window extends Container implements Accessible {
             initIDs();
         }
 
+        @SuppressWarnings("removal")
         String s = java.security.AccessController.doPrivileged(
             new GetPropertyAction("java.awt.syncLWRequests"));
-        systemSyncLWRequests = (s != null && s.equals("true"));
-        s = java.security.AccessController.doPrivileged(
+        systemSyncLWRequests = "true".equals(s);
+        @SuppressWarnings("removal")
+        String s2 = java.security.AccessController.doPrivileged(
             new GetPropertyAction("java.awt.Window.locationByPlatform"));
-        locationByPlatformProp = (s != null && s.equals("true"));
+        locationByPlatformProp = "true".equals(s2);
     }
 
     /**
@@ -437,9 +442,9 @@ public class Window extends Container implements Accessible {
      * @param gc the {@code GraphicsConfiguration} of the target screen
      *     device. If {@code gc} is {@code null}, the system default
      *     {@code GraphicsConfiguration} is assumed
-     * @exception IllegalArgumentException if {@code gc}
+     * @throws IllegalArgumentException if {@code gc}
      *    is not from a screen device
-     * @exception HeadlessException when
+     * @throws HeadlessException when
      *     {@code GraphicsEnvironment.isHeadless()} returns {@code true}
      *
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -539,7 +544,7 @@ public class Window extends Container implements Accessible {
      * If that check fails with a {@code SecurityException} then a warning
      * banner is created.
      *
-     * @exception HeadlessException when
+     * @throws HeadlessException when
      *     {@code GraphicsEnvironment.isHeadless()} returns {@code true}
      *
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -561,9 +566,9 @@ public class Window extends Container implements Accessible {
      *
      * @param owner the {@code Frame} to act as owner or {@code null}
      *    if this window has no owner
-     * @exception IllegalArgumentException if the {@code owner}'s
+     * @throws IllegalArgumentException if the {@code owner}'s
      *    {@code GraphicsConfiguration} is not from a screen device
-     * @exception HeadlessException when
+     * @throws HeadlessException when
      *    {@code GraphicsEnvironment.isHeadless} returns {@code true}
      *
      * @see java.awt.GraphicsEnvironment#isHeadless
@@ -588,9 +593,9 @@ public class Window extends Container implements Accessible {
      *
      * @param owner the {@code Window} to act as owner or
      *     {@code null} if this window has no owner
-     * @exception IllegalArgumentException if the {@code owner}'s
+     * @throws IllegalArgumentException if the {@code owner}'s
      *     {@code GraphicsConfiguration} is not from a screen device
-     * @exception HeadlessException when
+     * @throws HeadlessException when
      *     {@code GraphicsEnvironment.isHeadless()} returns
      *     {@code true}
      *
@@ -622,9 +627,9 @@ public class Window extends Container implements Accessible {
      * @param gc the {@code GraphicsConfiguration} of the target
      *     screen device; if {@code gc} is {@code null},
      *     the system default {@code GraphicsConfiguration} is assumed
-     * @exception IllegalArgumentException if {@code gc}
+     * @throws IllegalArgumentException if {@code gc}
      *     is not from a screen device
-     * @exception HeadlessException when
+     * @throws HeadlessException when
      *     {@code GraphicsEnvironment.isHeadless()} returns
      *     {@code true}
      *
@@ -1394,6 +1399,7 @@ public class Window extends Container implements Accessible {
         return warningString;
     }
 
+    @SuppressWarnings("removal")
     private void setWarningString() {
         warningString = null;
         SecurityManager sm = System.getSecurityManager();
@@ -1487,7 +1493,7 @@ public class Window extends Container implements Accessible {
         return getOwnedWindows_NoClientCode();
     }
     final Window[] getOwnedWindows_NoClientCode() {
-        Window realCopy[];
+        Window[] realCopy;
 
         synchronized(ownedWindowList) {
             // Recall that ownedWindowList is actually a Vector of
@@ -1497,7 +1503,7 @@ public class Window extends Container implements Accessible {
             // all non-null get()s (realCopy with size realSize).
             int fullSize = ownedWindowList.size();
             int realSize = 0;
-            Window fullCopy[] = new Window[fullSize];
+            Window[] fullCopy = new Window[fullSize];
 
             for (int i = 0; i < fullSize; i++) {
                 fullCopy[realSize] = ownedWindowList.elementAt(i).get();
@@ -1565,14 +1571,14 @@ public class Window extends Container implements Accessible {
 
     private static Window[] getWindows(AppContext appContext) {
         synchronized (Window.class) {
-            Window realCopy[];
+            Window[] realCopy;
             @SuppressWarnings("unchecked")
             Vector<WeakReference<Window>> windowList =
                 (Vector<WeakReference<Window>>)appContext.get(Window.class);
             if (windowList != null) {
                 int fullSize = windowList.size();
                 int realSize = 0;
-                Window fullCopy[] = new Window[fullSize];
+                Window[] fullCopy = new Window[fullSize];
                 for (int i = 0; i < fullSize; i++) {
                     Window w = windowList.get(i).get();
                     if (w != null) {
@@ -1698,6 +1704,7 @@ public class Window extends Container implements Accessible {
             return;
         }
         if (exclusionType == Dialog.ModalExclusionType.TOOLKIT_EXCLUDE) {
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 sm.checkPermission(AWTPermissions.TOOLKIT_MODALITY_PERMISSION);
@@ -1742,7 +1749,7 @@ public class Window extends Container implements Accessible {
     }
 
     void updateChildrenBlocking() {
-        Vector<Window> childHierarchy = new Vector<Window>();
+        ArrayList<Window> childHierarchy = new ArrayList<>();
         Window[] ownedWindows = getOwnedWindows();
         for (int i = 0; i < ownedWindows.length; i++) {
             childHierarchy.add(ownedWindows[i]);
@@ -1957,10 +1964,10 @@ public class Window extends Container implements Accessible {
      *          <code><em>Foo</em>Listener</code>s on this window,
      *          or an empty array if no such
      *          listeners have been added
-     * @exception ClassCastException if {@code listenerType}
+     * @throws ClassCastException if {@code listenerType}
      *          doesn't specify a class or interface that implements
      *          {@code java.util.EventListener}
-     * @exception NullPointerException if {@code listenerType} is {@code null}
+     * @throws NullPointerException if {@code listenerType} is {@code null}
      *
      * @see #getWindowListeners
      * @since 1.3
@@ -2248,6 +2255,7 @@ public class Window extends Container implements Accessible {
      * @since 1.5
      */
     public final void setAlwaysOnTop(boolean alwaysOnTop) throws SecurityException {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkPermission(AWTPermissions.SET_WINDOW_ALWAYS_ON_TOP_PERMISSION);
@@ -2939,7 +2947,8 @@ public class Window extends Container implements Accessible {
      * Writes a list of child windows as optional data.
      * Writes a list of icon images as optional data
      *
-     * @param s the {@code ObjectOutputStream} to write
+     * @param  s the {@code ObjectOutputStream} to write
+     * @throws IOException if an I/O error occurs
      * @serialData {@code null} terminated sequence of
      *    0 or more pairs; the pair consists of a {@code String}
      *    and {@code Object}; the {@code String}
@@ -2957,6 +2966,7 @@ public class Window extends Container implements Accessible {
      * @see Component#ownedWindowK
      * @see #readObject(ObjectInputStream)
      */
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         synchronized (this) {
             // Update old focusMgr fields so that our object stream can be read
@@ -3094,13 +3104,16 @@ public class Window extends Container implements Accessible {
      * (possibly {@code null}) child windows.
      * Unrecognized keys or values will be ignored.
      *
-     * @param s the {@code ObjectInputStream} to read
-     * @exception HeadlessException if
-     *   {@code GraphicsEnvironment.isHeadless} returns
-     *   {@code true}
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
+     * @throws HeadlessException if {@code GraphicsEnvironment.isHeadless()}
+     *         returns {@code true}
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see #writeObject
      */
+    @Serial
     private void readObject(ObjectInputStream s)
       throws ClassNotFoundException, IOException, HeadlessException
     {
@@ -3127,10 +3140,6 @@ public class Window extends Container implements Accessible {
 
          this.securityWarningWidth = 0;
          this.securityWarningHeight = 0;
-         this.securityWarningPointX = 2.0;
-         this.securityWarningPointY = 0.0;
-         this.securityWarningAlignmentX = RIGHT_ALIGNMENT;
-         this.securityWarningAlignmentY = TOP_ALIGNMENT;
 
          deserializeResources(s);
     }
@@ -3165,10 +3174,16 @@ public class Window extends Container implements Accessible {
      */
     protected class AccessibleAWTWindow extends AccessibleAWTContainer
     {
-        /*
-         * JDK 1.3 serialVersionUID
+        /**
+         * Use serialVersionUID from JDK 1.3 for interoperability.
          */
+        @Serial
         private static final long serialVersionUID = 4215068635060671780L;
+
+        /**
+         * Constructs an {@code AccessibleAWTWindow}.
+         */
+        protected AccessibleAWTWindow() {}
 
         /**
          * Get the role of this object.
@@ -3206,7 +3221,12 @@ public class Window extends Container implements Accessible {
                     getDefaultScreenDevice().
                     getDefaultConfiguration();
         }
+
         synchronized (getTreeLock()) {
+            WindowPeer peer = (WindowPeer) this.peer;
+            if (peer != null) {
+                gc = peer.getAppropriateGraphicsConfiguration(gc);
+            }
             super.setGraphicsConfiguration(gc);
             if (log.isLoggable(PlatformLogger.Level.FINER)) {
                 log.finer("+ Window.setGraphicsConfiguration(): new GC is \n+ " + getGraphicsConfiguration_NoClientCode() + "\n+ this is " + this);
@@ -3357,8 +3377,8 @@ public class Window extends Container implements Accessible {
      * Each time this method is called,
      * the existing buffer strategy for this component is discarded.
      * @param numBuffers number of buffers to create
-     * @exception IllegalArgumentException if numBuffers is less than 1.
-     * @exception IllegalStateException if the component is not displayable
+     * @throws IllegalArgumentException if numBuffers is less than 1.
+     * @throws IllegalStateException if the component is not displayable
      * @see #isDisplayable
      * @see #getBufferStrategy
      * @since 1.4
@@ -3378,11 +3398,11 @@ public class Window extends Container implements Accessible {
      * @param numBuffers number of buffers to create, including the front buffer
      * @param caps the required capabilities for creating the buffer strategy;
      * cannot be {@code null}
-     * @exception AWTException if the capabilities supplied could not be
+     * @throws AWTException if the capabilities supplied could not be
      * supported or met; this may happen, for example, if there is not enough
      * accelerated memory currently available, or if page flipping is specified
      * but not possible.
-     * @exception IllegalArgumentException if numBuffers is less than 1, or if
+     * @throws IllegalArgumentException if numBuffers is less than 1, or if
      * caps is {@code null}
      * @see #getBufferStrategy
      * @since 1.4
@@ -3429,6 +3449,10 @@ public class Window extends Container implements Accessible {
         return super.canContainFocusOwner(focusOwnerCandidate) && isFocusableWindow();
     }
 
+    /**
+     * {@code true} if this Window should appear at the default location,
+     * {@code false} if at the current location.
+     */
     private volatile boolean locationByPlatform = locationByPlatformProp;
 
 
@@ -4031,9 +4055,9 @@ public class Window extends Container implements Accessible {
     private Point2D calculateSecurityWarningPosition(double x, double y,
             double w, double h)
     {
-        // The position according to the spec of SecurityWarning.setPosition()
-        double wx = x + w * securityWarningAlignmentX + securityWarningPointX;
-        double wy = y + h * securityWarningAlignmentY + securityWarningPointY;
+         // The desired location for the security warning
+        double wx = x + w * RIGHT_ALIGNMENT + 2.0;
+        double wy = y + h * TOP_ALIGNMENT + 0.0;
 
         // First, make sure the warning is not too far from the window bounds
         wx = Window.limit(wx,
@@ -4068,31 +4092,10 @@ public class Window extends Container implements Accessible {
                 window.updateWindow();
             }
 
-            public Dimension getSecurityWarningSize(Window window) {
-                return new Dimension(window.securityWarningWidth,
-                        window.securityWarningHeight);
-            }
-
             public void setSecurityWarningSize(Window window, int width, int height)
             {
                 window.securityWarningWidth = width;
                 window.securityWarningHeight = height;
-            }
-
-            public void setSecurityWarningPosition(Window window,
-                    Point2D point, float alignmentX, float alignmentY)
-            {
-                window.securityWarningPointX = point.getX();
-                window.securityWarningPointY = point.getY();
-                window.securityWarningAlignmentX = alignmentX;
-                window.securityWarningAlignmentY = alignmentY;
-
-                synchronized (window.getTreeLock()) {
-                    WindowPeer peer = (WindowPeer) window.peer;
-                    if (peer != null) {
-                        peer.repositionSecurityWarning();
-                    }
-                }
             }
 
             public Point2D calculateSecurityWarningPosition(Window window,
@@ -4138,8 +4141,9 @@ class FocusManager implements java.io.Serializable {
     Container focusRoot;
     Component focusOwner;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
-    static final long serialVersionUID = 2491878825643557906L;
+    @Serial
+    private static final long serialVersionUID = 2491878825643557906L;
 }

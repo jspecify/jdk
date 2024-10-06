@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,12 @@ package metaspace.stressHierarchy.common;
 
 import java.net.MalformedURLException;
 
-import vm.share.gc.TriggerUnloadingByFillingMetaspace;
-import vm.share.gc.TriggerUnloadingHelper;
-import vm.share.gc.TriggerUnloadingWithWhiteBox;
-
+import metaspace.share.HeapOOMEException;
+import metaspace.share.TriggerUnloadingByFillingMetaspace;
+import metaspace.share.TriggerUnloadingHelper;
+import metaspace.share.TriggerUnloadingWithWhiteBox;
 import metaspace.stressHierarchy.common.classloader.tree.Node;
 import metaspace.stressHierarchy.common.classloader.tree.Tree;
-import metaspace.stressHierarchy.common.exceptions.GotWrongOOMEException;
 import metaspace.stressHierarchy.common.exceptions.TimeIsOverException;
 import metaspace.stressHierarchy.common.generateHierarchy.GenerateHierarchyHelper;
 import metaspace.stressHierarchy.common.generateHierarchy.GenerateHierarchyHelper.Type;
@@ -39,15 +38,13 @@ import metaspace.stressHierarchy.common.generateHierarchy.TreeDescriptor;
 import nsk.share.test.ExecutionController;
 import nsk.share.test.Stresser;
 import nsk.share.test.TestBase;
-import nsk.share.test.timeoutwatchdog.TimeoutHandler;
-import nsk.share.test.timeoutwatchdog.TimeoutWatchdog;
 
 
 /**
  * Superclass for StressHierarchy* tests. It provides util methods to create and load
  * classes hierarchy and perform checks.
  */
-abstract public class StressHierarchyBaseClass extends TestBase implements TimeoutHandler {
+abstract public class StressHierarchyBaseClass extends TestBase {
 
     protected static String[] args;
 
@@ -101,7 +98,6 @@ abstract public class StressHierarchyBaseClass extends TestBase implements Timeo
             long startTimeStamp = System.currentTimeMillis();
             ExecutionController stresser = new Stresser(args);
             stresser.start(1);
-            TimeoutWatchdog.watch(stresser, this);
             TreeDescriptor treeDescriptor = GenerateHierarchyHelper.generateHierarchy(treeDepth, minLevelSize, maxLevelSize, hierarchyType);
             Tree tree = buildTree(treeDescriptor);
             System.out.println("Generating took " + ((System.currentTimeMillis() - startTimeStamp)/1000) +" sec");
@@ -112,8 +108,8 @@ abstract public class StressHierarchyBaseClass extends TestBase implements Timeo
 
             System.out.println("Whole test took " + ((System.currentTimeMillis() - startTimeStamp)/1000/60.0) +" min");
             log.info("Test PASSED");
-        } catch (GotWrongOOMEException e) {
-            log.info("GotWrongOOMEExc: " + e.getMessage());
+        } catch (HeapOOMEException e) {
+            log.info("HeapOOMEException: " + e.getMessage());
             log.info("Got wrong type of OOME. We are passing test as it breaks test logic. We have dedicated test configurations" +
             " for each OOME type provoking class unloading, that's why we are not missing test coverage here.");
         } catch (OutOfMemoryError e) {
@@ -126,12 +122,6 @@ abstract public class StressHierarchyBaseClass extends TestBase implements Timeo
             throwable.printStackTrace();
             throw new RuntimeException(throwable);
         }
-    }
-
-    @Override
-    public void handleTimeout() {
-        System.out.println("Shutting down vm because of time expired.");
-        System.exit(95);
     }
 
     abstract protected void runTestLogic(Tree tree, ExecutionController stresser) throws Throwable;

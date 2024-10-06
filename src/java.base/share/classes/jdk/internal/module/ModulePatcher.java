@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,12 +50,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jdk.internal.loader.Resource;
-import jdk.internal.misc.JavaLangModuleAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangModuleAccess;
+import jdk.internal.access.SharedSecrets;
 import sun.net.www.ParseUtil;
 
 
@@ -78,14 +76,14 @@ public final class ModulePatcher {
      */
     public ModulePatcher(Map<String, List<String>> input) {
         if (input.isEmpty()) {
-            this.map = Collections.emptyMap();
+            this.map = Map.of();
         } else {
             Map<String, List<Path>> map = new HashMap<>();
             for (Map.Entry<String, List<String>> e : input.entrySet()) {
                 String mn = e.getKey();
                 List<Path> paths = e.getValue().stream()
                         .map(Paths::get)
-                        .collect(Collectors.toList());
+                        .toList();
                 map.put(mn, paths);
             }
             this.map = map;
@@ -133,14 +131,15 @@ public final class ModulePatcher {
 
                     // exploded directory without following sym links
                     Path top = file;
-                    Files.find(top, Integer.MAX_VALUE,
-                               ((path, attrs) -> attrs.isRegularFile()))
-                            .filter(path -> (!isAutomatic
-                                    || path.toString().endsWith(".class"))
-                                    && !isHidden(path))
+                    try (Stream<Path> stream = Files.find(top, Integer.MAX_VALUE,
+                            ((path, attrs) -> attrs.isRegularFile()))) {
+                        stream.filter(path -> (!isAutomatic
+                                      || path.toString().endsWith(".class"))
+                                      && !isHidden(path))
                             .map(path -> toPackageName(top, path))
                             .filter(Checks::isPackageName)
                             .forEach(packages::add);
+                    }
 
                 }
             }
@@ -153,7 +152,7 @@ public final class ModulePatcher {
         packages.removeAll(descriptor.packages());
         if (!packages.isEmpty()) {
             Builder builder = JLMA.newModuleBuilder(descriptor.name(),
-                                                    /*strict*/ false,
+                                                    /*strict*/ descriptor.isAutomatic(),
                                                     descriptor.modifiers());
             if (!descriptor.isAutomatic()) {
                 descriptor.requires().forEach(builder::requires);
@@ -455,7 +454,9 @@ public final class ModulePatcher {
                 public URL getURL() {
                     String encodedPath = ParseUtil.encodePath(name, false);
                     try {
-                        return new URL("jar:" + csURL + "!/" + encodedPath);
+                        @SuppressWarnings("deprecation")
+                        var result = new URL("jar:" + csURL + "!/" + encodedPath);
+                        return result;
                     } catch (MalformedURLException e) {
                         return null;
                     }
@@ -553,7 +554,7 @@ public final class ModulePatcher {
         public Stream<String> list() throws IOException {
             return Files.walk(dir, Integer.MAX_VALUE)
                         .map(f -> Resources.toResourceName(dir, f))
-                        .filter(s -> s.length() > 0);
+                        .filter(s -> !s.isEmpty());
         }
     }
 

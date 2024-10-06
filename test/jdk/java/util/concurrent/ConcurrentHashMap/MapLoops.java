@@ -41,8 +41,17 @@
  * inserts it, and if present, with probability premove it removes
  * it.  (pinsert and premove are expressed as percentages to simplify
  * parsing from command line.)
- * @library /lib/testlibrary/
+ * @library /test/lib
  * @run main/timeout=1600 MapLoops
+ */
+
+/*
+ * @test
+ * @summary Exercise multithreaded maps, using only heavy monitors.
+ * @requires os.arch=="x86" | os.arch=="i386" | os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch == "ppc64" | os.arch == "ppc64le" | os.arch == "riscv64" | os.arch == "s390x"
+ * @requires vm.debug
+ * @library /test/lib
+ * @run main/othervm/timeout=1600 -XX:LockingMode=0 -XX:+VerifyHeavyMonitors MapLoops
  */
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -54,7 +63,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.Utils;
 
 public class MapLoops {
     static final long LONG_DELAY_MS = Utils.adjustTimeout(10_000);
@@ -99,8 +108,8 @@ public class MapLoops {
             nops = Integer.parseInt(args[5]);
 
         // normalize probabilities wrt random number generator
-        removesPerMaxRandom = (int)(((double)premove/100.0 * 0x7FFFFFFFL));
-        insertsPerMaxRandom = (int)(((double)pinsert/100.0 * 0x7FFFFFFFL));
+        removesPerMaxRandom = (int)((double)premove/100.0 * 0x7FFFFFFFL);
+        insertsPerMaxRandom = (int)((double)pinsert/100.0 * 0x7FFFFFFFL);
 
         System.out.print("Class: " + mapClass.getName());
         System.out.print(" threads: " + maxThreads);
@@ -172,7 +181,7 @@ public class MapLoops {
         long time = timer.getTime();
         long tpo = time / (i * (long)nops);
         System.out.print(LoopHelpers.rightJustify(tpo) + " ns per op");
-        double secs = (double)(time) / 1000000000.0;
+        double secs = (double)time / 1000000000.0;
         System.out.println("\t " + secs + "s run time");
         map.clear();
     }

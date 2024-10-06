@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,7 +102,7 @@ import sun.swing.SwingUtilities2;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -287,7 +287,6 @@ public class JViewport extends JComponent implements Accessible
     public JViewport() {
         super();
         setLayout(createLayoutManager());
-        setOpaque(true);
         updateUI();
         setInheritsPopupMenu(true);
     }
@@ -566,7 +565,7 @@ public class JViewport extends JComponent implements Accessible
      * a <code>JViewPort</code>.
      *
      * @param border the <code>Border</code> to set
-     * @exception IllegalArgumentException this method is not implemented
+     * @throws IllegalArgumentException this method is not implemented
      */
     public final void setBorder(Border border) {
         if (border != null) {
@@ -1398,13 +1397,18 @@ public class JViewport extends JComponent implements Accessible
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
     @SuppressWarnings("serial") // Same-version serialization only
     protected class ViewListener extends ComponentAdapter implements Serializable
     {
+        /**
+         * Constructs a {@code ViewListener}.
+         */
+        protected ViewListener() {}
+
         public void componentResized(ComponentEvent e) {
             fireStateChanged();
             revalidate();
@@ -1691,7 +1695,7 @@ public class JViewport extends JComponent implements Accessible
     // NOTE: the code below uses paintForceDoubleBuffered for historical
     // reasons.  If we're going to allow a blit we've already accounted for
     // everything that paintImmediately and _paintImmediately does, for that
-    // reason we call into paintForceDoubleBuffered to diregard whether or
+    // reason we call into paintForceDoubleBuffered to disregard whether or
     // not setDoubleBuffered(true) was invoked on the view.
     //
 
@@ -1809,7 +1813,7 @@ public class JViewport extends JComponent implements Accessible
 
             if(lastParent != null && parent instanceof JComponent &&
                !((JComponent)parent).isOptimizedDrawingEnabled()) {
-                Component comps[] = parent.getComponents();
+                Component[] comps = parent.getComponents();
                 int index = 0;
 
                 for(int i = comps.length - 1 ;i >= 0; i--) {
@@ -1869,12 +1873,18 @@ public class JViewport extends JComponent implements Accessible
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
     @SuppressWarnings("serial") // Same-version serialization only
     protected class AccessibleJViewport extends AccessibleJComponent {
+
+        /**
+         * Constructs an {@code AccessibleJViewport}.
+         */
+        protected AccessibleJViewport() {}
+
         /**
          * Get the role of this object.
          *

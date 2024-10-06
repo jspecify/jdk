@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,19 @@
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "code/relocInfo.hpp"
+#include "memory/universe.hpp"
 #include "nativeInst_x86.hpp"
+#include "oops/compressedKlass.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/safepointMechanism.hpp"
+#include "utilities/checkedCast.hpp"
 
 
-void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
+void Relocation::pd_set_data_value(address x, bool verify_only) {
 #ifdef AMD64
-  x += o;
   typedef Assembler::WhichOperand WhichOperand;
   WhichOperand which = (WhichOperand) format(); // that is, disp32 or imm, call32, narrow oop
   assert(which == Assembler::disp32_operand ||
@@ -50,17 +52,18 @@ void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
   } else if (which == Assembler::narrow_oop_operand) {
     address disp = Assembler::locate_operand(addr(), which);
     // both compressed oops and compressed classes look the same
-    if (Universe::heap()->is_in_reserved((oop)x)) {
-    if (verify_only) {
-      guarantee(*(uint32_t*) disp == CompressedOops::encode((oop)x), "instructions must match");
-    } else {
-      *(int32_t*) disp = CompressedOops::encode((oop)x);
-    }
-  } else {
+    if (CompressedOops::is_in((void*)x)) {
+      uint32_t encoded = CompressedOops::narrow_oop_value(cast_to_oop(x));
       if (verify_only) {
-        guarantee(*(uint32_t*) disp == Klass::encode_klass((Klass*)x), "instructions must match");
+        guarantee(*(uint32_t*) disp == encoded, "instructions must match");
       } else {
-        *(int32_t*) disp = Klass::encode_klass((Klass*)x);
+        *(int32_t*) disp = encoded;
+      }
+    } else {
+      if (verify_only) {
+        guarantee(*(uint32_t*) disp == CompressedKlassPointers::encode((Klass*)x), "instructions must match");
+      } else {
+        *(int32_t*) disp = CompressedKlassPointers::encode((Klass*)x);
       }
     }
   } else {
@@ -71,14 +74,14 @@ void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
     if (verify_only) {
       guarantee(*(int32_t*) disp == (x - next_ip), "instructions must match");
     } else {
-      *(int32_t*) disp = x - next_ip;
+      *(int32_t*) disp = checked_cast<int32_t>(x - next_ip);
     }
   }
 #else
   if (verify_only) {
-    guarantee(*pd_address_in_code() == (x + o), "instructions must match");
+    guarantee(*pd_address_in_code() == x, "instructions must match");
   } else {
-    *pd_address_in_code() = x + o;
+    *pd_address_in_code() = x;
   }
 #endif // AMD64
 }
@@ -86,7 +89,7 @@ void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
 
 address Relocation::pd_call_destination(address orig_addr) {
   intptr_t adj = 0;
-  if (orig_addr != NULL) {
+  if (orig_addr != nullptr) {
     // We just moved this call instruction from orig_addr to addr().
     // This means its target will appear to have grown by addr() - orig_addr.
     adj = -( addr() - orig_addr );
@@ -95,14 +98,18 @@ address Relocation::pd_call_destination(address orig_addr) {
   if (ni->is_call()) {
     return nativeCall_at(addr())->destination() + adj;
   } else if (ni->is_jump()) {
-    return nativeJump_at(addr())->jump_destination() + adj;
+    address dest = nativeJump_at(addr())->jump_destination();
+    if (dest == (address) -1) {
+      return addr(); // jump to self
+    }
+    return dest + adj;
   } else if (ni->is_cond_jump()) {
     return nativeGeneralJump_at(addr())->jump_destination() + adj;
   } else if (ni->is_mov_literal64()) {
     return (address) ((NativeMovConstReg*)ni)->data();
   } else {
     ShouldNotReachHere();
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -128,7 +135,7 @@ void Relocation::pd_set_call_destination(address x) {
     // %%%% kludge this, for now, until we get a jump_destination method
     address old_dest = nativeGeneralJump_at(addr())->jump_destination();
     address disp = Assembler::locate_operand(addr(), Assembler::call32_operand);
-    *(jint*)disp += (x - old_dest);
+    *(jint*)disp += checked_cast<jint>(x - old_dest);
   } else if (ni->is_mov_literal64()) {
     ((NativeMovConstReg*)ni)->set_data((intptr_t)x);
   } else {
@@ -181,28 +188,6 @@ address Relocation::pd_get_address_from_code() {
 }
 
 void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) {
-#ifdef _LP64
-  typedef Assembler::WhichOperand WhichOperand;
-  WhichOperand which = (WhichOperand) format();
-#if !INCLUDE_JVMCI
-  if (SafepointMechanism::uses_global_page_poll()) {
-    assert((which == Assembler::disp32_operand) == !Assembler::is_polling_page_far(), "format not set correctly");
-  }
-#endif
-  if (which == Assembler::disp32_operand) {
-    assert(SafepointMechanism::uses_global_page_poll(), "should only have generated such a poll if global polling enabled");
-    address orig_addr = old_addr_for(addr(), src, dest);
-    NativeInstruction* oni = nativeInstruction_at(orig_addr);
-    int32_t* orig_disp = (int32_t*) Assembler::locate_operand(orig_addr, which);
-    // This poll_addr is incorrect by the size of the instruction it is irrelevant
-    intptr_t poll_addr = (intptr_t)oni + *orig_disp;
-    NativeInstruction* ni = nativeInstruction_at(addr());
-    intptr_t new_disp = poll_addr - (intptr_t) ni;
-
-    int32_t* disp = (int32_t*) Assembler::locate_operand(addr(), which);
-    * disp = (int32_t)new_disp;
-  }
-#endif // _LP64
 }
 
 void metadata_Relocation::pd_fix_value(address x) {

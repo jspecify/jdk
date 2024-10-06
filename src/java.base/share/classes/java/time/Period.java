@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -120,12 +120,12 @@ import java.util.regex.Pattern;
  * <p>
  * The period is modeled as a directed amount of time, meaning that individual parts of the
  * period may be negative.
- *
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; use of identity-sensitive operations (including reference equality
- * ({@code ==}), identity hash code, or synchronization) on instances of
- * {@code Period} may have unpredictable results and should be avoided.
+ * class; programmers should treat instances that are
+ * {@linkplain #equals(Object) equal} as interchangeable and should not
+ * use instances for synchronization, or unpredictable behavior may
+ * occur. For example, in a future release, synchronization may fail.
  * The {@code equals} method should be used for comparisons.
  *
  * @implSpec
@@ -134,6 +134,7 @@ import java.util.regex.Pattern;
  * @since 1.8
  */
 @NullMarked
+@jdk.internal.ValueBased
 public final class Period
         implements ChronoPeriod, Serializable {
 
@@ -144,6 +145,7 @@ public final class Period
     /**
      * Serialization version.
      */
+    @java.io.Serial
     private static final long serialVersionUID = -3587258372562876L;
     /**
      * The pattern for parsing.
@@ -811,7 +813,7 @@ public final class Period
      *
      * @return a {@code Period} based on this period with the amounts negated, not null
      * @throws ArithmeticException if numeric overflow occurs, which only happens if
-     *  one of the units has the value {@code Long.MIN_VALUE}
+     *  one of the units has the value {@code Integer.MIN_VALUE}
      */
     public Period negated() {
         return multipliedBy(-1);
@@ -996,13 +998,10 @@ public final class Period
         if (this == obj) {
             return true;
         }
-        if (obj instanceof Period) {
-            Period other = (Period) obj;
-            return years == other.years &&
-                    months == other.months &&
-                    days == other.days;
-        }
-        return false;
+        return (obj instanceof Period other)
+                && years == other.years
+                && months == other.months
+                && days == other.days;
     }
 
     /**
@@ -1047,7 +1046,7 @@ public final class Period
     //-----------------------------------------------------------------------
     /**
      * Writes the object using a
-     * <a href="../../serialized-form.html#java.time.Ser">dedicated serialized form</a>.
+     * <a href="{@docRoot}/serialized-form.html#java.time.Ser">dedicated serialized form</a>.
      * @serialData
      * <pre>
      *  out.writeByte(14);  // identifies a Period
@@ -1058,6 +1057,7 @@ public final class Period
      *
      * @return the instance of {@code Ser}, not null
      */
+    @java.io.Serial
     private Object writeReplace() {
         return new Ser(Ser.PERIOD_TYPE, this);
     }
@@ -1068,6 +1068,7 @@ public final class Period
      * @param s the stream to read
      * @throws java.io.InvalidObjectException always
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }

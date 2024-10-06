@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,44 +25,43 @@
 
 package java.security;
 
+import java.io.InvalidObjectException;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
+import java.io.Serializable;
 import java.util.Enumeration;
 import java.util.Hashtable;
-import java.util.NoSuchElementException;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Iterator;
-import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.io.Serializable;
-import java.io.ObjectStreamField;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
-import java.io.IOException;
-
 
 /**
- * This class represents a heterogeneous collection of Permissions. That is,
- * it contains different types of Permission objects, organized into
- * PermissionCollections. For example, if any
+ * This class represents a heterogeneous collection of permissions.
+ * That is, it contains different types of {@code Permission} objects,
+ * organized into {@code PermissionCollection} objects. For example, if any
  * {@code java.io.FilePermission} objects are added to an instance of
- * this class, they are all stored in a single
- * PermissionCollection. It is the PermissionCollection returned by a call to
- * the {@code newPermissionCollection} method in the FilePermission class.
- * Similarly, any {@code java.lang.RuntimePermission} objects are
- * stored in the PermissionCollection returned by a call to the
- * {@code newPermissionCollection} method in the
- * RuntimePermission class. Thus, this class represents a collection of
- * PermissionCollections.
+ * this class, they are all stored in a single {@code PermissionCollection}.
+ * It is the {@code PermissionCollection} returned by a call to
+ * the {@code newPermissionCollection} method in the {@code FilePermission}
+ * class. Similarly, any {@code java.lang.RuntimePermission} objects are
+ * stored in the {@code PermissionCollection} returned by a call to the
+ * {@code newPermissionCollection} method in the {@code RuntimePermission}
+ * class. Thus, this class represents a collection of
+ * {@code PermissionCollection} objects.
  *
- * <p>When the {@code add} method is called to add a Permission, the
- * Permission is stored in the appropriate PermissionCollection. If no such
- * collection exists yet, the Permission object's class is determined and the
- * {@code newPermissionCollection} method is called on that class to create
- * the PermissionCollection and add it to the Permissions object. If
- * {@code newPermissionCollection} returns null, then a default
- * PermissionCollection that uses a hashtable will be created and used. Each
- * hashtable entry stores a Permission object as both the key and the value.
+ * <p>When the {@code add} method is called to add a {@code Permission}, the
+ * {@code Permission} is stored in the appropriate {@code PermissionCollection}.
+ * If no such collection exists yet, the {@code Permission} object's class is
+ * determined and the {@code newPermissionCollection} method is called on that
+ * class to create the {@code PermissionCollection} and add it to the
+ * {@code Permissions} object. If {@code newPermissionCollection} returns
+ * {@code null}, then a default {@code PermissionCollection} that uses a
+ * hashtable will be created and used. Each hashtable entry stores a
+ * {@code Permission} object as both the key and the value.
  *
  * <p> Enumerations returned via the {@code elements} method are
  * not <em>fail-fast</em>.  Modifications to a collection should not be
@@ -84,8 +83,8 @@ public final class Permissions extends PermissionCollection
 implements Serializable
 {
     /**
-     * Key is permissions Class, value is PermissionCollection for that class.
-     * Not serialized; see serialization section at end of class.
+     * Key is permissions Class, value is {@code PermissionCollection} for
+     * that class. Not serialized; see serialization section at end of class.
      */
     private transient ConcurrentHashMap<Class<?>, PermissionCollection> permsMap;
 
@@ -98,7 +97,8 @@ implements Serializable
     PermissionCollection allPermission;
 
     /**
-     * Creates a new Permissions object containing no PermissionCollections.
+     * Creates a new {@code Permissions} object containing no
+     * {@code PermissionCollection} objects.
      */
     public Permissions() {
         permsMap = new ConcurrentHashMap<>(11);
@@ -106,18 +106,19 @@ implements Serializable
     }
 
     /**
-     * Adds a permission object to the PermissionCollection for the class the
-     * permission belongs to. For example, if <i>permission</i> is a
-     * FilePermission, it is added to the FilePermissionCollection stored
-     * in this Permissions object.
+     * Adds a {@code Permission} object to the {@code PermissionCollection}
+     * for the class the permission belongs to. For example,
+     * if <i>permission</i> is a {@code FilePermission}, it is added to
+     * the {@code FilePermissionCollection} stored in this
+     * {@code Permissions} object.
      *
-     * This method creates
-     * a new PermissionCollection object (and adds the permission to it)
-     * if an appropriate collection does not yet exist.
+     * This method creates a new {@code PermissionCollection} object
+     * (and adds the permission to it) if an appropriate collection does
+     * not yet exist.
      *
-     * @param permission the Permission object to add.
+     * @param permission the {@code Permission} object to add.
      *
-     * @exception SecurityException if this Permissions object is
+     * @throws    SecurityException if this {@code Permissions} object is
      * marked as readonly.
      *
      * @see PermissionCollection#isReadOnly()
@@ -141,31 +142,30 @@ implements Serializable
     }
 
     /**
-     * Checks to see if this object's PermissionCollection for permissions of
-     * the specified permission's class implies the permissions
-     * expressed in the <i>permission</i> object. Returns true if the
-     * combination of permissions in the appropriate PermissionCollection
-     * (e.g., a FilePermissionCollection for a FilePermission) together
-     * imply the specified permission.
+     * Checks to see if this object's {@code PermissionCollection} for
+     * permissions of the specified permission's class implies the permissions
+     * expressed in the <i>permission</i> object. Returns {@code true} if the
+     * combination of permissions in the appropriate
+     * {@code PermissionCollection} (e.g., a {@code FilePermissionCollection}
+     * for a {@code FilePermission}) together imply the specified permission.
      *
-     * <p>For example, suppose there is a FilePermissionCollection in this
-     * Permissions object, and it contains one FilePermission that specifies
-     * "read" access for  all files in all subdirectories of the "/tmp"
-     * directory, and another FilePermission that specifies "write" access
-     * for all files in the "/tmp/scratch/foo" directory.
-     * Then if the {@code implies} method
+     * <p>For example, suppose there is a {@code FilePermissionCollection}
+     * in this {@code Permissions} object, and it contains one
+     * {@code FilePermission} that specifies "read" access for all files
+     * in all subdirectories of the "/tmp" directory, and another
+     * {@code FilePermission} that specifies "write" access for all files
+     * in the "/tmp/scratch/foo" directory. Then if the {@code implies} method
      * is called with a permission specifying both "read" and "write" access
      * to files in the "/tmp/scratch/foo" directory, {@code true} is
      * returned.
      *
-     * <p>Additionally, if this PermissionCollection contains the
-     * AllPermission, this method will always return true.
+     * <p>Additionally, if this {@code PermissionCollection} contains the
+     * {@code AllPermission}, this method will always return {@code true}.
      *
-     * @param permission the Permission object to check.
+     * @param permission the {@code Permission} object to check.
      *
-     * @return true if "permission" is implied by the permissions in the
-     * PermissionCollection it
-     * belongs to, false if not.
+     * @return {@code true} if "permission" is implied by the permissions in the
+     * {@code PermissionCollection} it belongs to, {@code false} if not.
      */
     @Override
     public boolean implies(Permission permission) {
@@ -185,10 +185,10 @@ implements Serializable
     }
 
     /**
-     * Returns an enumeration of all the Permission objects in all the
-     * PermissionCollections in this Permissions object.
+     * Returns an enumeration of all the {@code Permission} objects in all the
+     * {@code PermissionCollection} objects in this {@code Permissions} object.
      *
-     * @return an enumeration of all the Permissions.
+     * @return an enumeration of all the {@code Permission} objects.
      */
     @Override
     public Enumeration<Permission> elements() {
@@ -199,70 +199,83 @@ implements Serializable
     }
 
     /**
-     * Gets the PermissionCollection in this Permissions object for
-     * permissions whose type is the same as that of <i>p</i>.
-     * For example, if <i>p</i> is a FilePermission,
-     * the FilePermissionCollection
-     * stored in this Permissions object will be returned.
+     * Gets the {@code PermissionCollection} in this {@code Permissions}
+     * object for permissions whose type is the same as that of <i>p</i>.
+     * For example, if <i>p</i> is a {@code FilePermission},
+     * the {@code FilePermissionCollection} stored in this {@code Permissions}
+     * object will be returned.
      *
-     * If createEmpty is true,
-     * this method creates a new PermissionCollection object for the specified
-     * type of permission objects if one does not yet exist.
+     * If {@code createEmpty} is {@code true},
+     * this method creates a new {@code PermissionCollection} object for the
+     * specified type of permission objects if one does not yet exist.
      * To do so, it first calls the {@code newPermissionCollection} method
-     * on <i>p</i>.  Subclasses of class Permission
+     * on <i>p</i>.  Subclasses of class {@code Permission}
      * override that method if they need to store their permissions in a
-     * particular PermissionCollection object in order to provide the
+     * particular {@code PermissionCollection} object in order to provide the
      * correct semantics when the {@code PermissionCollection.implies}
      * method is called.
-     * If the call returns a PermissionCollection, that collection is stored
-     * in this Permissions object. If the call returns null and createEmpty
-     * is true, then
-     * this method instantiates and stores a default PermissionCollection
+     * If the call returns a {@code PermissionCollection}, that collection is
+     * stored in this {@code Permissions} object. If the call returns
+     * {@code null} and {@code createEmpty} is {@code true}, then this method
+     * instantiates and stores a default {@code PermissionCollection}
      * that uses a hashtable to store its permission objects.
      *
-     * createEmpty is ignored when creating empty PermissionCollection
-     * for unresolved permissions because of the overhead of determining the
-     * PermissionCollection to use.
+     * {@code createEmpty} is ignored when creating empty
+     * {@code PermissionCollection} for unresolved permissions because of the
+     * overhead of determining the {@code PermissionCollection} to use.
      *
-     * createEmpty should be set to false when this method is invoked from
-     * implies() because it incurs the additional overhead of creating and
-     * adding an empty PermissionCollection that will just return false.
-     * It should be set to true when invoked from add().
+     * {@code createEmpty} should be set to {@code false} when this method is
+     * invoked from implies() because it incurs the additional overhead of
+     * creating and adding an empty {@code PermissionCollection} that will
+     * just return {@code false}.
+     * It should be set to {@code true} when invoked from add().
      */
     private PermissionCollection getPermissionCollection(Permission p,
                                                          boolean createEmpty) {
-        Class<?> c = p.getClass();
-
-        if (!hasUnresolved && !createEmpty) {
-            return permsMap.get(c);
+        PermissionCollection pc = permsMap.get(p.getClass());
+        if ((!hasUnresolved && !createEmpty) || pc != null) {
+            // Collection not to be created, or already created
+            return pc;
         }
+        return createPermissionCollection(p, createEmpty);
+    }
 
-        // Create and add permission collection to map if it is absent.
-        // NOTE: cannot use lambda for mappingFunction parameter until
-        // JDK-8076596 is fixed.
-        return permsMap.computeIfAbsent(c,
-            new java.util.function.Function<>() {
-                @Override
-                public PermissionCollection apply(Class<?> k) {
-                    // Check for unresolved permissions
-                    PermissionCollection pc =
-                        (hasUnresolved ? getUnresolvedPermissions(p) : null);
+    private PermissionCollection createPermissionCollection(Permission p,
+                                                            boolean createEmpty) {
+        synchronized (permsMap) {
+            // Re-read under lock
+            Class<?> c = p.getClass();
+            PermissionCollection pc = permsMap.get(c);
 
-                    // if still null, create a new collection
-                    if (pc == null && createEmpty) {
+            // Collection already created
+            if (pc != null) {
+                return pc;
+            }
 
-                        pc = p.newPermissionCollection();
+            // Create and add permission collection to map if it is absent.
+            // Check for unresolved permissions
+            pc = (hasUnresolved ? getUnresolvedPermissions(p) : null);
 
-                        // still no PermissionCollection?
-                        // We'll give them a PermissionsHash.
-                        if (pc == null) {
-                            pc = new PermissionsHash();
-                        }
-                    }
-                    return pc;
+            // if still null, create a new collection
+            if (pc == null && createEmpty) {
+
+                pc = p.newPermissionCollection();
+
+                // still no PermissionCollection?
+                // We'll give them a PermissionsHash.
+                if (pc == null) {
+                    pc = new PermissionsHash();
                 }
             }
-        );
+            if (pc != null) {
+                // Add pc, resolving any race
+                PermissionCollection oldPc = permsMap.putIfAbsent(c, pc);
+                if (oldPc != null) {
+                    pc = oldPc;
+                }
+            }
+            return pc;
+        }
     }
 
     /**
@@ -271,7 +284,7 @@ implements Serializable
      * @param p the type of unresolved permission to resolve
      *
      * @return PermissionCollection containing the unresolved permissions,
-     *  or null if there were no unresolved permissions of type p.
+     *  or {@code null} if there were no unresolved permissions of type p.
      *
      */
     private PermissionCollection getUnresolvedPermissions(Permission p)
@@ -329,6 +342,7 @@ implements Serializable
         return pc;
     }
 
+    @java.io.Serial
     private static final long serialVersionUID = 4858622370623524688L;
 
     // Need to maintain serialization interoperability with earlier releases,
@@ -337,9 +351,11 @@ implements Serializable
 
     /**
      * @serialField perms java.util.Hashtable
-     *     A table of the Permission classes and PermissionCollections.
+     *     A table of the {@code Permission} classes and
+     *     {@code PermissionCollection} objects.
      * @serialField allPermission java.security.PermissionCollection
      */
+    @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("perms", Hashtable.class),
         new ObjectStreamField("allPermission", PermissionCollection.class),
@@ -353,6 +369,7 @@ implements Serializable
      * serialization compatibility with earlier releases. allPermission
      * unchanged.
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream out) throws IOException {
         // Don't call out.defaultWriteObject()
 
@@ -373,6 +390,7 @@ implements Serializable
      * Reads in a Hashtable of Class/PermissionCollections and saves them in the
      * permsMap field. Reads in allPermission.
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream in) throws IOException,
     ClassNotFoundException {
         // Don't call defaultReadObject()
@@ -392,6 +410,22 @@ implements Serializable
         permsMap = new ConcurrentHashMap<>(perms.size()*2);
         permsMap.putAll(perms);
 
+        // Check that Class is mapped to PermissionCollection containing
+        // Permissions of the same class
+        for (Map.Entry<Class<?>, PermissionCollection> e : perms.entrySet()) {
+            Class<?> k = e.getKey();
+            PermissionCollection v = e.getValue();
+            Enumeration<Permission> en = v.elements();
+            while (en.hasMoreElements()) {
+                Permission p = en.nextElement();
+                if (!k.equals(p.getClass())) {
+                    throw new InvalidObjectException("Permission with class " +
+                        k + " incorrectly mapped to PermissionCollection " +
+                        "containing Permission with " + p.getClass());
+                }
+            }
+        }
+
         // Set hasUnresolved
         UnresolvedPermissionCollection uc =
         (UnresolvedPermissionCollection) permsMap.get(UnresolvedPermission.class);
@@ -402,7 +436,7 @@ implements Serializable
 final class PermissionsEnumerator implements Enumeration<Permission> {
 
     // all the perms
-    private Iterator<PermissionCollection> perms;
+    private final Iterator<PermissionCollection> perms;
     // the current set
     private Enumeration<Permission> permset;
 
@@ -458,7 +492,8 @@ final class PermissionsEnumerator implements Enumeration<Permission> {
 }
 
 /**
- * A PermissionsHash stores a homogeneous set of permissions in a hashtable.
+ * A {@code PermissionsHash} stores a homogeneous set of permissions in a
+ * hashtable.
  *
  * @see Permission
  * @see Permissions
@@ -479,16 +514,16 @@ implements Serializable
     private transient ConcurrentHashMap<Permission, Permission> permsMap;
 
     /**
-     * Create an empty PermissionsHash object.
+     * Create an empty {@code PermissionsHash} object.
      */
     PermissionsHash() {
         permsMap = new ConcurrentHashMap<>(11);
     }
 
     /**
-     * Adds a permission to the PermissionsHash.
+     * Adds a permission to the {@code PermissionsHash}.
      *
-     * @param permission the Permission object to add.
+     * @param permission the {@code Permission} object to add.
      */
     @Override
     public void add(Permission permission) {
@@ -499,10 +534,10 @@ implements Serializable
      * Check and see if this set of permissions implies the permissions
      * expressed in "permission".
      *
-     * @param permission the Permission object to compare
+     * @param permission the {@code Permission} object to compare
      *
-     * @return true if "permission" is a proper subset of a permission in
-     * the set, false if not.
+     * @return {@code true} if "permission" is a proper subset of a permission
+     * in the set, {@code false} if not.
      */
     @Override
     public boolean implies(Permission permission) {
@@ -523,34 +558,38 @@ implements Serializable
     }
 
     /**
-     * Returns an enumeration of all the Permission objects in the container.
+     * Returns an enumeration of all the {@code Permission} objects in the
+     * container.
      *
-     * @return an enumeration of all the Permissions.
+     * @return an enumeration of all the {@code Permission} objects.
      */
     @Override
     public Enumeration<Permission> elements() {
         return permsMap.elements();
     }
 
+    @java.io.Serial
     private static final long serialVersionUID = -8491988220802933440L;
     // Need to maintain serialization interoperability with earlier releases,
     // which had the serializable field:
     // private Hashtable perms;
     /**
      * @serialField perms java.util.Hashtable
-     *     A table of the Permissions (both key and value are same).
+     *     A table of the permissions (both key and value are same).
      */
+    @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("perms", Hashtable.class),
     };
 
     /**
-     * @serialData Default fields.
-     */
-    /*
      * Writes the contents of the permsMap field out as a Hashtable for
      * serialization compatibility with earlier releases.
+     *
+     * @param  out the {@code ObjectOutputStream} to which data is written
+     * @throws IOException if an I/O error occurs
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream out) throws IOException {
         // Don't call out.defaultWriteObject()
 
@@ -565,10 +604,15 @@ implements Serializable
         out.writeFields();
     }
 
-    /*
-     * Reads in a Hashtable of Permission/Permission and saves them in the
-     * permsMap field.
+    /**
+     * Reads in a {@code Hashtable} of Permission/Permission and saves them
+     * in the permsMap field.
+     *
+     * @param  in the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream in) throws IOException,
     ClassNotFoundException {
         // Don't call defaultReadObject()
@@ -584,5 +628,15 @@ implements Serializable
                 (Hashtable<Permission, Permission>)gfields.get("perms", null);
         permsMap = new ConcurrentHashMap<>(perms.size()*2);
         permsMap.putAll(perms);
+
+        // check that the Permission key and value are the same object
+        for (Map.Entry<Permission, Permission> e : perms.entrySet()) {
+            Permission k = e.getKey();
+            Permission v = e.getValue();
+            if (k != v) {
+                throw new InvalidObjectException("Permission (" + k +
+                    ") incorrectly mapped to Permission (" + v + ")");
+            }
+        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,7 +76,6 @@ import java.util.stream.Stream;
  *
  * @see ModuleReference
  * @since 9
- * @spec JPMS
  */
 
 public interface ModuleReader extends Closeable {
@@ -183,7 +182,7 @@ public interface ModuleReader extends Closeable {
     }
 
     /**
-     * Release a byte buffer. This method should be invoked after consuming
+     * Releases a byte buffer. This method should be invoked after consuming
      * the contents of the buffer returned by the {@code read} method.
      * The behavior of this method when invoked to release a buffer that has
      * already been released, or the behavior when invoked to release a buffer
@@ -214,8 +213,16 @@ public interface ModuleReader extends Closeable {
      * when using the stream to list the module contents and access is denied
      * by the security manager. </p>
      *
+     * <p> The returned stream may contain references to one or more open directories
+     * in the module. The directories are closed by closing the stream. </p>
+     *
      * <p> The behavior of the stream when used after the module reader is
      * closed is implementation specific and therefore not specified. </p>
+     *
+     * @apiNote
+     * This method should be used within a try-with-resources statement or similar
+     * control structure to ensure that any open directories referenced by the
+     * stream are closed promptly after the stream's operations have completed.
      *
      * @return A stream of elements that are the names of all resources
      *         in the module

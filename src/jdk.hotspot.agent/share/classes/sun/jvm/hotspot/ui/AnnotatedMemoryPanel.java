@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,7 +55,7 @@ public class AnnotatedMemoryPanel extends JPanel {
   // Type of this is an IntervalTree indexed by Interval<Address> and
   // with user data of type Annotation
   private IntervalTree annotations =
-    new IntervalTree(new Comparator() {
+    new IntervalTree(new Comparator<>() {
         public int compare(Object o1, Object o2) {
           Address a1 = (Address) o1;
           Address a2 = (Address) o2;
@@ -82,7 +82,7 @@ public class AnnotatedMemoryPanel extends JPanel {
   // This contains the list of currently-visible IntervalNodes, in
   // sorted order by their low endpoint, in the form of a
   // List<Annotation>. These annotations have already been laid out.
-  private java.util.List visibleAnnotations;
+  private java.util.List<Annotation> visibleAnnotations;
   // Darker colors than defaults for better readability
   private static Color[] colors = {
     new Color(0.0f, 0.0f, 0.6f), // blue
@@ -148,7 +148,7 @@ public class AnnotatedMemoryPanel extends JPanel {
     BigInteger startVal  = scrollBar.getValueHP();
     BigInteger perLine = new BigInteger(Integer.toString((int) addressSize));
     // lineCount and maxLines are both 1 less than expected
-    BigInteger lineCount = new BigInteger(Integer.toString((int) (numLines - 1)));
+    BigInteger lineCount = new BigInteger(Integer.toString(numLines - 1));
     BigInteger maxLines = scrollBar.getMaximumHP().subtract(scrollBar.getMinimumHP()).divide(perLine);
     if (lineCount.compareTo(maxLines) > 0) {
       lineCount = maxLines;
@@ -201,7 +201,7 @@ public class AnnotatedMemoryPanel extends JPanel {
     // FIXME: it would be nice to have a more static layout; that is,
     // if something scrolls off the bottom of the screen, other
     // annotations still visible shouldn't change position
-    java.util.List va =
+    java.util.List<IntervalNode> va =
       annotations.findAllNodesIntersecting(new Interval(startAddr.addOffsetTo(-addressSize),
                                                         endAddr.addOffsetTo(2 * addressSize)));
 
@@ -214,23 +214,23 @@ public class AnnotatedMemoryPanel extends JPanel {
       ((Graphics2D) g).setStroke(stroke);
     }
 
-    Stack drawStack = new Stack();
+    ArrayDeque<AnnoX> drawStack = new ArrayDeque<>();
 
     layoutAnnotations(va, g, curTextX, startAddr, lineHeight);
 
-    for (Iterator iter = visibleAnnotations.iterator(); iter.hasNext(); ) {
-      Annotation anno   = (Annotation) iter.next();
+    for (Iterator<Annotation> iter = visibleAnnotations.iterator(); iter.hasNext(); ) {
+      Annotation anno   = iter.next();
       Interval interval = anno.getInterval();
 
-      if (!drawStack.empty()) {
+      if (!drawStack.isEmpty()) {
         // See whether we can pop any items off the stack
         boolean shouldContinue = true;
         do {
-          AnnoX annoX = (AnnoX) drawStack.peek();
+          AnnoX annoX = drawStack.peek();
           if (annoX.highBound.lessThanOrEqual((Address) interval.getLowEndpoint())) {
             curLineX = annoX.lineX;
             drawStack.pop();
-            shouldContinue = !drawStack.empty();
+            shouldContinue = !drawStack.isEmpty();
           } else {
             shouldContinue = false;
           }
@@ -293,7 +293,7 @@ public class AnnotatedMemoryPanel extends JPanel {
     setLayout(new BorderLayout());
     setupScrollBar(addrValue, addrLow, addrHigh);
     add(scrollBar, BorderLayout.EAST);
-    visibleAnnotations = new ArrayList();
+    visibleAnnotations = new ArrayList<>();
     setBackground(Color.white);
     addHierarchyBoundsListener(new HierarchyBoundsListener() {
         public void ancestorMoved(HierarchyEvent e) {
@@ -306,7 +306,7 @@ public class AnnotatedMemoryPanel extends JPanel {
       });
 
     if (font == null) {
-      font = GraphicsUtilities.lookupFont("Courier");
+      font = GraphicsUtilities.getMonospacedFont();
     }
     if (font == null) {
       throw new RuntimeException("Error looking up monospace font Courier");
@@ -402,7 +402,7 @@ public class AnnotatedMemoryPanel extends JPanel {
   }
 
   private String bigIntToHexString(BigInteger bi) {
-    StringBuffer buf = new StringBuffer();
+    StringBuilder buf = new StringBuilder();
     buf.append("0x");
     String val = bi.toString(16);
     for (int i = 0; i < ((2 * addressSize) - val.length()); i++) {
@@ -438,8 +438,8 @@ public class AnnotatedMemoryPanel extends JPanel {
 
   /** Scrolls the visible annotations by the given Y amount */
   private void scrollAnnotations(int y) {
-    for (Iterator iter = visibleAnnotations.iterator(); iter.hasNext(); ) {
-      Annotation anno = (Annotation) iter.next();
+    for (Iterator<Annotation> iter = visibleAnnotations.iterator(); iter.hasNext(); ) {
+      Annotation anno = iter.next();
       anno.setY(anno.getY() + y);
     }
   }
@@ -448,7 +448,7 @@ public class AnnotatedMemoryPanel extends JPanel {
       a List<IntervalNode>) and lays them out given the current
       visible position and the already-visible annotations. Does not
       perturb the layouts of the currently-visible annotations. */
-  private void layoutAnnotations(java.util.List va,
+  private void layoutAnnotations(java.util.List<IntervalNode> va,
                                  Graphics g,
                                  int x,
                                  Address startAddr,
@@ -490,15 +490,15 @@ public class AnnotatedMemoryPanel extends JPanel {
     // visibleAnnotations list. This reduces the amount of work we do.
     int searchIndex = 0;
     // The new set of annotations
-    java.util.List newAnnos = new ArrayList();
+    java.util.List<Annotation> newAnnos = new ArrayList<>();
 
-    for (Iterator iter = va.iterator(); iter.hasNext(); ) {
-      Annotation anno = (Annotation) ((IntervalNode) iter.next()).getData();
+    for (Iterator<IntervalNode> iter = va.iterator(); iter.hasNext(); ) {
+      Annotation anno = (Annotation) iter.next().getData();
 
       // Search forward for this one
       boolean found = false;
       for (int i = searchIndex; i < visibleAnnotations.size(); i++) {
-        Annotation el = (Annotation) visibleAnnotations.get(i);
+        Annotation el = visibleAnnotations.get(i);
         // See whether we can abort the search unsuccessfully because
         // we went forward too far
         if (el.getLowAddress().greaterThan(anno.getLowAddress())) {
@@ -532,7 +532,7 @@ public class AnnotatedMemoryPanel extends JPanel {
     if (firstConstraintAnnotation != null) {
       // Go back and lay out deferred annotations
       for (int i = deferredIndex; i >= 0; i--) {
-        Annotation anno = (Annotation) newAnnos.get(i);
+        Annotation anno = newAnnos.get(i);
         layoutBefore(anno, firstConstraintAnnotation, g, x, startAddr, lineHeight);
         firstConstraintAnnotation = anno;
       }

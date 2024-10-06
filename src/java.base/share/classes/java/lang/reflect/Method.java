@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,14 +28,18 @@ package java.lang.reflect;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import jdk.internal.HotSpotIntrinsicCandidate;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
+import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.MethodAccessor;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
+import jdk.internal.vm.annotation.Stable;
 import sun.reflect.annotation.ExceptionProxy;
 import sun.reflect.annotation.TypeNotPresentExceptionProxy;
+import sun.reflect.generics.repository.GenericDeclRepository;
 import sun.reflect.generics.repository.MethodRepository;
 import sun.reflect.generics.factory.CoreReflectionFactory;
 import sun.reflect.generics.factory.GenericsFactory;
@@ -71,23 +75,24 @@ import java.util.StringJoiner;
 @NullMarked
 @SuppressWarnings({"rawtypes"})
 public final class Method extends Executable {
-    private Class<?>            clazz;
-    private int                 slot;
+    private final Class<?>            clazz;
+    private final int                 slot;
     // This is guaranteed to be interned by the VM in the 1.4
     // reflection implementation
-    private String              name;
-    private Class<?>            returnType;
-    private Class<?>[]          parameterTypes;
-    private Class<?>[]          exceptionTypes;
-    private int                 modifiers;
+    private final String              name;
+    private final Class<?>            returnType;
+    private final Class<?>[]          parameterTypes;
+    private final Class<?>[]          exceptionTypes;
+    private final int                 modifiers;
     // Generics and annotations support
-    private transient String              signature;
+    private final transient String    signature;
     // generic info repository; lazily initialized
-    private transient MethodRepository genericInfo;
-    private byte[]              annotations;
-    private byte[]              parameterAnnotations;
-    private byte[]              annotationDefault;
-    private volatile MethodAccessor methodAccessor;
+    private transient volatile MethodRepository genericInfo;
+    private final byte[]              annotations;
+    private final byte[]              parameterAnnotations;
+    private final byte[]              annotationDefault;
+    @Stable
+    private MethodAccessor      methodAccessor;
     // For sharing of MethodAccessors. This branching structure is
     // currently only two levels deep (i.e., one root Method and
     // potentially many Method objects pointing to it.)
@@ -95,6 +100,8 @@ public final class Method extends Executable {
     // If this branching structure would ever contain cycles, deadlocks can
     // occur in annotation code.
     private Method              root;
+    // Hash code of this object
+    private int                 hash;
 
     // Generics infrastructure
     private String getGenericSignature() {return signature;}
@@ -108,19 +115,19 @@ public final class Method extends Executable {
     // Accessor for generic info repository
     @Override
     MethodRepository getGenericInfo() {
+        var genericInfo = this.genericInfo;
         // lazily initialize repository if necessary
         if (genericInfo == null) {
             // create and cache generic info repository
             genericInfo = MethodRepository.make(getGenericSignature(),
                                                 getFactory());
+            this.genericInfo = genericInfo;
         }
         return genericInfo; //return cached repository
     }
 
     /**
-     * Package-private constructor used by ReflectAccess to enable
-     * instantiation of these objects in Java code from the java.lang
-     * package via sun.reflect.LangReflectAccess.
+     * Package-private constructor
      */
     Method(Class<?> declaringClass,
            String name,
@@ -167,21 +174,6 @@ public final class Method extends Executable {
                                 annotations, parameterAnnotations, annotationDefault);
         res.root = this;
         // Might as well eagerly propagate this if already present
-        res.methodAccessor = methodAccessor;
-        return res;
-    }
-
-    /**
-     * Make a copy of a leaf method.
-     */
-    Method leafCopy() {
-        if (this.root == null)
-            throw new IllegalArgumentException("Can only leafCopy a non-root Method");
-
-        Method res = new Method(clazz, name, parameterTypes, returnType,
-                exceptionTypes, modifiers, slot, signature,
-                annotations, parameterAnnotations, annotationDefault);
-        res.root = root;
         res.methodAccessor = methodAccessor;
         return res;
     }
@@ -238,6 +230,7 @@ public final class Method extends Executable {
 
     /**
      * {@inheritDoc}
+     * @jls 8.4.3 Method Modifiers
      */
     @Override
     public int getModifiers() {
@@ -248,6 +241,7 @@ public final class Method extends Executable {
      * {@inheritDoc}
      * @throws GenericSignatureFormatError {@inheritDoc}
      * @since 1.5
+     * @jls 8.4.4 Generic Methods
      */
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -255,7 +249,7 @@ public final class Method extends Executable {
         if (getGenericSignature() != null)
             return (TypeVariable<Method>[])getGenericInfo().getTypeParameters();
         else
-            return (TypeVariable<Method>[])new TypeVariable[0];
+            return (TypeVariable<Method>[])GenericDeclRepository.EMPTY_TYPE_VARS;
     }
 
     /**
@@ -275,7 +269,7 @@ public final class Method extends Executable {
      *
      * <p>If the return type is a parameterized type,
      * the {@code Type} object returned must accurately reflect
-     * the actual type parameters used in the source code.
+     * the actual type arguments used in the source code.
      *
      * <p>If the return type is a type variable or a parameterized type, it
      * is created. Otherwise, it is resolved.
@@ -285,11 +279,11 @@ public final class Method extends Executable {
      * @throws GenericSignatureFormatError
      *     if the generic method signature does not conform to the format
      *     specified in
-     *     <cite>The Java&trade; Virtual Machine Specification</cite>
+     *     <cite>The Java Virtual Machine Specification</cite>
      * @throws TypeNotPresentException if the underlying method's
-     *     return type refers to a non-existent type declaration
+     *     return type refers to a non-existent class or interface declaration
      * @throws MalformedParameterizedTypeException if the
-     *     underlying method's return typed refers to a parameterized
+     *     underlying method's return type refers to a parameterized
      *     type that cannot be instantiated for any reason
      * @since 1.5
      */
@@ -315,7 +309,7 @@ public final class Method extends Executable {
      */
     @Override
     public Class<?>[] getParameterTypes() {
-        return parameterTypes.clone();
+        return parameterTypes.length == 0 ? parameterTypes: parameterTypes.clone();
     }
 
     /**
@@ -342,7 +336,7 @@ public final class Method extends Executable {
      */
     @Override
     public Class<?>[] getExceptionTypes() {
-        return exceptionTypes.clone();
+        return exceptionTypes.length == 0 ? exceptionTypes : exceptionTypes.clone();
     }
 
     /**
@@ -363,10 +357,8 @@ public final class Method extends Executable {
      * they were declared by the same class and have the same name
      * and formal parameter types and return type.
      */
-    
-    public boolean equals( @Nullable Object obj) {
-        if (obj != null && obj instanceof Method) {
-            Method other = (Method)obj;
+    public boolean equals(@Nullable Object obj) {
+        if (obj instanceof Method other) {
             if ((getDeclaringClass() == other.getDeclaringClass())
                 && (getName() == other.getName())) {
                 if (!returnType.equals(other.getReturnType()))
@@ -384,7 +376,13 @@ public final class Method extends Executable {
      */
     
     public int hashCode() {
-        return getDeclaringClass().getName().hashCode() ^ getName().hashCode();
+        int hc = hash;
+
+        if (hc == 0) {
+            hc = hash = getDeclaringClass().getName().hashCode() ^ getName()
+                .hashCode();
+        }
+        return hc;
     }
 
     /**
@@ -412,8 +410,8 @@ public final class Method extends Executable {
      * @return a string describing this {@code Method}
      *
      * @jls 8.4.3 Method Modifiers
-     * @jls 9.4   Method Declarations
-     * @jls 9.6.1 Annotation Type Elements
+     * @jls 9.4 Method Declarations
+     * @jls 9.6.1 Annotation Interface Elements
      */
     
     public String toString() {
@@ -432,24 +430,24 @@ public final class Method extends Executable {
 
     @Override
     String toShortString() {
-        StringBuilder sb = new StringBuilder("method ");
-        sb.append(getDeclaringClass().getTypeName()).append('.');
-        sb.append(getName());
-        sb.append('(');
-        StringJoiner sj = new StringJoiner(",");
-        for (Class<?> parameterType : getParameterTypes()) {
+        return "method " + getDeclaringClass().getTypeName() +
+                '.' + toShortSignature();
+    }
+
+    String toShortSignature() {
+        StringJoiner sj = new StringJoiner(",", getName() + "(", ")");
+        for (Class<?> parameterType : getSharedParameterTypes()) {
             sj.add(parameterType.getTypeName());
         }
-        sb.append(sj);
-        sb.append(')');
-        return sb.toString();
+        return sj.toString();
     }
 
     /**
-     * Returns a string describing this {@code Method}, including
-     * type parameters.  The string is formatted as the method access
+     * Returns a string describing this {@code Method}, including type
+     * parameters.  The string is formatted as the method access
      * modifiers, if any, followed by an angle-bracketed
      * comma-separated list of the method's type parameters, if any,
+     * including informative bounds of the type parameters, if any,
      * followed by the method's generic return type, followed by a
      * space, followed by the class declaring the method, followed by
      * a period, followed by the method name, followed by a
@@ -483,8 +481,8 @@ public final class Method extends Executable {
      * @since 1.5
      *
      * @jls 8.4.3 Method Modifiers
-     * @jls 9.4   Method Declarations
-     * @jls 9.6.1 Annotation Type Elements
+     * @jls 9.4 Method Declarations
+     * @jls 9.6.1 Annotation Interface Elements
      */
     @Override
     public String toGenericString() {
@@ -515,7 +513,7 @@ public final class Method extends Executable {
      *
      * <p>If the underlying method is an instance method, it is invoked
      * using dynamic method lookup as documented in The Java Language
-     * Specification, section 15.12.4.4; in particular,
+     * Specification, section {@jls 15.12.4.4}; in particular,
      * overriding based on the runtime type of the target object may occur.
      *
      * <p>If the underlying method is static, the class that declared
@@ -536,10 +534,10 @@ public final class Method extends Executable {
      * this object on {@code obj} with parameters
      * {@code args}
      *
-     * @exception IllegalAccessException    if this {@code Method} object
+     * @throws    IllegalAccessException    if this {@code Method} object
      *              is enforcing Java language access control and the underlying
      *              method is inaccessible.
-     * @exception IllegalArgumentException  if the method is an
+     * @throws    IllegalArgumentException  if the method is an
      *              instance method and the specified object argument
      *              is not an instance of the class or interface
      *              declaring the underlying method (or of a subclass
@@ -549,41 +547,124 @@ public final class Method extends Executable {
      *              after possible unwrapping, a parameter value
      *              cannot be converted to the corresponding formal
      *              parameter type by a method invocation conversion.
-     * @exception InvocationTargetException if the underlying method
+     * @throws    InvocationTargetException if the underlying method
      *              throws an exception.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the method is an instance method.
-     * @exception ExceptionInInitializerError if the initialization
+     * @throws    ExceptionInInitializerError if the initialization
      * provoked by this method fails.
      */
     
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public @Nullable Object invoke(@Nullable Object obj, @Nullable Object @Nullable ... args)
-        throws IllegalAccessException, IllegalArgumentException,
-           InvocationTargetException
+        throws IllegalAccessException, InvocationTargetException
     {
+        boolean callerSensitive = isCallerSensitive();
+        Class<?> caller = null;
+        if (!override || callerSensitive) {
+            caller = Reflection.getCallerClass();
+        }
+
+        // Reflection::getCallerClass filters all subclasses of
+        // jdk.internal.reflect.MethodAccessorImpl and Method::invoke(Object, Object[])
+        // Should not call Method::invoke(Object, Object[], Class) here
         if (!override) {
-            Class<?> caller = Reflection.getCallerClass();
+            checkAccess(caller, clazz,
+                    Modifier.isStatic(modifiers) ? null : obj.getClass(),
+                    modifiers);
+        }
+        MethodAccessor ma = methodAccessor;             // read @Stable
+        if (ma == null) {
+            ma = acquireMethodAccessor();
+        }
+
+        return callerSensitive ? ma.invoke(obj, args, caller) : ma.invoke(obj, args);
+    }
+
+    /**
+     * This is to support MethodHandle calling caller-sensitive Method::invoke
+     * that may invoke a caller-sensitive method in order to get the original caller
+     * class (not the injected invoker).
+     *
+     * If this adapter is not presented, MethodHandle invoking Method::invoke
+     * will get an invoker class, a hidden nestmate of the original caller class,
+     * that becomes the caller class invoking Method::invoke.
+     */
+    @CallerSensitiveAdapter
+    private Object invoke(Object obj, Object[] args, Class<?> caller)
+            throws IllegalAccessException, InvocationTargetException
+    {
+        boolean callerSensitive = isCallerSensitive();
+        if (!override) {
             checkAccess(caller, clazz,
                         Modifier.isStatic(modifiers) ? null : obj.getClass(),
                         modifiers);
         }
-        MethodAccessor ma = methodAccessor;             // read volatile
+        MethodAccessor ma = methodAccessor;             // read @Stable
         if (ma == null) {
             ma = acquireMethodAccessor();
         }
-        return ma.invoke(obj, args);
+
+        return callerSensitive ? ma.invoke(obj, args, caller) : ma.invoke(obj, args);
+    }
+
+    //  0 = not initialized (@Stable contract)
+    //  1 = initialized, CS
+    // -1 = initialized, not CS
+    @Stable private byte callerSensitive;
+
+    private boolean isCallerSensitive() {
+        byte cs = callerSensitive;
+        if (cs == 0) {
+            callerSensitive = cs = (byte)(Reflection.isCallerSensitive(this) ? 1 : -1);
+        }
+        return (cs > 0);
     }
 
     /**
-     * Returns {@code true} if this method is a bridge
-     * method; returns {@code false} otherwise.
+     * {@return {@code true} if this method is a bridge
+     * method; returns {@code false} otherwise}
      *
-     * @return true if and only if this method is a bridge
-     * method as defined by the Java Language Specification.
+     * @apiNote
+     * A bridge method is a {@linkplain isSynthetic synthetic} method
+     * created by a Java compiler alongside a method originating from
+     * the source code. Bridge methods are used by Java compilers in
+     * various circumstances to span differences in Java programming
+     * language semantics and JVM semantics.
+     *
+     * <p>One example use of bridge methods is as a technique for a
+     * Java compiler to support <i>covariant overrides</i>, where a
+     * subclass overrides a method and gives the new method a more
+     * specific return type than the method in the superclass.  While
+     * the Java language specification forbids a class declaring two
+     * methods with the same parameter types but a different return
+     * type, the virtual machine does not. A common case where
+     * covariant overrides are used is for a {@link
+     * java.lang.Cloneable Cloneable} class where the {@link
+     * Object#clone() clone} method inherited from {@code
+     * java.lang.Object} is overridden and declared to return the type
+     * of the class. For example, {@code Object} declares
+     * <pre>{@code protected Object clone() throws CloneNotSupportedException {...}}</pre>
+     * and {@code EnumSet<E>} declares its language-level {@linkplain
+     * java.util.EnumSet#clone() covariant override}
+     * <pre>{@code public EnumSet<E> clone() {...}}</pre>
+     * If this technique was being used, the resulting class file for
+     * {@code EnumSet} would have two {@code clone} methods, one
+     * returning {@code EnumSet<E>} and the second a bridge method
+     * returning {@code Object}. The bridge method is a JVM-level
+     * override of {@code Object.clone()}.  The body of the {@code
+     * clone} bridge method calls its non-bridge counterpart and
+     * returns its result.
      * @since 1.5
+     *
+     * @jls 8.4.8.3 Requirements in Overriding and Hiding
+     * @jls 15.12.4.5 Create Frame, Synchronize, Transfer Control
+     * @jvms 4.6 Methods
+     * @see <a
+     * href="{@docRoot}/java.base/java/lang/reflect/package-summary.html#LanguageJvmModel">Java
+     * programming language and JVM modeling in core reflection</a>
      */
     
     public boolean isBridge() {
@@ -593,6 +674,7 @@ public final class Method extends Executable {
     /**
      * {@inheritDoc}
      * @since 1.5
+     * @jls 8.4.1 Formal Parameters
      */
     
     @Override
@@ -603,6 +685,10 @@ public final class Method extends Executable {
     /**
      * {@inheritDoc}
      * @jls 13.1 The Form of a Binary
+     * @jvms 4.6 Methods
+     * @see <a
+     * href="{@docRoot}/java.base/java/lang/reflect/package-summary.html#LanguageJvmModel">Java
+     * programming language and JVM modeling in core reflection</a>
      * @since 1.5
      */
     
@@ -616,12 +702,12 @@ public final class Method extends Executable {
      * method; returns {@code false} otherwise.
      *
      * A default method is a public non-abstract instance method, that
-     * is, a non-static method with a body, declared in an interface
-     * type.
+     * is, a non-static method with a body, declared in an interface.
      *
      * @return true if and only if this method is a default
      * method as defined by the Java Language Specification.
      * @since 1.8
+     * @jls 9.4 Method Declarations
      */
     public boolean isDefault() {
         // Default methods are public non-abstract instance methods
@@ -637,14 +723,16 @@ public final class Method extends Executable {
     private MethodAccessor acquireMethodAccessor() {
         // First check to see if one has been created yet, and take it
         // if so
-        MethodAccessor tmp = null;
-        if (root != null) tmp = root.getMethodAccessor();
+        Method root = this.root;
+        MethodAccessor tmp = root == null ? null : root.getMethodAccessor();
         if (tmp != null) {
             methodAccessor = tmp;
         } else {
             // Otherwise fabricate one and propagate it up to the root
-            tmp = reflectionFactory.newMethodAccessor(this);
-            setMethodAccessor(tmp);
+            tmp = reflectionFactory.newMethodAccessor(this, isCallerSensitive());
+            // set the method accessor only if it's not using native implementation
+            if (VM.isJavaLangInvokeInited())
+                setMethodAccessor(tmp);
         }
 
         return tmp;
@@ -661,6 +749,7 @@ public final class Method extends Executable {
     void setMethodAccessor(MethodAccessor accessor) {
         methodAccessor = accessor;
         // Propagate up
+        Method root = this.root;
         if (root != null) {
             root.setMethodAccessor(accessor);
         }
@@ -679,6 +768,7 @@ public final class Method extends Executable {
      *     {@link Class} and no definition can be found for the
      *     default class value.
      * @since  1.5
+     * @jls 9.6.2 Defaults for Annotation Interface Elements
      */
     public @Nullable Object getDefaultValue() {
         if  (annotationDefault == null)
@@ -691,8 +781,7 @@ public final class Method extends Executable {
                 getConstantPool(getDeclaringClass()),
             getDeclaringClass());
         if (result instanceof ExceptionProxy) {
-            if (result instanceof TypeNotPresentExceptionProxy) {
-                TypeNotPresentExceptionProxy proxy = (TypeNotPresentExceptionProxy)result;
+            if (result instanceof TypeNotPresentExceptionProxy proxy) {
                 throw new TypeNotPresentException(proxy.typeName(), proxy.getCause());
             }
             throw new AnnotationFormatError("Invalid default: " + this);
@@ -702,9 +791,10 @@ public final class Method extends Executable {
 
     /**
      * {@inheritDoc}
-     * @throws NullPointerException  {@inheritDoc}
+     * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
+    @Override
     public <T extends Annotation> @Nullable T getAnnotation(Class<T> annotationClass) {
         return super.getAnnotation(annotationClass);
     }
@@ -713,6 +803,7 @@ public final class Method extends Executable {
      * {@inheritDoc}
      * @since 1.5
      */
+    @Override
     public Annotation[] getDeclaredAnnotations()  {
         return super.getDeclaredAnnotations();
     }
@@ -736,7 +827,7 @@ public final class Method extends Executable {
     }
 
     @Override
-    boolean handleParameterNumberMismatch(int resultLength, int numParameters) {
+    boolean handleParameterNumberMismatch(int resultLength, Class<?>[] parameterTypes) {
         throw new AnnotationFormatError("Parameter annotations don't match number of parameters");
     }
 }

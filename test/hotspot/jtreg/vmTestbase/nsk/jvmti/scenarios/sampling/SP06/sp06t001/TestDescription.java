@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,20 +32,15 @@
  *     This JVMTI test is for SP06 scenario of "time sampling profiling" area.
  *     This test checks that JVMTI methods GetStackTrace() returns expected list
  *     of stack frames including frame for tested method even for compiled methods.
- *     The test provokes compilation of tested methods by intensivelly calling
- *     them in a loop and then invokes GenarateEvents() to receive all
+ *     The test provokes compilation of tested methods by intensively calling
+ *     them in a loop and then invokes GenerateEvents() to receive all
  *     COMPILED_METHOD_LOAD events and mark compiled methods.
- *     Threads are supended/resumed individually by SuspendThread() and ResumeThread().
- *     Checked statements:
- *         - number of stack frames returned by GetFramesCount() should be equal or
- *           less than number returned by successive call to GetStackTrace()
- *         - list of stack frames returned by GetStackTrace() should include
- *           frame for tested method
- *     Checked statements:
- *         - stack frame info returned by GetFrameLocation() equals to the
- *           corresponding frame info returmned by GetStackTrace()
- *         - both GetFrameLocation() and GetStackTrace() include frame info
- *           for expected tested method
+ *     Threads are suspended/resumed individually by SuspendThread() and ResumeThread().
+ *     Checked statements for suspended threads:
+ *         - number of stack frames returned by GetFramesCount() and GetStackTrace()
+ *           are not less than expected minimal stack depth
+ *         - for suspended threads the number of stack frames returned by GetFrameCount()
+ *           should be equal to frames number returned by successive call to GetStackTrace()
  *     Tested threads:
  *         Running             - running in Java method
  *         Entering            - entering monitor in synchronized block
@@ -57,11 +52,9 @@
  *         - run threads and provoke methods compilation
  *         - enable events
  *         - call GenerateEvents() and mark compiled methods
- *         - check stack frames of not suspended threads
  *         - suspend each threads
  *         - check stack frames of suspended threads
  *         - resume each threads
- *         - check stack frames of resumed threads
  * COMMENTS
  *     This test is similar to 'sp02t002' but for compiled methods.
  *     Test fixed due to test bug:
@@ -71,7 +64,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm/native
  *      -agentlib:sp06t001=-waittime=5
  *      nsk.jvmti.scenarios.sampling.SP06.sp06t001

@@ -26,7 +26,8 @@
  * @bug 8129547
  * @summary Excess entries in BootstrapMethods with the same (bsm, bsmKind, bsmStaticArgs), but different dynamicArgs
  * @library /tools/javac/lib
- * @modules jdk.jdeps/com.sun.tools.classfile
+ * @enablePreview
+ * @modules java.base/jdk.internal.classfile.impl
  *          jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.code
  *          jdk.compiler/com.sun.tools.javac.jvm
@@ -52,15 +53,15 @@ import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
 import com.sun.source.util.TreeScanner;
 
-import com.sun.tools.classfile.Attribute;
-import com.sun.tools.classfile.BootstrapMethods_attribute;
-import com.sun.tools.classfile.ClassFile;
+import java.lang.classfile.*;
+import java.lang.classfile.attribute.BootstrapMethodsAttribute;
 
 import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Types;
+import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
@@ -110,11 +111,9 @@ public class TestBootstrapMethodsCount {
     void verifyBytecode() {
         File compiledTest = new File("Test.class");
         try {
-            ClassFile cf = ClassFile.read(compiledTest);
-            BootstrapMethods_attribute bsm_attr =
-                    (BootstrapMethods_attribute)cf
-                            .getAttribute(Attribute.BootstrapMethods);
-            int length = bsm_attr.bootstrap_method_specifiers.length;
+            ClassModel cf = ClassFile.of().parse(compiledTest.toPath());
+            BootstrapMethodsAttribute bsm_attr = cf.findAttribute(Attributes.bootstrapMethods()).orElseThrow();
+            int length = bsm_attr.bootstrapMethodsSize();
             if (length != 1) {
                 throw new Error("Bad number of method specifiers " +
                         "in BootstrapMethods attribute: " + length);
@@ -190,7 +189,7 @@ public class TestBootstrapMethodsCount {
             Symbol oldSym = ident.sym;
             if (!oldSym.isConstructor()) {
                 ident.sym = new Symbol.DynamicMethodSymbol(oldSym.name,
-                        oldSym.owner, REF_invokeStatic, bsm, oldSym.type, new Object[0]);
+                        oldSym.owner, bsm.asHandle(), oldSym.type, new LoadableConstant[0]);
             }
             return null;
         }

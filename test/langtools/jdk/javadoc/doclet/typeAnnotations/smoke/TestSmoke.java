@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,23 @@
  * @bug 8006735
  * @summary  Smoke test for ensuring that annotations are emitted to javadoc
  *
- * @author   Mahmood Ali <mali>
- * @library  ../../lib
+ * @library  ../../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestSmoke
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestSmoke extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestSmoke tester = new TestSmoke();
+        var tester = new TestSmoke();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-private",
                 "-sourcepath", testSrc,

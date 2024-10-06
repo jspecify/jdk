@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -213,7 +213,6 @@ public final class GlyphLayout {
         public FontRenderContext key_frc;
 
         public AffineTransform dtx;
-        public AffineTransform invdtx;
         public AffineTransform gtx;
         public Point2D.Float delta;
         public FontStrikeDesc sd;
@@ -229,14 +228,6 @@ public final class GlyphLayout {
             dtx.setTransform(dtx.getScaleX(), dtx.getShearY(),
                              dtx.getShearX(), dtx.getScaleY(),
                              0, 0);
-            if (!dtx.isIdentity()) {
-                try {
-                    invdtx = dtx.createInverse();
-                }
-                catch (NoninvertibleTransformException e) {
-                    throw new InternalError(e);
-                }
-            }
 
             float ptSize = font.getSize2D();
             if (font.isTransformed()) {
@@ -355,9 +346,9 @@ public final class GlyphLayout {
      * @param text the text, including optional context before start and after start + count
      * @param offset the start of the text to lay out
      * @param count the length of the text to lay out
-     * @param flags bidi and context flags {@see #java.awt.Font}
+     * @param flags bidi and context flags {@link java.awt.Font}
      * @param result a StandardGlyphVector to modify, can be null
-     * @return the layed out glyphvector, if result was passed in, it is returned
+     * @return the laid out glyphvector, if result was passed in, it is returned
      */
     public StandardGlyphVector layout(Font font, FontRenderContext frc,
                                       char[] text, int offset, int count,
@@ -480,10 +471,6 @@ public final class GlyphLayout {
             }
         }
 
-        //        if (txinfo.invdtx != null) {
-        //            _gvdata.adjustPositions(txinfo.invdtx);
-        //        }
-
         // If layout fails (negative glyph count) create an un-laid out GV instead.
         // ie default positions. This will be a lot better than the alternative of
         // a complete blank layout.
@@ -491,8 +478,7 @@ public final class GlyphLayout {
         if (_gvdata._count < 0) {
             gv = new StandardGlyphVector(font, text, offset, count, frc);
             if (FontUtilities.debugFonts()) {
-               FontUtilities.getLogger().warning("OpenType layout failed on font: " +
-                                                 font);
+               FontUtilities.logWarning("OpenType layout failed on font: " + font);
             }
         } else {
             gv = _gvdata.createGlyphVector(font, frc, result);
@@ -577,10 +563,6 @@ public final class GlyphLayout {
             int[] nindices = new int[size];
             System.arraycopy(_indices, 0, nindices, 0, _count);
             _indices = nindices;
-        }
-
-        public void adjustPositions(AffineTransform invdtx) {
-            invdtx.transform(_positions, 0, _positions, 0, _count);
         }
 
         public StandardGlyphVector createGlyphVector(Font font, FontRenderContext frc, StandardGlyphVector result) {

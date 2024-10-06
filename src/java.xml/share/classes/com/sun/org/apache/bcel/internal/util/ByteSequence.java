@@ -25,31 +25,10 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 
 /**
- * Utility class that implements a sequence of bytes which can be read
- * via the `readByte()' method. This is used to implement a wrapper for the
- * Java byte code stream to gain some more readability.
- *
- * @version $Id: ByteSequence.java 1747278 2016-06-07 17:28:43Z britter $
+ * Utility class that implements a sequence of bytes which can be read via the 'readByte()' method. This is used to
+ * implement a wrapper for the Java byte code stream to gain some more readability.
  */
 public final class ByteSequence extends DataInputStream {
-
-    private final ByteArrayStream byteStream;
-
-
-    public ByteSequence(final byte[] bytes) {
-        super(new ByteArrayStream(bytes));
-        byteStream = (ByteArrayStream) in;
-    }
-
-
-    public final int getIndex() {
-        return byteStream.getPosition();
-    }
-
-
-    final void unreadByte() {
-        byteStream.unreadByte();
-    }
 
     private static final class ByteArrayStream extends ByteArrayInputStream {
 
@@ -57,15 +36,30 @@ public final class ByteSequence extends DataInputStream {
             super(bytes);
         }
 
-        final int getPosition() {
+        int getPosition() {
             // pos is protected in ByteArrayInputStream
             return pos;
         }
 
-        final void unreadByte() {
+        void unreadByte() {
             if (pos > 0) {
                 pos--;
             }
         }
+    }
+
+    private final ByteArrayStream byteStream;
+
+    public ByteSequence(final byte[] bytes) {
+        super(new ByteArrayStream(bytes));
+        byteStream = (ByteArrayStream) in;
+    }
+
+    public int getIndex() {
+        return byteStream.getPosition();
+    }
+
+    void unreadByte() {
+        byteStream.unreadByte();
     }
 }

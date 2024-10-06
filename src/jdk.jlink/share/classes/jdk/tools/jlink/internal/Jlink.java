@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,7 @@ package jdk.tools.jlink.internal;
 import java.lang.module.Configuration;
 import java.lang.module.ModuleFinder;
 import java.nio.ByteOrder;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -37,10 +35,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import jdk.internal.module.ModulePath;
+import jdk.tools.jlink.builder.ImageBuilder;
 import jdk.tools.jlink.plugin.Plugin;
 import jdk.tools.jlink.plugin.PluginException;
-import jdk.tools.jlink.builder.ImageBuilder;
 
 /**
  * API to call jlink.
@@ -150,7 +147,6 @@ public final class Jlink {
 
         private final Path output;
         private final Set<String> modules;
-        private final ByteOrder endian;
         private final ModuleFinder finder;
 
         /**
@@ -158,24 +154,14 @@ public final class Jlink {
          *
          * @param output Output directory, must not exist.
          * @param modules The possibly-empty set of root modules to resolve
-         * @param endian Jimage byte order. Native order by default
          * @param finder the ModuleFinder for this configuration
          */
         public JlinkConfiguration(Path output,
                                   Set<String> modules,
-                                  ByteOrder endian,
                                   ModuleFinder finder) {
             this.output = output;
             this.modules = Objects.requireNonNull(modules);
-            this.endian = Objects.requireNonNull(endian);
             this.finder = finder;
-        }
-
-        /**
-         * @return the byte ordering
-         */
-        public ByteOrder getByteOrder() {
-            return endian;
         }
 
         /**
@@ -232,7 +218,6 @@ public final class Jlink {
                 modsBuilder.append(p).append(",");
             }
             builder.append("modules=").append(modsBuilder).append("\n");
-            builder.append("endian=").append(endian).append("\n");
             return builder.toString();
         }
     }
@@ -241,6 +226,7 @@ public final class Jlink {
      * Jlink instance constructor, if a security manager is set, the jlink
      * permission is checked.
      */
+    @SuppressWarnings("removal")
     public Jlink() {
         if (System.getSecurityManager() != null) {
             System.getSecurityManager().
@@ -302,19 +288,4 @@ public final class Jlink {
             pluginsConfig.getLastSorterPluginName());
     }
 
-    /**
-     * Post process the image with a plugin configuration.
-     *
-     * @param image Existing image.
-     * @param plugins Plugins cannot be null
-     */
-    public void postProcess(ExecutableImage image, List<Plugin> plugins) {
-        Objects.requireNonNull(image);
-        Objects.requireNonNull(plugins);
-        try {
-            JlinkTask.postProcessImage(image, plugins);
-        } catch (Exception ex) {
-            throw new PluginException(ex);
-        }
-    }
 }

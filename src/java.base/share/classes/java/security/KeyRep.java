@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,13 @@
 
 package java.security;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.io.*;
-import java.util.Locale;
-
+import javax.crypto.spec.SecretKeySpec;
+import java.io.NotSerializableException;
+import java.io.ObjectStreamException;
+import java.io.Serializable;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.security.spec.InvalidKeySpecException;
-
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.SecretKeySpec;
+import java.util.Locale;
 
 /**
  * Standardized representation for serialized Key objects.
@@ -47,7 +42,7 @@ import javax.crypto.spec.SecretKeySpec;
  * which should not be exposed in untrusted environments.  See the
  * <a href="{@docRoot}/../specs/serialization/security.html">
  * Security Appendix</a>
- * of the Serialization Specification for more information.
+ * of the <cite>Java Object Serialization Specification</cite> for more information.
  *
  * @see Key
  * @see KeyFactory
@@ -58,9 +53,9 @@ import javax.crypto.spec.SecretKeySpec;
  * @since 1.5
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class KeyRep implements Serializable {
+public class KeyRep implements Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = -4757683898830641853L;
 
     /**
@@ -68,7 +63,7 @@ public @UsesObjectEquals class KeyRep implements Serializable {
      *
      * @since 1.5
      */
-    public static enum Type {
+    public enum Type {
 
         /** Type for secret keys. */
         SECRET,
@@ -90,28 +85,28 @@ public @UsesObjectEquals class KeyRep implements Serializable {
      *
      * @serial
      */
-    private Type type;
+    private final Type type;
 
     /**
      * The Key algorithm
      *
      * @serial
      */
-    private String algorithm;
+    private final String algorithm;
 
     /**
      * The Key encoding format
      *
      * @serial
      */
-    private String format;
+    private final String format;
 
     /**
      * The encoded Key bytes
      *
      * @serial
      */
-    private byte[] encoded;
+    private final byte[] encoded;
 
     /**
      * Construct the alternate Key class.
@@ -124,7 +119,7 @@ public @UsesObjectEquals class KeyRep implements Serializable {
      * @param encoded the encoded bytes returned from
      *          {@code Key.getEncoded()}
      *
-     * @exception NullPointerException
+     * @throws    NullPointerException
      *          if type is {@code null},
      *          if algorithm is {@code null},
      *          if format is {@code null},
@@ -161,11 +156,12 @@ public @UsesObjectEquals class KeyRep implements Serializable {
      *
      * @return the resolved Key object
      *
-     * @exception ObjectStreamException if the Type/format
+     * @throws    ObjectStreamException if the Type/format
      *  combination is unrecognized, if the algorithm, key format, or
      *  encoded key bytes are unrecognized/invalid, of if the
      *  resolution of the key fails for any reason
      */
+    @java.io.Serial
     protected Object readResolve() throws ObjectStreamException {
         try {
             if (type == Type.SECRET && RAW.equals(format)) {

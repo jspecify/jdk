@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,9 @@ import jdk.internal.org.objectweb.asm.Opcodes;
 import jdk.internal.org.objectweb.asm.tree.ClassNode;
 import jdk.test.lib.Utils;
 import jdk.vm.ci.code.InstalledCode;
+import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.hotspot.CompilerToVMHelper;
+import jdk.vm.ci.hotspot.HotSpotNmethod;
 import jdk.vm.ci.hotspot.HotSpotResolvedJavaMethod;
 
 import java.io.IOException;
@@ -64,17 +66,10 @@ public class CTVMUtilities {
         return getResolvedMethod(method.getDeclaringClass(), method);
     }
 
-    public static InstalledCode getInstalledCode(String name, long address,
-            long entryPoint) {
-        return new InstalledCodeStub(name, address, entryPoint);
+    public static InstalledCode getInstalledCode(ResolvedJavaMethod method, String name, long address, long entryPoint) {
+        return CompilerToVMHelper.getInstalledCode(method, name, address, entryPoint);
     }
-    private static class InstalledCodeStub extends InstalledCode {
-        private InstalledCodeStub(String name, long address, long entryPoint) {
-            super(name);
-            this.address = address;
-            this.entryPoint = entryPoint;
-        }
-    }
+
     public static Map<Integer, Integer> getBciToLineNumber(Executable method) {
         Map<Integer, Integer> lineNumbers = new TreeMap<>();
         Class<?> aClass = method.getDeclaringClass();
@@ -111,7 +106,7 @@ public class CTVMUtilities {
 
         public ClassVisitorForLabels(ClassWriter cw, Map<Label, Integer> lines,
                                      Executable target) {
-            super(Opcodes.ASM5, cw);
+            super(Opcodes.ASM7, cw);
             this.lineNumbers = lines;
 
             StringBuilder builder = new StringBuilder("(");
@@ -137,7 +132,7 @@ public class CTVMUtilities {
             MethodVisitor mv = cv.visitMethod(access, name, desc, signature,
                     exceptions);
             if (targetDesc.equals(desc) && targetName.equals(name)) {
-                return new MethodVisitor(Opcodes.ASM5, mv) {
+                return new MethodVisitor(Opcodes.ASM7, mv) {
                     @Override
                     public void visitLineNumber(int i, Label label) {
                         super.visitLineNumber(i, label);

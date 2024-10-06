@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,8 +75,7 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
 
         int pos = packet.position();
         byte byteZero = packet.get(pos);
-
-        int len = 0;
+        int len;
 
         /*
          * If we have already verified previous packets, we can
@@ -142,7 +141,7 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
                         (packet.get(pos + 1) & 0xFF) + (isShort ? 2 : 3);
 
             } else {
-                // Gobblygook!
+                // Gobbledygook!
                 throw new SSLException(
                         "Unrecognized SSL message, plaintext connection?");
             }
@@ -243,8 +242,7 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
         } catch (BadPaddingException bpe) {
             throw bpe;
         } catch (GeneralSecurityException gse) {
-            throw (SSLProtocolException)(new SSLProtocolException(
-                    "Unexpected exception")).initCause(gse);
+            throw new SSLProtocolException("Unexpected exception", gse);
         } finally {
             // consume a complete record
             packet.limit(srcLim);
@@ -265,6 +263,12 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
         // parse handshake messages
         //
         if (contentType == ContentType.HANDSHAKE.id) {
+            if (contentLen == 0) {
+                // From RFC 8446: "Implementations MUST NOT send zero-length fragments
+                // of Handshake types, even if those fragments contain padding."
+                throw new SSLProtocolException("Handshake packets must not be zero-length");
+            }
+
             ByteBuffer handshakeFrag = fragment;
             if ((handshakeBuffer != null) &&
                     (handshakeBuffer.remaining() != 0)) {
@@ -287,9 +291,25 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
                 }
 
                 handshakeFrag.mark();
-                // skip the first byte: handshake type
+
+                // Fail fast for unknown handshake message.
                 byte handshakeType = handshakeFrag.get();
+                if (!SSLHandshake.isKnown(handshakeType)) {
+                    throw new SSLProtocolException(
+                        "Unknown handshake type size, Handshake.msg_type = " +
+                        (handshakeType & 0xFF));
+                }
+
                 int handshakeBodyLen = Record.getInt24(handshakeFrag);
+                if (handshakeBodyLen > SSLConfiguration.maxHandshakeMessageSize) {
+                    throw new SSLProtocolException(
+                            "The size of the handshake message ("
+                            + handshakeBodyLen
+                            + ") exceeds the maximum allowed size ("
+                            + SSLConfiguration.maxHandshakeMessageSize
+                            + ")");
+                }
+
                 handshakeFrag.reset();
                 int handshakeMessageLen =
                         handshakeHeaderSize + handshakeBodyLen;
@@ -338,12 +358,11 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
     }
 
     private Plaintext[] handleUnknownRecord(ByteBuffer packet)
-            throws IOException, BadPaddingException {
+            throws IOException {
         //
         // The packet should be a complete record.
         //
         int srcPos = packet.position();
-        int srcLim = packet.limit();
 
         byte firstByte = packet.get(srcPos);
         byte thirdByte = packet.get(srcPos + 2);
@@ -374,7 +393,7 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
                             "Requested to negotiate unsupported SSLv2!");
                 }
 
-                // hack code, the exception is caught in SSLEngineImpl
+                // Note that the exception is caught in SSLEngineImpl
                 // so that SSLv2 error message can be delivered properly.
                 throw new UnsupportedOperationException(        // SSLv2Hello
                         "Unsupported SSL v2.0 ClientHello");

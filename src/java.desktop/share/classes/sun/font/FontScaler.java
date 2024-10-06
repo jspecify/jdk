@@ -88,7 +88,7 @@ public abstract class FontScaler implements DisposerRecord {
     //   (theoretically logic can be font type specific)
 
     /* This is the only place to instantiate new FontScaler.
-     * Therefore this is very convinient place to register
+     * Therefore this is very convenient place to register
      * scaler with Disposer as well as trigger deregistering a bad font
      * when the scaler reports this.
      */
@@ -116,7 +116,7 @@ public abstract class FontScaler implements DisposerRecord {
 
     /*
      * At the moment it is harmless to create 2 null scalers so, technically,
-     * syncronized keyword is not needed.
+     * synchronized keyword is not needed.
      *
      * But it is safer to keep it to avoid subtle problems if we will be adding
      * checks like whether scaler is null scaler.
@@ -129,7 +129,7 @@ public abstract class FontScaler implements DisposerRecord {
     }
 
     protected WeakReference<Font2D> font = null;
-    protected long nativeScaler = 0; //used by decendants
+    protected long nativeScaler = 0; //used by descendants
                                      //that have native state
     protected boolean disposed = false;
 
@@ -149,7 +149,7 @@ public abstract class FontScaler implements DisposerRecord {
      *
      *  Note:
      *   currently this method has to return not 0L but pointer to valid
-     *   GlyphInfo object. Because Strike and drawing releated logic does
+     *   GlyphInfo object. Because Strike and drawing related logic does
      *   expect that.
      *   In the future we may want to rework this to allow 0L here.
      */
@@ -173,6 +173,12 @@ public abstract class FontScaler implements DisposerRecord {
              scaler context objects! */
     public void dispose() {}
 
+    /**
+     * Used when the native resources held by the scaler need
+     * to be released before the 2D disposer runs.
+     */
+    public void disposeScaler() {}
+
     /* At the moment these 3 methods are needed for Type1 fonts only.
      * For Truetype fonts we extract required info outside of scaler
      * on java layer.
@@ -180,25 +186,6 @@ public abstract class FontScaler implements DisposerRecord {
     abstract int getNumGlyphs() throws FontScalerException;
     abstract int getMissingGlyphCode() throws FontScalerException;
     abstract int getGlyphCode(char charCode) throws FontScalerException;
-
-    /* This method returns table cache used by native layout engine.
-     * This cache is essentially just small collection of
-     * pointers to various truetype tables. See definition of TTLayoutTableCache
-     * in the fontscalerdefs.h for more details.
-     *
-     * Note that tables themselves have same format as defined in the truetype
-     * specification, i.e. font scaler do not need to perform any preprocessing.
-     *
-     * Probably it is better to have API to request pointers to each table
-     * separately instead of requesting pointer to some native structure.
-     * (then there is not need to share its definition by different
-     * implementations of scaler).
-     * However, this means multiple JNI calls and potential impact on performance.
-     *
-     * Note: return value 0 is legal.
-     *   This means tables are not available (e.g. type1 font).
-     */
-    abstract long getLayoutTableCache() throws FontScalerException;
 
     /* Used by the OpenType engine for mark positioning. */
     abstract Point2D.Float getGlyphPoint(long pScalerContext,
@@ -218,8 +205,7 @@ public abstract class FontScaler implements DisposerRecord {
      */
     abstract long createScalerContext(double[] matrix,
                                       int aa, int fm,
-                                      float boldness, float italic,
-                                      boolean disableHinting);
+                                      float boldness, float italic);
 
     /* Marks context as invalid because native scaler is invalid.
        Notes:

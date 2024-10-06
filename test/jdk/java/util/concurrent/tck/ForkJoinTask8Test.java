@@ -118,7 +118,7 @@ public class ForkJoinTask8Test extends JSR166TestCase {
         }
     }
 
-    void checkNotDone(ForkJoinTask a) {
+    void checkNotDone(ForkJoinTask<?> a) {
         assertFalse(a.isDone());
         assertFalse(a.isCompletedNormally());
         assertFalse(a.isCompletedAbnormally());
@@ -140,13 +140,13 @@ public class ForkJoinTask8Test extends JSR166TestCase {
         checkCompletedNormally(a, null);
     }
 
-    <T> void checkCompletedNormally(ForkJoinTask<T> a, T expected) {
+    <T> void checkCompletedNormally(ForkJoinTask<T> a, T expectedValue) {
         assertTrue(a.isDone());
         assertFalse(a.isCancelled());
         assertTrue(a.isCompletedNormally());
         assertFalse(a.isCompletedAbnormally());
         assertNull(a.getException());
-        assertSame(expected, a.getRawResult());
+        assertSame(expectedValue, a.getRawResult());
         if (a instanceof BinaryAsyncAction)
             assertEquals(COMPLETE_STATE,
                          ((BinaryAsyncAction)a).getForkJoinTaskTag());
@@ -154,7 +154,7 @@ public class ForkJoinTask8Test extends JSR166TestCase {
         {
             Thread.currentThread().interrupt();
             long startTime = System.nanoTime();
-            assertSame(expected, a.join());
+            assertSame(expectedValue, a.join());
             assertTrue(millisElapsedSince(startTime) < LONG_DELAY_MS);
             Thread.interrupted();
         }
@@ -169,13 +169,17 @@ public class ForkJoinTask8Test extends JSR166TestCase {
 
         assertFalse(a.cancel(false));
         assertFalse(a.cancel(true));
+
+        T v1 = null, v2 = null;
         try {
-            assertSame(expected, a.get());
-            assertSame(expected, a.get(randomTimeout(), randomTimeUnit()));
+            v1 = a.get();
+            v2 = a.get(randomTimeout(), randomTimeUnit());
         } catch (Throwable fail) { threadUnexpectedException(fail); }
+        assertSame(expectedValue, v1);
+        assertSame(expectedValue, v2);
     }
 
-    void checkCompletedAbnormally(ForkJoinTask a, Throwable t) {
+    void checkCompletedAbnormally(ForkJoinTask<?> a, Throwable t) {
         assertTrue(a.isDone());
         assertFalse(a.isCancelled());
         assertFalse(a.isCompletedNormally());
@@ -555,6 +559,8 @@ public class ForkJoinTask8Test extends JSR166TestCase {
                 AsyncFib f = new AsyncFib(8);
                 assertSame(f, f.fork());
                 helpQuiesce();
+                while (!f.isDone()) // wait out race
+                    ;
                 assertEquals(0, getQueuedTaskCount());
                 f.checkCompletedNormally();
             }};
@@ -896,14 +902,13 @@ public class ForkJoinTask8Test extends JSR166TestCase {
         RecursiveAction a = new CheckedRecursiveAction() {
             protected void realCompute() {
                 AsyncFib nul = null;
-                Runnable[] throwingActions = {
+                assertThrows(
+                    NullPointerException.class,
                     () -> invokeAll(nul),
                     () -> invokeAll(nul, nul),
                     () -> invokeAll(new AsyncFib(8), new AsyncFib(9), nul),
                     () -> invokeAll(new AsyncFib(8), nul, new AsyncFib(9)),
-                    () -> invokeAll(nul, new AsyncFib(8), new AsyncFib(9)),
-                };
-                assertThrows(NullPointerException.class, throwingActions);
+                    () -> invokeAll(nul, new AsyncFib(8), new AsyncFib(9)));
             }};
         testInvokeOnPool(pool, a);
     }
@@ -945,7 +950,7 @@ public class ForkJoinTask8Test extends JSR166TestCase {
             protected void realCompute() {
                 AsyncFib f = new AsyncFib(8);
                 FailingAsyncFib g = new FailingAsyncFib(9);
-                ForkJoinTask[] tasks = { f, g };
+                ForkJoinTask<?>[] tasks = { f, g };
                 shuffle(tasks);
                 try {
                     invokeAll(tasks[0], tasks[1]);
@@ -972,7 +977,7 @@ public class ForkJoinTask8Test extends JSR166TestCase {
                 AsyncFib f = new AsyncFib(8);
                 FailingAsyncFib g = new FailingAsyncFib(9);
                 AsyncFib h = new AsyncFib(7);
-                ForkJoinTask[] tasks = { f, g, h };
+                ForkJoinTask<?>[] tasks = { f, g, h };
                 shuffle(tasks);
                 try {
                     invokeAll(tasks[0], tasks[1], tasks[2]);
@@ -999,7 +1004,7 @@ public class ForkJoinTask8Test extends JSR166TestCase {
                 FailingAsyncFib f = new FailingAsyncFib(8);
                 AsyncFib g = new AsyncFib(9);
                 AsyncFib h = new AsyncFib(7);
-                ForkJoinTask[] tasks = { f, g, h };
+                ForkJoinTask<?>[] tasks = { f, g, h };
                 shuffle(tasks);
                 try {
                     invokeAll(Arrays.asList(tasks));
@@ -1194,9 +1199,9 @@ public class ForkJoinTask8Test extends JSR166TestCase {
      */
     public void testPollSubmission() {
         final CountDownLatch done = new CountDownLatch(1);
-        final ForkJoinTask a = ForkJoinTask.adapt(awaiter(done));
-        final ForkJoinTask b = ForkJoinTask.adapt(awaiter(done));
-        final ForkJoinTask c = ForkJoinTask.adapt(awaiter(done));
+        final ForkJoinTask<?> a = ForkJoinTask.adapt(awaiter(done));
+        final ForkJoinTask<?> b = ForkJoinTask.adapt(awaiter(done));
+        final ForkJoinTask<?> c = ForkJoinTask.adapt(awaiter(done));
         final ForkJoinPool p = singletonPool();
         try (PoolCleaner cleaner = cleaner(p, done)) {
             Thread external = new Thread(new CheckedRunnable() {
@@ -1215,7 +1220,7 @@ public class ForkJoinTask8Test extends JSR166TestCase {
                     }
                     assertTrue(p.hasQueuedSubmissions());
                     assertTrue(Thread.currentThread() instanceof ForkJoinWorkerThread);
-                    ForkJoinTask r = ForkJoinTask.pollSubmission();
+                    ForkJoinTask<?> r = ForkJoinTask.pollSubmission();
                     assertTrue(r == a || r == b || r == c);
                     assertFalse(r.isDone());
                 }};

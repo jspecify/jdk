@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,32 +22,32 @@
  *
  */
 
-#ifndef SHARE_VM_JVMCI_VMSTRUCTS_JVMCI_HPP
-#define SHARE_VM_JVMCI_VMSTRUCTS_JVMCI_HPP
+#ifndef SHARE_JVMCI_VMSTRUCTS_JVMCI_HPP
+#define SHARE_JVMCI_VMSTRUCTS_JVMCI_HPP
 
 #include "runtime/vmStructs.hpp"
 
 class JVMCIVMStructs {
 public:
   /**
-   * The last entry has a NULL fieldName.
+   * The last entry has a null fieldName.
    */
   static VMStructEntry localHotSpotVMStructs[];
 
   /**
-   * The last entry has a NULL typeName.
+   * The last entry has a null typeName.
    */
   static VMTypeEntry localHotSpotVMTypes[];
 
   /**
    * Table of integer constants.
-   * The last entry has a NULL typeName.
+   * The last entry has a null typeName.
    */
   static VMIntConstantEntry localHotSpotVMIntConstants[];
 
   /**
    * Table of long constants.
-   * The last entry has a NULL typeName.
+   * The last entry has a null typeName.
    */
   static VMLongConstantEntry localHotSpotVMLongConstants[];
 
@@ -61,6 +61,10 @@ public:
   static int localHotSpotVMIntConstants_count();
   static int localHotSpotVMLongConstants_count();
   static int localHotSpotVMAddresses_count();
+
+  // This is used to run any checking code necessary for validation of
+  // the data structure (debug build only)
+  static void init() NOT_DEBUG_RETURN;
 };
 
-#endif // SHARE_VM_JVMCI_VMSTRUCTS_JVMCI_HPP
+#endif // SHARE_JVMCI_VMSTRUCTS_JVMCI_HPP

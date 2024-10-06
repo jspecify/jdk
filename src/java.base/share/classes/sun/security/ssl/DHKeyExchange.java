@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,20 +36,12 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.InvalidKeySpecException;
-import javax.crypto.KeyAgreement;
-import javax.crypto.SecretKey;
 import javax.crypto.interfaces.DHPublicKey;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.DHPublicKeySpec;
-import javax.crypto.spec.SecretKeySpec;
-import javax.net.ssl.SSLHandshakeException;
 import sun.security.action.GetPropertyAction;
-import sun.security.ssl.CipherSuite.HashAlg;
-import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
-import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
-import sun.security.ssl.SupportedGroupsExtension.SupportedGroups;
+import sun.security.ssl.NamedGroup.NamedGroupSpec;
 import sun.security.ssl.X509Authentication.X509Possession;
 import sun.security.util.KeyUtil;
 
@@ -61,7 +53,7 @@ final class DHKeyExchange {
     static final SSLKeyAgreementGenerator kaGenerator =
             new DHEKAGenerator();
 
-    static final class DHECredentials implements SSLCredentials {
+    static final class DHECredentials implements NamedGroupCredentials {
         final DHPublicKey popPublicKey;
         final NamedGroup namedGroup;
 
@@ -70,10 +62,20 @@ final class DHKeyExchange {
             this.namedGroup = namedGroup;
         }
 
+        @Override
+        public PublicKey getPublicKey() {
+            return popPublicKey;
+        }
+
+        @Override
+        public NamedGroup getNamedGroup() {
+            return namedGroup;
+        }
+
         static DHECredentials valueOf(NamedGroup ng,
             byte[] encodedPublic) throws IOException, GeneralSecurityException {
 
-            if (ng.type != NamedGroupType.NAMED_GROUP_FFDHE) {
+            if (ng.spec != NamedGroupSpec.NAMED_GROUP_FFDHE) {
                 throw new RuntimeException(
                         "Credentials decoding:  Not FFDHE named group");
             }
@@ -82,12 +84,8 @@ final class DHKeyExchange {
                 return null;
             }
 
-            DHParameterSpec params = (DHParameterSpec)ng.getParameterSpec();
-            if (params == null) {
-                return null;
-            }
-
-            KeyFactory kf = JsseJce.getKeyFactory("DiffieHellman");
+            DHParameterSpec params = (DHParameterSpec)ng.keAlgParamSpec;
+            KeyFactory kf = KeyFactory.getInstance("DiffieHellman");
             DHPublicKeySpec spec = new DHPublicKeySpec(
                     new BigInteger(1, encodedPublic),
                     params.getP(), params.getG());
@@ -98,7 +96,7 @@ final class DHKeyExchange {
         }
     }
 
-    static final class DHEPossession implements SSLPossession {
+    static final class DHEPossession implements NamedGroupPossession {
         final PrivateKey privateKey;
         final DHPublicKey publicKey;
         final NamedGroup namedGroup;
@@ -106,10 +104,8 @@ final class DHKeyExchange {
         DHEPossession(NamedGroup namedGroup, SecureRandom random) {
             try {
                 KeyPairGenerator kpg =
-                        JsseJce.getKeyPairGenerator("DiffieHellman");
-                DHParameterSpec params =
-                        (DHParameterSpec)namedGroup.getParameterSpec();
-                kpg.initialize(params, random);
+                        KeyPairGenerator.getInstance("DiffieHellman");
+                kpg.initialize(namedGroup.keAlgParamSpec, random);
                 KeyPair kp = generateDHKeyPair(kpg);
                 if (kp == null) {
                     throw new RuntimeException("Could not generate DH keypair");
@@ -129,7 +125,7 @@ final class DHKeyExchange {
                     PredefinedDHParameterSpecs.definedParams.get(keyLength);
             try {
                 KeyPairGenerator kpg =
-                    JsseJce.getKeyPairGenerator("DiffieHellman");
+                    KeyPairGenerator.getInstance("DiffieHellman");
                 if (params != null) {
                     kpg.initialize(params, random);
                 } else {
@@ -155,7 +151,7 @@ final class DHKeyExchange {
         DHEPossession(DHECredentials credentials, SecureRandom random) {
             try {
                 KeyPairGenerator kpg =
-                        JsseJce.getKeyPairGenerator("DiffieHellman");
+                        KeyPairGenerator.getInstance("DiffieHellman");
                 kpg.initialize(credentials.popPublicKey.getParams(), random);
                 KeyPair kp = generateDHKeyPair(kpg);
                 if (kp == null) {
@@ -174,13 +170,13 @@ final class DHKeyExchange {
         // Generate and validate DHPublicKeySpec
         private KeyPair generateDHKeyPair(
                 KeyPairGenerator kpg) throws GeneralSecurityException {
-            boolean doExtraValiadtion =
+            boolean doExtraValidation =
                     (!KeyUtil.isOracleJCEProvider(kpg.getProvider().getName()));
             boolean isRecovering = false;
             for (int i = 0; i <= 2; i++) {      // Try to recover from failure.
                 KeyPair kp = kpg.generateKeyPair();
                 // validate the Diffie-Hellman public key
-                if (doExtraValiadtion) {
+                if (doExtraValidation) {
                     DHPublicKeySpec spec = getDHPublicKeySpec(kp.getPublic());
                     try {
                         KeyUtil.validate(spec);
@@ -201,14 +197,13 @@ final class DHKeyExchange {
         }
 
         private static DHPublicKeySpec getDHPublicKeySpec(PublicKey key) {
-            if (key instanceof DHPublicKey) {
-                DHPublicKey dhKey = (DHPublicKey)key;
+            if (key instanceof DHPublicKey dhKey) {
                 DHParameterSpec params = dhKey.getParams();
                 return new DHPublicKeySpec(dhKey.getY(),
                                         params.getP(), params.getG());
             }
             try {
-                KeyFactory factory = JsseJce.getKeyFactory("DiffieHellman");
+                KeyFactory factory = KeyFactory.getInstance("DiffieHellman");
                 return factory.getKeySpec(key, DHPublicKeySpec.class);
             } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
                 // unlikely
@@ -220,8 +215,8 @@ final class DHKeyExchange {
         public byte[] encode() {
             // Note: the DH public value is encoded as a big-endian integer
             // and padded to the left with zeros to the size of p in bytes.
-            byte[] encoded = publicKey.getY().toByteArray();
-            int pSize = KeyUtil.getKeySize(publicKey);
+            byte[] encoded = Utilities.toByteArray(publicKey.getY());
+            int pSize = (KeyUtil.getKeySize(publicKey) + 7) >>> 3;
             if (pSize > 0 && encoded.length < pSize) {
                 byte[] buffer = new byte[pSize];
                 System.arraycopy(encoded, 0,
@@ -230,6 +225,21 @@ final class DHKeyExchange {
             }
 
             return encoded;
+        }
+
+        @Override
+        public PublicKey getPublicKey() {
+            return publicKey;
+        }
+
+        @Override
+        public NamedGroup getNamedGroup() {
+            return namedGroup;
+        }
+
+        @Override
+        public PrivateKey getPrivateKey() {
+            return privateKey;
         }
     }
 
@@ -253,7 +263,7 @@ final class DHKeyExchange {
         static {
             String property = GetPropertyAction.privilegedGetProperty(
                     "jdk.tls.ephemeralDHKeySize");
-            if (property == null || property.length() == 0) {
+            if (property == null || property.isEmpty()) {
                 useLegacyEphemeralDHKeys = false;
                 useSmartEphemeralDHKeys = false;
                 customizedDHKeySize = -1;
@@ -298,16 +308,17 @@ final class DHKeyExchange {
         // Used for ServerKeyExchange, TLS 1.2 and prior versions.
         @Override
         public SSLPossession createPossession(HandshakeContext context) {
-            NamedGroup preferableNamedGroup = null;
+            NamedGroup preferableNamedGroup;
             if (!useLegacyEphemeralDHKeys &&
                     (context.clientRequestedNamedGroups != null) &&
                     (!context.clientRequestedNamedGroups.isEmpty())) {
-                preferableNamedGroup =
-                        SupportedGroups.getPreferredGroup(
-                                context.negotiatedProtocol,
-                                context.algorithmConstraints,
-                                NamedGroupType.NAMED_GROUP_FFDHE,
-                                context.clientRequestedNamedGroups);
+                preferableNamedGroup = NamedGroup.getPreferredGroup(
+                        context.sslConfig,
+                        context.negotiatedProtocol,
+                        context.algorithmConstraints,
+                        new NamedGroupSpec [] {
+                            NamedGroupSpec.NAMED_GROUP_FFDHE },
+                        context.clientRequestedNamedGroups);
                 if (preferableNamedGroup != null) {
                     return new DHEPossession(preferableNamedGroup,
                                 context.sslContext.getSecureRandom());
@@ -315,45 +326,36 @@ final class DHKeyExchange {
             }
 
             /*
-             * 768 bits ephemeral DH private keys were used to be used in
+             * 768 bit ephemeral DH private keys used to be used in
              * ServerKeyExchange except that exportable ciphers max out at 512
-             * bits modulus values. We still adhere to this behavior in legacy
+             * bit modulus values. We still adhere to this behavior in legacy
              * mode (system property "jdk.tls.ephemeralDHKeySize" is defined
              * as "legacy").
              *
-             * Old JDK (JDK 7 and previous) releases don't support DH keys
-             * bigger than 1024 bits. We have to consider the compatibility
-             * requirement. 1024 bits DH key is always used for non-exportable
-             * cipher suites in default mode (system property
+             * Only very old JDK releases don't support DH keys bigger than
+             * 1024 bits (JDK 1.5 and 6u/7u releases prior to adding support
+             * for DH keys > 1024 bits - see JDK-8062834). A 2048 bit
+             * DH key is always used for non-exportable cipher suites in
+             * default mode (when the system property
              * "jdk.tls.ephemeralDHKeySize" is not defined).
-             *
-             * However, if applications want more stronger strength, setting
-             * system property "jdk.tls.ephemeralDHKeySize" to "matched"
-             * is a workaround to use ephemeral DH key which size matches the
-             * corresponding authentication key. For example, if the public key
-             * size of an authentication certificate is 2048 bits, then the
-             * ephemeral DH key size should be 2048 bits accordingly unless
-             * the cipher suite is exportable.  This key sizing scheme keeps
-             * the cryptographic strength consistent between authentication
-             * keys and key-exchange keys.
              *
              * Applications may also want to customize the ephemeral DH key
              * size to a fixed length for non-exportable cipher suites. This
-             * can be approached by setting system property
+             * can be done by setting the system property
              * "jdk.tls.ephemeralDHKeySize" to a valid positive integer between
              * 1024 and 8192 bits, inclusive.
              *
-             * Note that the minimum acceptable key size is 1024 bits except
-             * exportable cipher suites or legacy mode.
+             * Note that the minimum acceptable key size is 2048 bits except
+             * for exportable cipher suites or legacy mode.
              *
              * Note that per RFC 2246, the key size limit of DH is 512 bits for
              * exportable cipher suites.  Because of the weakness, exportable
              * cipher suites are deprecated since TLS v1.1 and they are not
              * enabled by default in Oracle provider. The legacy behavior is
-             * reserved and 512 bits DH key is always used for exportable
+             * preserved and a 512 bit DH key is always used for exportable
              * cipher suites.
              */
-            int keySize = exportable ? 512 : 1024;           // default mode
+            int keySize = exportable ? 512 : 2048;           // default mode
             if (!exportable) {
                 if (useLegacyEphemeralDHKeys) {          // legacy mode
                     keySize = 768;
@@ -379,7 +381,7 @@ final class DHKeyExchange {
                         // limit in the future when the compatibility and
                         // interoperability impact is limited.
                         keySize = ks <= 1024 ? 1024 : 2048;
-                    } // Otherwise, anonymous cipher suites, 1024-bit is used.
+                    } // Otherwise, anonymous cipher suites, 2048-bit is used.
                 } else if (customizedDHKeySize > 0) {    // customized mode
                     keySize = customizedDHKeySize;
                 }
@@ -392,7 +394,7 @@ final class DHKeyExchange {
 
     private static final
             class DHEKAGenerator implements SSLKeyAgreementGenerator {
-        static private DHEKAGenerator instance = new DHEKAGenerator();
+        private static final DHEKAGenerator instance = new DHEKAGenerator();
 
         // Prevent instantiation of this class.
         private DHEKAGenerator() {
@@ -405,16 +407,14 @@ final class DHKeyExchange {
             DHEPossession dhePossession = null;
             DHECredentials dheCredentials = null;
             for (SSLPossession poss : context.handshakePossessions) {
-                if (!(poss instanceof DHEPossession)) {
+                if (!(poss instanceof DHEPossession dhep)) {
                     continue;
                 }
 
-                DHEPossession dhep = (DHEPossession)poss;
                 for (SSLCredentials cred : context.handshakeCredentials) {
-                    if (!(cred instanceof DHECredentials)) {
+                    if (!(cred instanceof DHECredentials dhec)) {
                         continue;
                     }
-                    DHECredentials dhec = (DHECredentials)cred;
                     if (dhep.namedGroup != null && dhec.namedGroup != null) {
                         if (dhep.namedGroup.equals(dhec.namedGroup)) {
                             dheCredentials = (DHECredentials)cred;
@@ -437,98 +437,13 @@ final class DHKeyExchange {
                 }
             }
 
-            if (dhePossession == null || dheCredentials == null) {
-                context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+            if (dhePossession == null) {
+                throw context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No sufficient DHE key agreement parameters negotiated");
             }
 
-            return new DHEKAKeyDerivation(context,
+            return new KAKeyDerivation("DiffieHellman", context,
                     dhePossession.privateKey, dheCredentials.popPublicKey);
-        }
-
-        private static final
-                class DHEKAKeyDerivation implements SSLKeyDerivation {
-            private final HandshakeContext context;
-            private final PrivateKey localPrivateKey;
-            private final PublicKey peerPublicKey;
-
-            DHEKAKeyDerivation(HandshakeContext context,
-                    PrivateKey localPrivateKey,
-                    PublicKey peerPublicKey) {
-                this.context = context;
-                this.localPrivateKey = localPrivateKey;
-                this.peerPublicKey = peerPublicKey;
-            }
-
-            @Override
-            public SecretKey deriveKey(String algorithm,
-                    AlgorithmParameterSpec params) throws IOException {
-                if (!context.negotiatedProtocol.useTLS13PlusSpec()) {
-                    return t12DeriveKey(algorithm, params);
-                } else {
-                    return t13DeriveKey(algorithm, params);
-                }
-            }
-
-            private SecretKey t12DeriveKey(String algorithm,
-                    AlgorithmParameterSpec params) throws IOException {
-                try {
-                    KeyAgreement ka = JsseJce.getKeyAgreement("DiffieHellman");
-                    ka.init(localPrivateKey);
-                    ka.doPhase(peerPublicKey, true);
-                    SecretKey preMasterSecret =
-                            ka.generateSecret("TlsPremasterSecret");
-                    SSLMasterKeyDerivation mskd =
-                            SSLMasterKeyDerivation.valueOf(
-                                    context.negotiatedProtocol);
-                    if (mskd == null) {
-                        // unlikely
-                        throw new SSLHandshakeException(
-                            "No expected master key derivation for protocol: " +
-                            context.negotiatedProtocol.name);
-                    }
-                    SSLKeyDerivation kd = mskd.createKeyDerivation(
-                            context, preMasterSecret);
-                    return kd.deriveKey("MasterSecret", params);
-                } catch (GeneralSecurityException gse) {
-                    throw (SSLHandshakeException) new SSLHandshakeException(
-                        "Could not generate secret").initCause(gse);
-                }
-            }
-
-            private SecretKey t13DeriveKey(String algorithm,
-                    AlgorithmParameterSpec params) throws IOException {
-                try {
-                    KeyAgreement ka = JsseJce.getKeyAgreement("DiffieHellman");
-                    ka.init(localPrivateKey);
-                    ka.doPhase(peerPublicKey, true);
-                    SecretKey sharedSecret =
-                            ka.generateSecret("TlsPremasterSecret");
-
-                    HashAlg hashAlg = context.negotiatedCipherSuite.hashAlg;
-                    SSLKeyDerivation kd = context.handshakeKeyDerivation;
-                    HKDF hkdf = new HKDF(hashAlg.name);
-                    if (kd == null) {   // No PSK is in use.
-                        // If PSK is not in use Early Secret will still be
-                        // HKDF-Extract(0, 0).
-                        byte[] zeros = new byte[hashAlg.hashLength];
-                        SecretKeySpec ikm =
-                                new SecretKeySpec(zeros, "TlsPreSharedSecret");
-                        SecretKey earlySecret =
-                                hkdf.extract(zeros, ikm, "TlsEarlySecret");
-                        kd = new SSLSecretDerivation(context, earlySecret);
-                    }
-
-                    // derive salt secret
-                    SecretKey saltSecret = kd.deriveKey("TlsSaltSecret", null);
-
-                    // derive handshake secret
-                    return hkdf.extract(saltSecret, sharedSecret, algorithm);
-                } catch (GeneralSecurityException gse) {
-                    throw (SSLHandshakeException) new SSLHandshakeException(
-                        "Could not generate secret").initCause(gse);
-                }
-            }
         }
     }
 }

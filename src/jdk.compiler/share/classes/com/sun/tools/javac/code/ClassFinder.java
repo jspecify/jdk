@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import javax.lang.model.SourceVersion;
 import javax.tools.JavaFileManager;
@@ -179,6 +180,7 @@ public class ClassFinder {
     }
 
     /** Construct a new class finder. */
+    @SuppressWarnings("this-escape")
     protected ClassFinder(Context context) {
         context.put(classFinderKey, this);
         reader = ClassReader.instance(context);
@@ -208,26 +210,23 @@ public class ClassFinder {
         // Temporary, until more info is available from the module system.
         boolean useCtProps;
         JavaFileManager fm = context.get(JavaFileManager.class);
-        if (fm instanceof DelegatingJavaFileManager) {
-            fm = ((DelegatingJavaFileManager) fm).getBaseFileManager();
+        if (fm instanceof DelegatingJavaFileManager delegatingJavaFileManager) {
+            fm = delegatingJavaFileManager.getBaseFileManager();
         }
-        if (fm instanceof JavacFileManager) {
-            JavacFileManager jfm = (JavacFileManager) fm;
-            useCtProps = jfm.isDefaultBootClassPath() && jfm.isSymbolFileEnabled();
-        } else if (fm.getClass().getName().equals("com.sun.tools.sjavac.comp.SmartFileManager")) {
-            useCtProps = !options.isSet("ignore.symbol.file");
+        if (fm instanceof JavacFileManager javacFileManager) {
+            useCtProps = javacFileManager.isDefaultBootClassPath() && javacFileManager.isSymbolFileEnabled();
         } else {
             useCtProps = false;
         }
         jrtIndex = useCtProps && JRTIndex.isAvailable() ? JRTIndex.getSharedInstance() : null;
 
         profile = Profile.instance(context);
-        cachedCompletionFailure = new CompletionFailure(null, (JCDiagnostic) null, dcfh);
+        cachedCompletionFailure = new CompletionFailure(null, () -> null, dcfh);
         cachedCompletionFailure.setStackTrace(new StackTraceElement[0]);
     }
 
 
-/************************************************************************
+/* **********************************************************************
  * Temporary ct.sym replacement
  *
  * The following code is a temporary substitute for the ct.sym mechanism
@@ -250,29 +249,36 @@ public class ClassFinder {
             supplementaryFlags = new HashMap<>();
         }
 
-        Long flags = supplementaryFlags.get(c.packge());
+        PackageSymbol packge = c.packge();
+
+        Long flags = supplementaryFlags.get(packge);
         if (flags == null) {
             long newFlags = 0;
             try {
-                JRTIndex.CtSym ctSym = jrtIndex.getCtSym(c.packge().flatName());
-                Profile minProfile = Profile.DEFAULT;
-                if (ctSym.proprietary)
+                ModuleSymbol owningModule = packge.modle;
+                if (owningModule == syms.noModule) {
+                    JRTIndex.CtSym ctSym = jrtIndex.getCtSym(packge.flatName());
+                    Profile minProfile = Profile.DEFAULT;
+                    if (ctSym.proprietary)
+                        newFlags |= PROPRIETARY;
+                    if (ctSym.minProfile != null)
+                        minProfile = Profile.lookup(ctSym.minProfile);
+                    if (profile != Profile.DEFAULT && minProfile.value > profile.value) {
+                        newFlags |= NOT_IN_PROFILE;
+                    }
+                } else if (owningModule.name == names.jdk_unsupported) {
                     newFlags |= PROPRIETARY;
-                if (ctSym.minProfile != null)
-                    minProfile = Profile.lookup(ctSym.minProfile);
-                if (profile != Profile.DEFAULT && minProfile.value > profile.value) {
-                    newFlags |= NOT_IN_PROFILE;
                 }
             } catch (IOException ignore) {
             }
-            supplementaryFlags.put(c.packge(), flags = newFlags);
+            supplementaryFlags.put(packge, flags = newFlags);
         }
         return flags;
     }
 
     private Map<PackageSymbol, Long> supplementaryFlags;
 
-/************************************************************************
+/* **********************************************************************
  * Loading Classes
  ***********************************************************************/
 
@@ -285,10 +291,16 @@ public class ClassFinder {
                 ClassSymbol c = (ClassSymbol) sym;
                 dependencies.push(c, CompletionCause.CLASS_READER);
                 annotate.blockAnnotations();
-                c.members_field = new Scope.ErrorScope(c); // make sure it's always defined
+                Scope.ErrorScope members = new Scope.ErrorScope(c);
+                c.members_field = members; // make sure it's always defined
                 completeOwners(c.owner);
                 completeEnclosing(c);
-                fillIn(c);
+                //if an enclosing class is completed from the source,
+                //this class might have been completed already as well,
+                //avoid attempts to re-complete it:
+                if (c.members_field == members) {
+                    fillIn(c);
+                }
             } finally {
                 annotate.unblockAnnotationsNoFlush();
                 dependencies.pop();
@@ -298,9 +310,12 @@ public class ClassFinder {
             try {
                 fillIn(p);
             } catch (IOException ex) {
-                JCDiagnostic msg =
-                        diagFactory.fragment(Fragments.ExceptionMessage(ex.getLocalizedMessage()));
-                throw new CompletionFailure(sym, msg, dcfh).initCause(ex);
+                throw new CompletionFailure(
+                        sym,
+                        () -> diagFactory.fragment(
+                            Fragments.ExceptionMessage(ex.getLocalizedMessage())),
+                        dcfh)
+                    .initCause(ex);
             }
         }
         if (!reader.filling)
@@ -337,9 +352,8 @@ public class ClassFinder {
      */
     void fillIn(ClassSymbol c) {
         if (completionFailureName == c.fullname) {
-            JCDiagnostic msg =
-                    diagFactory.fragment(Fragments.UserSelectedCompletionFailure);
-            throw new CompletionFailure(c, msg, dcfh);
+            throw new CompletionFailure(
+                c, () -> diagFactory.fragment(Fragments.UserSelectedCompletionFailure), dcfh);
         }
         currentOwner = c;
         JavaFileObject classfile = c.classfile;
@@ -390,16 +404,15 @@ public class ClassFinder {
     }
     // where
         private CompletionFailure classFileNotFound(ClassSymbol c) {
-            JCDiagnostic diag =
-                diagFactory.fragment(Fragments.ClassFileNotFound(c.flatname));
-            return newCompletionFailure(c, diag);
+            return newCompletionFailure(
+                c, () -> diagFactory.fragment(Fragments.ClassFileNotFound(c.flatname)));
         }
         /** Static factory for CompletionFailure objects.
          *  In practice, only one can be used at a time, so we share one
          *  to reduce the expense of allocating new exception objects.
          */
         private CompletionFailure newCompletionFailure(TypeSymbol c,
-                                                       JCDiagnostic diag) {
+                                                       Supplier<JCDiagnostic> diag) {
             if (!cacheCompletionFailure) {
                 // log.warning("proc.messager",
                 //             Log.getLocalizedString("class.file.not.found", c.flatname));
@@ -408,7 +421,7 @@ public class ClassFinder {
             } else {
                 CompletionFailure result = cachedCompletionFailure;
                 result.sym = c;
-                result.diag = diag;
+                result.resetDiagnostic(diag);
                 return result;
             }
         }
@@ -432,14 +445,17 @@ public class ClassFinder {
             try {
                 c.complete();
             } catch (CompletionFailure ex) {
-                if (absent) syms.removeClass(ps.modle, flatname);
+                if (absent) {
+                    syms.removeClass(ps.modle, flatname);
+                    ex.dcfh.classSymbolRemoved(c);
+                }
                 throw ex;
             }
         }
         return c;
     }
 
-/************************************************************************
+/* **********************************************************************
  * Loading Packages
  ***********************************************************************/
 
@@ -637,27 +653,26 @@ public class ClassFinder {
 
         if (verbose && verbosePath) {
             verbosePath = false; // print once per compile
-            if (fileManager instanceof StandardJavaFileManager) {
-                StandardJavaFileManager fm = (StandardJavaFileManager)fileManager;
+            if (fileManager instanceof StandardJavaFileManager standardJavaFileManager) {
                 if (haveSourcePath && wantSourceFiles) {
                     List<Path> path = List.nil();
-                    for (Path sourcePath : fm.getLocationAsPaths(SOURCE_PATH)) {
+                    for (Path sourcePath : standardJavaFileManager.getLocationAsPaths(SOURCE_PATH)) {
                         path = path.prepend(sourcePath);
                     }
                     log.printVerbose("sourcepath", path.reverse().toString());
                 } else if (wantSourceFiles) {
                     List<Path> path = List.nil();
-                    for (Path classPath : fm.getLocationAsPaths(CLASS_PATH)) {
+                    for (Path classPath : standardJavaFileManager.getLocationAsPaths(CLASS_PATH)) {
                         path = path.prepend(classPath);
                     }
                     log.printVerbose("sourcepath", path.reverse().toString());
                 }
                 if (wantClassFiles) {
                     List<Path> path = List.nil();
-                    for (Path platformPath : fm.getLocationAsPaths(PLATFORM_CLASS_PATH)) {
+                    for (Path platformPath : standardJavaFileManager.getLocationAsPaths(PLATFORM_CLASS_PATH)) {
                         path = path.prepend(platformPath);
                     }
-                    for (Path classPath : fm.getLocationAsPaths(CLASS_PATH)) {
+                    for (Path classPath : standardJavaFileManager.getLocationAsPaths(CLASS_PATH)) {
                         path = path.prepend(classPath);
                     }
                     log.printVerbose("classpath",  path.reverse().toString());
@@ -779,7 +794,7 @@ public class ClassFinder {
 
         public BadClassFile(TypeSymbol sym, JavaFileObject file, JCDiagnostic diag,
                 JCDiagnostic.Factory diagFactory, DeferredCompletionFailureHandler dcfh) {
-            super(sym, createBadClassFileDiagnostic(file, diag, diagFactory), dcfh);
+            super(sym, () -> createBadClassFileDiagnostic(file, diag, diagFactory), dcfh);
         }
         // where
         private static JCDiagnostic createBadClassFileDiagnostic(

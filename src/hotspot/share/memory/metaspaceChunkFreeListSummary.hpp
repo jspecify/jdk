@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_METASPACECHUNKFREELISTSUMMARY_HPP
-#define SHARE_VM_MEMORY_METASPACECHUNKFREELISTSUMMARY_HPP
+#ifndef SHARE_MEMORY_METASPACECHUNKFREELISTSUMMARY_HPP
+#define SHARE_MEMORY_METASPACECHUNKFREELISTSUMMARY_HPP
 
+#include "utilities/globalDefinitions.hpp"
 
+// Todo: will need to rework this, see JDK-8251342
 class MetaspaceChunkFreeListSummary {
   size_t _num_specialized_chunks;
   size_t _num_small_chunks;
@@ -100,4 +102,4 @@ class MetaspaceChunkFreeListSummary {
   }
 };
 
-#endif // SHARE_VM_MEMORY_METASPACECHUNKFREELISTSUMMARY_HPP
+#endif // SHARE_MEMORY_METASPACECHUNKFREELISTSUMMARY_HPP

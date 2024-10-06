@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,11 +32,12 @@
  *     The test checks an following assertion of
  *     com.sun.jdi.ObjectReference.waitingThreads method spec:
  *        Returns a List containing a ThreadReference for each thread currently
- *        waiting for this object's monitor.
+ *        waiting to re-enter this object's monitor.
  *     There are two test cases:
  *        - An object with no waiting threads.
  *          A list with zero size is expected to be returned by the method.
- *        - An object with threads waiting in Object.wait(long) method.
+ *        - An object with threads waiting to re-enter the monitor after being
+ *          notified during execution of the Object.wait(long) method.
  *          The debugger checks with expected results:
  *            - a size of returned list of ThreadReferences,
  *            - the names of thread references,
@@ -57,16 +58,15 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jdi.ObjectReference.waitingThreads.waitingthreads004
  *        nsk.jdi.ObjectReference.waitingThreads.waitingthreads004a
- * @run main/othervm PropertyResolvingWrapper
+ * @run driver
  *      nsk.jdi.ObjectReference.waitingThreads.waitingthreads004
  *      -verbose
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=${test.vm.opts} ${test.java.opts}"
+ *      -debugee.vmkeys="${test.vm.opts} ${test.java.opts}"
  */
 

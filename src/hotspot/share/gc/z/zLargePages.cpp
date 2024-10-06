@@ -22,17 +22,18 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/gcLogPrecious.hpp"
 #include "gc/z/zLargePages.hpp"
-#include "logging/log.hpp"
 #include "runtime/os.hpp"
 
 ZLargePages::State ZLargePages::_state;
+bool ZLargePages::_os_enforced_transparent_mode;
 
 void ZLargePages::initialize() {
-  initialize_platform();
+  pd_initialize();
 
-  log_info(gc, init)("Memory: " JULONG_FORMAT "M", os::physical_memory() / M);
-  log_info(gc, init)("Large Page Support: %s", to_string());
+  log_info_p(gc, init)("Memory: " JULONG_FORMAT "M", os::physical_memory() / M);
+  log_info_p(gc, init)("Large Page Support: %s", to_string());
 }
 
 const char* ZLargePages::to_string() {
@@ -41,9 +42,17 @@ const char* ZLargePages::to_string() {
     return "Enabled (Explicit)";
 
   case Transparent:
-    return "Enabled (Transparent)";
+    if (_os_enforced_transparent_mode) {
+      return "Enabled (Transparent, OS enforced)";
+    } else {
+      return "Enabled (Transparent)";
+    }
 
   default:
-    return "Disabled";
+    if (_os_enforced_transparent_mode) {
+      return "Disabled (OS enforced)";
+    } else {
+      return "Disabled";
+    }
   }
 }

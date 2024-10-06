@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,53 +22,54 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/suspendibleThreadSet.hpp"
+#include "gc/z/zAddress.inline.hpp"
+#include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zOopClosures.inline.hpp"
-#include "gc/z/zStat.hpp"
+#include "gc/z/zRootsIterator.hpp"
 #include "gc/z/zTask.hpp"
-#include "gc/z/zThread.hpp"
-#include "runtime/jniHandles.hpp"
+#include "gc/z/zWeakRootsProcessor.hpp"
+#include "gc/z/zWorkers.hpp"
+#include "memory/iterator.hpp"
+#include "runtime/atomic.hpp"
+#include "utilities/debug.hpp"
 
-ZWeakRootsProcessor::ZWeakRootsProcessor(ZWorkers* workers) :
-    _workers(workers) {}
+class ZPhantomCleanOopClosure : public OopClosure {
+public:
+  virtual void do_oop(oop* p) {
+    ZBarrier::clean_barrier_on_phantom_oop_field((zpointer*)p);
+    SuspendibleThreadSet::yield();
+  }
+
+  virtual void do_oop(narrowOop* p) {
+    ShouldNotReachHere();
+  }
+};
+
+ZWeakRootsProcessor::ZWeakRootsProcessor(ZWorkers* workers)
+  : _workers(workers) {}
 
 class ZProcessWeakRootsTask : public ZTask {
 private:
-  ZWeakRootsIterator _weak_roots;
+  ZRootsIteratorWeakColored _roots_weak_colored;
 
 public:
-  ZProcessWeakRootsTask() :
-      ZTask("ZProcessWeakRootsTask"),
-      _weak_roots() {}
+  ZProcessWeakRootsTask()
+    : ZTask("ZProcessWeakRootsTask"),
+      _roots_weak_colored(ZGenerationIdOptional::old) {}
+
+  ~ZProcessWeakRootsTask() {
+    _roots_weak_colored.report_num_dead();
+  }
 
   virtual void work() {
-    ZPhantomIsAliveObjectClosure is_alive;
-    ZPhantomKeepAliveOopClosure keep_alive;
-    _weak_roots.weak_oops_do(&is_alive, &keep_alive);
+    SuspendibleThreadSetJoiner sts_joiner;
+    ZPhantomCleanOopClosure cl;
+    _roots_weak_colored.apply(&cl);
   }
 };
 
 void ZWeakRootsProcessor::process_weak_roots() {
   ZProcessWeakRootsTask task;
-  _workers->run_parallel(&task);
-}
-
-class ZProcessConcurrentWeakRootsTask : public ZTask {
-private:
-  ZConcurrentWeakRootsIterator _concurrent_weak_roots;
-
-public:
-  ZProcessConcurrentWeakRootsTask() :
-      ZTask("ZProcessConccurentWeakRootsTask"),
-      _concurrent_weak_roots() {}
-
-  virtual void work() {
-    ZPhantomCleanOopClosure cl;
-    _concurrent_weak_roots.oops_do(&cl);
-  }
-};
-
-void ZWeakRootsProcessor::process_concurrent_weak_roots() {
-  ZProcessConcurrentWeakRootsTask task;
-  _workers->run_concurrent(&task);
+  _workers->run(&task);
 }

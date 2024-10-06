@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,6 +63,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected JavacTypes(Context context) {
         context.put(JavacTypes.class, this);
         syms = Symtab.instance(context);
@@ -76,6 +77,8 @@ public class JavacTypes implements javax.lang.model.util.Types {
             case INTERSECTION:
             case ERROR:
             case TYPEVAR:
+            case PACKAGE:
+            case MODULE:
                 Type type = cast(Type.class, t);
                 return type.asElement();
             default:
@@ -123,7 +126,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
         Type ty = (Type)t;
         return types.directSupertypes(ty).stream()
                 .map(Type::stripMetadataIfNeeded)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)
@@ -131,7 +134,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
         TypeKind kind = t.getKind();
         if (kind == TypeKind.PACKAGE || kind == TypeKind.MODULE)
             throw new IllegalArgumentException(t.toString());
-        return types.erasure((Type)t).stripMetadataIfNeeded();
+        return types.erasure((Type)t).stripMetadata();
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)
@@ -152,7 +155,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
     @DefinedBy(Api.LANGUAGE_MODEL)
     public TypeMirror capture(TypeMirror t) {
         validateTypeNotIn(t, EXEC_OR_PKG_OR_MOD);
-        return types.capture((Type)t).stripMetadataIfNeeded();
+        return types.capture((Type)t).stripMetadata();
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)
@@ -301,6 +304,13 @@ public class JavacTypes implements javax.lang.model.util.Types {
     }
 
 
+    @DefinedBy(Api.LANGUAGE_MODEL)
+    @SuppressWarnings("unchecked")
+    public <T extends TypeMirror> T stripAnnotations(T t) {
+        return (T)((Type) t).stripMetadata();
+    }
+
+
     private static final Set<TypeKind> EXEC_OR_PKG_OR_MOD =
         EnumSet.of(TypeKind.EXECUTABLE, TypeKind.PACKAGE, TypeKind.MODULE);
 
@@ -329,18 +339,17 @@ public class JavacTypes implements javax.lang.model.util.Types {
                 || elem.getModifiers().contains(Modifier.PRIVATE))
             return Collections.emptySet();
 
-        if (!(elem instanceof MethodSymbol))
+        if (!(elem instanceof MethodSymbol methodSymbol))
             throw new IllegalArgumentException();
 
-        MethodSymbol m = (MethodSymbol) elem;
-        ClassSymbol origin = (ClassSymbol) m.owner;
+        ClassSymbol origin = (ClassSymbol) methodSymbol.owner;
 
         Set<MethodSymbol> results = new LinkedHashSet<>();
         for (Type t : types.closure(origin.type)) {
             if (t != origin.type) {
                 ClassSymbol c = (ClassSymbol) t.tsym;
-                for (Symbol sym : c.members().getSymbolsByName(m.name)) {
-                    if (sym.kind == MTH && m.overrides(sym, origin, types, true)) {
+                for (Symbol sym : c.members().getSymbolsByName(methodSymbol.name)) {
+                    if (sym.kind == MTH && methodSymbol.overrides(sym, origin, types, true)) {
                         results.add((MethodSymbol) sym);
                     }
                 }

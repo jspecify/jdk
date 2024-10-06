@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,7 +88,7 @@
  * <!-- TIFF plugin -->
  *   <tr>
  *     <th scope="row">
- *     <a href="https://partners.adobe.com/public/developer/en/tiff/TIFF6.pdf">
+ *     <a href="https://www.itu.int/itudoc/itu-t/com16/tiff-fx/docs/tiff6.pdf">
  *     TIFF</a>
  *     <td>yes
  *     <td>yes
@@ -101,7 +101,7 @@
  * <!-- WBMP plugin -->
  *   <tr>
  *     <th scope="row">
- *     <a href="http://www.wapforum.org/what/technical/SPEC-WAESpec-19990524.pdf">
+ *     <a href="https://www.wapforum.org/what/technical/SPEC-WAESpec-19990524.pdf">
  *     WBMP</a>
  *     <td>yes
  *     <td>yes

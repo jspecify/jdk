@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,7 @@
 
 package javax.print.attribute;
 
-import org.jspecify.annotations.Nullable;
-
+import java.io.Serial;
 import java.io.Serializable;
 
 /**
@@ -86,6 +85,7 @@ public abstract class ResolutionSyntax implements Serializable, Cloneable {
     /**
      * Use serialVersionUID from JDK 1.4 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = 2706743076526672017L;
 
     /**
@@ -266,16 +266,10 @@ public abstract class ResolutionSyntax implements Serializable, Cloneable {
      * @return {@code true} if {@code object} is equivalent to this resolution
      *         attribute, {@code false} otherwise
      */
-    
-    
-    public boolean equals(@Nullable Object object) {
-
-        return(object != null &&
-               object instanceof ResolutionSyntax &&
-               this.crossFeedResolution ==
-               ((ResolutionSyntax) object).crossFeedResolution &&
-               this.feedResolution ==
-               ((ResolutionSyntax) object).feedResolution);
+    public boolean equals(Object object) {
+        return object instanceof ResolutionSyntax other &&
+                this.crossFeedResolution == other.crossFeedResolution &&
+                this.feedResolution == other.feedResolution;
     }
 
     /**

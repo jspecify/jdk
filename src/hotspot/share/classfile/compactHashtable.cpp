@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,35 +23,42 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
-#include "classfile/compactHashtable.inline.hpp"
+#include "cds/archiveBuilder.hpp"
+#include "cds/cds_globals.hpp"
+#include "cds/cdsConfig.hpp"
+#include "classfile/compactHashtable.hpp"
 #include "classfile/javaClasses.hpp"
+#include "jvm.h"
 #include "logging/logMessage.hpp"
 #include "memory/metadataFactory.hpp"
-#include "memory/metaspaceShared.hpp"
-#include "oops/compressedOops.inline.hpp"
+#include "runtime/globals.hpp"
+#include "runtime/java.hpp"
 #include "runtime/vmThread.hpp"
 #include "utilities/numberSeq.hpp"
+
 #include <sys/stat.h>
 
+#if INCLUDE_CDS
 /////////////////////////////////////////////////////
 //
 // The compact hash table writer implementations
 //
-CompactHashtableWriter::CompactHashtableWriter(int num_buckets,
+CompactHashtableWriter::CompactHashtableWriter(int num_entries,
                                                CompactHashtableStats* stats) {
-  assert(DumpSharedSpaces, "dump-time only");
-  assert(num_buckets > 0, "no buckets");
-  _num_buckets = num_buckets;
-  _num_entries = 0;
+  assert(CDSConfig::is_dumping_archive(), "sanity");
+  assert(num_entries >= 0, "sanity");
+  _num_buckets = calculate_num_buckets(num_entries);
+  assert(_num_buckets > 0, "no buckets");
+
+  _num_entries_written = 0;
   _buckets = NEW_C_HEAP_ARRAY(GrowableArray<Entry>*, _num_buckets, mtSymbol);
   for (int i=0; i<_num_buckets; i++) {
-    _buckets[i] = new (ResourceObj::C_HEAP, mtSymbol) GrowableArray<Entry>(0, true, mtSymbol);
+    _buckets[i] = new (mtSymbol) GrowableArray<Entry>(0, mtSymbol);
   }
 
   _stats = stats;
-  _compact_buckets = NULL;
-  _compact_entries = NULL;
+  _compact_buckets = nullptr;
+  _compact_entries = nullptr;
   _num_empty_buckets = 0;
   _num_value_only_buckets = 0;
   _num_other_buckets = 0;
@@ -66,11 +73,24 @@ CompactHashtableWriter::~CompactHashtableWriter() {
   FREE_C_HEAP_ARRAY(GrowableArray<Entry>*, _buckets);
 }
 
+size_t CompactHashtableWriter::estimate_size(int num_entries) {
+  int num_buckets = calculate_num_buckets(num_entries);
+  size_t bucket_bytes = ArchiveBuilder::ro_array_bytesize<u4>(num_buckets + 1);
+
+  // In worst case, we have no VALUE_ONLY_BUCKET_TYPE, so each entry takes 2 slots
+  int entries_space = 2 * num_entries;
+  size_t entry_bytes = ArchiveBuilder::ro_array_bytesize<u4>(entries_space);
+
+  return bucket_bytes
+       + entry_bytes
+       + SimpleCompactHashtable::calculate_header_size();
+}
+
 // Add a symbol entry to the temporary hash table
 void CompactHashtableWriter::add(unsigned int hash, u4 value) {
   int index = hash % _num_buckets;
   _buckets[index]->append_if_missing(Entry(hash, value));
-  _num_entries++;
+  _num_entries_written++;
 }
 
 void CompactHashtableWriter::allocate_table() {
@@ -80,7 +100,7 @@ void CompactHashtableWriter::allocate_table() {
     int bucket_size = bucket->length();
     if (bucket_size == 1) {
       entries_space++;
-    } else {
+    } else if (bucket_size > 1) {
       entries_space += 2 * bucket_size;
     }
   }
@@ -90,13 +110,15 @@ void CompactHashtableWriter::allocate_table() {
                                   "Too many entries.");
   }
 
-  _compact_buckets = MetaspaceShared::new_ro_array<u4>(_num_buckets + 1);
-  _compact_entries = MetaspaceShared::new_ro_array<u4>(entries_space);
+  _compact_buckets = ArchiveBuilder::new_ro_array<u4>(_num_buckets + 1);
+  _compact_entries = ArchiveBuilder::new_ro_array<u4>(entries_space);
 
   _stats->bucket_count    = _num_buckets;
-  _stats->bucket_bytes    = _compact_buckets->size() * BytesPerWord;
-  _stats->hashentry_count = _num_entries;
-  _stats->hashentry_bytes = _compact_entries->size() * BytesPerWord;
+  _stats->bucket_bytes    = align_up(_compact_buckets->size() * BytesPerWord,
+                                     SharedSpaceObjectAlignment);
+  _stats->hashentry_count = _num_entries_written;
+  _stats->hashentry_bytes = align_up(_compact_entries->size() * BytesPerWord,
+                                     SharedSpaceObjectAlignment);
 }
 
 // Write the compact table's buckets
@@ -143,24 +165,25 @@ void CompactHashtableWriter::dump(SimpleCompactHashtable *cht, const char* table
   dump_table(&summary);
 
   int table_bytes = _stats->bucket_bytes + _stats->hashentry_bytes;
-  address base_address = address(MetaspaceShared::shared_rs()->base());
-  cht->init(base_address,  _num_entries, _num_buckets,
+  address base_address = address(SharedBaseAddress);
+  cht->init(base_address,  _num_entries_written, _num_buckets,
             _compact_buckets->data(), _compact_entries->data());
 
   LogMessage(cds, hashtables) msg;
   if (msg.is_info()) {
     double avg_cost = 0.0;
-    if (_num_entries > 0) {
-      avg_cost = double(table_bytes)/double(_num_entries);
+    if (_num_entries_written > 0) {
+      avg_cost = double(table_bytes)/double(_num_entries_written);
     }
     msg.info("Shared %s table stats -------- base: " PTR_FORMAT,
                          table_name, (intptr_t)base_address);
-    msg.info("Number of entries       : %9d", _num_entries);
+    msg.info("Number of entries       : %9d", _num_entries_written);
     msg.info("Total bytes used        : %9d", table_bytes);
     msg.info("Average bytes per entry : %9.3f", avg_cost);
     msg.info("Average bucket size     : %9.3f", summary.avg());
     msg.info("Variance of bucket size : %9.3f", summary.variance());
     msg.info("Std. dev. of bucket size: %9.3f", summary.sd());
+    msg.info("Maximum bucket size     : %9d", (int)summary.maximum());
     msg.info("Empty buckets           : %9d", _num_empty_buckets);
     msg.info("Value_Only buckets      : %9d", _num_value_only_buckets);
     msg.info("Other buckets           : %9d", _num_other_buckets);
@@ -169,131 +192,35 @@ void CompactHashtableWriter::dump(SimpleCompactHashtable *cht, const char* table
 
 /////////////////////////////////////////////////////////////
 //
-// Customization for dumping Symbol and String tables
-
-void CompactSymbolTableWriter::add(unsigned int hash, Symbol *symbol) {
-  uintx deltax = MetaspaceShared::object_delta(symbol);
-  // When the symbols are stored into the archive, we already check that
-  // they won't be more than MAX_SHARED_DELTA from the base address, or
-  // else the dumping would have been aborted.
-  assert(deltax <= MAX_SHARED_DELTA, "must not be");
-  u4 delta = u4(deltax);
-
-  CompactHashtableWriter::add(hash, delta);
-}
-
-void CompactStringTableWriter::add(unsigned int hash, oop string) {
-  CompactHashtableWriter::add(hash, CompressedOops::encode(string));
-}
-
-void CompactSymbolTableWriter::dump(CompactHashtable<Symbol*, char> *cht) {
-  CompactHashtableWriter::dump(cht, "symbol");
-}
-
-void CompactStringTableWriter::dump(CompactHashtable<oop, char> *cht) {
-  CompactHashtableWriter::dump(cht, "string");
-}
-
-/////////////////////////////////////////////////////////////
-//
 // The CompactHashtable implementation
 //
 
-void SimpleCompactHashtable::serialize(SerializeClosure* soc) {
-  soc->do_ptr((void**)&_base_address);
+void SimpleCompactHashtable::init(address base_address, u4 entry_count, u4 bucket_count, u4* buckets, u4* entries) {
+  _bucket_count = bucket_count;
+  _entry_count = entry_count;
+  _base_address = base_address;
+  _buckets = buckets;
+  _entries = entries;
+}
+
+size_t SimpleCompactHashtable::calculate_header_size() {
+  // We have 5 fields. Each takes up sizeof(intptr_t). See WriteClosure::do_u4
+  size_t bytes = sizeof(intptr_t) * 5;
+  return bytes;
+}
+
+void SimpleCompactHashtable::serialize_header(SerializeClosure* soc) {
+  // NOTE: if you change this function, you MUST change the number 5 in
+  // calculate_header_size() accordingly.
   soc->do_u4(&_entry_count);
   soc->do_u4(&_bucket_count);
-  soc->do_ptr((void**)&_buckets);
-  soc->do_ptr((void**)&_entries);
-}
-
-bool SimpleCompactHashtable::exists(u4 value) {
-  assert(!DumpSharedSpaces, "run-time only");
-
-  if (_entry_count == 0) {
-    return false;
-  }
-
-  unsigned int hash = (unsigned int)value;
-  int index = hash % _bucket_count;
-  u4 bucket_info = _buckets[index];
-  u4 bucket_offset = BUCKET_OFFSET(bucket_info);
-  int bucket_type = BUCKET_TYPE(bucket_info);
-  u4* entry = _entries + bucket_offset;
-
-  if (bucket_type == VALUE_ONLY_BUCKET_TYPE) {
-    return (entry[0] == value);
-  } else {
-    u4*entry_max = _entries + BUCKET_OFFSET(_buckets[index + 1]);
-    while (entry <entry_max) {
-      if (entry[1] == value) {
-        return true;
-      }
-      entry += 2;
-    }
-    return false;
+  soc->do_ptr(&_buckets);
+  soc->do_ptr(&_entries);
+  if (soc->reading()) {
+    _base_address = (address)SharedBaseAddress;
   }
 }
-
-template <class I>
-inline void SimpleCompactHashtable::iterate(const I& iterator) {
-  for (u4 i = 0; i < _bucket_count; i++) {
-    u4 bucket_info = _buckets[i];
-    u4 bucket_offset = BUCKET_OFFSET(bucket_info);
-    int bucket_type = BUCKET_TYPE(bucket_info);
-    u4* entry = _entries + bucket_offset;
-
-    if (bucket_type == VALUE_ONLY_BUCKET_TYPE) {
-      iterator.do_value(_base_address, entry[0]);
-    } else {
-      u4*entry_max = _entries + BUCKET_OFFSET(_buckets[i + 1]);
-      while (entry < entry_max) {
-        iterator.do_value(_base_address, entry[1]);
-        entry += 2;
-      }
-    }
-  }
-}
-
-template <class T, class N> void CompactHashtable<T, N>::serialize(SerializeClosure* soc) {
-  SimpleCompactHashtable::serialize(soc);
-  soc->do_u4(&_type);
-}
-
-class CompactHashtable_SymbolIterator {
-  SymbolClosure* const _closure;
-public:
-  CompactHashtable_SymbolIterator(SymbolClosure *cl) : _closure(cl) {}
-  inline void do_value(address base_address, u4 offset) const {
-    Symbol* sym = (Symbol*)((void*)(base_address + offset));
-    _closure->do_symbol(&sym);
-  }
-};
-
-template <class T, class N> void CompactHashtable<T, N>::symbols_do(SymbolClosure *cl) {
-  CompactHashtable_SymbolIterator iterator(cl);
-  iterate(iterator);
-}
-
-class CompactHashtable_OopIterator {
-  OopClosure* const _closure;
-public:
-  CompactHashtable_OopIterator(OopClosure *cl) : _closure(cl) {}
-  inline void do_value(address base_address, u4 offset) const {
-    narrowOop o = (narrowOop)offset;
-    _closure->do_oop(&o);
-  }
-};
-
-template <class T, class N> void CompactHashtable<T, N>::oops_do(OopClosure* cl) {
-  assert(_type == _string_table || _bucket_count == 0, "sanity");
-  CompactHashtable_OopIterator iterator(cl);
-  iterate(iterator);
-}
-
-// Explicitly instantiate these types
-template class CompactHashtable<Symbol*, char>;
-template class CompactHashtable<oop, char>;
+#endif // INCLUDE_CDS
 
 #ifndef O_BINARY       // if defined (Win32) use binary files.
 #define O_BINARY 0     // otherwise do nothing.
@@ -309,12 +236,12 @@ HashtableTextDump::HashtableTextDump(const char* filename) : _fd(-1) {
     quit("Unable to get hashtable dump file size", filename);
   }
   _size = st.st_size;
-  _fd = open(filename, O_RDONLY | O_BINARY, 0);
+  _fd = os::open(filename, O_RDONLY | O_BINARY, 0);
   if (_fd < 0) {
     quit("Unable to open hashtable dump file", filename);
   }
-  _base = os::map_memory(_fd, filename, 0, NULL, _size, true, false);
-  if (_base == NULL) {
+  _base = os::map_memory(_fd, filename, 0, nullptr, _size, true, false);
+  if (_base == nullptr) {
     quit("Unable to map hashtable dump file", filename);
   }
   _p = _base;
@@ -327,7 +254,7 @@ HashtableTextDump::HashtableTextDump(const char* filename) : _fd(-1) {
 HashtableTextDump::~HashtableTextDump() {
   os::unmap_memory((char*)_base, _size);
   if (_fd >= 0) {
-    close(_fd);
+    ::close(_fd);
   }
 }
 
@@ -439,8 +366,8 @@ int HashtableTextDump::scan_symbol_prefix() {
   return utf8_length;
 }
 
-jchar HashtableTextDump::unescape(const char* from, const char* end, int count) {
-  jchar value = 0;
+int HashtableTextDump::unescape(const char* from, const char* end, int count) {
+  int value = 0;
 
   corrupted_if(from + count > end, "Truncated");
 
@@ -483,7 +410,7 @@ void HashtableTextDump::get_utf8(char* utf8_buffer, int utf8_length) {
       switch (c) {
       case 'x':
         {
-          jchar value = unescape(from, end, 2);
+          int value = unescape(from, end, 2);
           from += 2;
           assert(value <= 0xff, "sanity");
           *to++ = (char)(value & 0xff);
@@ -504,10 +431,10 @@ void HashtableTextDump::get_utf8(char* utf8_buffer, int utf8_length) {
 }
 
 // NOTE: the content is NOT the same as
-// UTF8::as_quoted_ascii(const char* utf8_str, int utf8_length, char* buf, int buflen).
+// UTF8::as_quoted_ascii(const char* utf8_str, int utf8_length, char* buf, size_t buflen).
 // We want to escape \r\n\t so that output [1] is more readable; [2] can be more easily
 // parsed by scripts; [3] quickly processed by HashtableTextDump::get_utf8()
-void HashtableTextDump::put_utf8(outputStream* st, const char* utf8_string, int utf8_length) {
+void HashtableTextDump::put_utf8(outputStream* st, const char* utf8_string, size_t utf8_length) {
   const char *c = utf8_string;
   const char *end = c + utf8_length;
   for (; c < end; c++) {

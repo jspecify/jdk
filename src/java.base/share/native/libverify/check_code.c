@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,9 +30,6 @@
 /*
    Exported function:
 
-   jboolean
-   VerifyClass(JNIEnv *env, jclass cb, char *message_buffer,
-               jint buffer_length)
    jboolean
    VerifyClassForMajorVersion(JNIEnv *env, jclass cb, char *message_buffer,
                               jint buffer_length, jint major_version)
@@ -84,6 +81,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "jni.h"
 #include "jni_util.h"
@@ -471,7 +469,8 @@ static void CCout_of_memory (context_type *);
 /* Because we can longjmp any time, we need to be very careful about
  * remembering what needs to be freed. */
 
-static void check_and_push(context_type *context, const void *ptr, int kind);
+static void check_and_push_malloc_block(context_type *context, void *ptr);
+static void check_and_push_string_utf(context_type *context, const char *ptr);
 static void pop_and_free(context_type *context);
 
 static int signature_to_args_size(const char *method_signature);
@@ -607,7 +606,7 @@ class_to_ID(context_type *context, jclass cb, jboolean loadable)
     unsigned short *pID;
     const char *name = JVM_GetClassNameUTF(env, cb);
 
-    check_and_push(context, name, VM_STRING_UTF);
+    check_and_push_string_utf(context, name);
     hash = class_hash_fun(name);
     pID = &(class_hash->table[hash % HASH_TABLE_SIZE]);
     while (*pID) {
@@ -707,6 +706,7 @@ done:
     return *pID;
 }
 
+#ifdef DEBUG
 static const char *
 ID_to_class_name(context_type *context, unsigned short ID)
 {
@@ -714,6 +714,7 @@ ID_to_class_name(context_type *context, unsigned short ID)
     hash_bucket_type *bucket = GET_BUCKET(class_hash, ID);
     return bucket->name;
 }
+#endif
 
 static jclass
 ID_to_class(context_type *context, unsigned short ID)
@@ -908,20 +909,6 @@ VerifyClassForMajorVersion(JNIEnv *env, jclass cb, char *buffer, jint len,
     return result;
 }
 
-#define OLD_FORMAT_MAX_MAJOR_VERSION 48
-
-JNIEXPORT jboolean
-VerifyClass(JNIEnv *env, jclass cb, char *buffer, jint len)
-{
-    static int warned = 0;
-    if (!warned) {
-      jio_fprintf(stdout, "Warning! An old version of jvm is used. This is not supported.\n");
-      warned = 1;
-    }
-    return VerifyClassForMajorVersion(env, cb, buffer, len,
-                                      OLD_FORMAT_MAX_MAJOR_VERSION);
-}
-
 static void
 verify_field(context_type *context, jclass cb, int field_index)
 {
@@ -954,10 +941,10 @@ read_all_code(context_type* context, jclass cb, int num_methods,
     int i;
 
     lengths = malloc(sizeof(int) * num_methods);
-    check_and_push(context, lengths, VM_MALLOC_BLK);
+    check_and_push_malloc_block(context, lengths);
 
     code = malloc(sizeof(unsigned char*) * num_methods);
-    check_and_push(context, code, VM_MALLOC_BLK);
+    check_and_push_malloc_block(context, code);
 
     *(lengths_addr) = lengths;
     *(code_addr) = code;
@@ -966,7 +953,7 @@ read_all_code(context_type* context, jclass cb, int num_methods,
         lengths[i] = JVM_GetMethodIxByteCodeLength(context->env, cb, i);
         if (lengths[i] > 0) {
             code[i] = malloc(sizeof(unsigned char) * (lengths[i] + 1));
-            check_and_push(context, code[i], VM_MALLOC_BLK);
+            check_and_push_malloc_block(context, code[i]);
             JVM_GetMethodIxByteCode(context->env, cb, i, code[i]);
         } else {
             code[i] = NULL;
@@ -1209,7 +1196,7 @@ verify_opcode_operands(context_type *context, unsigned int inumber, int offset)
             }
         }
         if (opcode == JVM_OPC_tableswitch) {
-            keys = _ck_ntohl(lpc[2]) -  _ck_ntohl(lpc[1]) + 1;
+            keys = _ck_ntohl(lpc[2]) - _ck_ntohl(lpc[1]) + 1;
             delta = 1;
         } else {
             keys = _ck_ntohl(lpc[1]); /* number of pairs */
@@ -1320,7 +1307,7 @@ verify_opcode_operands(context_type *context, unsigned int inumber, int offset)
         /* Make sure the constant pool item is the right type. */
         verify_constant_pool_type(context, key, kind);
         methodname = JVM_GetCPMethodNameUTF(env, cb, key);
-        check_and_push(context, methodname, VM_STRING_UTF);
+        check_and_push_string_utf(context, methodname);
         is_constructor = !strcmp(methodname, "<init>");
         is_internal = methodname[0] == '<';
         pop_and_free(context);
@@ -1369,7 +1356,7 @@ verify_opcode_operands(context_type *context, unsigned int inumber, int offset)
             unsigned int args2;
             const char *signature =
                 JVM_GetCPMethodSignatureUTF(env, context->class, key);
-            check_and_push(context, signature, VM_STRING_UTF);
+            check_and_push_string_utf(context, signature);
             args1 = signature_to_args_size(signature) + 1;
             args2 = code[offset + 3];
             if (args1 != args2) {
@@ -1390,7 +1377,7 @@ verify_opcode_operands(context_type *context, unsigned int inumber, int offset)
     case JVM_OPC_invokedynamic:
         CCerror(context,
                 "invokedynamic bytecode is not supported in this class file version");
-
+        break;
     case JVM_OPC_instanceof:
     case JVM_OPC_checkcast:
     case JVM_OPC_new:
@@ -1415,7 +1402,7 @@ verify_opcode_operands(context_type *context, unsigned int inumber, int offset)
             if (WITH_ZERO_EXTRA_INFO(target) !=
                              MAKE_FULLINFO(ITEM_Object, 0, 0))
                 CCerror(context, "Illegal creation of multi-dimensional array");
-            /* operand gets set to the "unitialized object".  operand2 gets
+            /* operand gets set to the "uninitialized object".  operand2 gets
              * set to what the value will be after it's initialized. */
             this_idata->operand.fi = MAKE_FULLINFO(ITEM_NewObject, 0, inumber);
             this_idata->operand2.fi = target;
@@ -1667,7 +1654,7 @@ initialize_exception_table(context_type *context)
             classname = JVM_GetCPClassNameUTF(env,
                                               context->class,
                                               einfo.catchType);
-            check_and_push(context, classname, VM_STRING_UTF);
+            check_and_push_string_utf(context, classname);
             stack_item->item = make_class_info_from_name(context, classname);
             if (!isAssignableTo(context,
                                 stack_item->item,
@@ -1691,15 +1678,20 @@ static int instruction_length(unsigned char *iptr, unsigned char *end)
     switch (instruction) {
         case JVM_OPC_tableswitch: {
             int *lpc = (int *)UCALIGN(iptr + 1);
-            int index;
+            int64_t low, high, index;
             if (lpc + 2 >= (int *)end) {
                 return -1; /* do not read pass the end */
             }
-            index = _ck_ntohl(lpc[2]) - _ck_ntohl(lpc[1]);
+            low  = _ck_ntohl(lpc[1]);
+            high = _ck_ntohl(lpc[2]);
+            index = high - low;
+            // The value of low must be less than or equal to high - i.e. index >= 0
             if ((index < 0) || (index > 65535)) {
                 return -1;      /* illegal */
             } else {
-                return (unsigned char *)(&lpc[index + 4]) - iptr;
+                unsigned char *finish = (unsigned char *)(&lpc[index + 4]);
+                assert(finish >= iptr);
+                return (int)(finish - iptr);
             }
         }
 
@@ -1714,8 +1706,11 @@ static int instruction_length(unsigned char *iptr, unsigned char *end)
              */
             if (npairs < 0 || npairs >= 65536)
                 return  -1;
-            else
-                return (unsigned char *)(&lpc[2 * (npairs + 1)]) - iptr;
+            else {
+                unsigned char *finish = (unsigned char *)(&lpc[2 * (npairs + 1)]);
+                assert(finish >= iptr);
+                return (int)(finish - iptr);
+            }
         }
 
         case JVM_OPC_wide:
@@ -1817,7 +1812,7 @@ initialize_dataflow(context_type *context)
         }
     }
     signature = JVM_GetMethodIxSignatureUTF(env, cb, mi);
-    check_and_push(context, signature, VM_STRING_UTF);
+    check_and_push_string_utf(context, signature);
     /* Fill in each of the arguments into the registers. */
     for (p = signature + 1; *p != JVM_SIGNATURE_ENDFUNC; ) {
         char fieldchar = signature_to_fieldtype(context, &p, &full_info);
@@ -1870,7 +1865,6 @@ run_dataflow(context_type *context) {
                 work_to_do = JNI_TRUE;
 #ifdef DEBUG
                 if (verify_verbose) {
-                    int opcode = this_idata->opcode;
                     jio_fprintf(stdout, "Instruction %d: ", inumber);
                     print_stack(context, &this_idata->stack_info);
                     print_registers(context, &this_idata->register_info);
@@ -2060,7 +2054,7 @@ pop_stack(context_type *context, unsigned int inumber, stack_info_type *new_stac
                                            context->class,
                                            operand);
             char *ip = buffer;
-            check_and_push(context, signature, VM_STRING_UTF);
+            check_and_push_string_utf(context, signature);
 #ifdef DEBUG
             if (verify_verbose) {
                 print_formatted_fieldname(context, operand);
@@ -2086,7 +2080,7 @@ pop_stack(context_type *context, unsigned int inumber, stack_info_type *new_stac
                                             operand);
             char *ip = buffer;
             const char *p;
-            check_and_push(context, signature, VM_STRING_UTF);
+            check_and_push_string_utf(context, signature);
 #ifdef DEBUG
             if (verify_verbose) {
                 print_formatted_methodname(context, operand);
@@ -2182,11 +2176,11 @@ pop_stack(context_type *context, unsigned int inumber, stack_info_type *new_stac
                 }
                 break;
 
-            case '@': {         /* unitialized object, for call to <init> */
+            case '@': {         /* uninitialized object, for call to <init> */
                 int item_type = GET_ITEM_TYPE(top_type);
                 if (item_type != ITEM_NewObject && item_type != ITEM_InitObject)
                     CCerror(context,
-                            "Expecting to find unitialized object on stack");
+                            "Expecting to find uninitialized object on stack");
                 break;
             }
 
@@ -2386,7 +2380,7 @@ pop_stack(context_type *context, unsigned int inumber, stack_info_type *new_stac
                                             operand);
             int item;
             const char *p;
-            check_and_push(context, signature, VM_STRING_UTF);
+            check_and_push_string_utf(context, signature);
             if (opcode == JVM_OPC_invokestatic) {
                 item = 0;
             } else if (opcode == JVM_OPC_invokeinit) {
@@ -2485,7 +2479,7 @@ pop_stack(context_type *context, unsigned int inumber, stack_info_type *new_stac
             /* Make sure that nothing on the stack already looks like what
              * we want to create.  I can't image how this could possibly happen
              * but we should test for it anyway, since if it could happen, the
-             * result would be an unitialized object being able to masquerade
+             * result would be an uninitialized object being able to masquerade
              * as an initialized one.
              */
             stack_item_type *item;
@@ -2768,7 +2762,7 @@ push_stack(context_type *context, unsigned int inumber, stack_info_type *new_sta
             const char *signature = JVM_GetCPFieldSignatureUTF(context->env,
                                                                context->class,
                                                                operand);
-            check_and_push(context, signature, VM_STRING_UTF);
+            check_and_push_string_utf(context, signature);
 #ifdef DEBUG
             if (verify_verbose) {
                 print_formatted_fieldname(context, operand);
@@ -2790,7 +2784,7 @@ push_stack(context_type *context, unsigned int inumber, stack_info_type *new_sta
                                                                 context->class,
                                                                 operand);
             const char *result_signature;
-            check_and_push(context, signature, VM_STRING_UTF);
+            check_and_push_string_utf(context, signature);
             result_signature = get_result_signature(signature);
             if (result_signature++ == NULL) {
                 CCerror(context, "Illegal signature %s", signature);
@@ -3254,6 +3248,7 @@ merge_stack(context_type *context, unsigned int from_inumber,
         jboolean change = JNI_FALSE;
         for (old = stack, new = new_stack; old != NULL;
                    old = old->next, new = new->next) {
+            assert(new != NULL);
             if (!isAssignableTo(context, new->item, old->item)) {
                 change = JNI_TRUE;
                 break;
@@ -3630,7 +3625,7 @@ cp_index_to_class_fullinfo(context_type *context, int cp_index, int kind)
         CCerror(context, "Internal error #5");
     }
 
-    check_and_push(context, classname, VM_STRING_UTF);
+    check_and_push_string_utf(context, classname);
     if (classname[0] == JVM_SIGNATURE_ARRAY) {
         /* This make recursively call us, in case of a class array */
         signature_to_fieldtype(context, &classname, &result);
@@ -3828,10 +3823,11 @@ signature_to_fieldtype(context_type *context,
                     result = 0;
                     break;
                 }
-                length = finish - p;
+                assert(finish >= p);
+                length = (int)(finish - p);
                 if (length + 1 > (int)sizeof(buffer_space)) {
                     buffer = malloc(length + 1);
-                    check_and_push(context, buffer, VM_MALLOC_BLK);
+                    check_and_push_malloc_block(context, buffer);
                 }
                 memcpy(buffer, p, length);
                 buffer[length] = '\0';
@@ -4150,7 +4146,7 @@ static void free_block(void *ptr, int kind)
     }
 }
 
-static void check_and_push(context_type *context, const void *ptr, int kind)
+static void check_and_push_common(context_type *context, void *ptr, int kind)
 {
     alloc_stack_type *p;
     if (ptr == 0)
@@ -4162,14 +4158,22 @@ static void check_and_push(context_type *context, const void *ptr, int kind)
         p = malloc(sizeof(alloc_stack_type));
         if (p == 0) {
             /* Make sure we clean up. */
-            free_block((void *)ptr, kind);
+            free_block(ptr, kind);
             CCout_of_memory(context);
         }
     }
     p->kind = kind;
-    p->ptr = (void *)ptr;
+    p->ptr = ptr;
     p->next = context->allocated_memory;
     context->allocated_memory = p;
+}
+
+static void check_and_push_malloc_block(context_type *context, void *ptr) {
+  check_and_push_common(context, ptr, VM_MALLOC_BLK);
+}
+
+static void check_and_push_string_utf(context_type *context, const char *ptr) {
+  check_and_push_common(context, (void *)ptr, VM_STRING_UTF);
 }
 
 static void pop_and_free(context_type *context)

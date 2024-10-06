@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,19 @@
 
 #import "LWCToolkit.h"
 #import "ThreadUtilities.h"
+#include "GeomUtilities.h"
+#include "JNIUtilities.h"
 
-#import <JavaNativeFoundation/JavaNativeFoundation.h>
+/**
+ * Some default values for invalid CoreGraphics display ID.
+ */
+#define DEFAULT_DEVICE_WIDTH 1024
+#define DEFAULT_DEVICE_HEIGHT 768
+#define DEFAULT_DEVICE_DPI 72
 
+static NSInteger architecture = -1;
 /*
- * Convert the mode string to the more convinient bits per pixel value
+ * Convert the mode string to the more convenient bits per pixel value
  */
 static int getBPPFromModeString(CFStringRef mode)
 {
@@ -51,40 +59,54 @@ static int getBPPFromModeString(CFStringRef mode)
     return 0;
 }
 
-static BOOL isValidDisplayMode(CGDisplayModeRef mode){
+static BOOL isValidDisplayMode(CGDisplayModeRef mode) {
+    // Workaround for apple bug FB13261205, since it only affects arm based macs
+    // and arm support started with macOS 11 ignore the workaround for previous versions
+    if (@available(macOS 11, *)) {
+        if (architecture == -1) {
+            architecture = [[NSRunningApplication currentApplication] executableArchitecture];
+        }
+        if (architecture == NSBundleExecutableArchitectureARM64) {
+            return (CGDisplayModeGetPixelWidth(mode) >= 800);
+        }
+    }
     return (1 < CGDisplayModeGetWidth(mode) && 1 < CGDisplayModeGetHeight(mode));
 }
 
 static CFMutableArrayRef getAllValidDisplayModes(jint displayID){
+    // CGDisplayCopyAllDisplayModes can return NULL if displayID is invalid
     CFArrayRef allModes = CGDisplayCopyAllDisplayModes(displayID, NULL);
+    CFMutableArrayRef validModes = nil;
+    if (allModes) {
+        CFIndex numModes = CFArrayGetCount(allModes);
+        validModes = CFArrayCreateMutable(kCFAllocatorDefault, numModes + 1, &kCFTypeArrayCallBacks);
 
-    CFIndex numModes = CFArrayGetCount(allModes);
-    CFMutableArrayRef validModes = CFArrayCreateMutable(kCFAllocatorDefault, numModes + 1, &kCFTypeArrayCallBacks);
+        CFIndex n;
+        for (n=0; n < numModes; n++) {
+            CGDisplayModeRef cRef = (CGDisplayModeRef) CFArrayGetValueAtIndex(allModes, n);
+            if (cRef != NULL && isValidDisplayMode(cRef)) {
+                CFArrayAppendValue(validModes, cRef);
+            }
+        }
+        CFRelease(allModes);
 
-    CFIndex n;
-    for (n=0; n < numModes; n++) {
-        CGDisplayModeRef cRef = (CGDisplayModeRef) CFArrayGetValueAtIndex(allModes, n);
-        if (cRef != NULL && isValidDisplayMode(cRef)) {
-            CFArrayAppendValue(validModes, cRef);
+        // CGDisplayCopyDisplayMode can return NULL if displayID is invalid
+        CGDisplayModeRef currentMode = CGDisplayCopyDisplayMode(displayID);
+        if (currentMode) {
+            BOOL containsCurrentMode = NO;
+            numModes = CFArrayGetCount(validModes);
+            for (n=0; n < numModes; n++) {
+                if(CFArrayGetValueAtIndex(validModes, n) == currentMode){
+                    containsCurrentMode = YES;
+                    break;
+                }
+            }
+            if (!containsCurrentMode) {
+                CFArrayAppendValue(validModes, currentMode);
+            }
+            CGDisplayModeRelease(currentMode);
         }
     }
-    CFRelease(allModes);
-    
-    CGDisplayModeRef currentMode = CGDisplayCopyDisplayMode(displayID);
-
-    BOOL containsCurrentMode = NO;
-    numModes = CFArrayGetCount(validModes);
-    for (n=0; n < numModes; n++) {
-        if(CFArrayGetValueAtIndex(validModes, n) == currentMode){
-            containsCurrentMode = YES;
-            break;
-        }
-    }
-
-    if (!containsCurrentMode) {
-        CFArrayAppendValue(validModes, currentMode);
-    }
-    CGDisplayModeRelease(currentMode);
 
     return validModes;
 }
@@ -95,17 +117,19 @@ static CFMutableArrayRef getAllValidDisplayModes(jint displayID){
  */
 static CGDisplayModeRef getBestModeForParameters(CFArrayRef allModes, int w, int h, int bpp, int refrate) {
     CGDisplayModeRef bestGuess = NULL;
-    CFIndex numModes = CFArrayGetCount(allModes), n;
-    int thisBpp = 0;
+    CFIndex numModes = allModes ? CFArrayGetCount(allModes) : 0, n;
+
     for(n = 0; n < numModes; n++ ) {
         CGDisplayModeRef cRef = (CGDisplayModeRef) CFArrayGetValueAtIndex(allModes, n);
         if(cRef == NULL) {
             continue;
         }
         CFStringRef modeString = CGDisplayModeCopyPixelEncoding(cRef);
-        thisBpp = getBPPFromModeString(modeString);
+        int thisBpp = getBPPFromModeString(modeString);
         CFRelease(modeString);
-        if (thisBpp != bpp || (int)CGDisplayModeGetHeight(cRef) != h || (int)CGDisplayModeGetWidth(cRef) != w) {
+        int thisH = (int)CGDisplayModeGetHeight(cRef);
+        int thisW = (int)CGDisplayModeGetWidth(cRef);
+        if (thisBpp != bpp || thisH != h || thisW != w) {
             // One of the key parameters does not match
             continue;
         }
@@ -116,11 +140,12 @@ static CGDisplayModeRef getBestModeForParameters(CFArrayRef allModes, int w, int
 
         // Refresh rate might be 0 in display mode and we ask for specific display rate
         // but if we do not find exact match then 0 refresh rate might be just Ok
-        if (CGDisplayModeGetRefreshRate(cRef) == refrate) {
+        int thisRefrate = (int)CGDisplayModeGetRefreshRate(cRef);
+        if (thisRefrate == refrate) {
             // Exact match
             return cRef;
         }
-        if (CGDisplayModeGetRefreshRate(cRef) == 0) {
+        if (thisRefrate == 0) {
             // Not exactly what was asked for, but may fit our needs if we don't find an exact match
             bestGuess = cRef;
         }
@@ -129,22 +154,26 @@ static CGDisplayModeRef getBestModeForParameters(CFArrayRef allModes, int w, int
 }
 
 /*
- * Create a new java.awt.DisplayMode instance based on provided CGDisplayModeRef
+ * Create a new java.awt.DisplayMode instance based on provided
+ * CGDisplayModeRef, if CGDisplayModeRef is NULL, then some stub is returned.
  */
-static jobject createJavaDisplayMode(CGDisplayModeRef mode, JNIEnv *env, jint displayID) {
+static jobject createJavaDisplayMode(CGDisplayModeRef mode, JNIEnv *env) {
     jobject ret = NULL;
-    jint h, w, bpp, refrate;
-    JNF_COCOA_ENTER(env);
-    CFStringRef currentBPP = CGDisplayModeCopyPixelEncoding(mode);
-    bpp = getBPPFromModeString(currentBPP);
-    refrate = CGDisplayModeGetRefreshRate(mode);
-    h = CGDisplayModeGetHeight(mode);
-    w = CGDisplayModeGetWidth(mode);
-    CFRelease(currentBPP);
-    static JNF_CLASS_CACHE(jc_DisplayMode, "java/awt/DisplayMode");
-    static JNF_CTOR_CACHE(jc_DisplayMode_ctor, jc_DisplayMode, "(IIII)V");
-    ret = JNFNewObject(env, jc_DisplayMode_ctor, w, h, bpp, refrate);
-    JNF_COCOA_EXIT(env);
+    jint h = DEFAULT_DEVICE_HEIGHT, w = DEFAULT_DEVICE_WIDTH, bpp = 0, refrate = 0;
+    JNI_COCOA_ENTER(env);
+    if (mode) {
+        CFStringRef currentBPP = CGDisplayModeCopyPixelEncoding(mode);
+        bpp = getBPPFromModeString(currentBPP);
+        refrate = CGDisplayModeGetRefreshRate(mode);
+        h = CGDisplayModeGetHeight(mode);
+        w = CGDisplayModeGetWidth(mode);
+        CFRelease(currentBPP);
+    }
+    DECLARE_CLASS_RETURN(jc_DisplayMode, "java/awt/DisplayMode", ret);
+    DECLARE_METHOD_RETURN(jc_DisplayMode_ctor, jc_DisplayMode, "<init>", "(IIII)V", ret);
+    ret = (*env)->NewObject(env, jc_DisplayMode, jc_DisplayMode_ctor, w, h, bpp, refrate);
+    CHECK_EXCEPTION();
+    JNI_COCOA_EXIT(env);
     return ret;
 }
 
@@ -163,7 +192,7 @@ Java_sun_awt_CGraphicsDevice_nativeGetXResolution
     CGRect rect = CGDisplayBounds(displayID);
     // 1 inch == 25.4 mm
     jfloat inches = size.width / 25.4f;
-    return inches > 0 ? rect.size.width / inches : 72;
+    return inches > 0 ? rect.size.width / inches : DEFAULT_DEVICE_DPI;
 }
 
 /*
@@ -180,7 +209,26 @@ Java_sun_awt_CGraphicsDevice_nativeGetYResolution
     CGRect rect = CGDisplayBounds(displayID);
     // 1 inch == 25.4 mm
     jfloat inches = size.height / 25.4f;
-    return inches > 0 ? rect.size.height / inches : 72;
+    return inches > 0 ? rect.size.height / inches : DEFAULT_DEVICE_DPI;
+}
+
+/*
+ * Class:     sun_awt_CGraphicsDevice
+ * Method:    nativeGetBounds
+ * Signature: (I)Ljava/awt/Rectangle;
+ */
+JNIEXPORT jobject JNICALL
+Java_sun_awt_CGraphicsDevice_nativeGetBounds
+(JNIEnv *env, jclass class, jint displayID)
+{
+    CGRect rect = CGDisplayBounds(displayID);
+    if (rect.size.width == 0) {
+        rect.size.width = DEFAULT_DEVICE_WIDTH;
+    }
+    if (rect.size.height == 0) {
+        rect.size.height = DEFAULT_DEVICE_HEIGHT;
+    }
+    return CGToJavaRect(env, rect);
 }
 
 /*
@@ -195,8 +243,8 @@ Java_sun_awt_CGraphicsDevice_nativeGetScreenInsets
     jobject ret = NULL;
     __block NSRect frame = NSZeroRect;
     __block NSRect visibleFrame = NSZeroRect;
-JNF_COCOA_ENTER(env);
-    
+JNI_COCOA_ENTER(env);
+
     [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
         NSArray *screens = [NSScreen screens];
         for (NSScreen *screen in screens) {
@@ -214,14 +262,26 @@ JNF_COCOA_ENTER(env);
     jint top = frame.size.height - visibleFrame.size.height - bottom;
     jint left = visibleFrame.origin.x - frame.origin.x;
     jint right = frame.size.width - visibleFrame.size.width - left;
-    
-    static JNF_CLASS_CACHE(jc_Insets, "java/awt/Insets");
-    static JNF_CTOR_CACHE(jc_Insets_ctor, jc_Insets, "(IIII)V");
-    ret = JNFNewObject(env, jc_Insets_ctor, top, left, bottom, right);
 
-JNF_COCOA_EXIT(env);
+    DECLARE_CLASS_RETURN(jc_Insets, "java/awt/Insets", ret);
+    DECLARE_METHOD_RETURN(jc_Insets_ctor, jc_Insets, "<init>", "(IIII)V", ret);
+    ret = (*env)->NewObject(env, jc_Insets, jc_Insets_ctor, top, left, bottom, right);
+
+JNI_COCOA_EXIT(env);
 
     return ret;
+}
+
+/*
+ * Class:     sun_awt_CGraphicsDevice
+ * Method:    nativeResetDisplayMode
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL
+Java_sun_awt_CGraphicsDevice_nativeResetDisplayMode
+(JNIEnv *env, jclass class)
+{
+    CGRestorePermanentDisplayConfiguration();
 }
 
 /*
@@ -233,10 +293,10 @@ JNIEXPORT void JNICALL
 Java_sun_awt_CGraphicsDevice_nativeSetDisplayMode
 (JNIEnv *env, jclass class, jint displayID, jint w, jint h, jint bpp, jint refrate)
 {
-    JNF_COCOA_ENTER(env);
+    JNI_COCOA_ENTER(env);
     CFArrayRef allModes = getAllValidDisplayModes(displayID);
     CGDisplayModeRef closestMatch = getBestModeForParameters(allModes, (int)w, (int)h, (int)bpp, (int)refrate);
-    
+
     __block CGError retCode = kCGErrorSuccess;
     if (closestMatch != NULL) {
         CGDisplayModeRetain(closestMatch);
@@ -250,14 +310,14 @@ Java_sun_awt_CGraphicsDevice_nativeSetDisplayMode
             CGDisplayModeRelease(closestMatch);
         }];
     } else {
-        [JNFException raise:env as:kIllegalArgumentException reason:"Invalid display mode"];
+        JNU_ThrowIllegalArgumentException(env, "Invalid display mode");
     }
 
     if (retCode != kCGErrorSuccess){
-        [JNFException raise:env as:kIllegalArgumentException reason:"Unable to set display mode!"];
+        JNU_ThrowIllegalArgumentException(env, "Unable to set display mode!");
     }
     CFRelease(allModes);
-    JNF_COCOA_EXIT(env);
+    JNI_COCOA_EXIT(env);
 }
 /*
  * Class:     sun_awt_CGraphicsDevice
@@ -269,8 +329,9 @@ Java_sun_awt_CGraphicsDevice_nativeGetDisplayMode
 (JNIEnv *env, jclass class, jint displayID)
 {
     jobject ret = NULL;
+    // CGDisplayCopyDisplayMode can return NULL if displayID is invalid
     CGDisplayModeRef currentMode = CGDisplayCopyDisplayMode(displayID);
-    ret = createJavaDisplayMode(currentMode, env, displayID);
+    ret = createJavaDisplayMode(currentMode, env);
     CGDisplayModeRelease(currentMode);
     return ret;
 }
@@ -285,13 +346,13 @@ Java_sun_awt_CGraphicsDevice_nativeGetDisplayModes
 (JNIEnv *env, jclass class, jint displayID)
 {
     jobjectArray jreturnArray = NULL;
-    JNF_COCOA_ENTER(env);
+    JNI_COCOA_ENTER(env);
     CFArrayRef allModes = getAllValidDisplayModes(displayID);
 
-    CFIndex numModes = CFArrayGetCount(allModes);
-    static JNF_CLASS_CACHE(jc_DisplayMode, "java/awt/DisplayMode");
+    CFIndex numModes = allModes ? CFArrayGetCount(allModes): 0;
+    DECLARE_CLASS_RETURN(jc_DisplayMode, "java/awt/DisplayMode", NULL);
 
-    jreturnArray = JNFNewObjectArray(env, &jc_DisplayMode, (jsize) numModes);
+    jreturnArray = (*env)->NewObjectArray(env, (jsize)numModes, jc_DisplayMode, NULL);
     if (!jreturnArray) {
         NSLog(@"CGraphicsDevice can't create java array of DisplayMode objects");
         return nil;
@@ -301,7 +362,7 @@ Java_sun_awt_CGraphicsDevice_nativeGetDisplayModes
     for (n=0; n < numModes; n++) {
         CGDisplayModeRef cRef = (CGDisplayModeRef) CFArrayGetValueAtIndex(allModes, n);
         if (cRef != NULL) {
-            jobject oneMode = createJavaDisplayMode(cRef, env, displayID);
+            jobject oneMode = createJavaDisplayMode(cRef, env);
             (*env)->SetObjectArrayElement(env, jreturnArray, n, oneMode);
             if ((*env)->ExceptionOccurred(env)) {
                 (*env)->ExceptionDescribe(env);
@@ -311,8 +372,10 @@ Java_sun_awt_CGraphicsDevice_nativeGetDisplayModes
             (*env)->DeleteLocalRef(env, oneMode);
         }
     }
-    CFRelease(allModes);
-    JNF_COCOA_EXIT(env);
+    if (allModes) {
+        CFRelease(allModes);
+    }
+    JNI_COCOA_EXIT(env);
 
     return jreturnArray;
 }
@@ -328,7 +391,7 @@ Java_sun_awt_CGraphicsDevice_nativeGetScaleFactor
 {
     __block jdouble ret = 1.0f;
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
     [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
         NSArray *screens = [NSScreen screens];
@@ -344,6 +407,6 @@ JNF_COCOA_ENTER(env);
         }
     }];
 
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
     return ret;
 }

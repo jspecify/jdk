@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,14 @@
 
 package javax.swing;
 
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Frame;
+import java.awt.Graphics;
+import java.awt.GraphicsEnvironment;
+import java.awt.Window;
 
 import sun.awt.ModalExclude;
-import sun.awt.SunToolkit;
 
 /**
  * Popups are used to display a <code>Component</code> to the user, typically
@@ -70,7 +74,7 @@ public class Popup {
      * A null <code>owner</code> implies there is no valid parent.
      * <code>x</code> and
      * <code>y</code> specify the preferred initial location to place
-     * the <code>Popup</code> at. Based on screen size, or other paramaters,
+     * the <code>Popup</code> at. Based on screen size, or other parameters,
      * the <code>Popup</code> may not display at <code>x</code> and
      * <code>y</code>.
      *
@@ -78,7 +82,7 @@ public class Popup {
      * @param contents Contents of the Popup
      * @param x        Initial x screen coordinate
      * @param y        Initial y screen coordinate
-     * @exception IllegalArgumentException if contents is null
+     * @throws IllegalArgumentException if contents is null
      */
     protected Popup(Component owner, Component contents, int x, int y) {
         this();
@@ -157,8 +161,8 @@ public class Popup {
 
         if (c instanceof JWindow) {
             JWindow component = (JWindow)getComponent();
-
-            component.setLocation(ownerX, ownerY);
+            // Sets the proper location, and resets internal state of the window
+            component.setBounds(ownerX, ownerY, 1, 1);
             component.getContentPane().add(contents, BorderLayout.CENTER);
             component.invalidate();
             component.validate();

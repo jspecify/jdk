@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,19 +82,6 @@ if (rasline) \
 if (block) \
     (*env)->ReleasePrimitiveArrayCritical(env, blockh, block, 0)
 
-/* Place holders for the old native interface. */
-
-long
-sun_awt_image_GifImageDecoder_parseImage()
-{
-  return 0;
-}
-
-void
-sun_awt_image_GifImageDecoder_initIDs()
-{
-}
-
 static jmethodID readID;
 static jmethodID sendID;
 static jfieldID prefixID;
@@ -117,7 +104,7 @@ Java_sun_awt_image_GifImageDecoder_parseImage(JNIEnv *env,
                                               jobject this,
                                               jint relx, jint rely,
                                               jint width, jint height,
-                                              jint interlace,
+                                              jboolean interlace,
                                               jint initCodeSize,
                                               jbyteArray blockh,
                                               jbyteArray raslineh,
@@ -129,7 +116,7 @@ Java_sun_awt_image_GifImageDecoder_parseImage(JNIEnv *env,
      * spec says it's defined for future use.  This could lead to an
      * error reading some files.
      *
-     * Start reading the image data. First we get the intial code size
+     * Start reading the image data. First we get the initial code size
      * and compute decompressor constant values, based on this code
      * size.
      *
@@ -170,7 +157,7 @@ Java_sun_awt_image_GifImageDecoder_parseImage(JNIEnv *env,
     int oldCode = 0;
     unsigned char prevChar = 0;
 
-    /* Temproray storage for decompression */
+    /* Temporary storage for decompression */
     short *prefix;
     unsigned char *suffix = NULL;
     unsigned char *outCode = NULL;

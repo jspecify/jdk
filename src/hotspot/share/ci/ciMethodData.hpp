@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIMETHODDATA_HPP
-#define SHARE_VM_CI_CIMETHODDATA_HPP
+#ifndef SHARE_CI_CIMETHODDATA_HPP
+#define SHARE_CI_CIMETHODDATA_HPP
 
 #include "ci/ciClassList.hpp"
 #include "ci/ciKlass.hpp"
@@ -68,11 +68,11 @@ class ciTypeEntries {
 protected:
   static intptr_t translate_klass(intptr_t k) {
     Klass* v = TypeEntries::valid_klass(k);
-    if (v != NULL) {
+    if (v != nullptr) {
       ciKlass* klass = CURRENT_ENV->get_klass(v);
       return with_status(klass, k);
     }
-    return with_status(NULL, k);
+    return with_status(nullptr, k);
   }
 
 public:
@@ -80,10 +80,10 @@ public:
     if (!TypeEntries::is_type_none(k) &&
         !TypeEntries::is_type_unknown(k)) {
       ciKlass* res = (ciKlass*)TypeEntries::klass_part(k);
-      assert(res != NULL, "invalid");
+      assert(res != nullptr, "invalid");
       return res;
     } else {
-      return NULL;
+      return nullptr;
     }
   }
 
@@ -186,7 +186,7 @@ public:
   }
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st, const char* extra = NULL) const;
+  void print_data_on(outputStream* st, const char* extra = nullptr) const;
 #endif
 };
 
@@ -203,7 +203,7 @@ public:
   ciKlass* receiver(uint row) const {
     assert((uint)row < row_limit(), "oob");
     ciKlass* recv = (ciKlass*)intptr_at(receiver0_offset + row * receiver_type_row_cell_count);
-    assert(recv == NULL || recv->is_klass(), "wrong type");
+    assert(recv == nullptr || recv->is_klass(), "wrong type");
     return recv;
   }
 
@@ -213,7 +213,7 @@ public:
   }
   void translate_receiver_data_from(const ProfileData* data);
 #ifndef PRODUCT
-  void print_data_on(outputStream* st, const char* extra = NULL) const;
+  void print_data_on(outputStream* st, const char* extra = nullptr) const;
   void print_receiver_data_on(outputStream* st) const;
 #endif
 };
@@ -238,7 +238,7 @@ public:
     rtd_super()->translate_receiver_data_from(data);
   }
 #ifndef PRODUCT
-  void print_data_on(outputStream* st, const char* extra = NULL) const;
+  void print_data_on(outputStream* st, const char* extra = nullptr) const;
 #endif
 };
 
@@ -271,11 +271,6 @@ public:
     }
   }
 
-  intptr_t argument_type(int i) const {
-    assert(has_arguments(), "no arg type profiling data");
-    return args()->type(i);
-  }
-
   ciKlass* valid_argument_type(int i) const {
     assert(has_arguments(), "no arg type profiling data");
     return args()->valid_type(i);
@@ -300,7 +295,7 @@ public:
   }
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st, const char* extra = NULL) const;
+  void print_data_on(outputStream* st, const char* extra = nullptr) const;
 #endif
 };
 
@@ -313,11 +308,6 @@ public:
 class ciBranchData : public BranchData {
 public:
   ciBranchData(DataLayout* layout) : BranchData(layout) {};
-};
-
-class ciArrayData : public ArrayData {
-public:
-  ciArrayData(DataLayout* layout) : ArrayData(layout) {};
 };
 
 class ciMultiBranchData : public MultiBranchData {
@@ -349,7 +339,7 @@ public:
   }
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st, const char* extra = NULL) const;
+  void print_data_on(outputStream* st, const char* extra = nullptr) const;
 #endif
 };
 
@@ -368,7 +358,7 @@ public:
   }
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st, const char* extra = NULL) const;
+  void print_data_on(outputStream* st, const char* extra = nullptr) const;
 #endif
 };
 
@@ -389,7 +379,11 @@ private:
   // Data entries
   intptr_t* _data;
 
-  // Cached hint for data_before()
+  // layout of _data
+  int _parameters_data_offset;
+  int _exception_handlers_data_offset;
+
+  // Cached hint for data_layout_before()
   int _hint_di;
 
   // Is data attached?  And is it mature?
@@ -400,36 +394,26 @@ private:
   u_char _saw_free_extra_data;
 
   // Support for interprocedural escape analysis
-  intx              _eflags;          // flags on escape information
-  intx              _arg_local;       // bit set of non-escaping arguments
-  intx              _arg_stack;       // bit set of stack-allocatable arguments
-  intx              _arg_returned;    // bit set of returned arguments
-
-  // Maturity of the oop when the snapshot is taken.
-  int _current_mileage;
+  intx _eflags;       // flags on escape information
+  intx _arg_local;    // bit set of non-escaping arguments
+  intx _arg_stack;    // bit set of stack-allocatable arguments
+  intx _arg_returned; // bit set of returned arguments
 
   // These counters hold the age of MDO in tiered. In tiered we can have the same method
   // running at different compilation levels concurrently. So, in order to precisely measure
   // its maturity we need separate counters.
   int _invocation_counter;
-  int _backedge_counter;
 
   // Coherent snapshot of original header.
-  MethodData _orig;
+  MethodData::CompilerCounters _orig;
 
-  // Area dedicated to parameters. NULL if no parameter profiling for
-  // this method.
-  DataLayout* _parameters;
-  int parameters_size() const {
-    return _parameters == NULL ? 0 : parameters_type_data()->size_in_bytes();
-  }
-
-  ciMethodData(MethodData* md);
-  ciMethodData();
+  ciMethodData(MethodData* md = nullptr);
 
   // Accessors
   int data_size() const { return _data_size; }
   int extra_data_size() const { return _extra_data_size; }
+  int parameter_data_size() const { return _exception_handlers_data_offset - _parameters_data_offset; }
+  int exception_handler_data_size() const { return dp_to_di((address) exception_handler_data_limit()) - _exception_handlers_data_offset; }
   intptr_t * data() const { return _data; }
 
   MethodData* get_MethodData() const {
@@ -441,7 +425,7 @@ private:
   void print_impl(outputStream* st);
 
   DataLayout* data_layout_at(int data_index) const {
-    assert(data_index % sizeof(intptr_t) == 0, "unaligned");
+    assert(data_index % sizeof(intptr_t) == 0, "unaligned: %d", data_index);
     return (DataLayout*) (((address)_data) + data_index);
   }
 
@@ -449,39 +433,43 @@ private:
     return data_index >= data_size();
   }
 
+  bool out_of_bounds_extra(int data_index) {
+    return data_index < data_size() || data_index >= data_size() + extra_data_size();
+  }
+
+  DataLayout* next_data_layout_helper(DataLayout* current, bool extra);
+
   // hint accessors
   int      hint_di() const  { return _hint_di; }
   void set_hint_di(int di)  {
     assert(!out_of_bounds(di), "hint_di out of bounds");
     _hint_di = di;
   }
-  ciProfileData* data_before(int bci) {
+
+  DataLayout* data_layout_before(int bci) {
     // avoid SEGV on this edge case
     if (data_size() == 0)
-      return NULL;
-    int hint = hint_di();
-    if (data_layout_at(hint)->bci() <= bci)
-      return data_at(hint);
-    return first_data();
+      return nullptr;
+    DataLayout* layout = data_layout_at(hint_di());
+    if (layout->bci() <= bci)
+      return layout;
+    return data_layout_at(first_di());
   }
-
 
   // What is the index of the first data entry?
   int first_di() { return 0; }
 
   ciArgInfoData *arg_info() const;
 
-  address data_base() const {
-    return (address) _data;
-  }
-
-  void load_extra_data();
+  void prepare_metadata();
+  void load_remaining_extra_data();
   ciProfileData* bci_to_extra_data(int bci, ciMethod* m, bool& two_free_slots);
 
   void dump_replay_data_type_helper(outputStream* out, int round, int& count, ProfileData* pdata, ByteSize offset, ciKlass* k);
   template<class T> void dump_replay_data_call_type_helper(outputStream* out, int round, int& count, T* call_type_data);
   template<class T> void dump_replay_data_receiver_type_helper(outputStream* out, int round, int& count, T* call_type_data);
   void dump_replay_data_extra_data_helper(outputStream* out, int round, int& count);
+  ciProfileData* data_from(DataLayout* data_layout);
 
 public:
   bool is_method_data() const { return true; }
@@ -489,28 +477,13 @@ public:
   bool is_empty()  { return _state == empty_state; }
   bool is_mature() { return _state == mature_state; }
 
-  int creation_mileage() { return _orig.creation_mileage(); }
-  int current_mileage()  { return _current_mileage; }
-
   int invocation_count() { return _invocation_counter; }
-  int backedge_count()   { return _backedge_counter;   }
-
-#if INCLUDE_RTM_OPT
-  // return cached value
-  int rtm_state() {
-    if (is_empty()) {
-      return NoRTM;
-    } else {
-      return get_MethodData()->rtm_state();
-    }
-  }
-#endif
 
   // Transfer information about the method to MethodData*.
   // would_profile means we would like to profile this method,
   // meaning it's not trivial.
   void set_would_profile(bool p);
-  // Also set the numer of loops and blocks in the method.
+  // Also set the number of loops and blocks in the method.
   // Again, this is used to determine if a method is trivial.
   void set_compilation_stats(short loops, short blocks);
   // If the compiler finds a profiled type that is known statically
@@ -519,11 +492,11 @@ public:
   void set_parameter_type(int i, ciKlass* k);
   void set_return_type(int bci, ciKlass* k);
 
-  void load_data();
+  bool load_data();
 
   // Convert a dp (data pointer) to a di (data index).
-  int dp_to_di(address dp) {
-    return dp - ((address)_data);
+  int dp_to_di(address dp) const {
+    return pointer_delta_as_int(dp, ((address)_data));
   }
 
   // Get the data at an arbitrary (sort of) data index.
@@ -532,15 +505,28 @@ public:
   // Walk through the data in order.
   ciProfileData* first_data() { return data_at(first_di()); }
   ciProfileData* next_data(ciProfileData* current);
-  bool is_valid(ciProfileData* current) { return current != NULL; }
+  DataLayout* next_data_layout(DataLayout* current);
+  DataLayout* next_extra_data_layout(DataLayout* current);
+  bool is_valid(ciProfileData* current) { return current != nullptr; }
+  bool is_valid(DataLayout* current)    { return current != nullptr; }
 
+  // pointers to sections in _data
+  // NOTE: these may be called before ciMethodData::load_data
+  //       this works out since everything is initialized to 0 (i.e. there will appear to be no data)
   DataLayout* extra_data_base() const  { return data_layout_at(data_size()); }
-  DataLayout* args_data_limit() const  { return data_layout_at(data_size() + extra_data_size() -
-                                                               parameters_size()); }
+  DataLayout* extra_data_limit() const { return data_layout_at(data_size() + extra_data_size()); }
+  // pointers to sections in extra data
+  DataLayout* args_data_limit() const  { return parameters_data_base(); }
+  DataLayout* parameters_data_base() const { return data_layout_at(_parameters_data_offset); }
+  DataLayout* parameters_data_limit() const { return exception_handler_data_base(); }
+  DataLayout* exception_handler_data_base() const { return data_layout_at(_exception_handlers_data_offset); }
+  DataLayout* exception_handler_data_limit() const { return extra_data_limit(); }
 
-  // Get the data at an arbitrary bci, or NULL if there is none. If m
-  // is not NULL look for a SpeculativeTrapData if any first.
-  ciProfileData* bci_to_data(int bci, ciMethod* m = NULL);
+  // Get the data at an arbitrary bci, or null if there is none. If m
+  // is not null look for a SpeculativeTrapData if any first.
+  ciProfileData* bci_to_data(int bci, ciMethod* m = nullptr);
+
+  ciBitData exception_handler_bci_to_data(int bci);
 
   uint overflow_trap_count() const {
     return _orig.overflow_trap_count();
@@ -554,13 +540,13 @@ public:
   uint trap_count(int reason) const {
     return _orig.trap_count(reason);
   }
-  uint trap_reason_limit() const { return _orig.trap_reason_limit(); }
-  uint trap_count_limit()  const { return _orig.trap_count_limit(); }
+  uint trap_reason_limit() const { return MethodData::trap_reason_limit(); }
+  uint trap_count_limit()  const { return MethodData::trap_count_limit(); }
 
   // Helpful query functions that decode trap_state.
   int has_trap_at(ciProfileData* data, int reason);
   int has_trap_at(int bci, ciMethod* m, int reason) {
-    assert((m != NULL) == Deoptimization::reason_is_speculate(reason), "inconsistent method/reason");
+    assert((m != nullptr) == Deoptimization::reason_is_speculate(reason), "inconsistent method/reason");
     return has_trap_at(bci_to_data(bci, m), reason);
   }
   int trap_recompiled_at(ciProfileData* data);
@@ -573,7 +559,6 @@ public:
   void update_escape_info();
 
   void set_eflag(MethodData::EscapeFlag f);
-  void clear_eflag(MethodData::EscapeFlag f);
   bool eflag_set(MethodData::EscapeFlag f) const;
 
   void set_arg_local(int i);
@@ -586,9 +571,7 @@ public:
   bool is_arg_returned(int i) const;
   uint arg_modified(int arg) const;
 
-  ciParametersTypeData* parameters_type_data() const {
-    return _parameters != NULL ? new ciParametersTypeData(_parameters) : NULL;
-  }
+  ciParametersTypeData* parameters_type_data() const;
 
   // Code generation helper
   ByteSize offset_of_slot(ciProfileData* data, ByteSize slot_offset_in_data);
@@ -602,4 +585,4 @@ public:
   void dump_replay_data(outputStream* out);
 };
 
-#endif // SHARE_VM_CI_CIMETHODDATA_HPP
+#endif // SHARE_CI_CIMETHODDATA_HPP

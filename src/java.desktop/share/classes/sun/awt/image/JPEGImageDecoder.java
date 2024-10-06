@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@ import java.awt.image.*;
  *
  * @author Jim Graham
  */
+@SuppressWarnings({"removal", "restricted"})
 public class JPEGImageDecoder extends ImageDecoder {
     private static ColorModel RGBcolormodel;
     private static ColorModel ARGBcolormodel;
@@ -63,14 +64,14 @@ public class JPEGImageDecoder extends ImageDecoder {
         initIDs(InputStreamClass);
         RGBcolormodel = new DirectColorModel(24, 0xff0000, 0xff00, 0xff);
         ARGBcolormodel = ColorModel.getRGBdefault();
-        byte g[] = new byte[256];
+        byte[] g = new byte[256];
         for (int i = 0; i < 256; i++) {
             g[i] = (byte) i;
         }
         Graycolormodel = new IndexColorModel(8, 256, g, g, g);
     }
 
-    private native void readImage(InputStream is, byte buf[])
+    private native void readImage(InputStream is, byte[] buf)
         throws ImageFormatException, IOException;
 
     Hashtable<String, Object> props = new Hashtable<>();
@@ -115,7 +116,7 @@ public class JPEGImageDecoder extends ImageDecoder {
         return true;
     }
 
-    public boolean sendPixels(int pixels[], int y) {
+    public boolean sendPixels(int[] pixels, int y) {
         int count = setPixels(0, y, pixels.length, 1, colormodel,
                               pixels, 0, pixels.length);
         if (count <= 0) {
@@ -124,7 +125,7 @@ public class JPEGImageDecoder extends ImageDecoder {
         return !aborted;
     }
 
-    public boolean sendPixels(byte pixels[], int y) {
+    public boolean sendPixels(byte[] pixels, int y) {
         int count = setPixels(0, y, pixels.length, 1, colormodel,
                               pixels, 0, pixels.length);
         if (count <= 0) {

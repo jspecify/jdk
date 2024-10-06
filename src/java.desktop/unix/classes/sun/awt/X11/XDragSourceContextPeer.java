@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package sun.awt.X11;
 
 import java.awt.Component;
 import java.awt.Cursor;
+import java.awt.Toolkit;
 import java.awt.Window;
 
 import java.awt.datatransfer.DataFlavor;
@@ -393,10 +394,48 @@ public final class XDragSourceContextPeer
     }
 
     /**
+     * Our X11 code expects the drop target window to be a top level window
+     * and to have the XA_WM_STATE property.
+     * This is not true when performing drag and drop from XWayland
+     * to a native Wayland application.
+     * In this case XWayland creates a dummy window with only one property,
+     * XdndAware.
+     *
+     * @param window to test
+     * @return true if window has XdndAware property when running under Wayland
+     */
+    private static boolean isXWaylandDndAwareWindow(long window) {
+        Toolkit toolkit = Toolkit.getDefaultToolkit();
+        if (!(toolkit instanceof SunToolkit)
+                || !((SunToolkit) toolkit).isRunningOnWayland()) {
+            return false;
+        }
+
+        WindowPropertyGetter wpg =
+            new WindowPropertyGetter(window, XDnDConstants.XA_XdndAware, 0, 1,
+                                     false, XConstants.AnyPropertyType);
+
+        try {
+            int status =
+                wpg.execute(XErrorHandler.IgnoreBadWindowHandler.getInstance());
+
+            return status == XConstants.Success
+                   && wpg.getData() != 0
+                   && wpg.getActualType() == XAtom.XA_ATOM;
+        } finally {
+            wpg.dispose();
+        }
+    }
+
+    /**
      * Returns the client window under the specified root subwindow.
      */
     private static long findClientWindow(long window) {
         if (XlibUtil.isTrueToplevelWindow(window)) {
+            return window;
+        }
+
+        if (isXWaylandDndAwareWindow(window)) {
             return window;
         }
 
@@ -524,8 +563,8 @@ public final class XDragSourceContextPeer
         updateTargetWindow(xmotion);
 
         if (dragProtocol != null) {
-            dragProtocol.sendMoveMessage(scaleDown(xmotion.get_x_root()),
-                                         scaleDown(xmotion.get_y_root()),
+            dragProtocol.sendMoveMessage(xmotion.get_x_root(),
+                                         xmotion.get_y_root(),
                                          sourceAction, sourceActions,
                                          xmotion.get_time());
         }
@@ -533,8 +572,8 @@ public final class XDragSourceContextPeer
 
     private void processDrop(XButtonEvent xbutton) {
         try {
-            dragProtocol.initiateDrop(scaleDown(xbutton.get_x_root()),
-                                      scaleDown(xbutton.get_y_root()),
+            dragProtocol.initiateDrop(xbutton.get_x_root(),
+                                      xbutton.get_y_root(),
                                       sourceAction, sourceActions,
                                       xbutton.get_time());
         } catch (XException e) {
@@ -653,7 +692,7 @@ public final class XDragSourceContextPeer
                     xmotion.set_y(xkey.get_y());
                     xmotion.set_x_root(xkey.get_x_root());
                     xmotion.set_y_root(xkey.get_y_root());
-                    xmotion.set_state((int)Native.getLong(XlibWrapper.larg7));
+                    xmotion.set_state(Native.getInt(XlibWrapper.larg7));
                     // we do not use this field, so it's unset for now
                     // xmotion.set_is_hint(???);
                     xmotion.set_same_screen(xkey.get_same_screen());

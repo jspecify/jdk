@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,8 +58,8 @@ ciObject::ciObject(oop o) {
     Handle obj(Thread::current(), o);
     _handle = JNIHandles::make_global(obj);
   }
-  _klass = NULL;
-  init_flags_from(o);
+  _klass = nullptr;
+  assert(oopDesc::is_oop_or_null(o), "Checking");
 }
 
 // ------------------------------------------------------------------
@@ -72,8 +72,8 @@ ciObject::ciObject(Handle h) {
   } else {
     _handle = JNIHandles::make_global(h);
   }
-  _klass = NULL;
-  init_flags_from(h());
+  _klass = nullptr;
+  assert(oopDesc::is_oop_or_null(h()), "Checking");
 }
 
 // ------------------------------------------------------------------
@@ -83,19 +83,19 @@ ciObject::ciObject(Handle h) {
 // klass/method, if that makes sense.
 ciObject::ciObject(ciKlass* klass) {
   ASSERT_IN_VM;
-  assert(klass != NULL, "must supply klass");
-  _handle = NULL;
+  assert(klass != nullptr, "must supply klass");
+  _handle = nullptr;
   _klass = klass;
 }
 
 // ------------------------------------------------------------------
 // ciObject::ciObject
 //
-// NULL variant.  Used only by ciNullObject.
+// null variant.  Used only by ciNullObject.
 ciObject::ciObject() {
   ASSERT_IN_VM;
-  _handle = NULL;
-  _klass = NULL;
+  _handle = nullptr;
+  _klass = nullptr;
 }
 
 // ------------------------------------------------------------------
@@ -111,14 +111,14 @@ oop ciObject::get_oop() const {
 //
 // Get the ciKlass of this ciObject.
 ciKlass* ciObject::klass() {
-  if (_klass == NULL) {
-    if (_handle == NULL) {
-      // When both _klass and _handle are NULL, we are dealing
+  if (_klass == nullptr) {
+    if (_handle == nullptr) {
+      // When both _klass and _handle are null, we are dealing
       // with the distinguished instance of ciNullObject.
       // No one should ask it for its klass.
       assert(is_null_object(), "must be null object");
       ShouldNotReachHere();
-      return NULL;
+      return nullptr;
     }
 
     GUARDED_VM_ENTRY(
@@ -144,7 +144,7 @@ bool ciObject::equals(ciObject* obj) {
 //
 // Implementation note: we use the address of the ciObject as the
 // basis for the hash.  Use the _ident field, which is well-behaved.
-int ciObject::hash() {
+uint ciObject::hash() {
   return ident() * 31;
 }
 
@@ -164,16 +164,40 @@ int ciObject::hash() {
 // This method should be changed to return an generified address
 // to discourage use of the JNI handle.
 jobject ciObject::constant_encoding() {
-  assert(is_null_object() || handle() != NULL, "cannot embed null pointer");
-  assert(can_be_constant(), "oop must be NULL or perm");
+  assert(is_null_object() || handle() != nullptr, "cannot embed null pointer");
   return handle();
 }
 
 // ------------------------------------------------------------------
-// ciObject::can_be_constant
-bool ciObject::can_be_constant() {
-  if (ScavengeRootsInCode >= 1)  return true;  // now everybody can encode as a constant
-  return handle() == NULL;
+// ciObject::check_constant_value_cache()
+//
+// Cache constant value lookups to ensure that consistent values are observed
+// during compilation because fields may be (re-)initialized concurrently.
+ciConstant ciObject::check_constant_value_cache(int off, BasicType bt) {
+  if (_constant_values != nullptr) {
+    for (int i = 0; i < _constant_values->length(); ++i) {
+      ConstantValue cached_val = _constant_values->at(i);
+      if (cached_val.off() == off) {
+        assert(cached_val.value().basic_type() == bt, "unexpected type");
+        return cached_val.value();
+      }
+    }
+  }
+  return ciConstant();
+}
+
+// ------------------------------------------------------------------
+// ciObject::add_to_constant_value_cache()
+//
+// Add a constant value to the cache.
+void ciObject::add_to_constant_value_cache(int off, ciConstant val) {
+  assert(val.is_valid(), "value must be valid");
+  assert(!check_constant_value_cache(off, val.basic_type()).is_valid(), "duplicate");
+  if (_constant_values == nullptr) {
+    Arena* arena = CURRENT_ENV->arena();
+    _constant_values = new (arena) GrowableArray<ConstantValue>(arena, 1, 0, ConstantValue());
+  }
+  _constant_values->append(ConstantValue(off, val));
 }
 
 // ------------------------------------------------------------------
@@ -193,24 +217,11 @@ bool ciObject::should_be_constant() {
     }
   if (klass()->is_subclass_of(env->MethodHandle_klass()) ||
       klass()->is_subclass_of(env->CallSite_klass())) {
-    assert(ScavengeRootsInCode >= 1, "must be");
     // We want to treat these aggressively.
     return true;
   }
 
-  return handle() == NULL;
-}
-
-// ------------------------------------------------------------------
-// ciObject::should_be_constant()
-void ciObject::init_flags_from(oop x) {
-  int flags = 0;
-  if (x != NULL) {
-    assert(Universe::heap()->is_in_reserved(x), "must be");
-    if (Universe::heap()->is_scavengable(x))
-      flags |= SCAVENGABLE_FLAG;
-  }
-  _ident |= flags;
+  return handle() == nullptr;
 }
 
 // ------------------------------------------------------------------
@@ -223,9 +234,7 @@ void ciObject::init_flags_from(oop x) {
 void ciObject::print(outputStream* st) {
   st->print("<%s", type_string());
   GUARDED_VM_ENTRY(print_impl(st);)
-  st->print(" ident=%d %s address=" INTPTR_FORMAT ">", ident(),
-        is_scavengable() ? "SCAVENGABLE" : "",
-        p2i((address)this));
+  st->print(" ident=%d address=" INTPTR_FORMAT ">", ident(), p2i(this));
 }
 
 // ------------------------------------------------------------------
@@ -234,7 +243,7 @@ void ciObject::print(outputStream* st) {
 // Print debugging output about the oop this ciObject represents.
 void ciObject::print_oop(outputStream* st) {
   if (is_null_object()) {
-    st->print_cr("NULL");
+    st->print_cr("nullptr");
   } else if (!is_loaded()) {
     st->print_cr("UNLOADED");
   } else {

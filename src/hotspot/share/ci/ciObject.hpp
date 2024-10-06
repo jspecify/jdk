@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIOBJECT_HPP
-#define SHARE_VM_CI_CIOBJECT_HPP
+#ifndef SHARE_CI_CIOBJECT_HPP
+#define SHARE_CI_CIOBJECT_HPP
 
 #include "ci/ciBaseObject.hpp"
 #include "ci/ciClassList.hpp"
+#include "ci/ciConstant.hpp"
 #include "runtime/handles.hpp"
-#include "runtime/jniHandles.hpp"
+#include "utilities/growableArray.hpp"
 
 // ciObject
 //
@@ -54,9 +55,25 @@ class ciObject : public ciBaseObject {
 
 private:
   // A JNI handle referring to an oop in the VM.  This
-  // handle may, in a small set of cases, correctly be NULL.
+  // handle may, in a small set of cases, correctly be null.
   jobject  _handle;
   ciKlass* _klass;
+
+  // Cache constant value lookups to ensure that consistent values are observed during compilation.
+  class ConstantValue {
+    private:
+      ciConstant _value;
+      int _off;
+
+    public:
+      ConstantValue() : _value(ciConstant()), _off(0) { }
+      ConstantValue(int off, ciConstant value) : _value(value), _off(off) { }
+
+      int off() const { return _off; }
+      ciConstant value() const { return _value; }
+  };
+
+  GrowableArray<ConstantValue>* _constant_values = nullptr;
 
 protected:
   ciObject();
@@ -67,8 +84,6 @@ protected:
   jobject      handle()  const { return _handle; }
   // Get the VM oop that this object holds.
   oop get_oop() const;
-
-  void init_flags_from(oop x);
 
   // Virtual behavior of the print() method.
   virtual void print_impl(outputStream* st) {}
@@ -83,23 +98,10 @@ public:
   bool equals(ciObject* obj);
 
   // A hash value for the convenience of compilers.
-  int hash();
-
-  // Tells if this oop has an encoding as a constant.
-  // True if is_perm is true.
-  // Also true if ScavengeRootsInCode is non-zero.
-  // If it does not have an encoding, the compiler is responsible for
-  // making other arrangements for dealing with the oop.
-  // See ciEnv::make_array
-  bool can_be_constant();
+  uint hash();
 
   // Tells if this oop should be made a constant.
-  // True if is_perm is true or ScavengeRootsInCode > 1.
   bool should_be_constant();
-
-  // Might this object possibly move during a scavenge operation?
-  // If the answer is true and ScavengeRootsInCode==0, the oop cannot be embedded in code.
-  bool is_scavengable() { return (_ident & SCAVENGABLE_FLAG) != 0; }
 
   // The address which the compiler should embed into the
   // generated code to represent this oop.  This address
@@ -110,12 +112,15 @@ public:
   // be registered with the oopRecorder.
   jobject constant_encoding();
 
+  // Access to the constant value cache
+  ciConstant check_constant_value_cache(int off, BasicType bt);
+  void add_to_constant_value_cache(int off, ciConstant val);
+
   virtual bool is_object() const            { return true; }
 
   // What kind of ciObject is this?
   virtual bool is_null_object()       const { return false; }
   virtual bool is_call_site()         const { return false; }
-  virtual bool is_cpcache()           const { return false; }
   virtual bool is_instance()                { return false; }
   virtual bool is_member_name()       const { return false; }
   virtual bool is_method_handle()     const { return false; }
@@ -123,6 +128,7 @@ public:
   virtual bool is_array()                   { return false; }
   virtual bool is_obj_array()               { return false; }
   virtual bool is_type_array()              { return false; }
+  virtual bool is_native_entry_point()const { return false; }
 
   // Is this a type or value which has no associated class?
   // It is true of primitive types and null objects.
@@ -136,7 +142,7 @@ public:
   // By convention the ciNullObject is considered loaded, and
   // primitive types are considered loaded.
   bool is_loaded() const {
-    return handle() != NULL || is_classless();
+    return handle() != nullptr || is_classless();
   }
 
   // Subclass casting with assertions.
@@ -185,4 +191,4 @@ public:
   void print_oop(outputStream* st = tty);
 };
 
-#endif // SHARE_VM_CI_CIOBJECT_HPP
+#endif // SHARE_CI_CIOBJECT_HPP

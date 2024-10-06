@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 /**
  * Defines the implementation of the
  * {@linkplain javax.tools.ToolProvider#getSystemDocumentationTool system documentation tool}
- * and its command line equivalent, <em>{@index javadoc javadoc tool}</em>.
+ * and its command-line equivalent, <em>{@index javadoc javadoc tool}</em>.
  *
  * <h2 style="font-family:'DejaVu Sans Mono', monospace; font-style:italic">javadoc</h2>
  *
@@ -42,29 +42,26 @@
  * or the {@linkplain java.util.ServiceLoader service loader} with the name
  * {@code "javadoc"}.
  *
- * <dl style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">
- * <dt class="simpleTagLabel">Tool Guides:
- * <dd>{@extLink javadoc_tool_reference javadoc}
- * </dl>
+ * @spec javadoc/doc-comment-spec.html Documentation Comment Specification for the Standard Doclet
+ * @toolGuide javadoc
  *
  * @provides java.util.spi.ToolProvider
+ *     Use {@link java.util.spi.ToolProvider#findFirst ToolProvider.findFirst("javadoc")}
+ *     to obtain an instance of a {@code ToolProvider} that provides the equivalent
+ *     of command-line access to the {@code javadoc} tool.
  * @provides javax.tools.DocumentationTool
  * @provides javax.tools.Tool
- *
- * @see <a href="{@docRoot}/../specs/doc-comment-spec.html">
- *      Documentation Comment Specification for the Standard Doclet</a>
  *
  * @moduleGraph
  * @since 9
  */
 module jdk.javadoc {
-    requires java.xml;
 
     requires transitive java.compiler;
     requires transitive jdk.compiler;
 
-    exports com.sun.javadoc;
-    exports com.sun.tools.javadoc;
+    requires jdk.internal.md;
+    requires jdk.internal.opt;
 
     exports jdk.javadoc.doclet;
 
@@ -76,5 +73,7 @@ module jdk.javadoc {
 
     provides javax.tools.Tool with
         jdk.javadoc.internal.api.JavadocTool;
-}
 
+    provides com.sun.tools.doclint.DocLint with
+            jdk.javadoc.internal.doclint.DocLint;
+}

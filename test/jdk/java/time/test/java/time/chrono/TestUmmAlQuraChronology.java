@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -776,9 +774,9 @@ public class TestUmmAlQuraChronology {
             {HijrahDate.of(1434,5,1), "Japanese Heisei 25-03-13"},
             {HijrahDate.of(1436,1,1), "Japanese Heisei 26-10-25"},
             {HijrahDate.of(1440,8,25), "Japanese Heisei 31-04-30"},
-            {HijrahDate.of(1440,8,26), "Japanese NewEra 1-05-01"},
-            {HijrahDate.of(1500,6,12), "Japanese NewEra 59-05-05"},
-            {HijrahDate.of(1550,3,11), "Japanese NewEra 107-08-11"},
+            {HijrahDate.of(1440,8,26), "Japanese Reiwa 1-05-01"},
+            {HijrahDate.of(1500,6,12), "Japanese Reiwa 59-05-05"},
+            {HijrahDate.of(1550,3,11), "Japanese Reiwa 107-08-11"},
         };
     }
 

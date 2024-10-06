@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
 package javax.naming.directory;
 
 import java.util.Hashtable;
-import javax.naming.spi.NamingManager;
 import javax.naming.*;
 
 /**
@@ -83,6 +82,36 @@ public class InitialDirContext extends InitialContext implements DirContext {
      * Constructs an initial DirContext using the supplied environment.
      * Environment properties are discussed in the
      * {@code javax.naming.InitialContext} class description.
+     *
+     * <p> If the {@code java.naming.provider.url} property of the supplied
+     * environment consists of a URL (or a list of URLs) using the ldap
+     * protocol the resulting {@link javax.naming.ldap.LdapContext} will use
+     * an LDAP server resolved by the configured {@link
+     * javax.naming.ldap.spi.LdapDnsProvider LdapDnsProviders}:
+     * <ol>
+     * <li>If this is the first {@code InitialDirContext} created with a
+     *     {@code java.naming.provider.url} using the ldap protocol then the
+     *     {@linkplain java.util.ServiceLoader ServiceLoader} mechanism is
+     *     used to locate {@linkplain javax.naming.ldap.spi.LdapDnsProvider
+     *     LdapDnsProvider} implementations using the system class loader.
+     *     The order that providers are located is implementation specific
+     *     and an implementation is free to cache the located providers.
+     * <li>The {@code lookupEndpoints} method of each provider, if instantiated,
+     *     is invoked once with a combination of each of the URLs in the
+     *     {@code java.naming.provider.url} property and the environment until
+     *     a provider returns non-empty or all providers have been exhausted.
+     *     If none of the
+     *     {@linkplain javax.naming.ldap.spi.LdapDnsProvider LdapDnsProviders}
+     *     return a non-empty
+     *     {@linkplain javax.naming.ldap.spi.LdapDnsProviderResult result} then
+     *     the implementation will make a best-effort attempt to determine an
+     *     endpoint. A
+     *     {@linkplain java.util.ServiceConfigurationError ServiceConfigurationError},
+     *     {@code Error} or {@code RuntimeException} thrown when loading or
+     *     calling an {@linkplain javax.naming.ldap.spi.LdapDnsProvider
+     *     LdapDnsProvider}, if encountered, will be propagated to the calling
+     *     thread.
+     * </ol>
      *
      * <p> This constructor will not modify {@code environment}
      * or save a reference to it, but may save a clone.
@@ -152,69 +181,115 @@ public class InitialDirContext extends InitialContext implements DirContext {
         return getURLOrDefaultInitDirCtx(name).getAttributes(name, attrIds);
     }
 
+    /**
+     * @throws  AttributeModificationException {@inheritDoc}
+     */
     public void modifyAttributes(String name, int mod_op, Attributes attrs)
             throws NamingException {
         getURLOrDefaultInitDirCtx(name).modifyAttributes(name, mod_op, attrs);
     }
 
+    /**
+     * @throws  AttributeModificationException {@inheritDoc}
+     */
     public void modifyAttributes(Name name, int mod_op, Attributes attrs)
             throws NamingException  {
         getURLOrDefaultInitDirCtx(name).modifyAttributes(name, mod_op, attrs);
     }
 
+    /**
+     * @throws  AttributeModificationException {@inheritDoc}
+     */
     public void modifyAttributes(String name, ModificationItem[] mods)
             throws NamingException  {
         getURLOrDefaultInitDirCtx(name).modifyAttributes(name, mods);
     }
 
+    /**
+     * @throws  AttributeModificationException {@inheritDoc}
+     */
     public void modifyAttributes(Name name, ModificationItem[] mods)
             throws NamingException  {
         getURLOrDefaultInitDirCtx(name).modifyAttributes(name, mods);
     }
 
+    /**
+     * @throws  NameAlreadyBoundException {@inheritDoc}
+     * @throws  InvalidAttributesException {@inheritDoc}
+     */
     public void bind(String name, Object obj, Attributes attrs)
             throws NamingException  {
         getURLOrDefaultInitDirCtx(name).bind(name, obj, attrs);
     }
 
+    /**
+     * @throws  NameAlreadyBoundException {@inheritDoc}
+     * @throws  InvalidAttributesException {@inheritDoc}
+     */
     public void bind(Name name, Object obj, Attributes attrs)
             throws NamingException  {
         getURLOrDefaultInitDirCtx(name).bind(name, obj, attrs);
     }
 
+    /**
+     * @throws  InvalidAttributesException {@inheritDoc}
+     */
     public void rebind(String name, Object obj, Attributes attrs)
             throws NamingException  {
         getURLOrDefaultInitDirCtx(name).rebind(name, obj, attrs);
     }
 
+    /**
+     * @throws  InvalidAttributesException {@inheritDoc}
+     */
     public void rebind(Name name, Object obj, Attributes attrs)
             throws NamingException  {
         getURLOrDefaultInitDirCtx(name).rebind(name, obj, attrs);
     }
 
+    /**
+     * @throws  NameAlreadyBoundException {@inheritDoc}
+     * @throws  InvalidAttributesException {@inheritDoc}
+     */
     public DirContext createSubcontext(String name, Attributes attrs)
             throws NamingException  {
         return getURLOrDefaultInitDirCtx(name).createSubcontext(name, attrs);
     }
 
+    /**
+     * @throws  NameAlreadyBoundException {@inheritDoc}
+     * @throws  InvalidAttributesException {@inheritDoc}
+     */
     public DirContext createSubcontext(Name name, Attributes attrs)
             throws NamingException  {
         return getURLOrDefaultInitDirCtx(name).createSubcontext(name, attrs);
     }
 
+    /**
+     * @throws  OperationNotSupportedException {@inheritDoc}
+     */
     public DirContext getSchema(String name) throws NamingException {
         return getURLOrDefaultInitDirCtx(name).getSchema(name);
     }
 
+    /**
+     * @throws  OperationNotSupportedException {@inheritDoc}
+     */
     public DirContext getSchema(Name name) throws NamingException {
         return getURLOrDefaultInitDirCtx(name).getSchema(name);
     }
 
+    /**
+     * @throws  OperationNotSupportedException {@inheritDoc}
+     */
     public DirContext getSchemaClassDefinition(String name)
             throws NamingException {
         return getURLOrDefaultInitDirCtx(name).getSchemaClassDefinition(name);
     }
 
+    /**
+     * @throws  OperationNotSupportedException {@inheritDoc}
+     */
     public DirContext getSchemaClassDefinition(Name name)
             throws NamingException {
         return getURLOrDefaultInitDirCtx(name).getSchemaClassDefinition(name);
@@ -258,6 +333,10 @@ public class InitialDirContext extends InitialContext implements DirContext {
                                             attributesToReturn);
     }
 
+    /**
+     * @throws  InvalidSearchFilterException {@inheritDoc}
+     * @throws  InvalidSearchControlsException {@inheritDoc}
+     */
     public NamingEnumeration<SearchResult>
         search(String name,
                String filter,
@@ -267,6 +346,10 @@ public class InitialDirContext extends InitialContext implements DirContext {
         return getURLOrDefaultInitDirCtx(name).search(name, filter, cons);
     }
 
+    /**
+     * @throws  InvalidSearchFilterException {@inheritDoc}
+     * @throws  InvalidSearchControlsException {@inheritDoc}
+     */
     public NamingEnumeration<SearchResult>
         search(Name name,
                String filter,
@@ -276,6 +359,10 @@ public class InitialDirContext extends InitialContext implements DirContext {
         return getURLOrDefaultInitDirCtx(name).search(name, filter, cons);
     }
 
+    /**
+     * @throws  InvalidSearchControlsException {@inheritDoc}
+     * @throws  InvalidSearchFilterException {@inheritDoc}
+     */
     public NamingEnumeration<SearchResult>
         search(String name,
                String filterExpr,
@@ -287,6 +374,10 @@ public class InitialDirContext extends InitialContext implements DirContext {
                                                       filterArgs, cons);
     }
 
+    /**
+     * @throws  InvalidSearchControlsException {@inheritDoc}
+     * @throws  InvalidSearchFilterException {@inheritDoc}
+     */
     public NamingEnumeration<SearchResult>
         search(Name name,
                String filterExpr,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package sun.net.www.protocol.jar;
 
 import java.io.IOException;
 import java.net.*;
-import sun.net.www.ParseUtil;
 
 /*
  * Jar URL Handler
@@ -79,8 +78,8 @@ public class Handler extends java.net.URLStreamHandler {
 
         URL enclosedURL1 = null, enclosedURL2 = null;
         try {
-            enclosedURL1 = new URL(file1.substring(0, sep1));
-            enclosedURL2 = new URL(file2.substring(0, sep2));
+            enclosedURL1 = newURL(file1.substring(0, sep1));
+            enclosedURL2 = newURL(file2.substring(0, sep2));
         } catch (MalformedURLException unused) {
             return super.sameFile(u1, u2);
         }
@@ -109,7 +108,7 @@ public class Handler extends java.net.URLStreamHandler {
         URL enclosedURL = null;
         String fileWithoutEntry = file.substring(0, sep);
         try {
-            enclosedURL = new URL(fileWithoutEntry);
+            enclosedURL = newURL(fileWithoutEntry);
             h += enclosedURL.hashCode();
         } catch (MalformedURLException unused) {
             h += fileWithoutEntry.hashCode();
@@ -121,6 +120,13 @@ public class Handler extends java.net.URLStreamHandler {
         return h;
     }
 
+    public String checkNestedProtocol(String spec) {
+        if (spec.regionMatches(true, 0, "jar:", 0, 4)) {
+            return "Nested JAR URLs are not supported";
+        } else {
+            return null;
+        }
+    }
 
     @Override
     @SuppressWarnings("deprecation")
@@ -146,17 +152,20 @@ public class Handler extends java.net.URLStreamHandler {
                 : false;
         spec = spec.substring(start, limit);
 
+        String exceptionMessage = checkNestedProtocol(spec);
+        if (exceptionMessage != null) {
+            // NPE will be transformed into MalformedURLException by the caller
+            throw new NullPointerException(exceptionMessage);
+        }
+
         if (absoluteSpec) {
             file = parseAbsoluteSpec(spec);
         } else if (!refOnly) {
             file = parseContextSpec(url, spec);
 
-            // Canonize the result after the bangslash
+            // Canonicalize the result after the bangslash
             int bangSlash = indexOfBangSlash(file);
-            String toBangSlash = file.substring(0, bangSlash);
-            String afterBangSlash = file.substring(bangSlash);
-            afterBangSlash = ParseUtil.canonizeString(afterBangSlash);
-            file = toBangSlash + afterBangSlash;
+            file = canonicalizeString(file, bangSlash);
         }
         setURL(url, "jar", "", -1, file, ref);
     }
@@ -170,7 +179,7 @@ public class Handler extends java.net.URLStreamHandler {
         // test the inner URL
         try {
             String innerSpec = spec.substring(0, index - 1);
-            new URL(innerSpec);
+            newURL(innerSpec);
         } catch (MalformedURLException e) {
             throw new NullPointerException("invalid url: " +
                                            spec + " (" + e + ")");
@@ -202,5 +211,57 @@ public class Handler extends java.net.URLStreamHandler {
             }
         }
         return (ctxFile + spec);
+    }
+
+    /**
+     * Returns a version of the specified string with
+     * canonicalization applied starting from position {@code off}
+     */
+    private static String canonicalizeString(String file, int off) {
+        int len = file.length();
+        if (off >= len || (file.indexOf("./", off) == -1 && file.charAt(len - 1) != '.')) {
+            return file;
+        } else {
+            // Defer substring and concat until canonicalization is required
+            String before = file.substring(0, off);
+            String after = file.substring(off);
+            return before + doCanonicalize(after);
+        }
+    }
+
+    private static String doCanonicalize(String file) {
+        int i, lim;
+
+        // Remove embedded /../
+        while ((i = file.indexOf("/../")) >= 0) {
+            if ((lim = file.lastIndexOf('/', i - 1)) >= 0) {
+                file = file.substring(0, lim) + file.substring(i + 3);
+            } else {
+                file = file.substring(i + 3);
+            }
+        }
+        // Remove embedded /./
+        while ((i = file.indexOf("/./")) >= 0) {
+            file = file.substring(0, i) + file.substring(i + 2);
+        }
+        // Remove trailing ..
+        while (file.endsWith("/..")) {
+            i = file.indexOf("/..");
+            if ((lim = file.lastIndexOf('/', i - 1)) >= 0) {
+                file = file.substring(0, lim+1);
+            } else {
+                file = file.substring(0, i);
+            }
+        }
+        // Remove trailing .
+        if (file.endsWith("/."))
+            file = file.substring(0, file.length() -1);
+
+        return file;
+    }
+
+    @SuppressWarnings("deprecation")
+    private static URL newURL(String spec) throws MalformedURLException {
+        return new URL(spec);
     }
 }

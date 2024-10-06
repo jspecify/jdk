@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,75 +28,55 @@
  *          all the components on it are repainted correctly
  * @author Jitender(jitender.singh@eng.sun.com) area=AWT
  * @author yan
- * @library ../../../../lib/testlibrary
- * @build ExtendedRobot
+ * @library /lib/client /test/lib
+ * @build ExtendedRobot jdk.test.lib.Platform
  * @run main RepaintTest
  */
 
-import java.awt.*;
-import java.awt.event.*;
+import jdk.test.lib.Platform;
+
+import java.awt.BorderLayout;
+import java.awt.Button;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.EventQueue;
+import java.awt.Frame;
+import java.awt.Panel;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.TextField;
 import javax.swing.JFrame;
 import javax.swing.JButton;
 import javax.swing.JTextField;
 import javax.swing.JPanel;
-import java.io.*;
-import java.awt.image.*;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.awt.image.PixelGrabber;
+import java.io.File;
 
 public class RepaintTest {
-    private static int delay = 150;
+    private static final int delay = 150;
 
     private Frame frame;
-    private Container panel1, panel2;
     private Component button;
     private Component textField;
     private ExtendedRobot robot;
-    private Object buttonLock = new Object();
-    private boolean passed = true;
-    private boolean buttonClicked = false;
-    private int MAX_TOLERANCE_LEVEL = 10;
+    private final Object buttonLock = new Object();
+    private volatile boolean buttonClicked = false;
+    private final int MAX_TOLERANCE_LEVEL = 10;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         RepaintTest test = new RepaintTest();
-        test.doTest(false);
         try {
-            Toolkit.getDefaultToolkit().getSystemEventQueue().invokeAndWait(new Runnable() {
-                public void run() {
-                    test.frame.dispose();
-                }
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Unexpected Exception occured");
+            test.doTest(false);
+        } finally {
+            EventQueue.invokeAndWait(test::dispose);
         }
-        test.doTest(true);
         try {
-            Toolkit.getDefaultToolkit().getSystemEventQueue().invokeAndWait(new Runnable() {
-                public void run() {
-                    test.frame.dispose();
-                }
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Unexpected Exception occured");
-        }
-    }
-
-    /**
-     * Do screen capture and save it as image
-     */
-    private static void captureScreenAndSave() {
-
-        try {
-            Robot robot = new Robot();
-            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-            Rectangle rectangle = new Rectangle(0, 0, screenSize.width, screenSize.height);
-            System.out.println("About to screen capture - " + rectangle);
-            BufferedImage image = robot.createScreenCapture(rectangle);
-            javax.imageio.ImageIO.write(image, "jpg", new File("ScreenImage.jpg"));
-            robot.delay(3000);
-        } catch (Throwable t) {
-            System.out.println("WARNING: Exception thrown while screen capture!");
-            t.printStackTrace();
+            test.doTest(true);
+        } finally {
+            EventQueue.invokeAndWait(test::dispose);
         }
     }
 
@@ -109,76 +89,61 @@ public class RepaintTest {
 
         button = createButton(swingControl, (swingControl ? "Swing Button" : "AWT Button"));
         textField = swingControl ? new JTextField("TextField") : new TextField("TextField");
-        panel1 = swingControl ? new JPanel() : new Panel();
-        panel2 = swingControl ? new JPanel() : new Panel();
+        Container panel1 = swingControl ? new JPanel() : new Panel();
+        Container panel2 = swingControl ? new JPanel() : new Panel();
         panel1.add(button);
         panel2.add(textField);
         frame.add(panel2, BorderLayout.SOUTH);
         frame.add(panel1, BorderLayout.NORTH);
+        frame.setLocationRelativeTo(null);
 
         frame.setBackground(Color.green);
         frame.setVisible(true);
-        frame.toFront();
     }
+
+    private void dispose() {
+        if (frame != null) {
+            frame.dispose();
+        }
+    }
+
     private Component createButton(boolean swingControl, String txt) {
+        ActionListener actionListener = e -> {
+            buttonClicked = true;
+            System.out.println("Clicked!!");
+            synchronized (buttonLock) {
+                try {
+                    buttonLock.notifyAll();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        };
+
         if(swingControl) {
             JButton jbtn = new JButton(txt);
-            jbtn.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    buttonClicked = true;
-                    synchronized (buttonLock) {
-                        try {
-                            buttonLock.notifyAll();
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    }
-                }
-            });
+            jbtn.addActionListener(actionListener);
             return jbtn;
-        }else {
+        } else {
             Button btn = new Button(txt);
-            btn.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    buttonClicked = true;
-                    synchronized (buttonLock) {
-                        try {
-                            buttonLock.notifyAll();
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    }
-                }
-            });
+            btn.addActionListener(actionListener);
             return btn;
         }
     }
 
-    public void doTest(boolean swingControl) {
-        try {
-            Toolkit.getDefaultToolkit().getSystemEventQueue().invokeAndWait(new Runnable() {
-                public void run() {
-                    initializeGUI(swingControl);
-                }
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Interrupted or unexpected Exception occured");
-        }
-        try {
-            robot = new ExtendedRobot();
-            robot.waitForIdle(1000);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Cannot create robot");
-        }
+    public void doTest(boolean swingControl) throws Exception {
+
+        robot = new ExtendedRobot();
+        robot.setAutoDelay(50);
+
+        EventQueue.invokeAndWait(() -> initializeGUI(swingControl));
+        robot.waitForIdle(1000);
 
         robot.mouseMove(button.getLocationOnScreen().x + button.getSize().width / 2,
                         button.getLocationOnScreen().y + button.getSize().height / 2);
+
+        robot.click();
         robot.waitForIdle(delay);
-        robot.mousePress(InputEvent.BUTTON1_MASK);
-        robot.waitForIdle(delay);
-        robot.mouseRelease(InputEvent.BUTTON1_MASK);
 
         if (! buttonClicked) {
             synchronized (buttonLock) {
@@ -189,55 +154,50 @@ public class RepaintTest {
             }
         }
         if (! buttonClicked) {
-            passed = false;
             System.err.println("ActionEvent not triggered when " +
                     "button is clicked!");
             throw new RuntimeException("ActionEvent not triggered");
         }
 
-        robot.waitForIdle(delay * 5); // Need to wait until look of the button
+        robot.waitForIdle(1000); // Need to wait until look of the button
                                       // returns to normal undepressed
-        passed = paintAndRepaint(button, (swingControl? "J": "")+"Button");
-        if( !paintAndRepaint(button, (swingControl? "J": "")+"TextField") ) {
-            passed = false;
-        }
-        if(!passed) {
+
+        if (!paintAndRepaint(button, (swingControl ? "J" : "") + "Button")
+            || !paintAndRepaint(textField, (swingControl ? "J" : "") + "TextField")) {
             throw new RuntimeException("Test failed");
         }
     }
-    private boolean paintAndRepaint(Component comp, String prefix) {
+    private boolean paintAndRepaint(Component comp, String prefix) throws Exception {
+        boolean passed = true;
         //Capture the component & compare it's dimensions
         //before iconifying & after frame comes back from
         //iconified to normal state
-        System.out.println("paintAndRepaint "+prefix);
+        System.out.printf("paintAndRepaint %s %s\n", prefix, comp);
         Point p = comp.getLocationOnScreen();
         Rectangle bRect = new Rectangle((int)p.getX(), (int)p.getY(),
                                                 comp.getWidth(), comp.getHeight());
         BufferedImage capturedImage = robot.createScreenCapture(bRect);
+        BufferedImage frameImage = robot.createScreenCapture(frame.getBounds());
 
-        try {
-            Toolkit.getDefaultToolkit().getSystemEventQueue().invokeAndWait(new Runnable() {
-                public void run() {
-                    frame.setExtendedState(Frame.ICONIFIED);
-                }
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Exception while setting extended state ICONIFIED");
+        EventQueue.invokeAndWait(() -> frame.setExtendedState(Frame.ICONIFIED));
+        robot.waitForIdle(1500);
+        EventQueue.invokeAndWait(() -> frame.setExtendedState(Frame.NORMAL));
+        robot.waitForIdle(1500);
+
+        if (Platform.isOnWayland()) {
+            // Robot.mouseMove does not move the actual mouse cursor on the
+            // screen in X11 compatibility mode on Wayland, but only within
+            // the XWayland server.
+            // This can cause the test to fail if the actual mouse cursor on
+            // the screen is somewhere over the test window, so that when the
+            // test window is restored from the iconified state, it's detected
+            // that the mouse cursor has moved to the mouse cursor position on
+            // the screen, and is no longer hovering over the button, so the
+            // button is painted differently.
+            robot.mouseMove(button.getLocationOnScreen().x + button.getSize().width / 2,
+                    button.getLocationOnScreen().y + button.getSize().height / 2);
+            robot.waitForIdle();
         }
-        robot.waitForIdle(delay * 5);
-        try {
-            Toolkit.getDefaultToolkit().getSystemEventQueue().invokeAndWait(new Runnable() {
-                public void run() {
-                    frame.setExtendedState(Frame.NORMAL);
-                    frame.toFront();
-                }
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Exception while setting extended state NORMAL");
-        }
-        robot.waitForIdle(delay * 5);
 
         if (! p.equals(comp.getLocationOnScreen())) {
             passed = false;
@@ -248,14 +208,20 @@ public class RepaintTest {
         bRect = new Rectangle((int)p.getX(), (int)p.getY(),
                                   comp.getWidth(), comp.getHeight());
         BufferedImage capturedImage2 = robot.createScreenCapture(bRect);
+        BufferedImage frameImage2 = robot.createScreenCapture(frame.getBounds());
 
-        if (! compareImages(capturedImage, capturedImage2)) {
+        if (!compareImages(capturedImage, capturedImage2)) {
             passed = false;
+
             try {
-                javax.imageio.ImageIO.write(capturedImage, "jpg", new File(
-                                   prefix+"BeforeMinimize.jpg"));
-                javax.imageio.ImageIO.write(capturedImage2, "jpg", new File(
-                                   prefix+"AfterMinimize.jpg"));
+                javax.imageio.ImageIO.write(capturedImage, "png",
+                        new File(prefix + "BeforeMinimize.png"));
+                javax.imageio.ImageIO.write(capturedImage2, "png",
+                        new File(prefix + "AfterMinimize.png"));
+                javax.imageio.ImageIO.write(frameImage, "png",
+                        new File("Frame" + prefix + "BeforeMinimize.png"));
+                javax.imageio.ImageIO.write(frameImage2, "png",
+                        new File("Frame" + prefix + "AfterMinimize.png"));
             } catch (Exception e) {
                 e.printStackTrace();
             }

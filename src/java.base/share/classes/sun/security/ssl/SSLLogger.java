@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,14 +36,17 @@ import java.security.cert.Certificate;
 import java.security.cert.Extension;
 import java.security.cert.X509Certificate;
 import java.text.MessageFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.Map;
-import java.util.ResourceBundle;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+
 import sun.security.action.GetPropertyAction;
 import sun.security.util.HexDumpEncoder;
+import sun.security.util.Debug;
 import sun.security.x509.*;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Implementation of SSL logger.
@@ -179,7 +182,7 @@ public final class SSLLogger {
     }
 
     private static void log(Level level, String msg, Object... params) {
-        if (logger.isLoggable(level)) {
+        if (logger != null && logger.isLoggable(level)) {
             if (params == null || params.length == 0) {
                 logger.log(level, msg);
             } else {
@@ -202,6 +205,15 @@ public final class SSLLogger {
         }
     }
 
+    // Logs a warning message and always returns false. This method
+    // can be used as an OR Predicate to add a log in a stream filter.
+    public static boolean logWarning(String option, String s) {
+        if (SSLLogger.isOn && SSLLogger.isOn(option)) {
+            SSLLogger.warning(s);
+        }
+        return false;
+    }
+
     private static class SSLConsoleLogger implements Logger {
         private final String loggerName;
         private final boolean useCompactFormat;
@@ -219,7 +231,7 @@ public final class SSLLogger {
 
         @Override
         public boolean isLoggable(Level level) {
-            return (level != Level.OFF);
+            return level != Level.OFF;
         }
 
         @Override
@@ -229,7 +241,7 @@ public final class SSLLogger {
                 try {
                     String formatted =
                         SSLSimpleFormatter.format(this, level, message, thrwbl);
-                    System.err.write(formatted.getBytes("UTF-8"));
+                    System.err.write(formatted.getBytes(UTF_8));
                 } catch (Exception exp) {
                     // ignore it, just for debugging.
                 }
@@ -243,7 +255,7 @@ public final class SSLLogger {
                 try {
                     String formatted =
                         SSLSimpleFormatter.format(this, level, message, params);
-                    System.err.write(formatted.getBytes("UTF-8"));
+                    System.err.write(formatted.getBytes(UTF_8));
                 } catch (Exception exp) {
                     // ignore it, just for debugging.
                 }
@@ -252,38 +264,38 @@ public final class SSLLogger {
     }
 
     private static class SSLSimpleFormatter {
-        private static final ThreadLocal<SimpleDateFormat> dateFormat =
-            new ThreadLocal<SimpleDateFormat>() {
-                @Override protected SimpleDateFormat initialValue() {
-                    return new SimpleDateFormat(
-                            "yyyy-MM-dd kk:mm:ss.SSS z", Locale.ENGLISH);
-                }
-            };
+        private static final String PATTERN = "yyyy-MM-dd kk:mm:ss.SSS z";
+        private static final DateTimeFormatter dateTimeFormat = DateTimeFormatter.ofPattern(PATTERN, Locale.ENGLISH)
+                                                                                 .withZone(ZoneId.systemDefault());
 
         private static final MessageFormat basicCertFormat = new MessageFormat(
-                "\"version\"            : \"v{0}\",\n" +
-                "\"serial number\"      : \"{1}\",\n" +
-                "\"signature algorithm\": \"{2}\",\n" +
-                "\"issuer\"             : \"{3}\",\n" +
-                "\"not before\"         : \"{4}\",\n" +
-                "\"not  after\"         : \"{5}\",\n" +
-                "\"subject\"            : \"{6}\",\n" +
-                "\"subject public key\" : \"{7}\"\n",
+                """
+                        "version"            : "v{0}",
+                        "serial number"      : "{1}",
+                        "signature algorithm": "{2}",
+                        "issuer"             : "{3}",
+                        "not before"         : "{4}",
+                        "not  after"         : "{5}",
+                        "subject"            : "{6}",
+                        "subject public key" : "{7}"
+                        """,
                 Locale.ENGLISH);
 
         private static final MessageFormat extendedCertFormart =
             new MessageFormat(
-                "\"version\"            : \"v{0}\",\n" +
-                "\"serial number\"      : \"{1}\",\n" +
-                "\"signature algorithm\": \"{2}\",\n" +
-                "\"issuer\"             : \"{3}\",\n" +
-                "\"not before\"         : \"{4}\",\n" +
-                "\"not  after\"         : \"{5}\",\n" +
-                "\"subject\"            : \"{6}\",\n" +
-                "\"subject public key\" : \"{7}\",\n" +
-                "\"extensions\"         : [\n" +
-                "{8}\n" +
-                "]\n",
+                    """
+                            "version"            : "v{0}",
+                            "serial number"      : "{1}",
+                            "signature algorithm": "{2}",
+                            "issuer"             : "{3}",
+                            "not before"         : "{4}",
+                            "not  after"         : "{5}",
+                            "subject"            : "{6}",
+                            "subject public key" : "{7}",
+                            "extensions"         : [
+                            {8}
+                            ]
+                            """,
                 Locale.ENGLISH);
 
         //
@@ -297,15 +309,17 @@ public final class SSLLogger {
 
         private static final MessageFormat messageFormatNoParas =
             new MessageFormat(
-                "'{'\n" +
-                "  \"logger\"      : \"{0}\",\n" +
-                "  \"level\"       : \"{1}\",\n" +
-                "  \"thread id\"   : \"{2}\",\n" +
-                "  \"thread name\" : \"{3}\",\n" +
-                "  \"time\"        : \"{4}\",\n" +
-                "  \"caller\"      : \"{5}\",\n" +
-                "  \"message\"     : \"{6}\"\n" +
-                "'}'\n",
+                    """
+                            '{'
+                              "logger"      : "{0}",
+                              "level"       : "{1}",
+                              "thread id"   : "{2}",
+                              "thread name" : "{3}",
+                              "time"        : "{4}",
+                              "caller"      : "{5}",
+                              "message"     : "{6}"
+                            '}'
+                            """,
                 Locale.ENGLISH);
 
         private static final MessageFormat messageCompactFormatNoParas =
@@ -315,31 +329,36 @@ public final class SSLLogger {
 
         private static final MessageFormat messageFormatWithParas =
             new MessageFormat(
-                "'{'\n" +
-                "  \"logger\"      : \"{0}\",\n" +
-                "  \"level\"       : \"{1}\",\n" +
-                "  \"thread id\"   : \"{2}\",\n" +
-                "  \"thread name\" : \"{3}\",\n" +
-                "  \"time\"        : \"{4}\",\n" +
-                "  \"caller\"      : \"{5}\",\n" +
-                "  \"message\"     : \"{6}\",\n" +
-                "  \"specifics\"   : [\n" +
-                "{7}\n" +
-                "  ]\n" +
-                "'}'\n",
+                    """
+                            '{'
+                              "logger"      : "{0}",
+                              "level"       : "{1}",
+                              "thread id"   : "{2}",
+                              "thread name" : "{3}",
+                              "time"        : "{4}",
+                              "caller"      : "{5}",
+                              "message"     : "{6}",
+                              "specifics"   : [
+                            {7}
+                              ]
+                            '}'
+                            """,
                 Locale.ENGLISH);
 
         private static final MessageFormat messageCompactFormatWithParas =
             new MessageFormat(
-                "{0}|{1}|{2}|{3}|{4}|{5}|{6} (\n" +
-                "{7}\n" +
-                ")\n",
+                    """
+                            {0}|{1}|{2}|{3}|{4}|{5}|{6} (
+                            {7}
+                            )
+                            """,
                 Locale.ENGLISH);
 
         private static final MessageFormat keyObjectFormat = new MessageFormat(
-                "\"{0}\" : '{'\n" +
-                "{1}" +
-                "'}'\n",
+                """
+                        "{0}" : '{'
+                        {1}'}'
+                        """,
                 Locale.ENGLISH);
 
         // INFO: [TH: 123450] 2011-08-20 23:12:32.3225 PDT
@@ -353,9 +372,9 @@ public final class SSLLogger {
                 Object[] messageFields = {
                     logger.loggerName,
                     level.getName(),
-                    Utilities.toHexString(Thread.currentThread().getId()),
+                    Utilities.toHexString(Thread.currentThread().threadId()),
                     Thread.currentThread().getName(),
-                    dateFormat.get().format(new Date(System.currentTimeMillis())),
+                    dateTimeFormat.format(Instant.now()),
                     formatCaller(),
                     message
                 };
@@ -370,9 +389,9 @@ public final class SSLLogger {
             Object[] messageFields = {
                     logger.loggerName,
                     level.getName(),
-                    Utilities.toHexString(Thread.currentThread().getId()),
+                    Utilities.toHexString(Thread.currentThread().threadId()),
                     Thread.currentThread().getName(),
-                    dateFormat.get().format(new Date(System.currentTimeMillis())),
+                    dateTimeFormat.format(Instant.now()),
                     formatCaller(),
                     message,
                     (logger.useCompactFormat ?
@@ -462,20 +481,16 @@ public final class SSLLogger {
             try {
                 X509CertImpl x509 =
                     X509CertImpl.toImpl((X509Certificate)certificate);
-                X509CertInfo certInfo =
-                        (X509CertInfo)x509.get(X509CertImpl.NAME + "." +
-                                                       X509CertImpl.INFO);
-                CertificateExtensions certExts = (CertificateExtensions)
-                        certInfo.get(X509CertInfo.EXTENSIONS);
+                X509CertInfo certInfo = x509.getInfo();
+                CertificateExtensions certExts = certInfo.getExtensions();
                 if (certExts == null) {
                     Object[] certFields = {
                         x509.getVersion(),
-                        Utilities.toHexString(
-                                x509.getSerialNumber().toByteArray()),
+                        Debug.toString(x509.getSerialNumber()),
                         x509.getSigAlgName(),
                         x509.getIssuerX500Principal().toString(),
-                        dateFormat.get().format(x509.getNotBefore()),
-                        dateFormat.get().format(x509.getNotAfter()),
+                        dateTimeFormat.format(x509.getNotBefore().toInstant()),
+                        dateTimeFormat.format(x509.getNotAfter().toInstant()),
                         x509.getSubjectX500Principal().toString(),
                         x509.getPublicKey().getAlgorithm()
                         };
@@ -495,12 +510,11 @@ public final class SSLLogger {
                     }
                     Object[] certFields = {
                         x509.getVersion(),
-                        Utilities.toHexString(
-                                x509.getSerialNumber().toByteArray()),
+                        Debug.toString(x509.getSerialNumber()),
                         x509.getSigAlgName(),
                         x509.getIssuerX500Principal().toString(),
-                        dateFormat.get().format(x509.getNotBefore()),
-                        dateFormat.get().format(x509.getNotAfter()),
+                        dateTimeFormat.format(x509.getNotBefore().toInstant()),
+                        dateTimeFormat.format(x509.getNotAfter().toInstant()),
                         x509.getSubjectX500Principal().toString(),
                         x509.getPublicKey().getAlgorithm(),
                         Utilities.indent(extBuilder.toString())
@@ -556,18 +570,19 @@ public final class SSLLogger {
             String formatted;
             if (value instanceof String) {
                 // "key": "value"
-                formatted = "\"" + key + "\": \"" + (String)value + "\"";
-            } else if (value instanceof String[]) {
+                formatted = "\"" + key + "\": \"" + value + "\"";
+            } else if (value instanceof String[] strings) {
                 // "key": [ "string a",
                 //          "string b",
                 //          "string c"
                 //        ]
                 StringBuilder builder = new StringBuilder(512);
-                String[] strings = (String[])value;
                 builder.append("\"" + key + "\": [\n");
-                for (String string : strings) {
+                int len = strings.length;
+                for (int i = 0; i < len; i++) {
+                    String string = strings[i];
                     builder.append("      \"" + string + "\"");
-                    if (string != strings[strings.length - 1]) {
+                    if (i != len - 1) {
                         builder.append(",");
                     }
                     builder.append("\n");
@@ -580,7 +595,7 @@ public final class SSLLogger {
                     Utilities.toHexString((byte[])value) + "\"";
             } else if (value instanceof Byte) {
                 formatted = "\"" + key + "\": \"" +
-                    Utilities.toHexString((byte)value) + "\"";
+                        HexFormat.of().toHexDigits((byte)value) + "\"";
             } else {
                 formatted = "\"" + key + "\": " +
                     "\"" + value.toString() + "\"";

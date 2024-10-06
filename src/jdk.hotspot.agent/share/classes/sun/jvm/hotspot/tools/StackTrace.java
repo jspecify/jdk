@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,17 +62,17 @@ public class StackTrace extends Tool {
             DeadlockDetector.print(tty);
         } catch (Exception exp) {
             exp.printStackTrace();
-            tty.println("Can't print deadlocks:" + exp.getMessage());
+            tty.println("Can't print deadlocks: " + exp);
         }
 
         try {
             ConcurrentLocksPrinter concLocksPrinter = null;
             if (concurrentLocks) {
-                concLocksPrinter = new ConcurrentLocksPrinter();
+                concLocksPrinter = new ConcurrentLocksPrinter(tty);
             }
             Threads threads = VM.getVM().getThreads();
-            int i = 1;
-            for (JavaThread cur = threads.first(); cur != null; cur = cur.next(), i++) {
+            for (int i = 0; i < threads.getNumberOfThreads(); i++) {
+                JavaThread cur = threads.getJavaThreadAt(i);
                 if (cur.isJavaThread()) {
                     cur.printThreadInfoOn(tty);
                     try {
@@ -111,17 +111,21 @@ public class StackTrace extends Tool {
                             }
 
                             tty.println(")");
-                            vf.printLockInfo(tty, count++);
+                            try {
+                                vf.printLockInfo(tty, count++);
+                            } catch (Exception e) {
+                                tty.println("\nCould not print lock info: " + e);
+                            }
                         }
                     } catch (Exception e) {
-                        tty.println("Error occurred during stack walking:");
-                        e.printStackTrace();
+                        tty.println("\nError occurred during stack walking:");
+                        e.printStackTrace(tty);
                     }
                     tty.println();
                     if (concurrentLocks) {
-                        concLocksPrinter.print(cur, tty);
+                        concLocksPrinter.print(cur);
+                        tty.println();
                     }
-                    tty.println();
               }
           }
       }

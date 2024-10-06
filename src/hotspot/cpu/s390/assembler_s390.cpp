@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -31,7 +31,6 @@
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/methodHandles.hpp"
-#include "runtime/biasedLocking.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/os.hpp"
@@ -121,14 +120,14 @@ Assembler::branch_condition Assembler::inverse_float_condition(Assembler::branch
     case bcondNotOrdered  : inverse_cc = bcondOrdered;     break;  // 14
     case bcondOrdered     : inverse_cc = bcondNotOrdered;  break;  //  1
 
-    case bcondEqual                      : inverse_cc = (branch_condition)(bcondNotEqual + bcondNotOrdered);  break; //  8
-    case bcondNotEqual + bcondNotOrdered : inverse_cc = bcondEqual;  break;                                          //  7
+    case bcondEqual                : inverse_cc = bcondNotEqualOrNotOrdered; break;  //  8
+    case bcondNotEqualOrNotOrdered : inverse_cc = bcondEqual;                break;  //  7
 
-    case bcondLow      + bcondNotOrdered : inverse_cc = (branch_condition)(bcondHigh + bcondEqual);      break;      //  5
-    case bcondNotLow                     : inverse_cc = (branch_condition)(bcondLow  + bcondNotOrdered); break;      // 10
+    case bcondLowOrNotOrdered      : inverse_cc = bcondNotLow;               break;  //  5
+    case bcondNotLow               : inverse_cc = bcondLowOrNotOrdered;      break;  // 10
 
-    case bcondHigh                       : inverse_cc = (branch_condition)(bcondLow  + bcondNotOrdered + bcondEqual); break;  //  2
-    case bcondNotHigh  + bcondNotOrdered : inverse_cc = bcondHigh; break;                                                     // 13
+    case bcondHigh                 : inverse_cc = bcondNotHighOrNotOrdered;  break;  //  2
+    case bcondNotHighOrNotOrdered  : inverse_cc = bcondHigh;                 break;  // 13
 
     default :
       fprintf(stderr, "inverse_float_condition(%d)\n", (int)cc);
@@ -139,7 +138,7 @@ Assembler::branch_condition Assembler::inverse_float_condition(Assembler::branch
   return inverse_cc;
 }
 
-#ifdef ASSERT
+#ifndef PRODUCT
 void Assembler::print_dbg_msg(outputStream* out, unsigned long inst, const char* msg, int ilen) {
   out->flush();
   switch (ilen) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,8 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/osThread.hpp"
 
-OSThread::OSThread(OSThreadStartFunc start_proc, void* start_parm) {
+OSThread::OSThread() {
   pd_initialize();
-  set_start_proc(start_proc);
-  set_start_parm(start_parm);
-  set_interrupted(false);
 }
 
 OSThread::~OSThread() {
@@ -39,7 +36,7 @@ OSThread::~OSThread() {
 
 // Printing
 void OSThread::print_on(outputStream *st) const {
-  st->print("nid=0x%x ", thread_id());
+  st->print("nid=" UINT64_FORMAT " ", (uint64_t)thread_id());
   switch (_state) {
     case ALLOCATED:               st->print("allocated ");                 break;
     case INITIALIZED:             st->print("initialized ");               break;
@@ -53,3 +50,5 @@ void OSThread::print_on(outputStream *st) const {
     default:                      st->print("unknown state %d", _state); break;
   }
 }
+
+void OSThread::print() const { print_on(tty); }

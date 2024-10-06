@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,19 +37,19 @@ public interface DocTree {
     enum Kind {
         /**
          * Used for instances of {@link AttributeTree}
-         * representing an HTML attribute.
+         * representing an attribute in an HTML element or tag.
          */
         ATTRIBUTE,
 
         /**
          * Used for instances of {@link AuthorTree}
-         * representing an @author tag.
+         * representing an {@code @author} tag.
          */
         AUTHOR("author"),
 
         /**
          * Used for instances of {@link LiteralTree}
-         * representing an @code tag.
+         * representing an {@code @code} tag.
          */
         CODE("code"),
 
@@ -61,7 +61,7 @@ public interface DocTree {
 
         /**
          * Used for instances of {@link DeprecatedTree}
-         * representing an @deprecated tag.
+         * representing an {@code @deprecated} tag.
          */
         DEPRECATED("deprecated"),
 
@@ -73,13 +73,15 @@ public interface DocTree {
 
         /**
          * Used for instances of {@link DocRootTree}
-         * representing an @docRoot tag.
+         * representing an {@code @docRoot} tag.
          */
         DOC_ROOT("docRoot"),
 
         /**
          * Used for instances of {@link DocTypeTree}
          * representing an HTML DocType declaration.
+         *
+         * @since 10
          */
         DOC_TYPE,
 
@@ -102,14 +104,22 @@ public interface DocTree {
         ERRONEOUS,
 
         /**
+         * Used for instances of {@link EscapeTree}
+         * representing some escaped documentation text.
+         *
+         * @since 21
+         */
+        ESCAPE,
+
+        /**
          * Used for instances of {@link ThrowsTree}
-         * representing an @exception tag.
+         * representing an {@code @exception} tag.
          */
         EXCEPTION("exception"),
 
         /**
          * Used for instances of {@link HiddenTree}
-         * representing an @hidden tag.
+         * representing an {@code @hidden} tag.
          */
         HIDDEN("hidden"),
 
@@ -121,110 +131,148 @@ public interface DocTree {
 
         /**
          * Used for instances of {@link IndexTree}
-         * representing a search term.
+         * representing an {@code @index} tag.
+         *
+         * @since 9
          */
         INDEX("index"),
 
         /**
          * Used for instances of {@link InheritDocTree}
-         * representing an @inheritDoc tag.
+         * representing an {@code @inheritDoc} tag.
          */
         INHERIT_DOC("inheritDoc"),
 
         /**
          * Used for instances of {@link LinkTree}
-         * representing an @link tag.
+         * representing an {@code @link} tag.
          */
         LINK("link"),
 
         /**
          * Used for instances of {@link LinkTree}
-         * representing an @linkplain tag.
+         * representing an {@code @linkplain} tag.
          */
         LINK_PLAIN("linkplain"),
 
         /**
          * Used for instances of {@link LiteralTree}
-         * representing an @literal tag.
+         * representing an {@code @literal} tag.
          */
         LITERAL("literal"),
 
         /**
+         * Used for instances of {@link RawTextTree}
+         * representing a fragment of Markdown content.
+         *
+         * @since 23
+         */
+        MARKDOWN,
+
+        /**
          * Used for instances of {@link ParamTree}
-         * representing an @param tag.
+         * representing an {@code @param} tag.
          */
         PARAM("param"),
 
         /**
          * Used for instances of {@link ProvidesTree}
-         * representing an @provides tag.
+         * representing an {@code @provides} tag.
+         *
+         * @since 9
          */
         PROVIDES("provides"),
 
         /**
          * Used for instances of {@link ReferenceTree}
-         * representing a reference to a element in the
+         * representing a reference to an element in the
          * Java programming language.
          */
         REFERENCE,
 
         /**
          * Used for instances of {@link ReturnTree}
-         * representing an @return tag.
+         * representing an {@code @return} tag.
          */
         RETURN("return"),
 
         /**
          * Used for instances of {@link SeeTree}
-         * representing an @see tag.
+         * representing an {@code @see} tag.
          */
         SEE("see"),
 
         /**
          * Used for instances of {@link SerialTree}
-         * representing an @serial tag.
+         * representing an {@code @serial} tag.
          */
         SERIAL("serial"),
 
         /**
          * Used for instances of {@link SerialDataTree}
-         * representing an @serialData tag.
+         * representing an {@code @serialData} tag.
          */
         SERIAL_DATA("serialData"),
 
         /**
          * Used for instances of {@link SerialFieldTree}
-         * representing an @serialField tag.
+         * representing an {@code @serialField} tag.
          */
         SERIAL_FIELD("serialField"),
 
         /**
          * Used for instances of {@link SinceTree}
-         * representing an @since tag.
+         * representing an {@code @since} tag.
          */
         SINCE("since"),
 
         /**
-         * Used for instances of {@link EndElementTree}
+         * Used for instances of {@link SnippetTree}
+         * representing an {@code @snippet} tag.
+         *
+         * @since 18
+         */
+        SNIPPET("snippet"),
+
+        /**
+         * Used for instances of {@link SpecTree}
+         * representing an {@code @spec} tag.
+         *
+         * @since 20
+         */
+        SPEC("spec"),
+
+        /**
+         * Used for instances of {@link StartElementTree}
          * representing the start of an HTML element.
          */
         START_ELEMENT,
 
         /**
+         * Used for instances of {@link SystemPropertyTree}
+         * representing an {@code @systemProperty} tag.
+         *
+         * @since 12
+         */
+        SYSTEM_PROPERTY("systemProperty"),
+
+        /**
          * Used for instances of {@link SummaryTree}
-         * representing the summary of a comment description.
+         * representing an {@code @summary} tag.
+         *
+         * @since 10
          */
         SUMMARY("summary"),
 
         /**
          * Used for instances of {@link TextTree}
-         * representing some documentation text.
+         * representing some plain documentation text.
          */
         TEXT,
 
         /**
          * Used for instances of {@link ThrowsTree}
-         * representing an @throws tag.
+         * representing an {@code @throws} tag.
          */
         THROWS("throws"),
 
@@ -242,24 +290,26 @@ public interface DocTree {
 
         /**
          * Used for instances of {@link UsesTree}
-         * representing an @uses tag.
+         * representing an {@code @uses} tag.
+         *
+         * @since 9
          */
         USES("uses"),
 
         /**
          * Used for instances of {@link ValueTree}
-         * representing an @value tag.
+         * representing an {@code @value} tag.
          */
         VALUE("value"),
 
         /**
          * Used for instances of {@link VersionTree}
-         * representing an @version tag.
+         * representing an {@code @version} tag.
          */
         VERSION("version"),
 
         /**
-         * An implementation-reserved node. This is the not the node
+         * An implementation-reserved node. This is not the node
          * you are looking for.
          */
         OTHER;
@@ -281,7 +331,7 @@ public interface DocTree {
     /**
      * Returns the kind of this tree.
      *
-     * @return the kind of this tree.
+     * @return the kind of this tree
      */
     Kind getKind();
 
@@ -289,8 +339,8 @@ public interface DocTree {
      * Accept method used to implement the visitor pattern.  The
      * visitor pattern is used to implement operations on trees.
      *
-     * @param <R> result type of this operation.
-     * @param <D> type of additional data.
+     * @param <R> the result type of this operation
+     * @param <D> the type of additional data
      * @param visitor the visitor to be called
      * @param data a parameter value to be passed to the visitor method
      * @return the value returned from the visitor method

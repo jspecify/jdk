@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,9 +57,9 @@ import java.math.BigInteger;
 @AnnotatedFor({"interning"})
 public @UsesObjectEquals class RSAOtherPrimeInfo {
 
-    private BigInteger prime;
-    private BigInteger primeExponent;
-    private BigInteger crtCoefficient;
+    private final BigInteger prime;
+    private final BigInteger primeExponent;
+    private final BigInteger crtCoefficient;
 
 
    /**
@@ -71,7 +71,7 @@ public @UsesObjectEquals class RSAOtherPrimeInfo {
     * @param primeExponent the exponent.
     * @param crtCoefficient the Chinese Remainder Theorem
     * coefficient.
-    * @exception NullPointerException if any of the parameters, i.e.
+    * @throws    NullPointerException if any of the parameters, i.e.
     * {@code prime}, {@code primeExponent},
     * {@code crtCoefficient}, is null.
     *

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import jdk.internal.misc.VM;
 import jdk.internal.module.ModuleHashes;
 import jdk.internal.module.ModuleReferenceImpl;
 
-import java.lang.module.ModuleDescriptor.Version;
+import java.lang.constant.ConstantDescs;
 import java.lang.module.ModuleReference;
 import java.lang.module.ResolvedModule;
 import java.util.HashSet;
@@ -56,6 +56,9 @@ import java.util.Set;
 @NullMarked
 public final class StackTraceElement implements java.io.Serializable {
 
+    private static final String NATIVE_METHOD = "Native Method";
+    private static final String UNKNOWN_SOURCE = "Unknown Source";
+
     // For Throwables and StackWalker, the VM initially sets this field to a
     // reference to the declaring Class.  The Class reference is used to
     // construct the 'format' bitmap, and then is cleared.
@@ -64,13 +67,37 @@ public final class StackTraceElement implements java.io.Serializable {
     private transient Class<?> declaringClassObject;
 
     // Normally initialized by VM
+    /**
+     * The name of the class loader.
+     */
     private String classLoaderName;
+    /**
+     * The module name.
+     */
     private String moduleName;
+    /**
+     * The module version.
+     */
     private String moduleVersion;
+    /**
+     * The declaring class.
+     */
     private String declaringClass;
+    /**
+     * The method name.
+     */
     private String methodName;
+    /**
+     * The source file name.
+     */
     private String fileName;
+    /**
+     * The source line number.
+     */
     private int    lineNumber;
+    /**
+     * Control to show full or partial module, package, and class names.
+     */
     private byte   format = 0; // Default to show all
 
     /**
@@ -79,8 +106,9 @@ public final class StackTraceElement implements java.io.Serializable {
      * #getModuleVersion module version} of the stack trace element will
      * be {@code null}.
      *
-     * @param declaringClass the fully qualified name of the class containing
-     *        the execution point represented by the stack trace element
+     * @param declaringClass the {@linkplain ClassLoader##binary-name binary name}
+     *        of the class containing the execution point represented by
+     *        the stack trace element
      * @param methodName the name of the method containing the execution point
      *        represented by the stack trace element
      * @param fileName the name of the file containing the execution point
@@ -94,8 +122,6 @@ public final class StackTraceElement implements java.io.Serializable {
      * @throws NullPointerException if {@code declaringClass} or
      *         {@code methodName} is null
      * @since 1.5
-     * @revised 9
-     * @spec JPMS
      */
     public StackTraceElement( String declaringClass, String methodName,
                              @Nullable String fileName, int lineNumber) {
@@ -115,8 +141,9 @@ public final class StackTraceElement implements java.io.Serializable {
      * @param moduleVersion the module version if the class containing the
      *        execution point represented by the stack trace is in a named
      *        module that has a version; otherwise {@code null}
-     * @param declaringClass the fully qualified name of the class containing
-     *        the execution point represented by the stack trace element
+     * @param declaringClass the {@linkplain ClassLoader##binary-name binary name}
+     *        of the class containing the execution point represented by
+     *        the stack trace element
      * @param methodName the name of the method containing the execution point
      *        represented by the stack trace element
      * @param fileName the name of the file containing the execution point
@@ -132,7 +159,6 @@ public final class StackTraceElement implements java.io.Serializable {
      *         or {@code methodName} is {@code null}
      *
      * @since 9
-     * @spec JPMS
      */
     public StackTraceElement(String classLoaderName,
                              String moduleName, String moduleVersion,
@@ -157,8 +183,8 @@ public final class StackTraceElement implements java.io.Serializable {
      * Returns the name of the source file containing the execution point
      * represented by this stack trace element.  Generally, this corresponds
      * to the {@code SourceFile} attribute of the relevant {@code class}
-     * file (as per <i>The Java Virtual Machine Specification</i>, Section
-     * 4.7.7).  In some systems, the name may refer to some source code unit
+     * file (as per <cite>The Java Virtual Machine Specification</cite>, Section
+     * {@jvms 4.7.7}).  In some systems, the name may refer to some source code unit
      * other than a file, such as an entry in source repository.
      *
      * @return the name of the file containing the execution point
@@ -173,8 +199,8 @@ public final class StackTraceElement implements java.io.Serializable {
      * Returns the line number of the source line containing the execution
      * point represented by this stack trace element.  Generally, this is
      * derived from the {@code LineNumberTable} attribute of the relevant
-     * {@code class} file (as per <i>The Java Virtual Machine
-     * Specification</i>, Section 4.7.8).
+     * {@code class} file (as per <cite>The Java Virtual Machine
+     * Specification</cite>, Section {@jvms 4.7.8}).
      *
      * @return the line number of the source line containing the execution
      *         point represented by this stack trace element, or a negative
@@ -192,7 +218,6 @@ public final class StackTraceElement implements java.io.Serializable {
      *         point represented by this stack trace element; {@code null}
      *         if the module name is not available.
      * @since 9
-     * @spec JPMS
      * @see Module#getName()
      */
     public String getModuleName() {
@@ -207,7 +232,6 @@ public final class StackTraceElement implements java.io.Serializable {
      *         point represented by this stack trace element; {@code null}
      *         if the module version is not available.
      * @since 9
-     * @spec JPMS
      * @see java.lang.module.ModuleDescriptor.Version
      */
     public String getModuleVersion() {
@@ -223,7 +247,6 @@ public final class StackTraceElement implements java.io.Serializable {
      *         if the class loader is not named.
      *
      * @since 9
-     * @spec JPMS
      * @see java.lang.ClassLoader#getName()
      */
     public String getClassLoaderName() {
@@ -231,11 +254,9 @@ public final class StackTraceElement implements java.io.Serializable {
     }
 
     /**
-     * Returns the fully qualified name of the class containing the
-     * execution point represented by this stack trace element.
-     *
-     * @return the fully qualified name of the {@code Class} containing
-     *         the execution point represented by this stack trace element.
+     * {@return the {@linkplain ClassLoader##binary-name binary name}
+     * of the {@code Class} containing the execution point represented
+     * by this stack trace element}
      */
     public  String getClassName() {
         return declaringClass;
@@ -245,9 +266,9 @@ public final class StackTraceElement implements java.io.Serializable {
      * Returns the name of the method containing the execution point
      * represented by this stack trace element.  If the execution point is
      * contained in an instance or class initializer, this method will return
-     * the appropriate <i>special method name</i>, {@code <init>} or
-     * {@code <clinit>}, as per Section 3.9 of <i>The Java Virtual
-     * Machine Specification</i>.
+     * the appropriate <i>special method name</i>, {@value ConstantDescs#INIT_NAME}
+     * or {@value ConstantDescs#CLASS_INIT_NAME}, as per Section {@jvms 3.9}
+     * of <cite>The Java Virtual Machine Specification</cite>.
      *
      * @return the name of the method containing the execution point
      *         represented by this stack trace element.
@@ -307,7 +328,7 @@ public final class StackTraceElement implements java.io.Serializable {
      * </ul>
      *
      * <p> The first example shows a stack trace element consisting of
-     * three elements, each separated by {@code "/"} followed with
+     * three elements, each separated by {@code "/"}, followed by
      * the source file name and the line number of the source line
      * containing the execution point.
      *
@@ -315,7 +336,7 @@ public final class StackTraceElement implements java.io.Serializable {
      * the name of the class loader.  The second element "{@code foo@9.0}"
      * is the module name and version.  The third element is the method
      * containing the execution point; "{@code com.foo.Main"}" is the
-     * fully-qualified class name and "{@code run}" is the name of the method.
+     * binary name and "{@code run}" is the name of the method.
      * "{@code Main.java}" is the source file name and "{@code 101}" is
      * the line number.
      *
@@ -338,32 +359,52 @@ public final class StackTraceElement implements java.io.Serializable {
      * {@link java.lang.StackWalker.StackFrame}, where an implementation may
      * choose to omit some element in the returned string.
      *
-     * @revised 9
-     * @spec JPMS
      * @see    Throwable#printStackTrace()
      */
-    
+    @Override
     public String toString() {
-        String s = "";
-        if (!dropClassLoaderName() && classLoaderName != null &&
-                !classLoaderName.isEmpty()) {
-            s += classLoaderName + "/";
-        }
-        if (moduleName != null && !moduleName.isEmpty()) {
-            s += moduleName;
+        int estimatedLength = length(classLoaderName) + 1
+                + length(moduleName) + 1
+                + length(moduleVersion) + 1
+                + declaringClass.length() + 1
+                + methodName.length() + 1
+                + Math.max(UNKNOWN_SOURCE.length(), length(fileName)) + 1
+                + 12;
 
-            if (!dropModuleVersion() && moduleVersion != null &&
-                    !moduleVersion.isEmpty()) {
-                s += "@" + moduleVersion;
+        StringBuilder sb = new StringBuilder(estimatedLength);
+        if (!dropClassLoaderName() && classLoaderName != null && !classLoaderName.isEmpty()) {
+            sb.append(classLoaderName).append('/');
+        }
+
+        if (moduleName != null && !moduleName.isEmpty()) {
+            sb.append(moduleName);
+            if (!dropModuleVersion() && moduleVersion != null && !moduleVersion.isEmpty()) {
+                sb.append('@').append(moduleVersion);
             }
         }
-        s = s.isEmpty() ? declaringClass : s + "/" + declaringClass;
 
-        return s + "." + methodName + "(" +
-             (isNativeMethod() ? "Native Method)" :
-              (fileName != null && lineNumber >= 0 ?
-               fileName + ":" + lineNumber + ")" :
-                (fileName != null ?  ""+fileName+")" : "Unknown Source)")));
+        if (sb.length() > 0) {
+            sb.append('/');
+        }
+
+        sb.append(declaringClass).append('.').append(methodName).append('(');
+        if (isNativeMethod()) {
+            sb.append(NATIVE_METHOD);
+        } else if (fileName == null) {
+            sb.append(UNKNOWN_SOURCE);
+        } else {
+            sb.append(fileName);
+            if (lineNumber >= 0) {
+                sb.append(':').append(lineNumber);
+            }
+        }
+        sb.append(')');
+
+        return sb.toString();
+    }
+
+    private static int length(String s) {
+        return (s == null) ? 0 : s.length();
     }
 
     /**
@@ -388,24 +429,19 @@ public final class StackTraceElement implements java.io.Serializable {
      * @return true if the specified object is another
      *         {@code StackTraceElement} instance representing the same
      *         execution point as this instance.
-     *
-     * @revised 9
-     * @spec JPMS
      */
     
     public boolean equals( @Nullable Object obj) {
         if (obj==this)
             return true;
-        if (!(obj instanceof StackTraceElement))
-            return false;
-        StackTraceElement e = (StackTraceElement)obj;
-        return Objects.equals(classLoaderName, e.classLoaderName) &&
-            Objects.equals(moduleName, e.moduleName) &&
-            Objects.equals(moduleVersion, e.moduleVersion) &&
-            e.declaringClass.equals(declaringClass) &&
-            e.lineNumber == lineNumber &&
-            Objects.equals(methodName, e.methodName) &&
-            Objects.equals(fileName, e.fileName);
+        return (obj instanceof StackTraceElement e)
+                && e.lineNumber == lineNumber
+                && e.declaringClass.equals(declaringClass)
+                && Objects.equals(classLoaderName, e.classLoaderName)
+                && Objects.equals(moduleName, e.moduleName)
+                && Objects.equals(moduleVersion, e.moduleVersion)
+                && Objects.equals(methodName, e.methodName)
+                && Objects.equals(fileName, e.fileName);
     }
 
     /**
@@ -436,7 +472,7 @@ public final class StackTraceElement implements java.io.Serializable {
      */
     private synchronized void computeFormat() {
         try {
-            Class<?> cls = (Class<?>) declaringClassObject;
+            Class<?> cls = declaringClassObject;
             ClassLoader loader = cls.getClassLoader0();
             Module m = cls.getModule();
             byte bits = 0;
@@ -522,22 +558,17 @@ public final class StackTraceElement implements java.io.Serializable {
 
     /*
      * Returns an array of StackTraceElements of the given depth
-     * filled from the backtrace of a given Throwable.
+     * filled from the given backtrace.
      */
-    static StackTraceElement[] of(Throwable x, int depth) {
+    static StackTraceElement[] of(Object x, int depth) {
         StackTraceElement[] stackTrace = new StackTraceElement[depth];
         for (int i = 0; i < depth; i++) {
             stackTrace[i] = new StackTraceElement();
         }
 
         // VM to fill in StackTraceElement
-        initStackTraceElements(stackTrace, x);
-
-        // ensure the proper StackTraceElement initialization
-        for (StackTraceElement ste : stackTrace) {
-            ste.computeFormat();
-        }
-        return stackTrace;
+        initStackTraceElements(stackTrace, x, depth);
+        return of(stackTrace);
     }
 
     /*
@@ -551,17 +582,26 @@ public final class StackTraceElement implements java.io.Serializable {
         return ste;
     }
 
+    static StackTraceElement[] of(StackTraceElement[] stackTrace) {
+        // ensure the proper StackTraceElement initialization
+        for (StackTraceElement ste : stackTrace) {
+            ste.computeFormat();
+        }
+        return stackTrace;
+    }
+
     /*
      * Sets the given stack trace elements with the backtrace
      * of the given Throwable.
      */
     private static native void initStackTraceElements(StackTraceElement[] elements,
-                                                      Throwable x);
+                                                      Object x, int depth);
     /*
      * Sets the given stack trace element with the given StackFrameInfo
      */
     private static native void initStackTraceElement(StackTraceElement element,
                                                      StackFrameInfo sfi);
 
+    @java.io.Serial
     private static final long serialVersionUID = 6992337162326171013L;
 }

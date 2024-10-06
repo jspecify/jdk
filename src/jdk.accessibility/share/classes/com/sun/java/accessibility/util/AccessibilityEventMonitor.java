@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,8 @@
 
 package com.sun.java.accessibility.util;
 
-import java.util.*;
 import java.beans.*;
 import java.awt.*;
-import java.awt.event.*;
 import javax.accessibility.*;
 
 /**
@@ -45,6 +43,11 @@ import javax.accessibility.*;
 
 public class AccessibilityEventMonitor {
 
+    /**
+     * Constructs an {@code AccessibilityEventMonitor}.
+     */
+    public AccessibilityEventMonitor() {}
+
     // listeners
     /**
      * The current list of registered {@link java.beans.PropertyChangeListener
@@ -53,7 +56,7 @@ public class AccessibilityEventMonitor {
      * @see #addPropertyChangeListener
      * @see #removePropertyChangeListener
      */
-    static protected final AccessibilityListenerList listenerList =
+    protected static final AccessibilityListenerList listenerList =
         new AccessibilityListenerList();
 
 
@@ -63,7 +66,7 @@ public class AccessibilityEventMonitor {
      * occurs.  By doing things this way, the actual number of listeners
      * installed on a component instance is drastically reduced.
      */
-    static private final AccessibilityEventListener accessibilityListener =
+    private static final AccessibilityEventListener accessibilityListener =
         new AccessibilityEventListener();
 
     /**
@@ -77,7 +80,7 @@ public class AccessibilityEventMonitor {
      *
      * @see #removePropertyChangeListener
      */
-    static public void addPropertyChangeListener(PropertyChangeListener l) {
+    public static void addPropertyChangeListener(PropertyChangeListener l) {
         if (listenerList.getListenerCount(PropertyChangeListener.class) == 0) {
             accessibilityListener.installListeners();
         }
@@ -90,7 +93,7 @@ public class AccessibilityEventMonitor {
      * @see #addPropertyChangeListener
      * @param l the listener to remove
      */
-    static public void removePropertyChangeListener(PropertyChangeListener l) {
+    public static void removePropertyChangeListener(PropertyChangeListener l) {
         listenerList.remove(PropertyChangeListener.class, l);
         if (listenerList.getListenerCount(PropertyChangeListener.class) == 0) {
             accessibilityListener.removeListeners();
@@ -128,7 +131,7 @@ public class AccessibilityEventMonitor {
          * @see AWTEventMonitor
          */
         protected void installListeners() {
-            Window topLevelWindows[] = EventQueueMonitor.getTopLevelWindows();
+            Window[] topLevelWindows = EventQueueMonitor.getTopLevelWindows();
             if (topLevelWindows != null) {
                 for (int i = 0; i < topLevelWindows.length; i++) {
                     if (topLevelWindows[i] instanceof Accessible) {
@@ -206,7 +209,7 @@ public class AccessibilityEventMonitor {
          * @see EventID
          */
         protected void removeListeners() {
-            Window topLevelWindows[] = EventQueueMonitor.getTopLevelWindows();
+            Window[] topLevelWindows = EventQueueMonitor.getTopLevelWindows();
             if (topLevelWindows != null) {
                 for (int i = 0; i < topLevelWindows.length; i++) {
                     if (topLevelWindows[i] instanceof Accessible) {
@@ -312,7 +315,7 @@ public class AccessibilityEventMonitor {
 
             // handle childbirth/death
             String name = e.getPropertyName();
-            if (name.compareTo(AccessibleContext.ACCESSIBLE_CHILD_PROPERTY) == 0) {
+            if (name.equals(AccessibleContext.ACCESSIBLE_CHILD_PROPERTY)) {
                 Object oldValue = e.getOldValue();
                 Object newValue = e.getNewValue();
 

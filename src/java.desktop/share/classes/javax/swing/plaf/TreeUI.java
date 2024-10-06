@@ -38,9 +38,14 @@ import javax.swing.tree.TreePath;
 public abstract class TreeUI extends ComponentUI
 {
     /**
+     * Constructor for subclasses to call.
+     */
+    protected TreeUI() {}
+
+    /**
      * Returns the Rectangle enclosing the label portion that the
      * last item in path will be drawn into.  Will return null if
-     * any component in path is currently valid.
+     * any component in path is currently invalid.
      *
      * @param tree the {@code JTree} for {@code path}
      * @param path the {@code TreePath} identifying the node

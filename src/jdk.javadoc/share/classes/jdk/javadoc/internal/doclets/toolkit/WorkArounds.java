@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,13 @@
 
 package jdk.javadoc.internal.doclets.toolkit;
 
-import org.checkerframework.dataflow.qual.Pure;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -44,30 +42,20 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.FileObject;
 import javax.tools.JavaFileManager.Location;
 
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.util.JavacTask;
 import com.sun.source.util.TreePath;
-import com.sun.tools.doclint.DocLint;
-import com.sun.tools.javac.api.BasicJavacTask;
-import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.code.Scope;
-import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.code.TypeTag;
-import com.sun.tools.javac.comp.AttrContext;
-import com.sun.tools.javac.comp.Env;
-import com.sun.tools.javac.model.JavacElements;
-import com.sun.tools.javac.model.JavacTypes;
 import com.sun.tools.javac.util.Names;
+import com.sun.tools.javac.util.Options;
 
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
 import jdk.javadoc.internal.tool.ToolEnvironment;
@@ -82,104 +70,49 @@ import static javax.lang.model.element.ElementKind.*;
  * A quarantine class to isolate all the workarounds and bridges to
  * a locality. This class should eventually disappear once all the
  * standard APIs support the needed interfaces.
- *
- *
- *  <p><b>This is NOT part of any supported API.
- *  If you write code that depends on this, you do so at your own risk.
- *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
  */
 public class WorkArounds {
 
     public final BaseConfiguration configuration;
     public final ToolEnvironment toolEnv;
     public final Utils utils;
-
-    private DocLint doclint;
+    public final Elements elementUtils;
+    public final Types typeUtils;
+    public final com.sun.tools.javac.code.Types javacTypes;
 
     public WorkArounds(BaseConfiguration configuration) {
         this.configuration = configuration;
         this.utils = this.configuration.utils;
-        this.toolEnv = ((DocEnvImpl)this.configuration.docEnv).toolEnv;
-    }
 
-    Map<CompilationUnitTree, Boolean> shouldCheck = new HashMap<>();
-    // TODO: fix this up correctly
-    public void runDocLint(TreePath path) {
-        CompilationUnitTree unit = path.getCompilationUnit();
-        if (doclint != null && shouldCheck.computeIfAbsent(unit, doclint::shouldCheck)) {
-            doclint.scan(path);
-        }
-    }
+        elementUtils = configuration.docEnv.getElementUtils();
+        typeUtils = configuration.docEnv.getTypeUtils();
 
-    // TODO: fix this up correctly
-    public void initDocLint(Collection<String> opts, Collection<String> customTagNames, String htmlVersion) {
-        ArrayList<String> doclintOpts = new ArrayList<>();
-        boolean msgOptionSeen = false;
-
-        for (String opt : opts) {
-            if (opt.startsWith(DocLint.XMSGS_OPTION)) {
-                if (opt.equals(DocLint.XMSGS_CUSTOM_PREFIX + "none"))
-                    return;
-                msgOptionSeen = true;
-            }
-            doclintOpts.add(opt);
-        }
-
-        if (!msgOptionSeen) {
-            doclintOpts.add(DocLint.XMSGS_OPTION);
-        }
-
-        String sep = "";
-        StringBuilder customTags = new StringBuilder();
-        for (String customTag : customTagNames) {
-            customTags.append(sep);
-            customTags.append(customTag);
-            sep = DocLint.SEPARATOR;
-        }
-        doclintOpts.add(DocLint.XCUSTOM_TAGS_PREFIX + customTags.toString());
-        doclintOpts.add(DocLint.XHTML_VERSION_PREFIX + htmlVersion);
-
-        JavacTask t = BasicJavacTask.instance(toolEnv.context);
-        doclint = new DocLint();
-        // standard doclet normally generates H1, H2
-        doclintOpts.add(DocLint.XIMPLICIT_HEADERS + "2");
-        doclint.init(t, doclintOpts.toArray(new String[doclintOpts.size()]), false);
-    }
-
-    // TODO: fix this up correctly
-    public boolean haveDocLint() {
-        return (doclint == null);
+        // Note: this one use of DocEnvImpl is what prevents us tunnelling extra
+        // info from a doclet to its taglets via a doclet-specific subtype of
+        // DocletEnvironment.
+        toolEnv = ((DocEnvImpl)this.configuration.docEnv).toolEnv;
+        javacTypes = toolEnv.getTypes();
     }
 
     /*
      * TODO: This method exists because of a bug in javac which does not
-     * handle "@deprecated tag in package-info.java", when this issue
-     * is fixed this method and its uses must be jettisoned.
+     *       handle "@deprecated tag in package-info.java", when this issue
+     *       is fixed this method and its uses must be jettisoned.
      */
-    @Pure
     public boolean isDeprecated0(Element e) {
         if (!utils.getDeprecatedTrees(e).isEmpty()) {
             return true;
         }
-        JavacTypes jctypes = ((DocEnvImpl)configuration.docEnv).toolEnv.typeutils;
         TypeMirror deprecatedType = utils.getDeprecatedType();
         for (AnnotationMirror anno : e.getAnnotationMirrors()) {
-            if (jctypes.isSameType(anno.getAnnotationType().asElement().asType(), deprecatedType))
+            if (typeUtils.isSameType(anno.getAnnotationType().asElement().asType(), deprecatedType))
                 return true;
         }
         return false;
     }
 
-    // TODO: fix jx.l.m add this method.
-    @Pure
-    public boolean isSynthesized(AnnotationMirror aDesc) {
-        return ((Attribute)aDesc).isSynthesized();
-    }
-
-    // TODO: fix the caller
-    public Object getConstValue(VariableElement ve) {
-        return ((VarSymbol)ve).getConstValue();
+    public boolean isMandated(AnnotationMirror aDesc) {
+        return elementUtils.getOrigin(null, aDesc) == Elements.Origin.MANDATED;
     }
 
     // TODO: DocTrees: Trees.getPath(Element e) is slow a factor 4-5 times.
@@ -187,145 +120,9 @@ public class WorkArounds {
         return toolEnv.elementToTreePath;
     }
 
-    // TODO: we need ElementUtils.getPackage to cope with input strings
-    // to return the proper unnamedPackage for all supported releases.
-    PackageElement getUnnamedPackage() {
-        return (Feature.MODULES.allowedInSource(toolEnv.source))
-                ? toolEnv.syms.unnamedModule.unnamedPackage
-                : toolEnv.syms.noModule.unnamedPackage;
-    }
-
     // TODO: implement in either jx.l.m API (preferred) or DocletEnvironment.
     FileObject getJavaFileObject(PackageElement packageElement) {
         return ((PackageSymbol)packageElement).sourcefile;
-    }
-
-    // TODO: needs to ported to jx.l.m.
-    public TypeElement searchClass(TypeElement klass, String className) {
-        TypeElement te;
-
-        // search by qualified name in current module first
-        ModuleElement me = utils.containingModule(klass);
-        if (me != null) {
-            te = configuration.docEnv.getElementUtils().getTypeElement(me, className);
-            if (te != null) {
-                return te;
-            }
-        }
-
-        // search inner classes
-        for (TypeElement ite : utils.getClasses(klass)) {
-            TypeElement innerClass = searchClass(ite, className);
-            if (innerClass != null) {
-                return innerClass;
-            }
-        }
-
-        // check in this package
-        te = utils.findClassInPackageElement(utils.containingPackage(klass), className);
-        if (te != null) {
-            return te;
-        }
-
-        ClassSymbol tsym = (ClassSymbol)klass;
-        // make sure that this symbol has been completed
-        // TODO: do we need this anymore ?
-        if (tsym.completer != null) {
-            tsym.complete();
-        }
-
-        // search imports
-        if (tsym.sourcefile != null) {
-
-            //### This information is available only for source classes.
-            Env<AttrContext> compenv = toolEnv.getEnv(tsym);
-            if (compenv == null) {
-                return null;
-            }
-            Names names = tsym.name.table.names;
-            Scope s = compenv.toplevel.namedImportScope;
-            for (Symbol sym : s.getSymbolsByName(names.fromString(className))) {
-                if (sym.kind == TYP) {
-                    return (TypeElement)sym;
-                }
-            }
-
-            s = compenv.toplevel.starImportScope;
-            for (Symbol sym : s.getSymbolsByName(names.fromString(className))) {
-                if (sym.kind == TYP) {
-                    return (TypeElement)sym;
-                }
-            }
-        }
-
-        // finally, search by qualified name in all modules
-        te = configuration.docEnv.getElementUtils().getTypeElement(className);
-        if (te != null) {
-            return te;
-        }
-
-        return null; // not found
-    }
-
-    // TODO:  need to re-implement this using j.l.m. correctly!, this has
-    // implications on testInterface, the note here is that javac's supertype
-    // does the right thing returning Parameters in scope.
-    /**
-     * Return the type containing the method that this method overrides.
-     * It may be a <code>TypeElement</code> or a <code>TypeParameterElement</code>.
-     * @param method target
-     * @return a type
-     */
-    public TypeMirror overriddenType(ExecutableElement method) {
-        if (utils.isStatic(method)) {
-            return null;
-        }
-        MethodSymbol sym = (MethodSymbol)method;
-        ClassSymbol origin = (ClassSymbol) sym.owner;
-        for (com.sun.tools.javac.code.Type t = toolEnv.getTypes().supertype(origin.type);
-                t.hasTag(TypeTag.CLASS);
-                t = toolEnv.getTypes().supertype(t)) {
-            ClassSymbol c = (ClassSymbol) t.tsym;
-            for (com.sun.tools.javac.code.Symbol sym2 : c.members().getSymbolsByName(sym.name)) {
-                if (sym.overrides(sym2, origin, toolEnv.getTypes(), true)) {
-                    // Ignore those methods that may be a simple override
-                    // and allow the real API method to be found.
-                    if (sym2.type.hasTag(TypeTag.METHOD) &&
-                            utils.isSimpleOverride((MethodSymbol)sym2)) {
-                        continue;
-                    }
-                    return t;
-                }
-            }
-        }
-        return null;
-    }
-
-    // TODO: the method jx.l.m.Elements::overrides does not check
-    // the return type, see JDK-8174840 until that is resolved,
-    // use a  copy of the same method, with a return type check.
-
-    // Note: the rider.overrides call in this method *must* be consistent
-    // with the call in overrideType(....), the method above.
-    public boolean overrides(ExecutableElement e1, ExecutableElement e2, TypeElement cls) {
-        MethodSymbol rider = (MethodSymbol)e1;
-        MethodSymbol ridee = (MethodSymbol)e2;
-        ClassSymbol origin = (ClassSymbol)cls;
-
-        return rider.name == ridee.name &&
-
-               // not reflexive as per JLS
-               rider != ridee &&
-
-               // we don't care if ridee is static, though that wouldn't
-               // compile
-               !rider.isStatic() &&
-
-               // Symbol.overrides assumes the following
-               ridee.isMemberOf(origin, toolEnv.getTypes()) &&
-
-               // check access, signatures and check return types
-               rider.overrides(ridee, origin, toolEnv.getTypes(), true);
     }
 
     // TODO: jx.l.m ?
@@ -337,36 +134,26 @@ public class WorkArounds {
     }
 
     //------------------Start of Serializable Implementation---------------------//
-    private final static Map<TypeElement, NewSerializedForm> serializedForms = new HashMap<>();
+    private final Map<TypeElement, NewSerializedForm> serializedForms = new HashMap<>();
 
-    public SortedSet<VariableElement> getSerializableFields(Utils utils, TypeElement klass) {
-        NewSerializedForm sf = serializedForms.get(klass);
-        if (sf == null) {
-            sf = new NewSerializedForm(utils, configuration.docEnv.getElementUtils(), klass);
-            serializedForms.put(klass, sf);
-        }
-        return sf.fields;
+    private NewSerializedForm getSerializedForm(TypeElement typeElem) {
+        return serializedForms.computeIfAbsent(typeElem,
+                te -> new NewSerializedForm(utils, configuration.docEnv.getElementUtils(), te));
     }
 
-    public SortedSet<ExecutableElement>  getSerializationMethods(Utils utils, TypeElement klass) {
-        NewSerializedForm sf = serializedForms.get(klass);
-        if (sf == null) {
-            sf = new NewSerializedForm(utils, configuration.docEnv.getElementUtils(), klass);
-            serializedForms.put(klass, sf);
-        }
-        return sf.methods;
+    public SortedSet<VariableElement> getSerializableFields(TypeElement typeElem) {
+        return getSerializedForm(typeElem).fields;
     }
 
-    public boolean definesSerializableFields(Utils utils, TypeElement klass) {
-        if (!utils.isSerializable(klass) || utils.isExternalizable(klass)) {
+    public SortedSet<ExecutableElement>  getSerializationMethods(TypeElement typeElem) {
+        return getSerializedForm(typeElem).methods;
+    }
+
+    public boolean definesSerializableFields(TypeElement typeElem) {
+        if (!utils.isSerializable(typeElem) || utils.isExternalizable(typeElem)) {
             return false;
         } else {
-            NewSerializedForm sf = serializedForms.get(klass);
-            if (sf == null) {
-                sf = new NewSerializedForm(utils, configuration.docEnv.getElementUtils(), klass);
-                serializedForms.put(klass, sf);
-            }
-            return sf.definesSerializableFields;
+            return getSerializedForm(typeElem).definesSerializableFields;
         }
     }
 
@@ -424,8 +211,8 @@ public class WorkArounds {
         NewSerializedForm(Utils utils, Elements elements, TypeElement te) {
             this.utils = utils;
             this.elements = elements;
-            methods = new TreeSet<>(utils.makeGeneralPurposeComparator());
-            fields = new TreeSet<>(utils.makeGeneralPurposeComparator());
+            methods = new TreeSet<>(utils.comparators.generalPurposeComparator());
+            fields = new TreeSet<>(utils.comparators.generalPurposeComparator());
             if (utils.isExternalizable(te)) {
                 /* look up required public accessible methods,
                  *   writeExternal and readExternal.
@@ -437,7 +224,7 @@ public class WorkArounds {
                 if (md != null) {
                     methods.add(md);
                 }
-                md = findMethod((ClassSymbol) te, "writeExternal", Arrays.asList(writeExternalParamArr));
+                md = findMethod(te, "writeExternal", Arrays.asList(writeExternalParamArr));
                 if (md != null) {
                     methods.add(md);
                 }
@@ -449,7 +236,7 @@ public class WorkArounds {
                      * serialField tag.
                      */
                     definesSerializableFields = true;
-                    fields.add((VariableElement) dsf);
+                    fields.add(dsf);
                 } else {
 
                     /* Calculate default Serializable fields as all
@@ -577,20 +364,70 @@ public class WorkArounds {
         }
     }
 
-    // TODO: we need to eliminate this, as it is hacky.
+    public boolean isRestrictedAPI(Element el) {
+        Symbol sym = (Symbol) el;
+        return sym.kind == MTH && (sym.flags() & Flags.RESTRICTED) != 0;
+    }
+
+    public boolean isPreviewAPI(Element el) {
+        Symbol sym = (Symbol) el;
+        return (sym.flags() & Flags.PREVIEW_API) != 0;
+    }
+
+    public boolean isReflectivePreviewAPI(Element el) {
+        Symbol sym = (Symbol) el;
+        return (sym.flags() & Flags.PREVIEW_REFLECTIVE) != 0;
+    }
+
     /**
-     * Returns a representation of the package truncated to two levels.
-     * For instance if the given package represents foo.bar.baz will return
-     * a representation of foo.bar
-     * @param pkg the PackageElement
-     * @return an abbreviated PackageElement
+     * Returns whether or not to permit dynamically loaded components to access
+     * part of the javadoc internal API. The flag is the same (hidden) compiler
+     * option that allows javac plugins and annotation processors to access
+     * javac internal API.
+     *
+     * As with all workarounds, it is better to consider updating the public API,
+     * rather than relying on undocumented features like this, that may be withdrawn
+     * at any time, without notice.
+     *
+     * @return true if access is permitted to internal API
      */
-    public PackageElement getAbbreviatedPackageElement(PackageElement pkg) {
-        String parsedPackageName = utils.parsePackageName(pkg);
-        ModuleElement encl = (ModuleElement) pkg.getEnclosingElement();
-        PackageElement abbrevPkg = encl == null
-                ? utils.elementUtils.getPackageElement(parsedPackageName)
-                : ((JavacElements) utils.elementUtils).getPackageElement(encl, parsedPackageName);
-        return abbrevPkg;
+    public boolean accessInternalAPI() {
+        Options compilerOptions = Options.instance(toolEnv.context);
+        return compilerOptions.isSet("accessInternalAPI");
+    }
+
+    /**
+     * Returns a map containing {@code jdk.internal.javac.PreviewFeature.JEP} element values associated with the
+     * {@code jdk.internal.javac.PreviewFeature.Feature} enum constant identified by {@code feature}.
+     *
+     * This method uses internal javac features (although only reflectively).
+     *
+     * @param feature the name of the PreviewFeature.Feature enum value
+     * @return the map of PreviewFeature.JEP annotation element values, or an empty map
+     */
+    public Map<String, Object> getJepInfo(String feature) {
+        TypeElement featureType = elementUtils.getTypeElement("jdk.internal.javac.PreviewFeature.Feature");
+        TypeElement jepType = elementUtils.getTypeElement("jdk.internal.javac.PreviewFeature.JEP");
+        var featureVar = featureType.getEnclosedElements().stream()
+                .filter(e -> feature.equals(e.getSimpleName().toString())).findFirst();
+        if (featureVar.isPresent()) {
+            for (AnnotationMirror anno : featureVar.get().getAnnotationMirrors()) {
+                if (anno.getAnnotationType().asElement().equals(jepType)) {
+                    return anno.getElementValues().entrySet()
+                            .stream()
+                            .collect(Collectors.toMap(
+                                    e -> e.getKey().getSimpleName().toString(),
+                                    e -> e.getValue().getValue()));
+                }
+            }
+        }
+        return Map.of();
+    }
+
+    /*
+     * If a similar query is ever added to javax.lang.model, use that instead.
+     */
+    public static boolean isImplicitlyDeclaredClass(Element e) {
+        return e instanceof ClassSymbol c && c.isImplicit();
     }
 }

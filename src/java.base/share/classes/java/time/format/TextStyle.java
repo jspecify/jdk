@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,7 +81,7 @@ import java.util.Calendar;
  * to the word used for month in association with a day and year in a date.
  *
  * @implSpec
- * This is immutable and thread-safe enum.
+ * This is an immutable and thread-safe enum.
  *
  * @since 1.8
  */
@@ -137,8 +137,7 @@ public enum TextStyle {
     }
 
     /**
-     * Returns the stand-alone style with the same size.
-     * @return the stand-alone style with the same size
+     * {@return the stand-alone style with the same size}
      */
     public TextStyle asStandalone() {
         return TextStyle.values()[ordinal()  | 1];

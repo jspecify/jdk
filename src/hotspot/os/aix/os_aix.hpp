@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013, 2016 SAP SE. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,40 +23,25 @@
  *
  */
 
-#ifndef OS_AIX_VM_OS_AIX_HPP
-#define OS_AIX_VM_OS_AIX_HPP
+#ifndef OS_AIX_OS_AIX_HPP
+#define OS_AIX_OS_AIX_HPP
 
-// Information about the protection of the page at address '0' on this os.
-static bool zero_page_read_protected() { return false; }
+#include "runtime/os.hpp"
 
 // Class Aix defines the interface to the Aix operating systems.
 
-class Aix {
+class os::Aix {
   friend class os;
-
-  static bool libjsig_is_loaded;        // libjsig that interposes sigaction(),
-                                        // __sigaction(), signal() is loaded
-  static struct sigaction *(*get_signal_action)(int);
-  static struct sigaction *get_preinstalled_handler(int);
-  static void save_preinstalled_handler(int, struct sigaction&);
-
-  static void check_signal_handler(int sig);
 
  private:
 
   static julong _physical_memory;
   static pthread_t _main_thread;
-  static Mutex* _createThread_lock;
-  static int _page_size;
-
-  // -1 = uninitialized, 0 = AIX, 1 = OS/400 (PASE)
-  static int _on_pase;
 
   // 0 = uninitialized, otherwise 16 bit number:
   //  lower 8 bit - minor version
   //  higher 8 bit - major version
   //  For AIX, e.g. 0x0601 for AIX 6.1
-  //  for OS/400 e.g. 0x0504 for OS/400 V5R4
   static uint32_t _os_version;
 
   // -1 = uninitialized,
@@ -70,11 +55,11 @@ class Aix {
   static int _extshm;
 
   static julong available_memory();
+  static julong free_memory();
   static julong physical_memory() { return _physical_memory; }
   static void initialize_system_info();
 
-  // OS recognitions (PASE/AIX, OS level) call this before calling any
-  // one of Aix::on_pase(), Aix::os_version().
+  // OS recognitions (AIX OS level) call this before calling Aix::os_version().
   static void initialize_os_info();
 
   // Scan environment for important settings which might effect the
@@ -84,67 +69,25 @@ class Aix {
   // Must run after os::Aix::initialue_os_info().
   static void scan_environment();
 
-  // Initialize libo4 (on PASE) and libperfstat (on AIX). Call this
+  // Initialize libperfstat; call this
   // before relying on functions from either lib, e.g. Aix::get_meminfo().
-  static void initialize_libo4();
   static void initialize_libperfstat();
 
  public:
   static void init_thread_fpu_state();
   static pthread_t main_thread(void)                                { return _main_thread; }
-  static void set_createThread_lock(Mutex* lk)                      { _createThread_lock = lk; }
-  static Mutex* createThread_lock(void)                             { return _createThread_lock; }
-  static void hotspot_sigmask(Thread* thread);
+  static bool supports_64K_mmap_pages();
 
   // Given an address, returns the size of the page backing that address
   static size_t query_pagesize(void* p);
 
-  static int page_size(void) {
-    assert(_page_size != -1, "not initialized");
-    return _page_size;
-  }
-
-  static address   ucontext_get_pc(const ucontext_t* uc);
   static intptr_t* ucontext_get_sp(const ucontext_t* uc);
   static intptr_t* ucontext_get_fp(const ucontext_t* uc);
-  // Set PC into context. Needed for continuation after signal.
-  static void ucontext_set_pc(ucontext_t* uc, address pc);
 
   static bool get_frame_at_stack_banging_point(JavaThread* thread, ucontext_t* uc, frame* fr);
 
-  // This boolean allows users to forward their own non-matching signals
-  // to JVM_handle_aix_signal, harmlessly.
-  static bool signal_handlers_are_installed;
-
-  static int get_our_sigflags(int);
-  static void set_our_sigflags(int, int);
-  static void signal_sets_init();
-  static void install_signal_handlers();
-  static void set_signal_handler(int, bool);
-
-  static sigset_t* unblocked_signals();
-  static sigset_t* vm_signals();
-
-  // For signal-chaining
-  static struct sigaction *get_chained_signal_action(int sig);
-  static bool chained_handler(int sig, siginfo_t* siginfo, void* context);
-
   // libpthread version string
   static void libpthread_init();
-
-  // Function returns true if we run on OS/400 (pase), false if we run
-  // on AIX.
-  static bool on_pase() {
-    assert(_on_pase != -1, "not initialized");
-    return _on_pase ? true : false;
-  }
-
-  // Function returns true if we run on AIX, false if we run on OS/400
-  // (pase).
-  static bool on_aix() {
-    assert(_on_pase != -1, "not initialized");
-    return _on_pase ? false : true;
-  }
 
   // Get 4 byte AIX kernel version number:
   // highest 2 bytes: Version, Release
@@ -157,20 +100,9 @@ class Aix {
   // 0 = uninitialized, otherwise 16 bit number:
   // lower 8 bit - minor version
   // higher 8 bit - major version
-  // For AIX, e.g. 0x0601 for AIX 6.1
-  // for OS/400 e.g. 0x0504 for OS/400 V5R4
+  // For AIX, e.g. 0x0701 for AIX 7.1
   static int os_version_short() {
     return os_version() >> 16;
-  }
-
-  // Convenience method: returns true if running on PASE V5R4 or older.
-  static bool on_pase_V5R4_or_older() {
-    return on_pase() && os_version_short() <= 0x0504;
-  }
-
-  // Convenience method: returns true if running on AIX 5.3 or older.
-  static bool on_aix_53_or_older() {
-    return on_aix() && os_version_short() <= 0x0503;
   }
 
   // Returns true if we run in SPEC1170 compliant mode (XPG_SUS_ENV=ON).
@@ -189,27 +121,29 @@ class Aix {
   struct meminfo_t {
 
     // Amount of virtual memory (in units of 4 KB pages)
-    unsigned long long virt_total;
+    size_t virt_total;
 
     // Amount of real memory, in bytes
-    unsigned long long real_total;
+    size_t real_total;
 
     // Amount of free real memory, in bytes
-    unsigned long long real_free;
+    size_t real_free;
 
     // Total amount of paging space, in bytes
-    unsigned long long pgsp_total;
+    size_t pgsp_total;
 
     // Amount of free paging space, in bytes
-    unsigned long long pgsp_free;
+    size_t pgsp_free;
 
   };
 
-  // Functions to retrieve memory information on AIX, PASE.
-  // (on AIX, using libperfstat, on PASE with libo4.so).
+  // function to retrieve memory information, using libperfstat
   // Returns true if ok, false if error.
   static bool get_meminfo(meminfo_t* pmi);
 
+  static bool platform_print_native_stack(outputStream* st, const void* context, char *buf, int buf_size, address& lastpc);
+  static void* resolve_function_descriptor(void* p);
+
 };
 
-#endif // OS_AIX_VM_OS_AIX_HPP
+#endif // OS_AIX_OS_AIX_HPP

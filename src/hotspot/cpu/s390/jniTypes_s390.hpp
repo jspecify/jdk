@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,14 +23,14 @@
  *
  */
 
-#ifndef CPU_S390_VM_JNITYPES_S390_HPP
-#define CPU_S390_VM_JNITYPES_S390_HPP
+#ifndef CPU_S390_JNITYPES_S390_HPP
+#define CPU_S390_JNITYPES_S390_HPP
 
 // This file holds platform-dependent routines used to write primitive
 // jni types to the array of arguments passed into JavaCalls::call.
 
 #include "jni.h"
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "oops/oop.hpp"
 
 class JNITypes : AllStatic {
@@ -73,16 +73,12 @@ class JNITypes : AllStatic {
   }
 
   // Oops are stored in native format in one JavaCallArgument slot at *to.
-  static inline void put_obj(oop  from, intptr_t *to) {
-    *(oop*) to = from;
+  static inline void put_obj(const Handle& from_handle, intptr_t *to, int& pos) {
+    *(to + pos++) = (intptr_t)from_handle.raw_value();
   }
 
-  static inline void put_obj(oop  from, intptr_t *to, int& pos) {
-    *(oop*) (to + pos++) = from;
-  }
-
-  static inline void put_obj(oop *from, intptr_t *to, int& pos) {
-    *(oop*) (to + pos++) = *from;
+  static inline void put_obj(jobject from_handle, intptr_t *to, int& pos) {
+    *(to + pos++) =  (intptr_t)from_handle;
   }
 
   // Floats are stored in native format in one JavaCallArgument slot at *to.
@@ -138,4 +134,4 @@ class JNITypes : AllStatic {
   }
 };
 
-#endif // CPU_S390_VM_JNITYPES_S390_HPP
+#endif // CPU_S390_JNITYPES_S390_HPP

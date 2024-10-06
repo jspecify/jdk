@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,26 +22,43 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
-import java.awt.*;
-import java.awt.image.*;
-import java.beans.ConstructorProperties;
+import java.awt.Component;
+import java.awt.Graphics;
+import java.awt.IllegalComponentStateException;
+import java.awt.Image;
+import java.awt.MediaTracker;
+import java.awt.Toolkit;
+import java.awt.image.ColorModel;
+import java.awt.image.ImageObserver;
+import java.awt.image.MemoryImageSource;
+import java.awt.image.PixelGrabber;
 import java.beans.BeanProperty;
+import java.beans.ConstructorProperties;
 import java.beans.Transient;
-import java.net.URL;
-
-import java.io.Serializable;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
 import java.io.IOException;
-
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
+import java.net.URL;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.ProtectionDomain;
 import java.util.Locale;
-import javax.accessibility.*;
 
-import sun.awt.AppContext;
-import java.security.*;
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleIcon;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleState;
+import javax.accessibility.AccessibleStateSet;
+
 import sun.awt.AWTAccessor;
+import sun.awt.AppContext;
 
 /**
  * An implementation of the Icon interface that paints Icons
@@ -51,7 +68,7 @@ import sun.awt.AWTAccessor;
  *
  * <p>
  * For further information and examples of using image icons, see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/icon.html">How to Use Icons</a>
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/icon.html">How to Use Icons</a>
  * in <em>The Java Tutorial.</em>
  *
  * <p>
@@ -60,7 +77,7 @@ import sun.awt.AWTAccessor;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -88,8 +105,27 @@ public class ImageIcon implements Icon, Serializable, Accessible {
      * It is left for backward compatibility only.
      * @deprecated since 1.8
      */
+    @SuppressWarnings("removal")
     @Deprecated
-    protected static final Component component;
+    protected static final Component component
+            = AccessController.doPrivileged(new PrivilegedAction<Component>() {
+        public Component run() {
+            try {
+                final Component component = createNoPermsComponent();
+
+                // 6482575 - clear the appContext field so as not to leak it
+                AWTAccessor.getComponentAccessor().
+                        setAppContext(component, null);
+
+                return component;
+            } catch (Throwable e) {
+                // We don't care about component.
+                // So don't prevent class initialisation.
+                e.printStackTrace();
+                return null;
+            }
+        }
+    });
 
     /**
      * Do not use this shared media tracker, which is used to load images.
@@ -97,30 +133,9 @@ public class ImageIcon implements Icon, Serializable, Accessible {
      * @deprecated since 1.8
      */
     @Deprecated
-    protected static final MediaTracker tracker;
+    protected static final MediaTracker tracker = new MediaTracker(component);
 
-    static {
-        component = AccessController.doPrivileged(new PrivilegedAction<Component>() {
-            public Component run() {
-                try {
-                    final Component component = createNoPermsComponent();
-
-                    // 6482575 - clear the appContext field so as not to leak it
-                    AWTAccessor.getComponentAccessor().
-                            setAppContext(component, null);
-
-                    return component;
-                } catch (Throwable e) {
-                    // We don't care about component.
-                    // So don't prevent class initialisation.
-                    e.printStackTrace();
-                    return null;
-                }
-            }
-        });
-        tracker = new MediaTracker(component);
-    }
-
+    @SuppressWarnings("removal")
     private static Component createNoPermsComponent() {
         // 7020198 - set acc field to no permissions and no subject
         // Note, will have appContext set.
@@ -306,6 +321,7 @@ public class ImageIcon implements Icon, Serializable, Accessible {
      */
     protected void loadImage(Image image) {
         MediaTracker mTracker = getTracker();
+        boolean interrupted = false;
         synchronized(mTracker) {
             int id = getNextID();
 
@@ -313,10 +329,16 @@ public class ImageIcon implements Icon, Serializable, Accessible {
             try {
                 mTracker.waitForID(id, 0);
             } catch (InterruptedException e) {
-                System.out.println("INTERRUPTED while loading Image");
+                interrupted = true;
+                Thread.currentThread().interrupt();
             }
+
             loadStatus = mTracker.statusID(id, false);
             mTracker.removeImage(image, id);
+
+            if (interrupted && ((loadStatus & MediaTracker.LOADING) != 0)) {
+                loadStatus = MediaTracker.ABORTED;
+            }
 
             width = image.getWidth(imageObserver);
             height = image.getHeight(imageObserver);
@@ -485,6 +507,7 @@ public class ImageIcon implements Icon, Serializable, Accessible {
         return super.toString();
     }
 
+    @Serial
     private void readObject(ObjectInputStream s)
         throws ClassNotFoundException, IOException
     {
@@ -524,6 +547,7 @@ public class ImageIcon implements Icon, Serializable, Accessible {
     }
 
 
+    @Serial
     private void writeObject(ObjectOutputStream s)
         throws IOException
     {
@@ -587,7 +611,7 @@ public class ImageIcon implements Icon, Serializable, Accessible {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      * @since 1.3
@@ -595,6 +619,11 @@ public class ImageIcon implements Icon, Serializable, Accessible {
     @SuppressWarnings("serial") // Same-version serialization only
     protected class AccessibleImageIcon extends AccessibleContext
         implements AccessibleIcon, Serializable {
+
+        /**
+         * Constructs an {@code AccessibleImageIcon}.
+         */
+        protected AccessibleImageIcon() {}
 
         /*
          * AccessibleContest implementation -----------------
@@ -721,12 +750,14 @@ public class ImageIcon implements Icon, Serializable, Accessible {
             return ImageIcon.this.width;
         }
 
+        @Serial
         private void readObject(ObjectInputStream s)
             throws ClassNotFoundException, IOException
         {
             s.defaultReadObject();
         }
 
+        @Serial
         private void writeObject(ObjectOutputStream s)
             throws IOException
         {

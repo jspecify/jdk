@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,107 +27,104 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/softRefPolicy.hpp"
 #include "gc/z/zBarrierSet.hpp"
-#include "gc/z/zCollectorPolicy.hpp"
-#include "gc/z/zDirector.hpp"
-#include "gc/z/zDriver.hpp"
-#include "gc/z/zInitialize.hpp"
 #include "gc/z/zHeap.hpp"
+#include "gc/z/zInitialize.hpp"
 #include "gc/z/zRuntimeWorkers.hpp"
-#include "gc/z/zStat.hpp"
+#include "memory/metaspace.hpp"
+#include "services/memoryUsage.hpp"
+
+class ZDirector;
+class ZDriverMajor;
+class ZDriverMinor;
+class ZStat;
 
 class ZCollectedHeap : public CollectedHeap {
   friend class VMStructs;
 
 private:
-  ZCollectorPolicy* _collector_policy;
-  SoftRefPolicy     _soft_ref_policy;
   ZBarrierSet       _barrier_set;
   ZInitialize       _initialize;
   ZHeap             _heap;
+  ZDriverMinor*     _driver_minor;
+  ZDriverMajor*     _driver_major;
   ZDirector*        _director;
-  ZDriver*          _driver;
   ZStat*            _stat;
   ZRuntimeWorkers   _runtime_workers;
 
-  virtual HeapWord* allocate_new_tlab(size_t min_size,
-                                      size_t requested_size,
-                                      size_t* actual_size);
+  HeapWord* allocate_new_tlab(size_t min_size,
+                              size_t requested_size,
+                              size_t* actual_size) override;
 
 public:
   static ZCollectedHeap* heap();
 
-  using CollectedHeap::ensure_parsability;
-  using CollectedHeap::accumulate_statistics_all_tlabs;
-  using CollectedHeap::resize_all_tlabs;
+  ZCollectedHeap();
+  Name kind() const override;
+  const char* name() const override;
+  jint initialize() override;
+  void initialize_serviceability() override;
+  void stop() override;
 
-  ZCollectedHeap(ZCollectorPolicy* policy);
-  virtual Name kind() const;
-  virtual const char* name() const;
-  virtual jint initialize();
-  virtual void initialize_serviceability();
-  virtual void stop();
+  size_t max_capacity() const override;
+  size_t capacity() const override;
+  size_t used() const override;
+  size_t unused() const override;
 
-  virtual CollectorPolicy* collector_policy() const;
-  virtual SoftRefPolicy* soft_ref_policy();
+  bool is_maximal_no_gc() const override;
+  bool is_in(const void* p) const override;
+  bool requires_barriers(stackChunkOop obj) const override;
 
-  virtual size_t max_capacity() const;
-  virtual size_t capacity() const;
-  virtual size_t used() const;
+  oop array_allocate(Klass* klass, size_t size, int length, bool do_zero, TRAPS) override;
+  HeapWord* mem_allocate(size_t size, bool* gc_overhead_limit_was_exceeded) override;
+  MetaWord* satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
+                                               size_t size,
+                                               Metaspace::MetadataType mdtype) override;
+  void collect(GCCause::Cause cause) override;
+  void collect_as_vm_thread(GCCause::Cause cause) override;
+  void do_full_collection(bool clear_all_soft_refs) override;
 
-  virtual bool is_maximal_no_gc() const;
-  virtual bool is_scavengable(oop obj);
-  virtual bool is_in(const void* p) const;
-  virtual bool is_in_closed_subset(const void* p) const;
+  size_t tlab_capacity(Thread* thr) const override;
+  size_t tlab_used(Thread* thr) const override;
+  size_t max_tlab_size() const override;
+  size_t unsafe_max_tlab_alloc(Thread* thr) const override;
 
-  virtual HeapWord* mem_allocate(size_t size, bool* gc_overhead_limit_was_exceeded);
-  virtual MetaWord* satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
-                                                       size_t size,
-                                                       Metaspace::MetadataType mdtype);
-  virtual void collect(GCCause::Cause cause);
-  virtual void collect_as_vm_thread(GCCause::Cause cause);
-  virtual void do_full_collection(bool clear_all_soft_refs);
+  MemoryUsage memory_usage() override;
+  GrowableArray<GCMemoryManager*> memory_managers() override;
+  GrowableArray<MemoryPool*> memory_pools() override;
 
-  virtual bool supports_tlab_allocation() const;
-  virtual size_t tlab_capacity(Thread* thr) const;
-  virtual size_t tlab_used(Thread* thr) const;
-  virtual size_t max_tlab_size() const;
-  virtual size_t unsafe_max_tlab_alloc(Thread* thr) const;
+  void object_iterate(ObjectClosure* cl) override;
+  ParallelObjectIteratorImpl* parallel_object_iterator(uint nworkers) override;
 
-  virtual bool can_elide_tlab_store_barriers() const;
-  virtual bool can_elide_initializing_store_barrier(oop new_obj);
-  virtual bool card_mark_must_follow_store() const;
+  void keep_alive(oop obj) override;
 
-  virtual GrowableArray<GCMemoryManager*> memory_managers();
-  virtual GrowableArray<MemoryPool*> memory_pools();
+  void register_nmethod(nmethod* nm) override;
+  void unregister_nmethod(nmethod* nm) override;
+  void verify_nmethod(nmethod* nmethod) override;
 
-  virtual void object_iterate(ObjectClosure* cl);
-  virtual void safe_object_iterate(ObjectClosure* cl);
+  WorkerThreads* safepoint_workers() override;
 
-  virtual HeapWord* block_start(const void* addr) const;
-  virtual size_t block_size(const HeapWord* addr) const;
-  virtual bool block_is_obj(const HeapWord* addr) const;
+  void gc_threads_do(ThreadClosure* tc) const override;
 
-  virtual void register_nmethod(nmethod* nm);
-  virtual void unregister_nmethod(nmethod* nm);
-  virtual void verify_nmethod(nmethod* nmethod);
+  VirtualSpaceSummary create_heap_space_summary() override;
 
-  virtual WorkGang* get_safepoint_workers();
+  bool contains_null(const oop* p) const override;
 
-  virtual jlong millis_since_last_gc();
+  void safepoint_synchronize_begin() override;
+  void safepoint_synchronize_end() override;
 
-  virtual void gc_threads_do(ThreadClosure* tc) const;
+  void pin_object(JavaThread* thread, oop obj) override;
+  void unpin_object(JavaThread* thread, oop obj) override;
 
-  virtual VirtualSpaceSummary create_heap_space_summary();
+  void print_on(outputStream* st) const override;
+  void print_on_error(outputStream* st) const override;
+  void print_extended_on(outputStream* st) const override;
+  void print_tracing_info() const override;
+  bool print_location(outputStream* st, void* addr) const override;
 
-  virtual void print_on(outputStream* st) const;
-  virtual void print_on_error(outputStream* st) const;
-  virtual void print_extended_on(outputStream* st) const;
-  virtual void print_gc_threads_on(outputStream* st) const;
-  virtual void print_tracing_info() const;
-
-  virtual void prepare_for_verify();
-  virtual void verify(VerifyOption option /* ignored */);
-  virtual bool is_oop(oop object) const;
+  void prepare_for_verify() override;
+  void verify(VerifyOption option /* ignored */) override;
+  bool is_oop(oop object) const override;
+  bool supports_concurrent_gc_breakpoints() const override;
 };
 
 #endif // SHARE_GC_Z_ZCOLLECTEDHEAP_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,13 +44,13 @@
  * @comment build generator
  * @build vm.mlvm.cp.share.GenManyIndyCorrectBootstrap
  *
- * @run driver jdk.test.lib.FileInstaller . .
  *
  * @comment build test class and indify classes
  * @build vm.mlvm.share.ClassfileGeneratorTest
  * @run driver vm.mlvm.share.IndifiedClassesBuilder
+ * @ignore 8194951
  *
- * @run main/othervm
+ * @run main/othervm/timeout=300
  *      vm.mlvm.share.ClassfileGeneratorTest
  *      -generator vm.mlvm.cp.share.GenManyIndyCorrectBootstrap
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
  */
 package jdk.management.jfr;
 
+import java.io.IOException;
 import java.lang.management.ManagementPermission;
 import java.security.Permission;
 import java.time.DateTimeException;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
+import jdk.jfr.Recording;
 import jdk.jfr.internal.management.ManagementSupport;
 
 final class MBeanUtils {
@@ -53,6 +55,7 @@ final class MBeanUtils {
     }
 
     static void checkControl() {
+        @SuppressWarnings("removal")
         SecurityManager secManager = System.getSecurityManager();
         if (secManager != null) {
             secManager.checkPermission(control);
@@ -60,6 +63,7 @@ final class MBeanUtils {
     }
 
     static void checkMonitor() {
+        @SuppressWarnings("removal")
         SecurityManager secManager = System.getSecurityManager();
         if (secManager != null) {
             secManager.checkPermission(monitor);
@@ -126,5 +130,15 @@ final class MBeanUtils {
         }
         return size;
     }
-}
 
+    public static String destination(Recording recording, String destination) throws IllegalArgumentException{
+        try {
+            ManagementSupport.checkSetDestination(recording, destination);
+            return destination;
+        }catch(IOException e){
+            IllegalArgumentException iae = new IllegalArgumentException("Not a valid destination " + destination);
+            iae.addSuppressed(e);
+            throw iae;
+        }
+    }
+}

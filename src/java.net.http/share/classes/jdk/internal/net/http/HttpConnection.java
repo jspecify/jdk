@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,10 +31,10 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -44,6 +44,10 @@ import java.util.function.Predicate;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpHeaders;
+
+import javax.net.ssl.SNIServerName;
+
+import jdk.internal.net.http.common.Alpns;
 import jdk.internal.net.http.common.Demand;
 import jdk.internal.net.http.common.FlowTube;
 import jdk.internal.net.http.common.Logger;
@@ -52,6 +56,7 @@ import jdk.internal.net.http.common.SequentialScheduler.DeferredCompleter;
 import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Utils;
 import static java.net.http.HttpClient.Version.HTTP_2;
+import static jdk.internal.net.http.common.Utils.ProxyHeaders;
 
 /**
  * Wraps socket channel layer and takes care of SSL also.
@@ -66,31 +71,44 @@ import static java.net.http.HttpClient.Version.HTTP_2;
 abstract class HttpConnection implements Closeable {
 
     final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
-    final static Logger DEBUG_LOGGER = Utils.getDebugLogger(
+    static final Logger DEBUG_LOGGER = Utils.getDebugLogger(
             () -> "HttpConnection(SocketTube(?))", Utils.DEBUG);
+    public static final Comparator<HttpConnection> COMPARE_BY_ID
+            = Comparator.comparing(HttpConnection::id);
 
     /** The address this connection is connected to. Could be a server or a proxy. */
     final InetSocketAddress address;
     private final HttpClientImpl client;
     private final TrailingOperations trailingOperations;
+    private final long id;
 
     HttpConnection(InetSocketAddress address, HttpClientImpl client) {
         this.address = address;
         this.client = client;
         trailingOperations = new TrailingOperations();
+        this.id = newConnectionId(client);
+    }
+
+    // This is overridden in tests
+    long newConnectionId(HttpClientImpl client) {
+        return client.newConnectionId();
+    }
+
+    private long id() {
+        return id;
     }
 
     private static final class TrailingOperations {
         private final Map<CompletionStage<?>, Boolean> operations =
                 new IdentityHashMap<>();
         void add(CompletionStage<?> cf) {
-            synchronized(operations) {
-                cf.whenComplete((r,t)-> remove(cf));
+            synchronized (operations) {
                 operations.put(cf, Boolean.TRUE);
+                cf.whenComplete((r,t)-> remove(cf));
             }
         }
         boolean remove(CompletionStage<?> cf) {
-            synchronized(operations) {
+            synchronized (operations) {
                 return operations.remove(cf);
             }
         }
@@ -136,10 +154,63 @@ abstract class HttpConnection implements Closeable {
      */
     abstract boolean isProxied();
 
+    /**
+     * Returns the address of the proxy used by this connection.
+     * Returns the proxy address for tunnel connections, or
+     * clear connection to any host through proxy.
+     * Returns {@code null} otherwise.
+     */
+    abstract InetSocketAddress proxy();
+
     /** Tells whether, or not, this connection is open. */
     final boolean isOpen() {
         return channel().isOpen() &&
                 (connected() ? !getConnectionFlow().isFinished() : true);
+    }
+
+    /**
+     * Forces a call to the native implementation of the
+     * connection's channel to verify that this channel is still
+     * open.
+     * <p>
+     * This method should only be called just after an HTTP/1.1
+     * connection is retrieved from the HTTP/1.1 connection pool.
+     * It is used to trigger an early detection of the channel state,
+     * before handling the connection over to the HTTP stack.
+     * It helps minimizing race conditions where the selector manager
+     * thread hasn't woken up - or hasn't raised the event, before
+     * the connection was retrieved from the pool. It helps reduce
+     * the occurrence of "HTTP/1.1 parser received no bytes"
+     * exception, when the server closes the connection while
+     * it's being taken out of the pool.
+     * <p>
+     * This method attempts to read one byte from the underlying
+     * channel. Because the connection was in the pool - there
+     * should be nothing to read.
+     * <p>
+     * If {@code read} manages to read a byte off the connection, this is a
+     * protocol error: the method closes the connection and returns false.
+     * If {@code read} returns EOF, the method closes the connection and
+     * returns false.
+     * If {@code read} throws an exception, the method returns false.
+     * Otherwise, {@code read} returns 0, the channel appears to be
+     * still open, and the method returns true.
+     * @return true if the channel appears to be still open.
+     */
+    final boolean checkOpen() {
+        if (isOpen()) {
+            try {
+                // channel is non blocking
+                int read = channel().read(ByteBuffer.allocate(1));
+                if (read == 0) return true;
+                close();
+            } catch (IOException x) {
+                debug.log("Pooled connection is no longer operational: %s",
+                        x.toString());
+                return false;
+            }
+        }
+        return false;
     }
 
     interface HttpPublisher extends FlowTube.TubePublisher {
@@ -198,7 +269,7 @@ abstract class HttpConnection implements Closeable {
 
         if (!secure) {
             c = pool.getConnection(false, addr, proxy);
-            if (c != null && c.isOpen() /* may have been eof/closed when in the pool */) {
+            if (c != null && c.checkOpen() /* may have been eof/closed when in the pool */) {
                 final HttpConnection conn = c;
                 if (DEBUG_LOGGER.on())
                     DEBUG_LOGGER.log(conn.getConnectionFlow()
@@ -220,7 +291,7 @@ abstract class HttpConnection implements Closeable {
             } else {
                 String[] alpn = null;
                 if (version == HTTP_2 && hasRequiredHTTP2TLSVersion(client)) {
-                    alpn = new String[] { "h2", "http/1.1" };
+                    alpn = new String[] { Alpns.H2, Alpns.HTTP_1_1 };
                 }
                 return getSSLConnection(addr, proxy, alpn, request, client);
             }
@@ -285,17 +356,23 @@ abstract class HttpConnection implements Closeable {
         }
     }
 
+    BiPredicate<String,String> contextRestricted(HttpRequestImpl request, HttpClient client) {
+        if (!isTunnel() && request.isConnect()) {
+            // establishing a proxy tunnel
+            assert request.proxy() == null;
+            return Utils.PROXY_TUNNEL_RESTRICTED(client);
+        } else {
+            return Utils.CONTEXT_RESTRICTED(client);
+        }
+    }
+
     // Composes a new immutable HttpHeaders that combines the
     // user and system header but only keeps those headers that
     // start with "proxy-"
-    private static HttpHeaders proxyTunnelHeaders(HttpRequestImpl request) {
-        Map<String, List<String>> combined = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        combined.putAll(request.getSystemHeadersBuilder().map());
-        combined.putAll(request.headers().map()); // let user override system
-
-        // keep only proxy-* - and also strip authorization headers
-        // for disabled schemes
-        return HttpHeaders.of(combined, Utils.PROXY_TUNNEL_FILTER);
+    private static ProxyHeaders proxyTunnelHeaders(HttpRequestImpl request) {
+        HttpHeaders userHeaders = HttpHeaders.of(request.headers().map(), Utils.PROXY_TUNNEL_FILTER);
+        HttpHeaders systemHeaders = HttpHeaders.of(request.getSystemHeadersBuilder().map(), Utils.PROXY_TUNNEL_FILTER);
+        return new ProxyHeaders(userHeaders, systemHeaders);
     }
 
     /* Returns either a plain HTTP connection or a plain tunnelling connection
@@ -317,14 +394,13 @@ abstract class HttpConnection implements Closeable {
     void closeOrReturnToCache(HttpHeaders hdrs) {
         if (hdrs == null) {
             // the connection was closed by server, eof
+            Log.logTrace("Cannot return connection to pool: closing {0}", this);
             close();
-            return;
-        }
-        if (!isOpen()) {
             return;
         }
         HttpClientImpl client = client();
         if (client == null) {
+            Log.logTrace("Client released: closing {0}", this);
             close();
             return;
         }
@@ -333,10 +409,12 @@ abstract class HttpConnection implements Closeable {
                 .map((s) -> !s.equalsIgnoreCase("close"))
                 .orElse(true);
 
-        if (keepAlive) {
+        if (keepAlive && isOpen()) {
             Log.logTrace("Returning connection to the pool: {0}", this);
             pool.returnToPool(this);
         } else {
+            Log.logTrace("Closing connection (keepAlive={0}, isOpen={1}): {2}",
+                    keepAlive, isOpen(), this);
             close();
         }
     }
@@ -350,13 +428,32 @@ abstract class HttpConnection implements Closeable {
         return address;
     }
 
+    /**
+     * Returns an unmodifiable list of {@link SNIServerName}s that were used during TLS handshake
+     * of this connection. If this connection doesn't represent a TLS based connection or if no SNI
+     * server names were used during the handshake, then this method returns an empty list.
+     *
+     * @return the SNI server names
+     */
+    public List<SNIServerName> getSNIServerNames() {
+        return List.of();
+    }
+
     abstract ConnectionPool.CacheKey cacheKey();
 
     /**
-     * Closes this connection, by returning the socket to its connection pool.
+     * Closes this connection.
      */
     @Override
     public abstract void close();
+
+    /**
+     * Closes this connection due to the given cause.
+     * @param cause the cause for which the connection is closed, may be null
+     */
+    void close(Throwable cause) {
+        close();
+    }
 
     abstract FlowTube getConnectionFlow();
 

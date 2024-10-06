@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,12 +28,7 @@
 
 #include "shmem_md.h"
 #include "sysShmem.h"
-#include "shmemBase.h"  /* for exitTransportWithError */
-
-/* Use THIS_FILE when it is available. */
-#ifndef THIS_FILE
-    #define THIS_FILE __FILE__
-#endif
+#include "shmemBase.h"  /* for SHMEM_ASSERT */
 
 /*
  * These functions are not completely universal. For now, they are used
@@ -44,18 +39,6 @@
 
 static HANDLE memHandle = NULL;
 
-#ifdef DEBUG
-#define sysAssert(expression) {         \
-    if (!(expression)) {                \
-            exitTransportWithError \
-            ("\"%s\", line %d: assertion failure\n", \
-             THIS_FILE, __DATE__, __LINE__); \
-    }                                   \
-}
-#else
-#define sysAssert(expression) ((void) 0)
-#endif
-
 int
 sysSharedMemCreate(const char *name, int length,
                    sys_shmem_t *mem, void **buffer)
@@ -63,9 +46,9 @@ sysSharedMemCreate(const char *name, int length,
     void *mappedMemory;
     HANDLE memHandle;
 
-    sysAssert(buffer);
-    sysAssert(name);
-    sysAssert(length > 0);
+    SHMEM_ASSERT(buffer);
+    SHMEM_ASSERT(name);
+    SHMEM_ASSERT(length > 0);
 
     memHandle  =
         CreateFileMapping(INVALID_HANDLE_VALUE, /* backed by page file */
@@ -104,8 +87,8 @@ sysSharedMemOpen(const char *name, sys_shmem_t *mem, void **buffer)
     void *mappedMemory;
     HANDLE memHandle;
 
-    sysAssert(name);
-    sysAssert(buffer);
+    SHMEM_ASSERT(name);
+    SHMEM_ASSERT(buffer);
 
     memHandle =
         OpenFileMapping(FILE_MAP_WRITE,     /* read/write */
@@ -152,8 +135,8 @@ sysIPMutexCreate(const char *name, sys_ipmutex_t *mutexPtr)
 {
     HANDLE mutex;
 
-    sysAssert(mutexPtr);
-    sysAssert(name);
+    SHMEM_ASSERT(mutexPtr);
+    SHMEM_ASSERT(name);
 
     mutex = CreateMutex(NULL,            /* no inheritance */
                         FALSE,           /* no initial owner */
@@ -175,8 +158,8 @@ sysIPMutexOpen(const char *name, sys_ipmutex_t *mutexPtr)
 {
     HANDLE mutex;
 
-    sysAssert(mutexPtr);
-    sysAssert(name);
+    SHMEM_ASSERT(mutexPtr);
+    SHMEM_ASSERT(name);
 
     mutex = OpenMutex(SYNCHRONIZE,      /* able to wait/release */
                       FALSE,            /* no inheritance */
@@ -196,7 +179,7 @@ sysIPMutexEnter(sys_ipmutex_t mutex, sys_event_t event)
     int count = event == NULL ? 1 : 2;
     DWORD rc;
 
-    sysAssert(mutex);
+    SHMEM_ASSERT(mutex);
     rc = WaitForMultipleObjects(count, handles,
                                 FALSE,              /* wait for either, not both */
                                 INFINITE);          /* infinite timeout */
@@ -206,7 +189,7 @@ sysIPMutexEnter(sys_ipmutex_t mutex, sys_event_t event)
 int
 sysIPMutexExit(sys_ipmutex_t mutex)
 {
-    sysAssert(mutex);
+    SHMEM_ASSERT(mutex);
     return ReleaseMutex(mutex) ? SYS_OK : SYS_ERR;
 }
 
@@ -222,7 +205,7 @@ sysEventCreate(const char *name, sys_event_t *eventPtr, jboolean manualReset)
     HANDLE event;
     BOOL reset = (manualReset == JNI_TRUE) ? TRUE : FALSE;
 
-    sysAssert(eventPtr);
+    SHMEM_ASSERT(eventPtr);
 
     event = CreateEvent(NULL,            /* no inheritance */
                         reset,           /* manual reset */
@@ -245,8 +228,8 @@ sysEventOpen(const char *name, sys_event_t *eventPtr)
 {
     HANDLE event;
 
-    sysAssert(eventPtr);
-    sysAssert(name);
+    SHMEM_ASSERT(eventPtr);
+    SHMEM_ASSERT(name);
 
     event = OpenEvent(SYNCHRONIZE | EVENT_MODIFY_STATE,
                                         /* able to wait/signal */
@@ -272,7 +255,7 @@ sysEventWait(sys_process_t otherProcess, sys_event_t event, long timeout)
      * If the signalling process is specified, and it dies while we wait,
      * detect it and return an error.
      */
-    sysAssert(event);
+    SHMEM_ASSERT(event);
 
     handles[0] = event;
     handles[1] = otherProcess;
@@ -298,7 +281,7 @@ sysEventWait(sys_process_t otherProcess, sys_event_t event, long timeout)
 int
 sysEventSignal(sys_event_t event)
 {
-    sysAssert(event);
+    SHMEM_ASSERT(event);
     return SetEvent(event) ? SYS_OK : SYS_ERR;
 }
 
@@ -319,7 +302,7 @@ sysProcessOpen(jlong processID, sys_process_t *processPtr)
 {
     HANDLE process;
 
-    sysAssert(processPtr);
+    SHMEM_ASSERT(processPtr);
 
     process = OpenProcess(SYNCHRONIZE,    /* able to wait on death */
                           FALSE,          /* no inheritance */

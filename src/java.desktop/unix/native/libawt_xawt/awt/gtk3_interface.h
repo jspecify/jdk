@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+#ifdef HEADLESS
+    #error This file should not be included in headless library
+#endif
+
 #ifndef _GTK3_INTERFACE_H
 #define _GTK3_INTERFACE_H
 
@@ -132,9 +137,49 @@ typedef enum {
     CAIRO_FORMAT_RGB16_565 = 4
 } cairo_format_t;
 
+typedef enum _cairo_status {
+    CAIRO_STATUS_SUCCESS = 0,
+
+    CAIRO_STATUS_NO_MEMORY,
+    CAIRO_STATUS_INVALID_RESTORE,
+    CAIRO_STATUS_INVALID_POP_GROUP,
+    CAIRO_STATUS_NO_CURRENT_POINT,
+    CAIRO_STATUS_INVALID_MATRIX,
+    CAIRO_STATUS_INVALID_STATUS,
+    CAIRO_STATUS_NULL_POINTER,
+    CAIRO_STATUS_INVALID_STRING,
+    CAIRO_STATUS_INVALID_PATH_DATA,
+    CAIRO_STATUS_READ_ERROR,
+    CAIRO_STATUS_WRITE_ERROR,
+    CAIRO_STATUS_SURFACE_FINISHED,
+    CAIRO_STATUS_SURFACE_TYPE_MISMATCH,
+    CAIRO_STATUS_PATTERN_TYPE_MISMATCH,
+    CAIRO_STATUS_INVALID_CONTENT,
+    CAIRO_STATUS_INVALID_FORMAT,
+    CAIRO_STATUS_INVALID_VISUAL,
+    CAIRO_STATUS_FILE_NOT_FOUND,
+    CAIRO_STATUS_INVALID_DASH,
+    CAIRO_STATUS_INVALID_DSC_COMMENT,
+    CAIRO_STATUS_INVALID_INDEX,
+    CAIRO_STATUS_CLIP_NOT_REPRESENTABLE,
+    CAIRO_STATUS_TEMP_FILE_ERROR,
+    CAIRO_STATUS_INVALID_STRIDE,
+    CAIRO_STATUS_FONT_TYPE_MISMATCH,
+    CAIRO_STATUS_USER_FONT_IMMUTABLE,
+    CAIRO_STATUS_USER_FONT_ERROR,
+    CAIRO_STATUS_NEGATIVE_COUNT,
+    CAIRO_STATUS_INVALID_CLUSTERS,
+    CAIRO_STATUS_INVALID_SLANT,
+    CAIRO_STATUS_INVALID_WEIGHT,
+    CAIRO_STATUS_INVALID_SIZE,
+    CAIRO_STATUS_USER_FONT_NOT_IMPLEMENTED,
+    CAIRO_STATUS_DEVICE_TYPE_MISMATCH,
+    CAIRO_STATUS_DEVICE_ERROR,
+
+    CAIRO_STATUS_LAST_STATUS
+} cairo_status_t;
+
 /* We define all structure pointers to be void* */
-typedef void GdkPixbuf;
-typedef void GMainContext;
 typedef void GVfs;
 
 typedef void GdkColormap;
@@ -162,6 +207,8 @@ typedef void GtkAdjustment;
 typedef void GtkRange;
 typedef void GtkProgressBar;
 typedef void GtkProgress;
+typedef void GtkWidgetPath;
+typedef void GtkPaned;
 
 /* Some real structures */
 typedef struct
@@ -185,13 +232,6 @@ typedef struct {
   gushort   events;
   gushort   revents;
 } GPollFD;
-
-typedef struct {
-  gint x;
-  gint y;
-  gint width;
-  gint height;
-} GdkRectangle;
 
 typedef struct {
     int x, y;
@@ -238,7 +278,6 @@ typedef struct {
   GType    owner_type;
 } GParamSpec;
 
-
 static gchar* (*fp_glib_check_version)(guint required_major,
                            guint required_minor, guint required_micro);
 
@@ -253,6 +292,7 @@ static gchar* (*fp_gtk_check_version)(guint required_major, guint
 static void (*fp_g_free)(gpointer mem);
 static void (*fp_g_object_unref)(gpointer object);
 static GdkWindow *(*fp_gdk_get_default_root_window) (void);
+static int (*fp_gdk_window_get_scale_factor) (GdkWindow *window);
 
 static int (*fp_gdk_pixbuf_get_bits_per_sample)(const GdkPixbuf *pixbuf);
 static guchar *(*fp_gdk_pixbuf_get_pixels)(const GdkPixbuf *pixbuf);
@@ -326,7 +366,6 @@ static gboolean (*fp_gtk_show_uri)(GdkScreen *screen, const gchar *uri,
     guint32 timestamp, GError **error);
 
 // Implementation functions prototypes
-static void gtk3_init(GtkApi* gtk);
 static GValue*      (*fp_g_value_init)(GValue *value, GType g_type);
 static gboolean     (*fp_g_type_is_a)(GType type, GType is_a_type);
 static gboolean     (*fp_g_value_get_boolean)(const GValue *value);
@@ -352,7 +391,7 @@ static void         (*fp_g_object_set)(gpointer object,
                                        const gchar *first_property_name,
                                        ...);
 
-static gboolean (*fp_g_main_context_iteration)(GMainContext *context);
+static gboolean (*fp_g_main_context_iteration)(GMainContext *context, gboolean may_block);
 static gboolean (*fp_g_str_has_prefix)(const gchar *str, const gchar *prefix);
 static gchar** (*fp_g_strsplit)(const gchar *string, const gchar *delimiter,
            gint max_tokens);
@@ -362,8 +401,10 @@ static void (*fp_g_strfreev)(gchar **str_array);
 static cairo_surface_t* (*fp_cairo_image_surface_create)(cairo_format_t format,
                                int width, int height);
 static void (*fp_cairo_surface_destroy)(cairo_surface_t *surface);
+static cairo_status_t (*fp_cairo_surface_status)(cairo_surface_t *surface);
 static cairo_t* (*fp_cairo_create)(cairo_surface_t *target);
 static void (*fp_cairo_destroy)(cairo_t *cr);
+static cairo_status_t (*fp_cairo_status)(cairo_t *cr);
 static void (*fp_cairo_fill)(cairo_t *cr);
 static void (*fp_cairo_surface_flush)(cairo_surface_t *surface);
 static void (*fp_cairo_rectangle)(cairo_t *cr, double x, double y, double width,
@@ -443,16 +484,15 @@ static void (*fp_gtk_render_background)(GtkStyleContext *context, cairo_t *cr,
                      gdouble x, gdouble y, gdouble width, gdouble height);
 static gboolean (*fp_gtk_style_context_has_class)(GtkStyleContext *context,
                      const gchar *class_name);
-static void transform_detail_string (const gchar *detail,
-                     GtkStyleContext *context);
-void (*fp_gtk_style_context_set_junction_sides)(GtkStyleContext  *context,
+
+static void (*fp_gtk_style_context_set_junction_sides)(GtkStyleContext  *context,
                      GtkJunctionSides  sides);
-void (*fp_gtk_style_context_add_region)(GtkStyleContext *context,
+static void (*fp_gtk_style_context_add_region)(GtkStyleContext *context,
                      const gchar *region_name, GtkRegionFlags flags);
-void (*fp_gtk_render_arrow)(GtkStyleContext *context, cairo_t *cr,
+static void (*fp_gtk_render_arrow)(GtkStyleContext *context, cairo_t *cr,
                      gdouble angle, gdouble x, gdouble y, gdouble size);
-void (*fp_gtk_bin_set_child)(GtkBin *bin, GtkWidget *widget);
-void (*fp_gtk_scrolled_window_set_shadow_type)(
+static void (*fp_gtk_bin_set_child)(GtkBin *bin, GtkWidget *widget);
+static void (*fp_gtk_scrolled_window_set_shadow_type)(
                      GtkScrolledWindow *scrolled_window, GtkShadowType type);
 static void (*fp_gtk_render_slider)(GtkStyleContext *context, cairo_t *cr,
                      gdouble x, gdouble y, gdouble width, gdouble height,
@@ -471,7 +511,7 @@ static GdkPixbuf* (*fp_gtk_icon_theme_load_icon)(GtkIconTheme *icon_theme,
 static void (*fp_gtk_adjustment_set_lower)(GtkAdjustment *adjustment,
                      gdouble lower);
 static void (*fp_gtk_adjustment_set_page_increment)(GtkAdjustment *adjustment,
-                     gdouble page_increment);
+                                                    gdouble page_increment);
 static void (*fp_gtk_adjustment_set_page_size)(GtkAdjustment *adjustment,
                      gdouble page_size);
 static void (*fp_gtk_adjustment_set_step_increment)(GtkAdjustment *adjustment,
@@ -486,6 +526,30 @@ static void (*fp_gdk_draw_rectangle)(GdkDrawable*, GdkGC*, gboolean,
         gint, gint, gint, gint);
 static GdkPixbuf *(*fp_gdk_pixbuf_new)(GdkColorspace colorspace,
         gboolean has_alpha, int bits_per_sample, int width, int height);
+
+static GdkPixbuf *(*fp_gdk_pixbuf_new_from_data)(
+        const guchar *data,
+        GdkColorspace colorspace,
+        gboolean has_alpha,
+        int bits_per_sample,
+        int width,
+        int height,
+        int rowstride,
+        GdkPixbufDestroyNotify destroy_fn,
+        gpointer destroy_fn_data
+);
+
+static void (*fp_gdk_pixbuf_copy_area) (
+        const GdkPixbuf* src_pixbuf,
+        int src_x,
+        int src_y,
+        int width,
+        int height,
+        GdkPixbuf* dest_pixbuf,
+        int dest_x,
+        int dest_y
+);
+
 static void (*fp_gdk_drawable_get_size)(GdkDrawable *drawable,
         gint* width, gint* height);
 static gboolean (*fp_gtk_init_check)(int* argc, char** argv);
@@ -502,8 +566,7 @@ static GtkWidget* (*fp_gtk_combo_box_entry_new)();
 static GtkWidget* (*fp_gtk_entry_new)();
 static GtkWidget* (*fp_gtk_fixed_new)();
 static GtkWidget* (*fp_gtk_handle_box_new)();
-static GtkWidget* (*fp_gtk_hpaned_new)();
-static GtkWidget* (*fp_gtk_vpaned_new)();
+static GtkWidget* (*fp_gtk_paned_new)(GtkOrientation orientation);
 static GtkWidget* (*fp_gtk_scale_new)(GtkOrientation  orientation,
                                        GtkAdjustment* adjustment);
 static GtkWidget* (*fp_gtk_hscrollbar_new)(GtkAdjustment* adjustment);
@@ -573,5 +636,173 @@ static void (*fp_gtk_arrow_set)(GtkWidget* arrow,
 static void (*fp_gtk_widget_size_request)(GtkWidget *widget,
                                           GtkRequisition *requisition);
 static GtkAdjustment* (*fp_gtk_range_get_adjustment)(GtkRange* range);
+static GtkWidgetPath* (*fp_gtk_widget_path_copy)
+        (const GtkWidgetPath *path);
+static const GtkWidgetPath* (*fp_gtk_style_context_get_path)
+        (GtkStyleContext *context);
+static GtkWidgetPath* (*fp_gtk_widget_path_new) (void);
+static gint (*fp_gtk_widget_path_append_type)
+        (GtkWidgetPath *path, GType type);
+static void (*fp_gtk_widget_path_iter_set_object_name)
+        (GtkWidgetPath *path, gint pos, const char *name);
+static void (*fp_gtk_style_context_set_path)
+        (GtkStyleContext *context, GtkWidgetPath *path);
+static void (*fp_gtk_widget_path_unref) (GtkWidgetPath *path);
+static GtkStyleContext* (*fp_gtk_style_context_new) (void);
+
+
+// ---------- fp_g_dbus_* ----------
+static GVariant *(*fp_g_dbus_proxy_call_sync)(
+        GDBusProxy *proxy,
+        const gchar *method_name,
+        GVariant *parameters,
+        GDBusCallFlags flags,
+        gint timeout_msec,
+        GCancellable *cancellable,
+        GError **error
+);
+
+static GDBusProxy *(*fp_g_dbus_proxy_new_sync)(
+        GDBusConnection *connection,
+        GDBusProxyFlags flags,
+        GDBusInterfaceInfo *info,
+        const gchar *name,
+        const gchar *object_path,
+        const gchar *interface_name,
+        GCancellable *cancellable,
+        GError **error
+);
+
+static const gchar *(*fp_g_dbus_connection_get_unique_name)(
+        GDBusConnection *connection
+);
+
+static GDBusConnection *(*fp_g_bus_get_sync)(GBusType bus_type,
+                                             GCancellable *cancellable,
+                                             GError **error);
+
+static guint (*fp_g_dbus_connection_signal_subscribe)(
+        GDBusConnection *connection,
+        const gchar *sender,
+        const gchar *interface_name,
+        const gchar *member,
+        const gchar *object_path,
+        const gchar *arg0,
+        GDBusSignalFlags flags,
+        GDBusSignalCallback callback,
+        gpointer user_data,
+        GDestroyNotify user_data_free_func
+);
+
+static void (*fp_g_dbus_connection_signal_unsubscribe)(
+        GDBusConnection *connection,
+        guint subscription_id
+);
+
+static GVariant *(*fp_g_dbus_proxy_call_with_unix_fd_list_sync)(
+        GDBusProxy *proxy,
+        const gchar *method_name,
+        GVariant *parameters,
+        GDBusCallFlags flags,
+        gint timeout_msec,
+        GUnixFDList *fd_list,
+        GUnixFDList **out_fd_list,
+        GCancellable *cancellable,
+        GError **error
+);
+
+static GVariant *(*fp_g_dbus_connection_call_sync)(
+        GDBusConnection *connection,
+        const gchar *bus_name,
+        const gchar *object_path,
+        const gchar *interface_name,
+        const gchar *method_name,
+        GVariant *parameters,
+        const GVariantType *reply_type,
+        GDBusCallFlags flags,
+        gint timeout_msec,
+        GCancellable *cancellable,
+        GError **error
+);
+
+// ---------- fp_g_variant_*  ----------
+
+static GVariant *(*fp_g_variant_new)(const gchar *format_string, ...);
+
+static GVariant *(*fp_g_variant_new_string)(const gchar *string);
+
+static GVariant *(*fp_g_variant_new_boolean)(gboolean value);
+
+static GVariant *(*fp_g_variant_new_uint32)(guint32 value);
+
+static void (*fp_g_variant_get)(GVariant *value,
+                                const gchar *format_string,
+                                ...);
+
+static const gchar *(*fp_g_variant_get_string)(GVariant *value,
+                                               gsize *length);
+
+static guint32 (*fp_g_variant_get_uint32)(GVariant *value);
+
+static gboolean (*fp_g_variant_lookup)(GVariant *dictionary,
+                                       const gchar *key,
+                                       const gchar *format_string,
+                                       ...);
+
+static gboolean (*fp_g_variant_iter_loop)(GVariantIter *iter,
+                                          const gchar *format_string,
+                                          ...);
+
+static void (*fp_g_variant_unref)(GVariant *value);
+
+static void (*fp_g_variant_builder_init)(GVariantBuilder *builder,
+                                         const GVariantType *type);
+
+static void (*fp_g_variant_builder_add)(GVariantBuilder *builder,
+                                        const gchar *format_string,
+                                        ...);
+
+static GVariant *(*fp_g_variant_lookup_value)(GVariant *dictionary,
+                                              const gchar *key,
+                                              const GVariantType *expected_type);
+
+static gsize (*fp_g_variant_iter_init)(GVariantIter *iter,
+                                       GVariant *value);
+
+static gsize (*fp_g_variant_iter_n_children)(GVariantIter *iter);
+
+
+// ---------- fp_g_string_* ----------
+
+static GString *(*fp_g_string_new)(const gchar *init);
+
+static GString *(*fp_g_string_erase)(GString *string,
+                                     gssize pos,
+                                     gssize len);
+
+static GString *(*fp_g_string_set_size)(GString* string,
+                                        gsize len);
+
+static gchar *(*fp_g_string_free)(GString *string,
+                                  gboolean free_segment);
+
+static guint (*fp_g_string_replace)(GString *string,
+                                    const gchar *find,
+                                    const gchar *replace,
+                                    guint limit);
+
+static void *(*fp_g_string_printf)(GString *string,
+                                   const gchar *format,
+                                   ...);
+
+static gboolean (*fp_g_uuid_string_is_valid)(const gchar *str);
+
+
+// ---------- * ----------
+static void (*fp_g_error_free)(GError *error);
+
+static gint (*fp_g_unix_fd_list_get)(GUnixFDList *list,
+                                     gint index_,
+                                     GError **error);
 
 #endif /* !_GTK3_INTERFACE_H */

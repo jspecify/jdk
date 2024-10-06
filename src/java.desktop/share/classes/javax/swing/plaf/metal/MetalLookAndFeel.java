@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,27 +25,52 @@
 
 package javax.swing.plaf.metal;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Frame;
+import java.awt.Insets;
+import java.awt.Toolkit;
+import java.awt.Window;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import javax.swing.plaf.*;
-import javax.swing.*;
-import javax.swing.plaf.basic.*;
-import javax.swing.text.DefaultEditorKit;
-
-import java.awt.Color;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
-
 import java.security.AccessController;
 
-import sun.awt.*;
+import javax.swing.ButtonModel;
+import javax.swing.DefaultButtonModel;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JRootPane;
+import javax.swing.JTextField;
+import javax.swing.JToggleButton;
+import javax.swing.LayoutStyle;
+import javax.swing.LookAndFeel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.UIDefaults;
+import javax.swing.UIManager;
+import javax.swing.plaf.BorderUIResource;
+import javax.swing.plaf.ColorUIResource;
+import javax.swing.plaf.FontUIResource;
+import javax.swing.plaf.InsetsUIResource;
+import javax.swing.plaf.UIResource;
+import javax.swing.plaf.basic.BasicLookAndFeel;
+import javax.swing.text.DefaultEditorKit;
+
+import sun.awt.AppContext;
+import sun.awt.OSInfo;
+import sun.awt.SunToolkit;
 import sun.security.action.GetPropertyAction;
 import sun.swing.DefaultLayoutStyle;
-import static javax.swing.UIDefaults.LazyValue;
-
 import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
+
+import static javax.swing.UIDefaults.LazyValue;
 
 /**
  * The Java Look and Feel, otherwise known as Metal.
@@ -71,7 +96,7 @@ import sun.swing.SwingUtilities2;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -108,19 +133,22 @@ public class MetalLookAndFeel extends BasicLookAndFeel
      */
     private static boolean useSystemFonts;
 
+    /**
+     * Constructs a {@code MetalLookAndFeel}.
+     */
+    public MetalLookAndFeel() {}
 
     /**
      * Returns true if running on Windows.
      */
     static boolean isWindows() {
         if (!checkedWindows) {
-            OSInfo.OSType osType = AccessController.doPrivileged(OSInfo.getOSTypeAction());
-            if (osType == OSInfo.OSType.WINDOWS) {
+            if (OSInfo.getOSType() == OSInfo.OSType.WINDOWS) {
                 isWindows = true;
+                @SuppressWarnings("removal")
                 String systemFonts = AccessController.doPrivileged(
                     new GetPropertyAction("swing.useSystemFontSettings"));
-                useSystemFonts = (systemFonts != null &&
-                               (Boolean.valueOf(systemFonts).booleanValue()));
+                useSystemFonts = Boolean.parseBoolean(systemFonts);
             }
             checkedWindows = true;
         }
@@ -267,6 +295,7 @@ public class MetalLookAndFeel extends BasicLookAndFeel
               "FileChooserUI", metalPackageName + "MetalFileChooserUI",
             "InternalFrameUI", metalPackageName + "MetalInternalFrameUI",
                     "LabelUI", metalPackageName + "MetalLabelUI",
+                  "MenuBarUI", metalPackageName + "MetalMenuBarUI",
        "PopupMenuSeparatorUI", metalPackageName + "MetalPopupMenuSeparatorUI",
               "ProgressBarUI", metalPackageName + "MetalProgressBarUI",
               "RadioButtonUI", metalPackageName + "MetalRadioButtonUI",
@@ -778,6 +807,8 @@ public class MetalLookAndFeel extends BasicLookAndFeel
                           "SPACE", "pressed",
                  "released SPACE", "released"
               }),
+            // Button default margin is (2, 14, 2, 14), defined in
+            // BasicLookAndFeel via "Button.margin" UI property.
 
             "CheckBox.disabledText", inactiveControlTextColor,
             "Checkbox.select", controlShadow,
@@ -1183,7 +1214,7 @@ public class MetalLookAndFeel extends BasicLookAndFeel
                               "KP_DOWN", "selectNextRow",
                            "shift DOWN", "selectNextRowExtendSelection",
                         "shift KP_DOWN", "selectNextRowExtendSelection",
-                      "ctrl shift DOWN", "selectNextRowExtendSelection",
+                      "ctrl shift DOWN", "selectLastRowExtendSelection",
                    "ctrl shift KP_DOWN", "selectNextRowExtendSelection",
                             "ctrl DOWN", "selectNextRowChangeLead",
                          "ctrl KP_DOWN", "selectNextRowChangeLead",
@@ -1191,7 +1222,7 @@ public class MetalLookAndFeel extends BasicLookAndFeel
                                 "KP_UP", "selectPreviousRow",
                              "shift UP", "selectPreviousRowExtendSelection",
                           "shift KP_UP", "selectPreviousRowExtendSelection",
-                        "ctrl shift UP", "selectPreviousRowExtendSelection",
+                        "ctrl shift UP", "selectFirstRowExtendSelection",
                      "ctrl shift KP_UP", "selectPreviousRowExtendSelection",
                               "ctrl UP", "selectPreviousRowChangeLead",
                            "ctrl KP_UP", "selectPreviousRowChangeLead",
@@ -1392,8 +1423,8 @@ public class MetalLookAndFeel extends BasicLookAndFeel
             "Tree.openIcon",(LazyValue) t -> MetalIconFactory.getTreeFolderIcon(),
             "Tree.closedIcon",(LazyValue) t -> MetalIconFactory.getTreeFolderIcon(),
             "Tree.leafIcon",(LazyValue) t -> MetalIconFactory.getTreeLeafIcon(),
-            "Tree.expandedIcon",(LazyValue) t -> MetalIconFactory.getTreeControlIcon(Boolean.valueOf(MetalIconFactory.DARK)),
-            "Tree.collapsedIcon",(LazyValue) t -> MetalIconFactory.getTreeControlIcon(Boolean.valueOf( MetalIconFactory.LIGHT )),
+            "Tree.expandedIcon",(LazyValue) t -> MetalIconFactory.getTreeControlIcon(MetalIconFactory.DARK),
+            "Tree.collapsedIcon",(LazyValue) t -> MetalIconFactory.getTreeControlIcon(MetalIconFactory.LIGHT),
 
             "Tree.line", primaryControl, // horiz lines
             "Tree.hash", primaryControl,  // legs
@@ -1631,6 +1662,7 @@ public class MetalLookAndFeel extends BasicLookAndFeel
             else {
                 // Create the default theme. We prefer Ocean, but will
                 // use DefaultMetalTheme if told to.
+                @SuppressWarnings("removal")
                 String theme = AccessController.doPrivileged(
                                new GetPropertyAction("swing.metalTheme"));
                 if ("steel".equals(theme)) {
@@ -2134,8 +2166,7 @@ public class MetalLookAndFeel extends BasicLookAndFeel
 
     /**
      * Returns a {@code LayoutStyle} implementing the Java look and feel
-     * design guidelines as specified at
-     * <a href="http://www.oracle.com/technetwork/java/hig-136467.html">http://www.oracle.com/technetwork/java/hig-136467.html</a>.
+     * design guidelines.
      *
      * @return LayoutStyle implementing the Java look and feel design
      *         guidelines
@@ -2226,7 +2257,7 @@ public class MetalLookAndFeel extends BasicLookAndFeel
          */
         private static void updateWindowUI(Window window) {
             SwingUtilities.updateComponentTreeUI(window);
-            Window ownedWins[] = window.getOwnedWindows();
+            Window[] ownedWins = window.getOwnedWindows();
             for (Window w : ownedWins) {
                 updateWindowUI(w);
             }
@@ -2236,7 +2267,7 @@ public class MetalLookAndFeel extends BasicLookAndFeel
          * Updates the UIs of all the known Frames.
          */
         private static void updateAllUIs() {
-            Frame appFrames[] = Frame.getFrames();
+            Frame[] appFrames = Frame.getFrames();
             for (Frame frame : appFrames) {
                 updateWindowUI(frame);
             }

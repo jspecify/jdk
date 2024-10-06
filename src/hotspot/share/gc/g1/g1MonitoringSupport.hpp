@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,19 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1MONITORINGSUPPORT_HPP
-#define SHARE_VM_GC_G1_G1MONITORINGSUPPORT_HPP
+#ifndef SHARE_GC_G1_G1MONITORINGSUPPORT_HPP
+#define SHARE_GC_G1_G1MONITORINGSUPPORT_HPP
 
+#include "gc/shared/collectorCounters.hpp"
 #include "gc/shared/generationCounters.hpp"
+#include "services/memoryManager.hpp"
+#include "services/memoryService.hpp"
+#include "runtime/mutex.hpp"
 
 class CollectorCounters;
 class G1CollectedHeap;
 class HSpaceCounters;
+class MemoryPool;
 
 // Class for monitoring logical spaces in G1. It provides data for
 // both G1's jstat counters as well as G1's memory pools.
@@ -116,159 +121,129 @@ class HSpaceCounters;
 
 class G1MonitoringSupport : public CHeapObj<mtGC> {
   friend class VMStructs;
+  friend class G1YoungGCMonitoringScope;
+  friend class G1FullGCMonitoringScope;
+  friend class G1ConcGCMonitoringScope;
 
   G1CollectedHeap* _g1h;
 
+  // java.lang.management MemoryManager and MemoryPool support
+  GCMemoryManager _young_gc_memory_manager;
+  GCMemoryManager _full_gc_memory_manager;
+  GCMemoryManager _conc_gc_memory_manager;
+
+  MemoryPool* _eden_space_pool;
+  MemoryPool* _survivor_space_pool;
+  MemoryPool* _old_gen_pool;
+
   // jstat performance counters
-  //  incremental collections both young and mixed
-  CollectorCounters*   _incremental_collection_counters;
+  //  young stop-the-world collections (including mixed)
+  CollectorCounters*   _young_collection_counters;
   //  full stop-the-world collections
   CollectorCounters*   _full_collection_counters;
-  //  stop-the-world phases in G1
+  //  stop-the-world phases in G1 concurrent collection
   CollectorCounters*   _conc_collection_counters;
   //  young collection set counters.  The _eden_counters,
   // _from_counters, and _to_counters are associated with
   // this "generational" counter.
-  GenerationCounters*  _young_collection_counters;
+  GenerationCounters*  _young_gen_counters;
   //  old collection set counters. The _old_space_counters
   // below are associated with this "generational" counter.
-  GenerationCounters*  _old_collection_counters;
+  GenerationCounters*  _old_gen_counters;
   // Counters for the capacity and used for
   //   the whole heap
   HSpaceCounters*      _old_space_counters;
   //   the young collection
-  HSpaceCounters*      _eden_counters;
+  HSpaceCounters*      _eden_space_counters;
   //   the survivor collection (only one, _to_counters, is actively used)
-  HSpaceCounters*      _from_counters;
-  HSpaceCounters*      _to_counters;
+  HSpaceCounters*      _from_space_counters;
+  HSpaceCounters*      _to_space_counters;
 
   // When it's appropriate to recalculate the various sizes (at the
   // end of a GC, when a new eden region is allocated, etc.) we store
   // them here so that we can easily report them when needed and not
   // have to recalculate them every time.
 
-  size_t _overall_reserved;
   size_t _overall_committed;
   size_t _overall_used;
 
-  uint   _young_region_num;
   size_t _young_gen_committed;
-  size_t _eden_committed;
-  size_t _eden_used;
-  size_t _survivor_committed;
-  size_t _survivor_used;
+  size_t _old_gen_committed;
 
-  size_t _old_committed;
-  size_t _old_used;
+  size_t _eden_space_committed;
+  size_t _eden_space_used;
+  size_t _survivor_space_committed;
+  size_t _survivor_space_used;
 
-  // It returns x - y if x > y, 0 otherwise.
-  // As described in the comment above, some of the inputs to the
-  // calculations we have to do are obtained concurrently and hence
-  // may be inconsistent with each other. So, this provides a
-  // defensive way of performing the subtraction and avoids the value
-  // going negative (which would mean a very large result, given that
-  // the parameter are size_t).
-  static size_t subtract_up_to_zero(size_t x, size_t y) {
-    if (x > y) {
-      return x - y;
-    } else {
-      return 0;
-    }
-  }
+  size_t _old_gen_used;
 
   // Recalculate all the sizes.
   void recalculate_sizes();
-  // Recalculate only what's necessary when a new eden region is allocated.
-  void recalculate_eden_size();
 
- public:
+public:
   G1MonitoringSupport(G1CollectedHeap* g1h);
+  ~G1MonitoringSupport();
 
-  // Unfortunately, the jstat tool assumes that no space has 0
-  // capacity. In our case, given that each space is logical, it's
-  // possible that no regions will be allocated to it, hence to have 0
-  // capacity (e.g., if there are no survivor regions, the survivor
-  // space has 0 capacity). The way we deal with this is to always pad
-  // each capacity value we report to jstat by a very small amount to
-  // make sure that it's never zero. Given that we sometimes have to
-  // report a capacity of a generation that contains several spaces
-  // (e.g., young gen includes one eden, two survivor spaces), the
-  // mult parameter is provided in order to adding the appropriate
-  // padding multiple times so that the capacities add up correctly.
-  static size_t pad_capacity(size_t size_bytes, size_t mult = 1) {
-    return size_bytes + MinObjAlignmentInBytes * mult;
-  }
+  void initialize_serviceability();
+
+  MemoryUsage memory_usage();
+  GrowableArray<GCMemoryManager*> memory_managers();
+  GrowableArray<MemoryPool*> memory_pools();
 
   // Recalculate all the sizes from scratch and update all the jstat
   // counters accordingly.
   void update_sizes();
-  // Recalculate only what's necessary when a new eden region is
-  // allocated and update any jstat counters that need to be updated.
-  void update_eden_size();
 
-  CollectorCounters* incremental_collection_counters() {
-    return _incremental_collection_counters;
-  }
-  CollectorCounters* full_collection_counters() {
-    return _full_collection_counters;
-  }
-  CollectorCounters* conc_collection_counters() {
-    return _conc_collection_counters;
-  }
-  GenerationCounters* young_collection_counters() {
-    return _young_collection_counters;
-  }
-  GenerationCounters* old_collection_counters() {
-    return _old_collection_counters;
-  }
-  HSpaceCounters*      old_space_counters() { return _old_space_counters; }
-  HSpaceCounters*      eden_counters() { return _eden_counters; }
-  HSpaceCounters*      from_counters() { return _from_counters; }
-  HSpaceCounters*      to_counters() { return _to_counters; }
+  void update_eden_size();
 
   // Monitoring support used by
   //   MemoryService
   //   jstat counters
   //   Tracing
+  // Values may not be consistent wrt to each other.
 
-  size_t overall_reserved()           { return _overall_reserved;     }
-  size_t overall_committed()          { return _overall_committed;    }
-  size_t overall_used()               { return _overall_used;         }
+  size_t young_gen_committed()        { return _young_gen_committed; }
 
-  size_t young_gen_committed()        { return _young_gen_committed;  }
-  size_t young_gen_max()              { return overall_reserved();    }
-  size_t eden_space_committed()       { return _eden_committed;       }
-  size_t eden_space_used()            { return _eden_used;            }
-  size_t survivor_space_committed()   { return _survivor_committed;   }
-  size_t survivor_space_used()        { return _survivor_used;        }
+  size_t eden_space_used()            { return _eden_space_used; }
+  size_t survivor_space_used()        { return _survivor_space_used; }
 
-  size_t old_gen_committed()          { return old_space_committed(); }
-  size_t old_gen_max()                { return overall_reserved();    }
-  size_t old_space_committed()        { return _old_committed;        }
-  size_t old_space_used()             { return _old_used;             }
+  size_t old_gen_committed()          { return _old_gen_committed; }
+  size_t old_gen_used()               { return _old_gen_used; }
+
+  // Monitoring support for MemoryPools. Values in the returned MemoryUsage are
+  // guaranteed to be consistent with each other.
+  MemoryUsage eden_space_memory_usage(size_t initial_size, size_t max_size);
+  MemoryUsage survivor_space_memory_usage(size_t initial_size, size_t max_size);
+
+  MemoryUsage old_gen_memory_usage(size_t initial_size, size_t max_size);
 };
 
-class G1GenerationCounters: public GenerationCounters {
+// Scope object for java.lang.management support.
+class G1MonitoringScope : public StackObj {
+  G1MonitoringSupport* _monitoring_support;
+  TraceCollectorStats _tcs;
+  TraceMemoryManagerStats _tms;
 protected:
-  G1MonitoringSupport* _g1mm;
-
-public:
-  G1GenerationCounters(G1MonitoringSupport* g1mm,
-                       const char* name, int ordinal, int spaces,
-                       size_t min_capacity, size_t max_capacity,
-                       size_t curr_capacity);
+  G1MonitoringScope(G1MonitoringSupport* monitoring_support,
+                    CollectorCounters* collection_counters,
+                    GCMemoryManager* gc_memory_manager,
+                    const char* end_message,
+                    bool all_memory_pools_affected = true);
+  ~G1MonitoringScope();
 };
 
-class G1YoungGenerationCounters: public G1GenerationCounters {
+class G1YoungGCMonitoringScope : public G1MonitoringScope {
 public:
-  G1YoungGenerationCounters(G1MonitoringSupport* g1mm, const char* name);
-  virtual void update_all();
+  G1YoungGCMonitoringScope(G1MonitoringSupport* monitoring_support, bool all_memory_pools_affected);
 };
 
-class G1OldGenerationCounters: public G1GenerationCounters {
+class G1FullGCMonitoringScope : public G1MonitoringScope {
 public:
-  G1OldGenerationCounters(G1MonitoringSupport* g1mm, const char* name);
-  virtual void update_all();
+  G1FullGCMonitoringScope(G1MonitoringSupport* monitoring_support);
 };
 
-#endif // SHARE_VM_GC_G1_G1MONITORINGSUPPORT_HPP
+class G1ConcGCMonitoringScope : public G1MonitoringScope {
+public:
+  G1ConcGCMonitoringScope(G1MonitoringSupport* monitoring_support);
+};
+#endif // SHARE_GC_G1_G1MONITORINGSUPPORT_HPP

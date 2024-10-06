@@ -3,9 +3,9 @@
  * @bug 8004832
  * @summary Add new doclint package
  * @library ..
- * @modules jdk.compiler/com.sun.tools.doclint
+ * @modules jdk.javadoc/jdk.javadoc.internal.doclint
  * @build DocLintTester
- * @run main DocLintTester -ref MissingTag.out MissingTag.java
+ * @run main DocLintTester -Xmsgs:all,-missing -ref MissingTag.out MissingTag.java
  */
 
 // tidy: Warning: missing <.*>
@@ -13,6 +13,6 @@
 
 /**
  * </p>
- * <h1> <b> text </h1>
+ * <h2> <b> text </h2>
  */
 public class MissingTag { }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ public interface Debugger extends SymbolLookup, ThreadAccess {
   /** Provide a snapshot of the list of currently-running processes in
       the form of a List of ProcessInfo objects. Must only be called
       if hasProcessList(), above, returns true. */
-  public List getProcessList() throws DebuggerException;
+  public List<ProcessInfo> getProcessList() throws DebuggerException;
 
   /** If an error occurs during attachment (i.e., "no such process"),
       the thrown DebuggerException will contain a description of the
@@ -73,12 +73,12 @@ public interface Debugger extends SymbolLookup, ThreadAccess {
   /** Support for remote debugging. Get the name of the operating
       system on which this debugger is running (to be able to properly
       configure the local system). Typical return values are
-      "solaris", "linux", "win32"; see utilities/PlatformInfo.java. */
+      "linux", "win32"; see utilities/PlatformInfo.java. */
   public String getOS() throws DebuggerException;
 
   /** Support for remote debugging. Get the name of the CPU type on
       which this debugger is running (to be able to properly configure
-      the local system). Typical return values are "sparc", "x86"; see
+      the local system). Typical return value is "x86"; see
       utilities/PlatformInfo.java. */
   public String getCPU() throws DebuggerException;
 
@@ -109,6 +109,11 @@ public interface Debugger extends SymbolLookup, ThreadAccess {
       null. */
   public CDebugger getCDebugger() throws DebuggerException;
 
+  /**
+   * Find address and executable which contains symbol.
+   */
+  public String findSymbol(String symbol);
+
   /** the following methods are intended only for RemoteDebuggerClient */
   public long getJBooleanSize();
   public long getJByteSize();
@@ -127,7 +132,4 @@ public interface Debugger extends SymbolLookup, ThreadAccess {
 
   public ReadResult readBytesFromProcess(long address, long numBytes)
     throws DebuggerException;
-
-  public void writeBytesToProcess(long address, long numBytes, byte[] data)
-    throws UnmappedAddressException, DebuggerException;
 }

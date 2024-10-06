@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,7 +102,7 @@ import java.util.Objects;
  * The chronology defines how the calendar system operates and the meaning of
  * the standard fields.
  *
- * <h3>When to use this interface</h3>
+ * <h2>When to use this interface</h2>
  * The design of the API encourages the use of {@code LocalDate} rather than this
  * interface, even in the case where the application needs to deal with multiple
  * calendar systems.
@@ -704,7 +704,11 @@ public interface ChronoLocalDate
      * This default implementation performs the comparison defined above.
      *
      * @param other  the other date to compare to, not null
-     * @return the comparator value, negative if less, positive if greater
+     * @return the comparator value, that is the comparison of this local date with
+     *          the {@code other} local date and this chronology with the {@code other} chronology,
+     *          in order, returning the first non-zero result, and otherwise returning zero
+     * @see #isBefore
+     * @see #isAfter
      */
     @Override
     default int compareTo(ChronoLocalDate other) {

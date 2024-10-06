@@ -22,8 +22,6 @@ package com.sun.org.apache.bcel.internal.generic;
 
 /**
  * BREAKPOINT, JVM dependent, ignored by default
- *
- * @version $Id: BREAKPOINT.java 1747278 2016-06-07 17:28:43Z britter $
  */
 public class BREAKPOINT extends Instruction {
 
@@ -32,10 +30,8 @@ public class BREAKPOINT extends Instruction {
     }
 
     /**
-     * Call corresponding visitor method(s). The order is: Call visitor methods
-     * of implemented interfaces first, then call methods according to the class
-     * hierarchy in descending order, i.e., the most specific visitXXX() call
-     * comes last.
+     * Call corresponding visitor method(s). The order is: Call visitor methods of implemented interfaces first, then call
+     * methods according to the class hierarchy in descending order, i.e., the most specific visitXXX() call comes last.
      *
      * @param v Visitor object
      */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,8 +42,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 @AnnotatedFor({"interning"})
 public @UsesObjectEquals class ECPublicKeySpec implements KeySpec {
 
-    private ECPoint w;
-    private ECParameterSpec params;
+    private final ECPoint w;
+    private final ECParameterSpec params;
 
     /**
      * Creates a new ECPublicKeySpec with the specified
@@ -51,9 +51,9 @@ public @UsesObjectEquals class ECPublicKeySpec implements KeySpec {
      * @param w the public point.
      * @param params the associated elliptic curve domain
      * parameters.
-     * @exception NullPointerException if {@code w}
+     * @throws    NullPointerException if {@code w}
      * or {@code params} is null.
-     * @exception IllegalArgumentException if {@code w}
+     * @throws    IllegalArgumentException if {@code w}
      * is point at infinity, i.e. ECPoint.POINT_INFINITY
      */
     public ECPublicKeySpec(ECPoint w, ECParameterSpec params) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,7 +76,7 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
         JNU_ThrowNullPointerException(env, "host argument is null");
         return NULL;
     }
-    hostname = JNU_GetStringPlatformChars(env, host, JNI_FALSE);
+    hostname = JNU_GetStringPlatformCharsStrict(env, host, NULL);
     CHECK_NULL_RETURN(hostname, NULL);
 
     // try once, with our static buffer
@@ -171,7 +171,7 @@ cleanupAndReturn:
 /*
  * Class:     java_net_Inet4AddressImpl
  * Method:    getHostByAddr
- * Signature: (I)Ljava/lang/String;
+ * Signature: ([B)Ljava/lang/String;
  *
  * Theoretically the UnknownHostException could be enriched with gai error
  * information. But as it is silently ignored anyway, there's no need for this.
@@ -232,7 +232,11 @@ tcp_ping4(JNIEnv *env, SOCKETADDRESS *sa, SOCKETADDRESS *netif, jint timeout,
 
     // set TTL
     if (ttl > 0) {
-        setsockopt(fd, IPPROTO_IP, IP_TTL, (const char *)&ttl, sizeof(ttl));
+        if (setsockopt(fd, IPPROTO_IP, IP_TTL, (const char *)&ttl, sizeof(ttl)) == SOCKET_ERROR) {
+            NET_ThrowNew(env, WSAGetLastError(), "setsockopt IP_TTL failed");
+            closesocket(fd);
+            return JNI_FALSE;
+        }
     }
 
     // A network interface was specified, so let's bind to it.
@@ -326,7 +330,7 @@ ping4(JNIEnv *env, HANDLE hIcmpFile, SOCKETADDRESS *sa,
     ReplyBuffer = (VOID *)malloc(ReplySize);
     if (ReplyBuffer == NULL) {
         IcmpCloseHandle(hIcmpFile);
-        NET_ThrowNew(env, WSAGetLastError(), "Unable to allocate memory");
+        NET_ThrowNew(env, -1, "Unable to allocate memory");
         return JNI_FALSE;
     }
 
@@ -359,7 +363,8 @@ ping4(JNIEnv *env, HANDLE hIcmpFile, SOCKETADDRESS *sa,
     }
 
     if (dwRetVal == 0) { // if the call failed
-        TCHAR *buf;
+        TCHAR *buf = NULL;
+        DWORD n;
         DWORD err = WSAGetLastError();
         switch (err) {
             case ERROR_NO_NETWORK:
@@ -379,9 +384,17 @@ ping4(JNIEnv *env, HANDLE hIcmpFile, SOCKETADDRESS *sa,
             case IP_REQ_TIMED_OUT:
                 break;
             default:
-                FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-                              NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                              (LPTSTR)&buf, 0, NULL);
+                n = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                        FORMAT_MESSAGE_FROM_SYSTEM,
+                        NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                        (LPTSTR)&buf, 0, NULL);
+                if (n > 3) {
+                    // Drop final '.', CR, LF
+                    if (buf[n - 1] == TEXT('\n')) n--;
+                    if (buf[n - 1] == TEXT('\r')) n--;
+                    if (buf[n - 1] == TEXT('.')) n--;
+                    buf[n] = TEXT('\0');
+                }
                 NET_ThrowNew(env, err, buf);
                 LocalFree(buf);
                 break;

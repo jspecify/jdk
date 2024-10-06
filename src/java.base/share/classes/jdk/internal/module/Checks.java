@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,22 +60,6 @@ public final class Checks {
                     + ": '" + last + "' is not a Java identifier");
         }
         return name;
-    }
-
-    /**
-     * Returns {@code true} if the given name is a legal module name.
-     */
-    public static boolean isModuleName(String name) {
-        int next;
-        int off = 0;
-        while ((next = name.indexOf('.', off)) != -1) {
-            String id = name.substring(off, next);
-            if (!isJavaIdentifier(id))
-                return false;
-            off = next+1;
-        }
-        String last = name.substring(off);
-        return isJavaIdentifier(last);
     }
 
     /**
@@ -181,20 +165,20 @@ public final class Checks {
     }
 
     /**
-     * Returns true if the given char sequence is a legal Java identifier,
+     * Returns true if the given string is a legal Java identifier,
      * otherwise false.
      */
-    private static boolean isJavaIdentifier(CharSequence cs) {
-        if (cs.length() == 0 || RESERVED.contains(cs))
+    public static boolean isJavaIdentifier(String str) {
+        if (str.isEmpty() || RESERVED.contains(str))
             return false;
 
-        int first = Character.codePointAt(cs, 0);
+        int first = Character.codePointAt(str, 0);
         if (!Character.isJavaIdentifierStart(first))
             return false;
 
         int i = Character.charCount(first);
-        while (i < cs.length()) {
-            int cp = Character.codePointAt(cs, i);
+        while (i < str.length()) {
+            int cp = Character.codePointAt(str, i);
             if (!Character.isJavaIdentifierPart(cp))
                 return false;
             i += Character.charCount(cp);

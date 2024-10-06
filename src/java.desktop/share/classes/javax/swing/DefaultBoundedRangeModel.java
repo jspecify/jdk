@@ -37,7 +37,7 @@ import java.util.EventListener;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -206,7 +206,12 @@ public class DefaultBoundedRangeModel implements BoundedRangeModel, Serializable
     public void setMinimum(int n) {
         int newMax = Math.max(n, max);
         int newValue = Math.max(n, value);
-        int newExtent = Math.min(newMax - newValue, extent);
+        int newExtent = 0;
+        if (((long)newMax - (long)newValue) > (long)newMax) {
+            newExtent = extent;
+        } else {
+            newExtent = Math.min(newMax - newValue, extent);
+        }
         setRangeProperties(newValue, newExtent, n, newMax, isAdjusting);
     }
 
@@ -417,7 +422,7 @@ public class DefaultBoundedRangeModel implements BoundedRangeModel, Serializable
      *          on this model,
      *          or an empty array if no such
      *          listeners have been added
-     * @exception ClassCastException if <code>listenerType</code> doesn't
+     * @throws ClassCastException if <code>listenerType</code> doesn't
      *          specify a class or interface that implements
      *          <code>java.util.EventListener</code>
      *

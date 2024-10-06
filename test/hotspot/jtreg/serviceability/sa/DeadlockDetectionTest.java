@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,37 +21,35 @@
  * questions.
  */
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-
-import jdk.test.lib.apps.LingeredApp;
-import jdk.test.lib.apps.LingeredAppWithDeadlock;
-
-import jdk.test.lib.Utils;
-import jdk.test.lib.Platform;
-import jdk.test.lib.JDKToolLauncher;
-import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
-
 /**
  * @test
  * @summary Test deadlock detection
- * @requires vm.hasSAandCanAttach
+ * @requires vm.hasSA
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  * @modules java.management
- * @run main DeadlockDetectionTest
+ * @run driver DeadlockDetectionTest
  */
+
+import java.util.stream.Collectors;
+
+import jdk.test.lib.apps.LingeredApp;
+import jdk.test.lib.apps.LingeredAppWithDeadlock;
+import jdk.test.lib.JDKToolLauncher;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.SA.SATestUtils;
+import jdk.test.lib.Utils;
+
+import jtreg.SkippedException;
 
 public class DeadlockDetectionTest {
 
     private static LingeredAppWithDeadlock theApp = null;
-    private static ProcessBuilder processBuilder = new ProcessBuilder();
 
     private static OutputAnalyzer jstack(String... toolArgs) throws Exception {
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jhsdb");
+        launcher.addVMArgs(Utils.getTestJavaOpts());
         launcher.addToolArg("jstack");
         if (toolArgs != null) {
             for (String toolArg : toolArgs) {
@@ -59,7 +57,7 @@ public class DeadlockDetectionTest {
             }
         }
 
-        processBuilder.command(launcher.getCommand());
+        ProcessBuilder processBuilder = SATestUtils.createProcessBuilder(launcher);
         System.out.println(processBuilder.command().stream().collect(Collectors.joining(" ")));
         OutputAnalyzer output = ProcessTools.executeProcess(processBuilder);
         System.out.println(output.getOutput());
@@ -68,14 +66,8 @@ public class DeadlockDetectionTest {
     }
 
     public static void main(String[] args) throws Exception {
+        SATestUtils.skipIfCannotAttach(); // throws SkippedException if attach not expected to work.
         System.out.println("Starting DeadlockDetectionTest");
-
-        if (Platform.isOSX()) {
-            // Coredump stackwalking is not implemented for Darwin
-            System.out.println("This test is not expected to work on OS X. Skipping");
-            return;
-        }
-
 
         if (!LingeredApp.isLastModifiedWorking()) {
             // Exact behaviour of the test depends on operating system and the test nature,
@@ -84,23 +76,17 @@ public class DeadlockDetectionTest {
         }
 
         try {
-            List<String> vmArgs = new ArrayList<String>();
-            vmArgs.add("-XX:+UsePerfData");
-            vmArgs.addAll(Utils.getVmOptions());
-
             theApp = new LingeredAppWithDeadlock();
-            LingeredApp.startApp(vmArgs, theApp);
+            LingeredApp.startApp(theApp, "-XX:+UsePerfData");
             OutputAnalyzer output = jstack("--pid", Long.toString(theApp.getPid()));
             System.out.println(output.getOutput());
 
             if (output.getExitValue() == 3) {
-                System.out.println("Test can't run for some reason. Skipping");
-            }
-            else {
+                throw new SkippedException("Test can't run for some reason");
+            } else {
                 output.shouldHaveExitValue(0);
                 output.shouldContain("Found a total of 1 deadlock.");
             }
-
         } finally {
             LingeredApp.stopApp(theApp);
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
 
 package nsk.jdi.ThreadReference.isSuspended;
 
-import nsk.share.*;
 import nsk.share.jpda.*;
 import nsk.share.jdi.*;
 
@@ -63,8 +62,8 @@ public class issuspended002a {
 
     public static void main (String argv[]) {
 
-        for (int i=0; i<argv.length; i++) {
-            if ( argv[i].equals("-vbs") || argv[i].equals("-verbose") ) {
+        for (int i = 0; i < argv.length; i++) {
+            if (argv[i].equals("-vbs") || argv[i].equals("-verbose")) {
                 verbMode = true;
                 break;
             }
@@ -76,10 +75,8 @@ public class issuspended002a {
         IOPipe pipe = argHandler.createDebugeeIOPipe();
         pipe.println("ready");
 
-
         int exitCode = PASSED;
         for (int i = 0; ; i++) {
-
             String instruction;
 
             log1("waiting for an instruction from the debugger ...");
@@ -94,58 +91,75 @@ public class issuspended002a {
     //------------------------------------------------------  section tested
 
                 case 0:
-                         Threadissuspended002a test_thread =
-                             new Threadissuspended002a("testedThread");
-                         log1("       thread2 is created");
+                    Thread test_thread =
+                            JDIThreadFactory.newThread(new Threadissuspended002a("testedThread"));
+                    log1("       thread2 is created");
+                label:
+                    synchronized (Threadissuspended002a.lockingObject) {
+                        synchronized (Threadissuspended002a.waitnotifyObj) {
+                            log1("       synchronized (waitnotifyObj) { enter");
+                            log1("       before: test_thread.start()");
+                            test_thread.start();
 
-                         label:
-                         synchronized (Threadissuspended002a.lockingObject) {
-                             synchronized (Threadissuspended002a.waitnotifyObj) {
-                                 log1("       synchronized (waitnotifyObj) { enter");
-                                 log1("       before: test_thread.start()");
-                                 test_thread.start();
+                            try {
+                                log1("       before:   waitnotifyObj.wait();");
+                                Threadissuspended002a.waitnotifyObj.wait();
+                                log1("       after:    waitnotifyObj.wait();");
+                                pipe.println("checkready");
+                                instruction = pipe.readln();
+                                if (!instruction.equals("continue")) {
+                                    logErr("ERROR: unexpected instruction: " + instruction);
+                                    exitCode = FAILED;
+                                    break label;
+                                }
+                            } catch ( Exception e2) {
+                                log1("       Exception e2 exception: " + e2 );
+                                pipe.println("waitnotifyerr");
+                            }
+                        }
+                    }
+                    log1("mainThread is out of: synchronized (lockingObject) {");
 
-                                 try {
-                                     log1("       before:   waitnotifyObj.wait();");
-                                     Threadissuspended002a.waitnotifyObj.wait();
-                                     log1("       after:    waitnotifyObj.wait();");
-                                     pipe.println("checkready");
-                                     instruction = pipe.readln();
-                                     if (!instruction.equals("continue")) {
-                                         logErr("ERROR: unexpected instruction: " + instruction);
-                                         exitCode = FAILED;
-                                         break label;
-                                     }
-                                     pipe.println("docontinue");
-                                 } catch ( Exception e2) {
-                                     log1("       Exception e2 exception: " + e2 );
-                                     pipe.println("waitnotifyerr");
-                                 }
-                             }
-                         }
-                         log1("mainThread is out of: synchronized (lockingObject) {");
+                    // To avoid contention for the logging print stream lock
+                    // the main thread will wait until the debuggee test thread
+                    // has completed to the breakpoint.
+                    // If the debugger suspends the main thread while it is holding
+                    // the logging lock, the test is deadlocked on the test thread log
+                    // calls.
+                    synchronized (Threadissuspended002a.waitnotifyObj) {
+                        try {
+                            // Main debuggee thread is out of synchronized(lockingObject)
+                            // so the test thread will continue.
+                            // Send the debugger the "docontinue" command
+                            // so it will enable the breakpoint in the test thread.
+                            pipe.println("docontinue");
 
-                         break ;
+                            Threadissuspended002a.waitnotifyObj.wait();
+                        } catch (Exception e3) {
+                            pipe.println("waitnotifyerr");
+                        }
+                    }
+
+                    break ;
 
     //-------------------------------------------------    standard end section
 
                 default:
-                                pipe.println("checkend");
-                                break ;
+                    pipe.println("checkend");
+                    break ;
                 }
 
             } else {
-                logErr("ERRROR: unexpected instruction: " + instruction);
+                logErr("ERROR: unexpected instruction: " + instruction);
                 exitCode = FAILED;
                 break ;
             }
         }
-
         System.exit(exitCode + PASS_BASE);
     }
 }
 
-class Threadissuspended002a extends Thread {
+class Threadissuspended002a extends NamedTask {
 
     public Threadissuspended002a(String threadName) {
         super(threadName);
@@ -158,12 +172,14 @@ class Threadissuspended002a extends Thread {
 
     public void run() {
         log("method 'run' enter");
-        synchronized (waitnotifyObj)                    {
+        synchronized (waitnotifyObj) {
             log("entered into block:  synchronized (waitnotifyObj)");
-            waitnotifyObj.notify();                     }
+            waitnotifyObj.notify();
+        }
         log("exited from block:  synchronized (waitnotifyObj)");
-        synchronized (lockingObject)                    {
-            log("entered into block:  synchronized (lockingObject)");   }
+        synchronized (lockingObject) {
+            log("entered into block:  synchronized (lockingObject)");
+        }
         log("exited from block:  synchronized (lockingObject)");
         i1++;
         i2--;
@@ -171,6 +187,11 @@ class Threadissuspended002a extends Thread {
         runt1();
         log("returned from the method 'runt1'");
         log("method 'run' exit");
+
+        // Allow the main thread to continue
+        synchronized (waitnotifyObj) {
+            waitnotifyObj.notify();
+        }
         return;
     }
 

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,16 @@
 *
 */
 
-#ifndef SHARE_VM_CLASSFILE_KLASSFACTORY_HPP
-#define SHARE_VM_CLASSFILE_KLASSFACTORY_HPP
+#ifndef SHARE_CLASSFILE_KLASSFACTORY_HPP
+#define SHARE_CLASSFILE_KLASSFACTORY_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "runtime/handles.hpp"
 
 class ClassFileStream;
 class ClassLoaderData;
-template <typename>
-class GrowableArray;
-class Klass;
+class ClassLoadInfo;
 class Symbol;
-class TempNewSymbol;
 
 /*
  * KlassFactory is an interface to implementations of the following mapping/function:
@@ -46,41 +43,35 @@ class TempNewSymbol;
  * Output: a VM runtime representation of a Java class
  *
  * Pre-conditions:
- *   a non-NULL ClassFileStream* // the classfile bytestream
- *   a non-NULL Symbol*          // the name of the class
- *   a non-NULL ClassLoaderData* // the metaspace allocator
+ *   a non-null ClassFileStream* // the classfile bytestream
+ *   a non-null Symbol*          // the name of the class
+ *   a non-null ClassLoaderData* // the metaspace allocator
  *   (no pending exceptions)
  *
  * Returns:
- *   if the returned value is non-NULL, that value is an indirection (pointer/handle)
+ *   if the returned value is non-null, that value is an indirection (pointer/handle)
  *   to a Klass. The caller will not have a pending exception.
  *
  *   On broken invariants and/or runtime errors the returned value will be
- *   NULL (or a NULL handle) and the caller *might* now have a pending exception.
+ *   null (or a null handle) and the caller *might* now have a pending exception.
  *
  */
 
 class KlassFactory : AllStatic {
 
-  // approved clients
-  friend class ClassLoader;
-  friend class ClassLoaderExt;
-  friend class SystemDictionary;
-
- private:
+ public:
   static InstanceKlass* create_from_stream(ClassFileStream* stream,
                                            Symbol* name,
                                            ClassLoaderData* loader_data,
-                                           Handle protection_domain,
-                                           const InstanceKlass* host_klass,
-                                           GrowableArray<Handle>* cp_patches,
+                                           const ClassLoadInfo& cl_info,
                                            TRAPS);
- public:
   static InstanceKlass* check_shared_class_file_load_hook(
                                           InstanceKlass* ik,
                                           Symbol* class_name,
                                           Handle class_loader,
-                                          Handle protection_domain, TRAPS);
+                                          Handle protection_domain,
+                                          const ClassFileStream *cfs,
+                                          TRAPS);
 };
 
-#endif // SHARE_VM_CLASSFILE_KLASSFACTORY_HPP
+#endif // SHARE_CLASSFILE_KLASSFACTORY_HPP

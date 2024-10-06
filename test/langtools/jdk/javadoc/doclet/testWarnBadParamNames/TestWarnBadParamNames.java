@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,30 +26,34 @@
  * @bug 4693440
  * @summary Test to make sure that warning is printed when bad parameter
  * name is used with param.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestWarnBadParamNames
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestWarnBadParamNames extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestWarnBadParamNames tester = new TestWarnBadParamNames();
+        var tester = new TestWarnBadParamNames();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-Xdoclint:none",
                 "-d", "out",
                 testSrc("C.java"));
         checkExit(Exit.OK);
 
         checkOutput(Output.OUT, true,
-                "warning - @param argument \"int\" is not a parameter name.",
-                "warning - @param argument \"IDontExist\" is not a parameter name.",
-                "warning - Parameter \"arg\" is documented more than once.");
+                """
+                    warning: @param argument "int" is not a parameter name.""",
+                """
+                    warning: @param argument "IDontExist" is not a parameter name.""",
+                """
+                    warning: Parameter "arg" is documented more than once.""");
     }
 }

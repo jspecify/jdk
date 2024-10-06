@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,12 +32,21 @@ import java.io.PrintWriter;
  * compiler, javac.
  * See the <a href="{@docRoot}/jdk.compiler/module-summary.html">{@code jdk.compiler}</a>
  * module for details on replacement APIs.
+ *
+ * @since 1.5
  */
 public class Main {
+    /**
+     * Do not call.
+     */
+    @Deprecated(since="16", forRemoval=true)
+    public Main(){}
 
     /** Main entry point for the launcher.
      *  Note: This method calls System.exit.
      *  @param args command line arguments
+     *  @throws Exception only if an uncaught internal exception occurs;
+     *      just retained for historical compatibility
      */
     public static void main(String[] args) throws Exception {
         System.exit(compile(args));

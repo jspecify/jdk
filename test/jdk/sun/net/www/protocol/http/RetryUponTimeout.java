@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,15 @@
 /**
  * @test
  * @bug 4772077
+ * @library /test/lib
  * @summary  using defaultReadTimeout appear to retry request upon timeout
- * @modules java.base/sun.net.www
  */
 
 import java.net.*;
 import java.io.*;
-import sun.net.www.*;
+
+import jdk.test.lib.net.HttpHeaderParser;
+import jdk.test.lib.net.URIBuilder;
 
 public class RetryUponTimeout implements Runnable {
     // run server
@@ -40,7 +42,7 @@ public class RetryUponTimeout implements Runnable {
             for (int i = 0; i < 2; i++) {
                 socket = server.accept();
                 InputStream is = socket.getInputStream ();
-                MessageHeader header = new MessageHeader (is);
+                HttpHeaderParser header = new HttpHeaderParser (is);
                 count++;
             }
         } catch (Exception ex) {
@@ -59,11 +61,16 @@ public class RetryUponTimeout implements Runnable {
     static int count = 0;
     public static void main(String[] args) throws Exception {
         try {
-            server = new ServerSocket (0);
+            server = new ServerSocket(0, 0, InetAddress.getLoopbackAddress());
             int port = server.getLocalPort ();
             new Thread(new RetryUponTimeout()).start ();
 
-            URL url = new URL("http://127.0.0.1:"+port);
+            URL url = URIBuilder.newBuilder()
+                .scheme("http")
+                .loopback()
+                .port(port)
+                .toURL();
+            System.out.println("URL: " + url);
             java.net.URLConnection uc = url.openConnection();
             uc.setReadTimeout(1000);
             uc.getInputStream();

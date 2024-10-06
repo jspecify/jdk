@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,28 +26,37 @@
 package com.sun.nio.file;
 
 import java.nio.file.WatchEvent.Modifier;
-import sun.nio.fs.ExtendedOptions;
+import jdk.internal.misc.FileSystemOption;
 
 /**
  * Defines the <em>sensitivity levels</em> when registering objects with a
  * watch service implementation that polls the file system.
  *
+ * @deprecated
+ * The sensitivity levels were historically used by polling-based
+ * {@link java.nio.file.WatchService WatchService} implementations to configure
+ * the polling interval. They are are no longer used. The {@code WatchService}
+ * implementations in the JDK ignore these {@link java.nio.file.WatchEvent
+ * WatchEvent} modifiers if they are specified when registering a directory
+ * to be watched.
+ *
  * @since 1.7
  */
 
+@Deprecated(since="21", forRemoval = true)
 public enum SensitivityWatchEventModifier implements Modifier {
     /**
      * High sensitivity.
      */
-    HIGH(ExtendedOptions.SENSITIVITY_HIGH, 2),
+    HIGH(FileSystemOption.SENSITIVITY_HIGH, 2),
     /**
      * Medium sensitivity.
      */
-    MEDIUM(ExtendedOptions.SENSITIVITY_MEDIUM, 10),
+    MEDIUM(FileSystemOption.SENSITIVITY_MEDIUM, 10),
     /**
      * Low sensitivity.
      */
-    LOW(ExtendedOptions.SENSITIVITY_LOW, 30);
+    LOW(FileSystemOption.SENSITIVITY_LOW, 30);
 
     /**
      * Returns the sensitivity in seconds.
@@ -57,7 +66,7 @@ public enum SensitivityWatchEventModifier implements Modifier {
     }
 
     private final int sensitivity;
-    private SensitivityWatchEventModifier(ExtendedOptions.InternalOption<Integer> option,
+    private SensitivityWatchEventModifier(FileSystemOption<Integer> option,
                                           int sensitivity) {
         this.sensitivity = sensitivity;
         option.register(this, sensitivity);

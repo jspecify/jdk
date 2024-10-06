@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,38 +25,40 @@
  * @test
  * @bug 4636667 7052425 8016549 8196202
  * @summary  Use <H1, <H2>, and <H3> in proper sequence for accessibility
- * @author dkramer
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main AccessH1
  */
 
 
+import javadoc.tester.JavadocTester;
+
 public class AccessH1 extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        AccessH1 tester = new AccessH1();
+        var tester = new AccessH1();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-doctitle", "Document Title",
-                "--frames",
                 "-sourcepath", testSrc,
                 "p1", "p2");
         checkExit(Exit.OK);
 
         // Test the style sheet
-        checkOutput("stylesheet.css", true,
-                "h1 {\n"
-                + "    font-size:20px;\n"
-                + "}");
+        checkOutput("resource-files/stylesheet.css", true,
+                """
+                    h1 {
+                        font-size:1.428em;
+                    }""");
 
         // Test the doc title in the overview page
-        checkOutput("overview-summary.html", true,
-                "<h1 class=\"title\">Document Title</h1>");
+        checkOutput("index.html", true,
+                """
+                    <h1 class="title">Document Title</h1>""");
     }
 }

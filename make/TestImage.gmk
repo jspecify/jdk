@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -28,19 +28,30 @@ default: all
 include $(SPEC)
 include MakeBase.gmk
 
-############################################################################
+# Hook to include the corresponding custom file, if present.
+$(eval $(call IncludeCustomExtension, TestImage-pre.gmk))
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
-  FIXPATH_COPY := $(TEST_IMAGE_DIR)/bin/fixpath.exe
+################################################################################
 
-  $(FIXPATH_COPY): $(firstword $(FIXPATH))
-	$(call install-file)
-endif
+BUILD_INFO_PROPERTIES := $(TEST_IMAGE_DIR)/build-info.properties
 
-prepare-test-image: $(FIXPATH_COPY)
-	$(call MakeDir, $(TEST_IMAGE_DIR))
-	$(ECHO) > $(TEST_IMAGE_DIR)/Readme.txt 'JDK test image'
+$(BUILD_INFO_PROPERTIES):
+	$(call MakeTargetDir)
+	$(ECHO) "# Build info properties for JDK tests" > $@
+	$(ECHO) 'build.workspace.root=$(call FixPath, $(WORKSPACE_ROOT))' >> $@
+	$(ECHO) 'build.output.root=$(call FixPath, $(OUTPUTDIR))' >> $@
 
+README := $(TEST_IMAGE_DIR)/Readme.txt
+
+$(README):
+	$(call MakeTargetDir)
+	$(ECHO) > $@ 'JDK test image'
+
+TARGETS += $(BUILD_INFO_PROPERTIES) $(README)
+
+################################################################################
+
+prepare-test-image: $(TARGETS)
 all: prepare-test-image
 
 .PHONY: default all prepare-test-image

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,20 +72,12 @@ extern char **environ;
 
 #define FAIL_FILENO (STDERR_FILENO + 1)
 
-/* TODO: Refactor. */
-#define RESTARTABLE(_cmd, _result) do { \
-  do { \
-    _result = _cmd; \
-  } while((_result == -1) && (errno == EINTR)); \
-} while(0)
-
 /* These numbers must be the same as the Enum in ProcessImpl.java
  * Must be a better way of doing this.
  */
 #define MODE_FORK 1
 #define MODE_POSIX_SPAWN 2
 #define MODE_VFORK 3
-#define MODE_CLONE 4
 
 typedef struct _ChildStuff
 {
@@ -101,6 +93,7 @@ typedef struct _ChildStuff
     const char **envv;
     const char *pdir;
     int redirectErrorStream;
+    int sendAlivePing;
 } ChildStuff;
 
 /* following used in addition when mode is SPAWN */
@@ -114,31 +107,35 @@ typedef struct _SpawnInfo {
     int parentPathvBytes; /* total number of bytes in parentPathv array */
 } SpawnInfo;
 
+/* If ChildStuff.sendAlivePing is true, child shall signal aliveness to
+ * the parent the moment it gains consciousness, before any subsequent
+ * pre-exec errors could happen.
+ * This code must fit into an int and not be a valid errno value on any of
+ * our platforms. */
+#define CHILD_IS_ALIVE      65535
+
 /**
  * The cached and split version of the JDK's effective PATH.
  * (We don't support putenv("PATH=...") in native code)
  */
-const char * const *parentPathv;
+extern const char * const *parentPathv;
 
-ssize_t restartableWrite(int fd, const void *buf, size_t count);
-int restartableDup2(int fd_from, int fd_to);
+ssize_t writeFully(int fd, const void *buf, size_t count);
 int closeSafely(int fd);
-int isAsciiDigit(char c);
-int closeDescriptors(void);
-int moveDescriptor(int fd_from, int fd_to);
 
 int magicNumber();
 ssize_t readFully(int fd, void *buf, size_t nbyte);
 void initVectorFromBlock(const char**vector, const char* block, int count);
-void execve_as_traditional_shell_script(const char *file,
-                                        const char *argv[],
-                                        const char *const envp[]);
-void execve_with_shell_fallback(int mode, const char *file,
-                                const char *argv[],
-                                const char *const envp[]);
-void JDK_execvpe(int mode, const char *file,
-                 const char *argv[],
-                 const char *const envp[]);
 int childProcess(void *arg);
+
+#ifdef DEBUG
+/* This method is only used in debug builds for testing MODE_POSIX_SPAWN
+ * in the light of abnormal program termination of either the parent JVM
+ * or the newly created jspawnhelper child process during the execution of
+ * Java_java_lang_ProcessImpl_forkAndExec().
+ * See: test/jdk/java/lang/ProcessBuilder/JspawnhelperProtocol.java
+ */
+void jtregSimulateCrash(pid_t child, int stage);
+#endif
 
 #endif

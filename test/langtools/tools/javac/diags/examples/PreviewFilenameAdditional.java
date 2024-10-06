@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -24,15 +22,15 @@
  */
 
 // key: compiler.note.preview.filename.additional
-// key: compiler.warn.preview.feature.use
-// key: compiler.misc.feature.diamond
-// options: -Xlint:preview -Xmaxwarns 1 -XDforcePreview  -source 11 --enable-preview
+// key: compiler.warn.preview.feature.use.plural
+// key: compiler.misc.feature.var.syntax.in.implicit.lambda
+// options: -Xlint:preview -Xmaxwarns 1 -XDforcePreview  -source ${jdk.version} --enable-preview
 
-import java.util.ArrayList;
+import java.util.function.Function;
 
 class PreviewFilenameAdditional {
     void test() {
-        new ArrayList<>();
-        new ArrayList<>();
+        Function<String, String> f = (var s) -> s;
+        Function<String, String> j = (var s) -> s;
     }
 }

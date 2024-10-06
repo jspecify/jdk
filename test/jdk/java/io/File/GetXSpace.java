@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,160 +23,144 @@
 
 /**
  * @test
- * @bug 4057701 6286712 6364377
- * @ignore until 6492634 and 6501010 is fixed
- * @run build GetXSpace
- * @run shell GetXSpace.sh
+ * @bug 4057701 6286712 6364377 8181919
+ * @requires (os.family == "linux" | os.family == "mac" |
+ *            os.family == "windows")
  * @summary Basic functionality of File.get-X-Space methods.
- * @key randomness
+ * @library .. /test/lib
+ * @build jdk.test.lib.Platform
+ * @run main/othervm/native -Djava.security.manager=allow GetXSpace
  */
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FilePermission;
 import java.io.InputStreamReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.FileStore;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.security.Permission;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import jdk.test.lib.Platform;
+import jdk.test.lib.Platform;
 
+import static java.lang.System.err;
 import static java.lang.System.out;
 
+@SuppressWarnings("removal")
 public class GetXSpace {
+    static {
+        System.loadLibrary("GetXSpace");
+    }
 
     private static SecurityManager [] sma = { null, new Allow(), new DenyFSA(),
                                               new DenyRead() };
 
-    private static final String name = System.getProperty("os.name");
-    private static final String dfFormat;
-    static {
-        if (name.equals("SunOS") || name.equals("Linux")
-                || name.contains("OS X")) {
-            // FileSystem Total Used Available Use% MountedOn
-            dfFormat = "([^\\s]+)\\s+(\\d+)\\s+\\d+\\s+(\\d+)\\s+\\d+%\\s+([^\\s]+)";
-        } else if (name.startsWith("Windows")) {
-            // Drive (MountedOn) Available/Total
-            dfFormat = "([^\\s]+)\\s+\\(([^\\s]+)\\)\\s+(\\d+)\\/(\\d+)\\s+";
-        } else {
-            throw new RuntimeException("unrecognized system:"
-                                       + " os.name == " + name);
-        }
-    }
-    private static Pattern dfPattern = Pattern.compile(dfFormat);
-
     private static int fail = 0;
     private static int pass = 0;
     private static Throwable first;
+
+    static void reset() {
+        fail = 0;
+        pass = 0;
+        first = null;
+    }
 
     static void pass() {
         pass++;
     }
 
     static void fail(String p) {
-        if (first == null)
-            setFirst(p);
+        setFirst(p);
         System.err.format("FAILED: %s%n", p);
         fail++;
     }
 
     static void fail(String p, long exp, String cmp, long got) {
         String s = String.format("'%s': %d %s %d", p, exp, cmp, got);
-        if (first == null)
-            setFirst(s);
+        setFirst(s);
         System.err.format("FAILED: %s%n", s);
         fail++;
     }
 
     private static void fail(String p, Class ex) {
         String s = String.format("'%s': expected %s - FAILED%n", p, ex.getName());
-        if (first == null)
-            setFirst(s);
+        setFirst(s);
         System.err.format("FAILED: %s%n", s);
         fail++;
     }
 
     private static void setFirst(String s) {
-        try {
-            throw new RuntimeException(s);
-        } catch (RuntimeException x) {
-            first = x;
+        if (first == null) {
+            first = new RuntimeException(s);
         }
     }
 
     private static class Space {
-        private static final long KSIZE = 1024;
-        private String name;
-        private long total;
-        private long free;
+        private final String name;
+        private final long size;
+        private final long total;
+        private final long free;
+        private final long available;
 
-        Space(String total, String free, String name) {
-            try {
-                this.total = Long.valueOf(total) * KSIZE;
-                this.free = Long.valueOf(free) * KSIZE;
-            } catch (NumberFormatException x) {
-                // the regex should have caught this
-                assert false;
-            }
+        Space(String name) {
             this.name = name;
+            long[] sizes = new long[4];
+            if (getSpace0(name, sizes))
+                System.err.println("WARNING: total space is estimated");
+            this.size = sizes[0];
+            this.total = sizes[1];
+            this.free = sizes[2];
+            this.available = sizes[3];
         }
 
         String name() { return name; }
+        long size() { return size; }
         long total() { return total; }
+        long available() { return available; }
         long free() { return free; }
+
         boolean woomFree(long freeSpace) {
-            return ((freeSpace >= (free / 10)) && (freeSpace <= (free * 10)));
+            return ((freeSpace >= (available / 10)) &&
+                    (freeSpace <= (available * 10)));
         }
+
         public String toString() {
-            return String.format("%s (%d/%d)", name, free, total);
+            return String.format("%s (%d/%d/%d)", name, total, free, available);
         }
     }
 
-    private static ArrayList space(String f) throws IOException {
-        ArrayList al = new ArrayList();
+    private static void diskFree() throws IOException {
+        ArrayList<Space> al = new ArrayList<>();
 
-        Process p = null;
-        String cmd = "df -k" + (f == null ? "" : " " + f);
-        p = Runtime.getRuntime().exec(cmd);
-        BufferedReader in = new BufferedReader
-            (new InputStreamReader(p.getInputStream()));
-        String s;
-        int i = 0;
+        String cmd = "fsutil volume diskFree C:\\";
         StringBuilder sb = new StringBuilder();
-        while ((s = in.readLine()) != null) {
-            // skip header
-            if (i++ == 0 && !name.startsWith("Windows")) continue;
-            sb.append(s).append("\n");
-        }
-
-        Matcher m = dfPattern.matcher(sb);
-        int j = 0;
-        while (j < sb.length()) {
-            if (m.find(j)) {
-                if (!name.startsWith("Windows")) {
-                    // swap can change while this test is running
-                    if (!m.group(1).equals("swap")) {
-                        String name = (f == null ? m.group(4): f);
-                        al.add(new Space(m.group(2), m.group(3), name));;
-                    }
-                } else {
-                    String name = (f == null ? m.group(2) : f);
-                    al.add(new Space(m.group(4), m.group(3), name ));;
-                }
-                j = m.end() + 1;
-            } else {
-                throw new RuntimeException("unrecognized df output format: "
-                                           + "charAt(" + j + ") = '"
-                                           + sb.charAt(j) + "'");
+        Process p = Runtime.getRuntime().exec(cmd);
+        try (BufferedReader in = p.inputReader()) {
+            String s;
+            int i = 0;
+            while ((s = in.readLine()) != null) {
+                // skip header
+                if (i++ == 0) continue;
+                sb.append(s).append("\n");
             }
         }
+        out.println(sb);
+    }
 
-        if (al.size() == 0) {
-            // df did not produce output
-            String name = (f == null ? "" : f);
-            al.add(new Space("0", "0", name));
+    private static ArrayList<String> paths() throws IOException {
+        ArrayList<String> al = new ArrayList<>();
+
+        File[] roots = File.listRoots();
+        long[] space = new long[4];
+        for (File root : roots) {
+            String path = root.toString();
+            al.add(path);
         }
-        in.close();
+
         return al;
     }
 
@@ -216,33 +200,104 @@ public class GetXSpace {
         long fs = f.getFreeSpace();
         long us = f.getUsableSpace();
 
-        out.format("%s:%n", s.name());
-        String fmt = "  %-4s total= %12d free = %12d usable = %12d%n";
-        out.format(fmt, "df", s.total(), 0, s.free());
-        out.format(fmt, "getX", ts, fs, us);
+        out.format("%s (%d):%n", s.name(), s.size());
+        String fmt = "  %-4s total = %12d free = %12d usable = %12d%n";
+        out.format(fmt, "getSpace0", s.total(), s.free(), s.available());
+        out.format(fmt, "getXSpace", ts, fs, us);
 
-        // if the file system can dynamically change size, this check will fail
-        if (ts != s.total())
-            fail(s.name(), s.total(), "!=", ts);
-        else
-            pass();
+        // If the file system can dynamically change size, this check will fail.
+        // This can happen on macOS for the /dev files system.
+        if (ts != s.total()
+            && (!Platform.isOSX() || !s.name().equals("/dev"))) {
+            long blockSize = 1;
+            long numBlocks = 0;
+            try {
+                FileStore fileStore = Files.getFileStore(f.toPath());
+                blockSize = fileStore.getBlockSize();
+                numBlocks = fileStore.getTotalSpace()/blockSize;
+            } catch (NoSuchFileException nsfe) {
+                // On Linux, ignore the NSFE if the path is one of the
+                // /run/user/$UID mounts created by pam_systemd(8) as it
+                // might be deleted during the test
+                if (!Platform.isLinux() || !s.name().contains("/run/user"))
+                    throw new RuntimeException(nsfe);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
-        // unix df returns statvfs.f_bavail
-        long tsp = (!name.startsWith("Windows") ? us : fs);
-        if (!s.woomFree(tsp))
-            fail(s.name(), s.free(), "??", tsp);
-        else
+            if (Platform.isWindows()) {
+                if (ts > s.total()) {
+                    fail(s.name() + " total space", ts, ">", s.total());
+                }
+            } else if (ts != s.total()) {
+                fail(s.name() + " total space", ts, "!=", s.total());
+            }
+        } else {
             pass();
+        }
 
-        if (fs > s.total())
-            fail(s.name(), s.total(), ">", fs);
-        else
+        // unix usable space is from statvfs.f_bavail
+        long tsp = (!Platform.isWindows() ? us : fs);
+        if (!s.woomFree(tsp)) {
+            fail(s.name(), s.available(), "??", tsp);
+        } else {
             pass();
+        }
 
-        if (us > s.total())
-            fail(s.name(), s.total(), ">", us);
-        else
+        //
+        // Invariants are:
+        // total space <= size
+        // total space == size (Unix)
+        // free space <= total space (if no quotas in effect) (Windows)
+        // free space < size (if quotas in effect) (Windows)
+        // usable space <= total space
+        // usable space <= free space
+        //
+
+        // total space <= size
+        if (ts > s.size()) {
+            fail(s.name() + " size", ts, ">", s.size());
+        } else {
             pass();
+        }
+
+        // On Unix the total space should always be the volume size
+        if (Platform.isWindows()) {
+            // ts != s.size() indicates that quotas are in effect
+            if (ts == s.size() && fs > s.total()) {
+                fail(s.name() + " free space", fs, ">", s.total());
+            } else if (ts < s.size() && fs > s.size()) {
+                fail(s.name() + " free space (quota)", fs, ">", s.size());
+            } else {
+                pass();
+            }
+        } else { // not Windows
+            if (ts != s.size()) {
+                fail(s.name() + " total space", ts, "!=", s.size());
+            } else {
+                pass();
+            }
+        }
+
+        // usable space <= total space
+        if (us > s.total()) {
+            fail(s.name() + " usable space", us, ">", s.total());
+        } else {
+            pass();
+        }
+
+        // usable space <= free space
+        if (us > s.free()) {
+            // free and usable change dynamically
+            System.err.println("Warning: us > s.free()");
+            if (1.0 - Math.abs((double)s.free()/(double)us) > 0.01) {
+                fail(s.name() + " usable vs. free space", us, ">", s.free());
+            } else {
+                pass();
+            }
+        } else {
+            pass();
+        }
     }
 
     private static String FILE_PREFIX = "/getSpace.";
@@ -250,18 +305,20 @@ public class GetXSpace {
         File f;
         while (true) {
             f = new File(FILE_PREFIX + Math.random());
-            if (f.exists())
+            if (f.exists()) {
                 continue;
+            }
             break;
         }
 
         long [] s = { f.getTotalSpace(), f.getFreeSpace(), f.getUsableSpace() };
 
         for (int i = 0; i < s.length; i++) {
-            if (s[i] != 0L)
+            if (s[i] != 0L) {
                 fail(f.getName(), s[i], "!=", 0L);
-            else
+            } else {
                 pass();
+            }
         }
     }
 
@@ -272,12 +329,14 @@ public class GetXSpace {
             long [] s = { f.getTotalSpace(), f.getFreeSpace(), f.getUsableSpace() };
 
             for (int i = 0; i < s.length; i++) {
-                if (s[i] == 0L)
+                if (s[i] == 0L) {
                     fail(f.getName(), s[i], "==", 0L);
-                else
+                } else {
                     pass();
+                }
             }
         } catch (IOException x) {
+            x.printStackTrace();
             fail("Couldn't create temp file for test");
         }
     }
@@ -292,14 +351,14 @@ public class GetXSpace {
         public void checkPermission(Permission p) {
             if (p.implies(new RuntimePermission("setSecurityManager"))
                 || p.implies(new RuntimePermission("getProtectionDomain")))
-              return;
+                return;
             super.checkPermission(p);
         }
 
         public void checkPermission(Permission p, Object context) {
             if (p.implies(new RuntimePermission("setSecurityManager"))
                 || p.implies(new RuntimePermission("getProtectionDomain")))
-              return;
+                return;
             super.checkPermission(p, context);
         }
     }
@@ -328,24 +387,31 @@ public class GetXSpace {
         }
     }
 
-    private static void testFile(String dirName) {
+    private static int testFile(Path dir) {
+        String dirName = dir.toString();
         out.format("--- Testing %s%n", dirName);
-        ArrayList l;
-        try {
-            l = space(dirName);
-        } catch (IOException x) {
-            throw new RuntimeException(dirName + " can't get file system information", x);
+        compare(new Space(dir.getRoot().toString()));
+
+        if (fail != 0) {
+            err.format("%d tests: %d failure(s); first: %s%n",
+                       fail + pass, fail, first);
+        } else {
+            out.format("all %d tests passed%n", fail + pass);
         }
-        compare((GetXSpace.Space) l.get(0));
+
+        return fail != 0 ? 1 : 0;
     }
 
-    private static void testDF() {
-        out.format("--- Testing df");
-        // Find all of the partitions on the machine and verify that the size
-        // returned by "df" is equivalent to File.getXSpace() values.
-        ArrayList l;
+    private static int testVolumes() {
+        out.println("--- Testing volumes");
+        // Find all of the partitions on the machine and verify that the sizes
+        // returned by File::getXSpace are equivalent to those from getSpace0
+        ArrayList<String> l;
         try {
-            l = space(null);
+            l = paths();
+            if (Platform.isWindows()) {
+                diskFree();
+            }
         } catch (IOException x) {
             throw new RuntimeException("can't get file system information", x);
         }
@@ -361,8 +427,8 @@ public class GetXSpace {
 
             out.format("%nSecurityManager = %s%n" ,
                        (sm == null ? "null" : sm.getClass().getName()));
-            for (int j = 0; j < l.size(); j++) {
-                Space s = (GetXSpace.Space) l.get(j);
+            for (var p : l) {
+                Space s = new Space(p);
                 if (sm instanceof Deny) {
                     tryCatch(s);
                 } else {
@@ -372,19 +438,60 @@ public class GetXSpace {
                 }
             }
         }
-    }
 
-    public static void main(String [] args) {
-        if (args.length > 0) {
-            testFile(args[0]);
+        System.setSecurityManager(null);
+
+        if (fail != 0) {
+            err.format("%d tests: %d failure(s); first: %s%n",
+                       fail + pass, fail, first);
         } else {
-            testDF();
+            out.format("all %d tests passed%n", fail + pass);
         }
 
-        if (fail != 0)
-            throw new RuntimeException((fail + pass) + " tests: "
-                                       + fail + " failure(s), first", first);
-        else
-            out.format("all %d tests passed%n", fail + pass);
+        return fail != 0 ? 1 : 0;
     }
+
+    private static void perms(File file, boolean allow) throws IOException {
+        file.setExecutable(allow, false);
+        file.setReadable(allow, false);
+        file.setWritable(allow, false);
+    }
+
+    private static void deny(Path path) throws IOException {
+        perms(path.toFile(), false);
+    }
+
+    private static void allow(Path path) throws IOException {
+        perms(path.toFile(), true);
+    }
+
+    public static void main(String[] args) throws Exception {
+        int failedTests = testVolumes();
+        reset();
+
+        Path tmpDir = Files.createTempDirectory(null);
+        Path tmpSubdir = Files.createTempDirectory(tmpDir, null);
+        Path tmpFile = Files.createTempFile(tmpSubdir, "foo", null);
+
+        deny(tmpSubdir);
+        failedTests += testFile(tmpFile);
+
+        allow(tmpSubdir);
+        Files.delete(tmpFile);
+        Files.delete(tmpSubdir);
+        Files.delete(tmpDir);
+
+        if (failedTests > 0) {
+            throw new RuntimeException(failedTests + " test(s) failed");
+        }
+    }
+
+    //
+    // root     the root of the volume
+    // size[0]  total size:   number of bytes in the volume
+    // size[1]  total space:  number of bytes visible to the caller
+    // size[2]  free space:   number of free bytes in the volume
+    // size[3]  usable space: number of bytes available to the caller
+    //
+    private static native boolean getSpace0(String root, long[] space);
 }

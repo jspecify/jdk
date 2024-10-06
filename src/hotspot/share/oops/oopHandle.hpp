@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,31 +22,57 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_OOPHANDLE_HPP
-#define SHARE_VM_OOPS_OOPHANDLE_HPP
+#ifndef SHARE_OOPS_OOPHANDLE_HPP
+#define SHARE_OOPS_OOPHANDLE_HPP
 
-#include "oops/oop.hpp"
+#include "metaprogramming/primitiveConversions.hpp"
+#include "oops/oopsHierarchy.hpp"
 
-// Simple class for encapsulating oop pointers stored in metadata.
-// These are different from Handle.  The Handle class stores pointers
-// to oops on the stack, and manages the allocation from a thread local
-// area in the constructor.
-// This assumes that the caller will allocate the handle in the appropriate
-// area.  The reason for the encapsulation is to help with naming and to allow
-// future uses for read barriers.
+#include <type_traits>
+
+class OopStorage;
+
+// Simple classes for wrapping oop and atomically accessed oop pointers
+// stored in OopStorage, or stored in the ClassLoaderData handles area.
+// These classes help with allocation, release, and NativeAccess loads and
+// stores with the appropriate barriers.
 
 class OopHandle {
+  friend class VMStructs;
 private:
   oop* _obj;
 
 public:
-  OopHandle() : _obj(NULL) {}
-  OopHandle(oop* w) : _obj(w) {}
+  OopHandle() : _obj(nullptr) {}
+  explicit OopHandle(oop* w) : _obj(w) {}
+  OopHandle(OopStorage* storage, oop obj);
+
+  OopHandle(const OopHandle& copy) : _obj(copy._obj) {}
+
+  OopHandle& operator=(const OopHandle& copy) {
+    // Allow "this" to be junk if copy is empty; needed by initialization of
+    // raw memory in hashtables.
+    assert(is_empty() || copy.is_empty(), "can only copy if empty");
+    _obj = copy._obj;
+    return *this;
+  }
+
+  void swap(OopHandle& copy) {
+    ::swap(_obj, copy._obj);
+  }
 
   inline oop resolve() const;
+  inline oop peek() const;
 
-  // Used only for removing handle.
+  bool is_empty() const { return _obj == nullptr; }
+
+  inline void release(OopStorage* storage);
+
+  inline void replace(oop obj);
+
+  inline oop xchg(oop new_value);
+
   oop* ptr_raw() const { return _obj; }
 };
 
-#endif // SHARE_VM_OOPS_OOPHANDLE_HPP
+#endif // SHARE_OOPS_OOPHANDLE_HPP

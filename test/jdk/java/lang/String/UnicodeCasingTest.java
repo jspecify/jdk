@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,8 +23,9 @@
 
 /*
  * @test
- * @bug 4397357 6565620 6959267 7070436 7198195 8032446 8072600
+ * @bug 4397357 6565620 6959267 7070436 7198195 8032446 8072600 8221431
  * @summary Confirm normal case mappings are handled correctly.
+ * @library /lib/testlibrary/java/lang
  * @run main/timeout=200 UnicodeCasingTest
  */
 
@@ -47,7 +46,7 @@ public class UnicodeCasingTest {
     // Locales which are used for testing
     private static List<Locale> locales =  new ArrayList<>();
     static {
-        locales.add(new Locale("az", ""));
+        locales.add(Locale.of("az"));
         locales.addAll(java.util.Arrays.asList(Locale.getAvailableLocales()));
     }
 
@@ -70,8 +69,7 @@ public class UnicodeCasingTest {
             // First, we create exlude lists of characters whose mappings exist
             // in SpecialCasing.txt and mapping rules in UnicodeData.txt aren't
             // applicable.
-            in = Files.newBufferedReader(Paths.get(System.getProperty("test.src.path"), "..", "/Character/SpecialCasing.txt")
-                     .toRealPath());
+            in = Files.newBufferedReader(UCDFiles.SPECIAL_CASING.toRealPath());
             String line;
             while ((line = in.readLine()) != null) {
                 if (line.length() == 0 || line.charAt(0) == '#') {
@@ -88,8 +86,7 @@ public class UnicodeCasingTest {
                 defaultLang = locale.getLanguage();
 //                System.out.println("Testing on " + locale + " locale....");
                 System.err.println("Testing on " + locale + " locale....");
-                in = Files.newBufferedReader(Paths.get(System.getProperty("test.src.path"), "..", "/Character/UnicodeData.txt")
-                     .toRealPath());
+                in = Files.newBufferedReader(UCDFiles.UNICODE_DATA.toRealPath());
                 while ((line = in.readLine()) != null) {
                     if (line.length() == 0 || line.charAt(0) == '#') {
                         continue;

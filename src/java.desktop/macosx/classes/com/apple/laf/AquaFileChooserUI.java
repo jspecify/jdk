@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,22 +25,91 @@
 
 package com.apple.laf;
 
-import java.awt.*;
-import java.awt.datatransfer.*;
-import java.awt.dnd.*;
-import java.awt.event.*;
-import java.beans.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.ComponentOrientation;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Insets;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.dnd.DnDConstants;
+import java.awt.dnd.DropTarget;
+import java.awt.dnd.DropTargetAdapter;
+import java.awt.dnd.DropTargetDragEvent;
+import java.awt.dnd.DropTargetDropEvent;
+import java.awt.event.ActionEvent;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.net.URI;
 import java.text.DateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Vector;
 
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.AbstractListModel;
+import javax.swing.Action;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ComboBoxModel;
+import javax.swing.DefaultListSelectionModel;
+import javax.swing.Icon;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JFileChooser;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JRootPane;
+import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.ListCellRenderer;
+import javax.swing.ListSelectionModel;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.border.Border;
-import javax.swing.event.*;
-import javax.swing.filechooser.*;
-import javax.swing.plaf.*;
-import javax.swing.table.*;
+import javax.swing.event.AncestorEvent;
+import javax.swing.event.AncestorListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.filechooser.FileFilter;
+import javax.swing.filechooser.FileSystemView;
+import javax.swing.filechooser.FileView;
+import javax.swing.plaf.ComponentUI;
+import javax.swing.plaf.FileChooserUI;
+import javax.swing.plaf.UIResource;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.JTableHeader;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 
 import sun.swing.SwingUtilities2;
 
@@ -93,6 +162,7 @@ public class AquaFileChooserUI extends FileChooserUI {
     protected String filenameTextFieldToolTipText = null;
     protected String filterComboBoxToolTipText = null;
     protected String openDirectoryButtonToolTipText = null;
+    protected String chooseButtonToolTipText = null;
 
     protected String cancelOpenButtonToolTipText = null;
     protected String cancelSaveButtonToolTipText = null;
@@ -168,7 +238,6 @@ public class AquaFileChooserUI extends FileChooserUI {
         if (propertyChangeListener != null) {
             fc.addPropertyChangeListener(propertyChangeListener);
         }
-        if (model != null) fc.addPropertyChangeListener(model);
 
         ancestorListener = new AncestorListener(){
             public void ancestorAdded(final AncestorEvent e) {
@@ -196,6 +265,7 @@ public class AquaFileChooserUI extends FileChooserUI {
             fc.removePropertyChangeListener(propertyChangeListener);
         }
         fFileList.removeMouseListener(doubleClickListener);
+        fc.removePropertyChangeListener(filterComboBoxModel);
         fc.removePropertyChangeListener(model);
         fc.unregisterKeyboardAction(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
         fc.removeAncestorListener(ancestorListener);
@@ -254,6 +324,7 @@ public class AquaFileChooserUI extends FileChooserUI {
         // Mac-specific, required
         newFolderExistsErrorText = getString("FileChooser.newFolderExistsErrorText", "That name is already taken");
         chooseButtonText = getString("FileChooser.chooseButtonText", "Choose");
+        chooseButtonToolTipText = getString("FileChooser.chooseButtonToolTipText", "Choose selected file");
         newFolderButtonText = getString("FileChooser.newFolderButtonText", "New");
         newFolderTitleText = getString("FileChooser.newFolderTitleText", "New Folder");
 
@@ -328,6 +399,7 @@ public class AquaFileChooserUI extends FileChooserUI {
         cancelSaveButtonToolTipText = null;
         cancelChooseButtonToolTipText = null;
         cancelNewFolderButtonToolTipText = null;
+        chooseButtonToolTipText = null;
 
         saveButtonToolTipText = null;
         openButtonToolTipText = null;
@@ -450,14 +522,14 @@ public class AquaFileChooserUI extends FileChooserUI {
 
     void setPackageIsTraversable(final Object o) {
         int newProp = -1;
-        if (o != null && o instanceof String) newProp = parseTraversableProperty((String)o);
+        if (o instanceof String s) newProp = parseTraversableProperty(s);
         if (newProp != -1) fPackageIsTraversable = newProp;
         else fPackageIsTraversable = sGlobalPackageIsTraversable;
     }
 
     void setApplicationIsTraversable(final Object o) {
         int newProp = -1;
-        if (o != null && o instanceof String) newProp = parseTraversableProperty((String)o);
+        if (o instanceof String s) newProp = parseTraversableProperty(s);
         if (newProp != -1) fApplicationIsTraversable = newProp;
         else fApplicationIsTraversable = sGlobalApplicationIsTraversable;
     }
@@ -524,6 +596,11 @@ public class AquaFileChooserUI extends FileChooserUI {
         return fApproveButton;
     }
 
+    @Override
+    public JButton getDefaultButton(JFileChooser fc) {
+        return getApproveButton(fc);
+    }
+
     public int getApproveButtonMnemonic(final JFileChooser fc) {
         return fSubPanel.getApproveButtonMnemonic(fc);
     }
@@ -584,10 +661,8 @@ public class AquaFileChooserUI extends FileChooserUI {
                 int selectableCount = 0;
                 // Double-check that all the list selections are valid for this mode
                 // Directories can be selected in the list regardless of mode
-                if (rows.length > 0) {
-                    for (final int element : rows) {
-                        if (isSelectableForMode(chooser, (File)fFileList.getValueAt(element, 0))) selectableCount++;
-                    }
+                for (final int element : rows) {
+                    if (isSelectableForMode(chooser, (File) fFileList.getValueAt(element, 0))) selectableCount++;
                 }
                 if (selectableCount > 0) {
                     final File[] files = new File[selectableCount];
@@ -668,6 +743,10 @@ public class AquaFileChooserUI extends FileChooserUI {
 
         public void mouseClicked(final MouseEvent e) {
             if (e.getClickCount() != 2) return;
+
+            if (!getFileChooser().isEnabled()) {
+                return;
+            }
 
             final int index = list.locationToIndex(e.getPoint());
             if (index < 0) return;
@@ -840,7 +919,7 @@ public class AquaFileChooserUI extends FileChooserUI {
     File makeFile(final JFileChooser fc, final String filename) {
         File selectedFile = null;
         // whitespace is legal on Macs, even on beginning and end of filename
-        if (filename != null && !filename.equals("")) {
+        if (filename != null && !filename.isEmpty()) {
             final FileSystemView fs = fc.getFileSystemView();
             selectedFile = fs.createFileObject(filename);
             if (!selectedFile.isAbsolute()) {
@@ -853,7 +932,7 @@ public class AquaFileChooserUI extends FileChooserUI {
     // Utility to tell if the textfield has anything in it
     boolean textfieldIsValid() {
         final String s = getFileName();
-        return (s != null && !s.equals(""));
+        return (s != null && !s.isEmpty());
     }
 
     // Action to attach to the file list so we can override the default action
@@ -906,7 +985,8 @@ public class AquaFileChooserUI extends FileChooserUI {
 
             final Object value = pane.getValue();
 
-            if (value == null || value.equals(cancelButtonText)) {
+            if (value == null || value.equals(cancelButtonText)
+                    || value.equals(JOptionPane.CLOSED_OPTION)) {
                 return null;
             }
             return pane.getInputValue();
@@ -1183,7 +1263,7 @@ public class AquaFileChooserUI extends FileChooserUI {
     }
 
     //
-    // DataModel for DirectoryComboxbox
+    // DataModel for DirectoryCombobox
     //
     protected DirectoryComboBoxModel createDirectoryComboBoxModel(final JFileChooser fc) {
         return new DirectoryComboBoxModel();
@@ -1231,23 +1311,23 @@ public class AquaFileChooserUI extends FileChooserUI {
 
             // create File instances of each directory leading up to the top
             File f = directory.getAbsoluteFile();
-            final Vector<File> path = new Vector<File>(10);
+            final ArrayList<File> path = new ArrayList<File>(10);
             while (f.getParent() != null) {
-                path.addElement(f);
+                path.add(f);
                 f = getFileChooser().getFileSystemView().createFileObject(f.getParent());
-            };
+            }
 
             // Add root file (the desktop) to the model
             final File[] roots = getFileChooser().getFileSystemView().getRoots();
             for (final File element : roots) {
-                path.addElement(element);
+                path.add(element);
             }
             fPathCount = path.size();
 
             // insert all the path fDirectories leading up to the
             // selected directory in reverse order (current directory at top)
             for (int i = 0; i < path.size(); i++) {
-                fDirectories.addElement(path.elementAt(i));
+                fDirectories.addElement(path.get(i));
             }
 
             setSelectedItem(fDirectories.elementAt(0));
@@ -1292,7 +1372,7 @@ public class AquaFileChooserUI extends FileChooserUI {
     }
 
     //
-    // DataModel for Types Comboxbox
+    // DataModel for Types Combobox
     //
     protected FilterComboBoxModel createFilterComboBoxModel() {
         return new FilterComboBoxModel();
@@ -1336,9 +1416,9 @@ public class AquaFileChooserUI extends FileChooserUI {
 
         public Object getSelectedItem() {
             // Ensure that the current filter is in the list.
-            // NOTE: we shouldnt' have to do this, since JFileChooser adds
+            // NOTE: we shouldn't have to do this, since JFileChooser adds
             // the filter to the choosable filters list when the filter
-            // is set. Lets be paranoid just in case someone overrides
+            // is set. Let's be paranoid just in case someone overrides
             // setFileFilter in JFileChooser.
             FileFilter currentFilter = getFileChooser().getFileFilter();
             boolean found = false;
@@ -1420,10 +1500,13 @@ public class AquaFileChooserUI extends FileChooserUI {
         }
 
         // One sort state for each column.  Both are ascending by default
-        final boolean fSortAscending[] = {true, true};
+        final boolean[] fSortAscending = {true, true};
 
         // Instead of dragging, it selects which one to sort by
         public void setDraggedColumn(final TableColumn aColumn) {
+            if (!getFileChooser().isEnabled()) {
+                return;
+            }
             if (aColumn != null) {
                 final int colIndex = aColumn.getModelIndex();
                 if (colIndex != fSortColumn) {
@@ -1740,7 +1823,17 @@ public class AquaFileChooserUI extends FileChooserUI {
         return fButtonActions[which];
     }
 
-    public void uninstallComponents(final JFileChooser fc) { //$ Metal (on which this is based) doesn't uninstall its components.
+    public void uninstallComponents(final JFileChooser fc) {
+        // AquaButtonUI install some listeners to all parents, which means that
+        // we need to uninstall UI here to remove those listeners, because after
+        // we remove them from FileChooser we lost the latest reference to them,
+        // and our standard uninstallUI machinery will not call them.
+        fApproveButton.getUI().uninstallUI(fApproveButton);
+        fOpenButton.getUI().uninstallUI(fOpenButton);
+        fNewFolderButton.getUI().uninstallUI(fNewFolderButton);
+        fCancelButton.getUI().uninstallUI(fCancelButton);
+        directoryComboBox.getUI().uninstallUI(directoryComboBox);
+        filterComboBox.getUI().uninstallUI(filterComboBox);
     }
 
     // Consistent with the AppKit NSSavePanel, clicks on a file (not a directory) should populate the text field
@@ -1753,6 +1846,10 @@ public class AquaFileChooserUI extends FileChooserUI {
 
             // The autoscroller can generate drag events outside the Table's range.
             if ((column == -1) || (row == -1)) { return; }
+
+            if (!getFileChooser().isEnabled()) {
+                return;
+            }
 
             final File clickedFile = (File)(fFileList.getValueAt(row, 0));
 
@@ -1905,11 +2002,11 @@ public class AquaFileChooserUI extends FileChooserUI {
 
     static {
         Object o = UIManager.get(PACKAGE_TRAVERSABLE_PROPERTY);
-        if (o != null && o instanceof String) sGlobalPackageIsTraversable = parseTraversableProperty((String)o);
+        if (o instanceof String s) sGlobalPackageIsTraversable = parseTraversableProperty(s);
         else sGlobalPackageIsTraversable = kOpenConditional;
 
         o = UIManager.get(APPLICATION_TRAVERSABLE_PROPERTY);
-        if (o != null && o instanceof String) sGlobalApplicationIsTraversable = parseTraversableProperty((String)o);
+        if (o instanceof String s) sGlobalApplicationIsTraversable = parseTraversableProperty(s);
         else sGlobalApplicationIsTraversable = kOpenConditional;
     }
     static final String sDataPrefix = "FileChooser.";
@@ -1958,11 +2055,9 @@ public class AquaFileChooserUI extends FileChooserUI {
         // Try to get the custom text.  If none, use the fallback
         String getApproveButtonText(final JFileChooser fc, final String fallbackText) {
             final String buttonText = fc.getApproveButtonText();
-            if (buttonText != null) {
-                buttonText.trim();
-                if (!buttonText.equals("")) return buttonText;
-            }
-            return fallbackText;
+            return buttonText != null
+                    ? buttonText
+                    : fallbackText;
         }
 
         int getApproveButtonMnemonic(final JFileChooser fc) {
@@ -1970,18 +2065,16 @@ public class AquaFileChooserUI extends FileChooserUI {
             return fc.getApproveButtonMnemonic();
         }
 
-        // No fallback
         String getApproveButtonToolTipText(final JFileChooser fc) {
-            return getApproveButtonToolTipText(fc, null);
+            // Fallback to "Choose selected file"
+            return getApproveButtonToolTipText(fc, chooseButtonToolTipText);
         }
 
         String getApproveButtonToolTipText(final JFileChooser fc, final String fallbackText) {
             final String tooltipText = fc.getApproveButtonToolTipText();
-            if (tooltipText != null) {
-                tooltipText.trim();
-                if (!tooltipText.equals("")) return tooltipText;
-            }
-            return fallbackText;
+            return tooltipText != null
+                    ? tooltipText
+                    : fallbackText;
         }
 
         String getCancelButtonToolTipText(final JFileChooser fc) {
@@ -2369,7 +2462,7 @@ public class AquaFileChooserUI extends FileChooserUI {
     // Convenience, to translate from the JList directory view to the Mac-style JTable
     //   & minimize diffs between this and BasicFileChooserUI
     @SuppressWarnings("serial") // Superclass is not serializable across versions
-    class JTableExtension extends JTable {
+    static class JTableExtension extends JTable {
         public void setSelectedIndex(final int index) {
             getSelectionModel().setSelectionInterval(index, index);
         }

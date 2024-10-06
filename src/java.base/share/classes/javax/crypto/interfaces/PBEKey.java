@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package javax.crypto.interfaces;
 
-import java.math.BigInteger;
-
 /**
  * The interface to a PBE key.
  *
@@ -41,8 +39,14 @@ public interface PBEKey extends javax.crypto.SecretKey {
     /**
      * The class fingerprint that is set to indicate serialization
      * compatibility since J2SE 1.4.
+     *
+     * @deprecated A {@code serialVersionUID} field in an interface is
+     * ineffectual. Do not use; no replacement.
      */
-    static final long serialVersionUID = -1430015993304333921L;
+    @Deprecated
+    @SuppressWarnings("serial")
+    @java.io.Serial
+    long serialVersionUID = -1430015993304333921L;
 
     /**
      * Returns the password.

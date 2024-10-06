@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,11 @@ import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.cert.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
+import jdk.internal.event.X509ValidationEvent;
+import jdk.internal.event.EventHelper;
 import sun.security.provider.certpath.PKIX.ValidatorParams;
-import sun.security.validator.Validator;
 import sun.security.x509.X509CertImpl;
 import sun.security.util.Debug;
 
@@ -47,6 +49,7 @@ import sun.security.util.Debug;
 public final class PKIXCertPathValidator extends CertPathValidatorSpi {
 
     private static final Debug debug = Debug.getInstance("certpath");
+    private static final AtomicLong validationCounter = new AtomicLong();
 
     /**
      * Default constructor.
@@ -173,8 +176,8 @@ public final class PKIXCertPathValidator extends CertPathValidatorSpi {
         List<PKIXCertPathChecker> certPathCheckers = new ArrayList<>();
         // add standard checkers that we will be using
         certPathCheckers.add(untrustedChecker);
-        certPathCheckers.add(new AlgorithmChecker(anchor, null, params.date(),
-                params.timestamp(), params.variant()));
+        certPathCheckers.add(new AlgorithmChecker(anchor, params.timestamp(),
+                params.variant()));
         certPathCheckers.add(new KeyChecker(certPathLen,
                                             params.targetCertConstraints()));
         certPathCheckers.add(new ConstraintsChecker(certPathLen));
@@ -191,19 +194,7 @@ public final class PKIXCertPathValidator extends CertPathValidatorSpi {
                                              rootNode);
         certPathCheckers.add(pc);
 
-        // the time that the certificate validity period should be
-        // checked against
-        Date timeToCheck = null;
-        // use timestamp if checking signed code that is timestamped, otherwise
-        // use date parameter from PKIXParameters
-        if ((params.variant() == Validator.VAR_CODE_SIGNING ||
-             params.variant() == Validator.VAR_PLUGIN_CODE_SIGNING) &&
-             params.timestamp() != null) {
-            timeToCheck = params.timestamp().getTimestamp();
-        } else {
-            timeToCheck = params.date();
-        }
-        BasicChecker bc = new BasicChecker(anchor, timeToCheck,
+        BasicChecker bc = new BasicChecker(anchor, params.date(),
                                            params.sigProvider(), false);
         certPathCheckers.add(bc);
 
@@ -234,7 +225,34 @@ public final class PKIXCertPathValidator extends CertPathValidatorSpi {
                                              params.certificates(),
                                              certPathCheckers);
 
+        X509ValidationEvent xve = new X509ValidationEvent();
+        if (xve.shouldCommit() || EventHelper.isLoggingSecurity()) {
+            long[] certIds = params.certificates().stream()
+                    .mapToInt(Certificate::hashCode)
+                    .mapToLong(Integer::toUnsignedLong)
+                    .toArray();
+            int hash = (anchorCert != null) ?
+                anchorCert.hashCode() : anchor.getCAPublicKey().hashCode();
+            long anchorCertId = Integer.toUnsignedLong(hash);
+            if (xve.shouldCommit()) {
+                xve.certificateId = anchorCertId;
+                int certificatePos = 1; // most trusted CA
+                xve.certificatePosition = certificatePos;
+                xve.validationCounter = validationCounter.incrementAndGet();
+                xve.commit();
+                // now, iterate through remaining
+                for (long id : certIds) {
+                    xve.certificateId = id;
+                    xve.certificatePosition = ++certificatePos;
+                    xve.commit();
+                }
+            }
+            if (EventHelper.isLoggingSecurity()) {
+                EventHelper.logX509ValidationEvent(anchorCertId, certIds);
+            }
+        }
         return new PKIXCertPathValidatorResult(anchor, pc.getPolicyTree(),
                                                bc.getPublicKey());
     }
+
 }

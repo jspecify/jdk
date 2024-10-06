@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,13 @@
 
 /*
  * @test TestOnError
+ * @bug 8078470
  * @summary Test using -XX:OnError=<cmd>
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @run main TestOnError
- * @bug 8078470
+ * @requires vm.flagless
+ * @requires vm.debug
+ * @run driver TestOnError
  */
 
 import jdk.test.lib.process.ProcessTools;
@@ -37,17 +39,11 @@ import jdk.test.lib.Platform;
 public class TestOnError {
 
     public static void main(String[] args) throws Exception {
-        if (!Platform.isDebugBuild()) {
-            System.out.println("Test requires a non-product build - skipping");
-            return;
-        }
-
         String msg = "Test Succeeded";
 
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-           "-XX:-TransmitErrorReport",
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
            "-XX:-CreateCoredumpOnCrash",
-           "-XX:ErrorHandlerTest=12", // trigger potential SEGV
+           "-XX:ErrorHandlerTest=14", // trigger potential SEGV
            "-XX:OnError=echo " + msg,
            TestOnError.class.getName());
 

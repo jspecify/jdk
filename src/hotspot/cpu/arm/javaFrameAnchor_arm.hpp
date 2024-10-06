@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_ARM_VM_JAVAFRAMEANCHOR_ARM_HPP
-#define CPU_ARM_VM_JAVAFRAMEANCHOR_ARM_HPP
+#ifndef CPU_ARM_JAVAFRAMEANCHOR_ARM_HPP
+#define CPU_ARM_JAVAFRAMEANCHOR_ARM_HPP
 
 private:
 
@@ -39,10 +39,10 @@ public:
 
   void clear(void) {
     // clearing _last_Java_sp must be first
-    _last_Java_sp = NULL;
+    _last_Java_sp = nullptr;
     // fence?
-    _last_Java_fp = NULL;
-    _last_Java_pc = NULL;
+    _last_Java_fp = nullptr;
+    _last_Java_pc = nullptr;
   }
 
   void copy(JavaFrameAnchor* src) {
@@ -50,11 +50,11 @@ public:
     // We must clear _last_Java_sp before copying the rest of the new data
     //
     // Hack Alert: Temporary bugfix for 4717480/4721647
-    // To act like previous version (pd_cache_state) don't NULL _last_Java_sp
+    // To act like previous version (pd_cache_state) don't null _last_Java_sp
     // unless the value is changing
     //
     if (_last_Java_sp != src->_last_Java_sp)
-      _last_Java_sp = NULL;
+      _last_Java_sp = nullptr;
 
     _last_Java_fp = src->_last_Java_fp;
     _last_Java_pc = src->_last_Java_pc;
@@ -65,7 +65,7 @@ public:
   // Always walkable
   bool walkable(void) { return true; }
   // Never any thing to do since we are always walkable and can find address of return addresses
-  void make_walkable(JavaThread* thread) { }
+  void make_walkable() { }
 
   intptr_t* last_Java_sp(void) const             { return _last_Java_sp; }
 
@@ -79,8 +79,6 @@ public:
 
   void set_last_Java_sp(intptr_t* sp)            { _last_Java_sp = sp; }
 
-  intptr_t*   last_Java_fp(void)                     { return _last_Java_fp; }
-  // Assert (last_Java_sp == NULL || fp == NULL)
-  void set_last_Java_fp(intptr_t* fp)                { _last_Java_fp = fp; }
+  intptr_t*   last_Java_fp(void)                 { return _last_Java_fp; }
 
-#endif // CPU_ARM_VM_JAVAFRAMEANCHOR_ARM_HPP
+#endif // CPU_ARM_JAVAFRAMEANCHOR_ARM_HPP

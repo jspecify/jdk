@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -131,9 +129,9 @@ public class TrustTrustedCert extends SSLSocketTemplate {
             sslIS.read();
             sslOS.write('A');
             sslOS.flush();
-        } catch (SSLException ssle) {
+        } catch (SSLException | SocketException se) {
             if (!expectFail) {
-                throw ssle;
+                throw se;
             }   // Otherwise, ignore.
         }
     }
@@ -159,9 +157,9 @@ public class TrustTrustedCert extends SSLSocketTemplate {
             if (expectFail) {
             // focus on the CertPathValidatorException
                 Throwable t = e.getCause().getCause();
-                if (t == null || !t.toString().contains("MD5withRSA")) {
+                if (t == null || !t.toString().contains("MD5")) {
                     throw new RuntimeException(
-                        "Expected to see MD5withRSA in exception output", t);
+                        "Expected to see MD5 in exception output", t);
                 }
             } else {
                 throw e;

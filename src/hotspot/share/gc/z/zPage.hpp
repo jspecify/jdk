@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,107 +24,190 @@
 #ifndef SHARE_GC_Z_ZPAGE_HPP
 #define SHARE_GC_Z_ZPAGE_HPP
 
-#include "gc/z/zForwardingTable.hpp"
+#include "gc/z/zGenerationId.hpp"
 #include "gc/z/zList.hpp"
 #include "gc/z/zLiveMap.hpp"
+#include "gc/z/zPageAge.hpp"
+#include "gc/z/zPageType.hpp"
 #include "gc/z/zPhysicalMemory.hpp"
+#include "gc/z/zRememberedSet.hpp"
 #include "gc/z/zVirtualMemory.hpp"
 #include "memory/allocation.hpp"
+
+class ZGeneration;
 
 class ZPage : public CHeapObj<mtGC> {
   friend class VMStructs;
   friend class ZList<ZPage>;
+  friend class ZForwardingTest;
 
 private:
-  // Always hot
-  const uint8_t        _type;             // Page type
-  volatile uint8_t     _pinned;           // Pinned flag
-  uint8_t              _numa_id;          // NUMA node affinity
-  uint32_t             _seqnum;           // Allocation sequence number
-  const ZVirtualMemory _virtual;          // Virtual start/end address
-  volatile uintptr_t   _top;              // Virtual top address
-  ZLiveMap             _livemap;          // Live map
+  ZPageType            _type;
+  ZGenerationId        _generation_id;
+  ZPageAge             _age;
+  uint8_t              _numa_id;
+  uint32_t             _seqnum;
+  uint32_t             _seqnum_other;
+  ZVirtualMemory       _virtual;
+  volatile zoffset_end _top;
+  ZLiveMap             _livemap;
+  ZRememberedSet       _remembered_set;
+  uint64_t             _last_used;
+  ZPhysicalMemory      _physical;
+  ZListNode<ZPage>     _node;
 
-  // Hot when relocated and cached
-  volatile uint32_t    _refcount;         // Page reference count
-  ZForwardingTable     _forwarding;       // Forwarding table
-  ZPhysicalMemory      _physical;         // Physical memory for page
-  ZListNode<ZPage>     _node;             // Page list node
-
+  ZPageType type_from_size(size_t size) const;
   const char* type_to_string() const;
-  uint32_t object_max_count() const;
-  uintptr_t relocate_object_inner(uintptr_t from_index, uintptr_t from_offset);
 
-  bool is_object_marked(uintptr_t addr) const;
-  bool is_object_strongly_marked(uintptr_t addr) const;
+  BitMap::idx_t bit_index(zaddress addr) const;
+  zoffset offset_from_bit_index(BitMap::idx_t index) const;
+  oop object_from_bit_index(BitMap::idx_t index) const;
+
+  bool is_live_bit_set(zaddress addr) const;
+  bool is_strong_bit_set(zaddress addr) const;
+
+  ZGeneration* generation();
+  const ZGeneration* generation() const;
+
+  void reset_seqnum();
+
+  ZPage* split_with_pmem(ZPageType type, const ZPhysicalMemory& pmem);
 
 public:
-  ZPage(uint8_t type, ZVirtualMemory vmem, ZPhysicalMemory pmem);
-  ~ZPage();
+  ZPage(ZPageType type, const ZVirtualMemory& vmem, const ZPhysicalMemory& pmem);
 
+  ZPage* clone_limited() const;
+
+  uint32_t object_max_count() const;
   size_t object_alignment_shift() const;
   size_t object_alignment() const;
 
-  uint8_t type() const;
-  uintptr_t start() const;
-  uintptr_t end() const;
+  ZPageType type() const;
+
+  bool is_small() const;
+  bool is_medium() const;
+  bool is_large() const;
+
+  ZGenerationId generation_id() const;
+  bool is_young() const;
+  bool is_old() const;
+  zoffset start() const;
+  zoffset_end end() const;
   size_t size() const;
-  uintptr_t top() const;
+  zoffset_end top() const;
   size_t remaining() const;
+  size_t used() const;
+
+  const ZVirtualMemory& virtual_memory() const;
+  const ZPhysicalMemory& physical_memory() const;
+  ZPhysicalMemory& physical_memory();
 
   uint8_t numa_id();
+  ZPageAge age() const;
 
-  ZPhysicalMemory& physical_memory();
-  const ZVirtualMemory& virtual_memory() const;
-
-  void reset();
-
-  bool inc_refcount();
-  bool dec_refcount();
-
-  bool is_in(uintptr_t addr) const;
-
-  uintptr_t block_start(uintptr_t addr) const;
-  size_t block_size(uintptr_t addr) const;
-  bool block_is_obj(uintptr_t addr) const;
-
-  bool is_active() const;
+  uint32_t seqnum() const;
   bool is_allocating() const;
   bool is_relocatable() const;
-  bool is_detached() const;
 
-  bool is_mapped() const;
-  void set_pre_mapped();
+  uint64_t last_used() const;
+  void set_last_used();
 
-  bool is_pinned() const;
-  void set_pinned();
+  void reset(ZPageAge age);
+  void reset_livemap();
+  void reset_top_for_allocation();
+  void reset_type_and_size(ZPageType type);
 
-  bool is_forwarding() const;
-  void set_forwarding();
-  void reset_forwarding();
-  void verify_forwarding() const;
+  ZPage* retype(ZPageType type);
+  ZPage* split(size_t split_of_size);
+  ZPage* split(ZPageType type, size_t split_of_size);
+  ZPage* split_committed();
+
+  bool is_in(zoffset offset) const;
+  bool is_in(zaddress addr) const;
+
+  uintptr_t local_offset(zoffset offset) const;
+  uintptr_t local_offset(zoffset_end offset) const;
+  uintptr_t local_offset(zaddress addr) const;
+  uintptr_t local_offset(zaddress_unsafe addr) const;
+
+  zoffset global_offset(uintptr_t local_offset) const;
+
+  bool is_object_live(zaddress addr) const;
+  bool is_object_strongly_live(zaddress addr) const;
 
   bool is_marked() const;
-  bool is_object_live(uintptr_t addr) const;
-  bool is_object_strongly_live(uintptr_t addr) const;
-  bool mark_object(uintptr_t addr, bool finalizable, bool& inc_live);
+  bool is_object_marked_live(zaddress addr) const;
+  bool is_object_marked_strong(zaddress addr) const;
+  bool is_object_marked(zaddress addr, bool finalizable) const;
+  bool mark_object(zaddress addr, bool finalizable, bool& inc_live);
 
-  void inc_live_atomic(uint32_t objects, size_t bytes);
+  void inc_live(uint32_t objects, size_t bytes);
+  uint32_t live_objects() const;
   size_t live_bytes() const;
 
-  void object_iterate(ObjectClosure* cl);
+  template <typename Function>
+  void object_iterate(Function function);
 
-  uintptr_t alloc_object(size_t size);
-  uintptr_t alloc_object_atomic(size_t size);
+  void remember(volatile zpointer* p);
 
-  bool undo_alloc_object(uintptr_t addr, size_t size);
-  bool undo_alloc_object_atomic(uintptr_t addr, size_t size);
+  // In-place relocation support
+  void clear_remset_bit_non_par_current(uintptr_t l_offset);
+  void clear_remset_range_non_par_current(uintptr_t l_offset, size_t size);
+  void swap_remset_bitmaps();
 
-  uintptr_t relocate_object(uintptr_t from);
-  uintptr_t forward_object(uintptr_t from);
+  void remset_alloc();
+  void remset_delete();
 
+  ZBitMap::ReverseIterator remset_reverse_iterator_previous();
+  BitMap::Iterator remset_iterator_limited_current(uintptr_t l_offset, size_t size);
+  BitMap::Iterator remset_iterator_limited_previous(uintptr_t l_offset, size_t size);
+
+  zaddress_unsafe find_base_unsafe(volatile zpointer* p);
+  zaddress_unsafe find_base(volatile zpointer* p);
+
+  template <typename Function>
+  void oops_do_remembered(Function function);
+
+  // Only visits remembered set entries for live objects
+  template <typename Function>
+  void oops_do_remembered_in_live(Function function);
+
+  template <typename Function>
+  void oops_do_current_remembered(Function function);
+
+  bool is_remset_cleared_current() const;
+  bool is_remset_cleared_previous() const;
+
+  void verify_remset_cleared_current() const;
+  void verify_remset_cleared_previous() const;
+
+  void clear_remset_previous();
+
+  void* remset_current();
+
+  zaddress alloc_object(size_t size);
+  zaddress alloc_object_atomic(size_t size);
+
+  bool undo_alloc_object(zaddress addr, size_t size);
+  bool undo_alloc_object_atomic(zaddress addr, size_t size);
+
+  void log_msg(const char* msg_format, ...) const ATTRIBUTE_PRINTF(2, 3);
+
+  void print_on_msg(outputStream* out, const char* msg) const;
   void print_on(outputStream* out) const;
   void print() const;
+
+  // Verification
+  bool was_remembered(volatile zpointer* p);
+  bool is_remembered(volatile zpointer* p);
+  void verify_live(uint32_t live_objects, size_t live_bytes, bool in_place) const;
+
+  void fatal_msg(const char* msg) const;
+};
+
+class ZPageClosure {
+public:
+  virtual void do_page(const ZPage* page) = 0;
 };
 
 #endif // SHARE_GC_Z_ZPAGE_HPP

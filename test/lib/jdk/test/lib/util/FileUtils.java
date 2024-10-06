@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,34 @@
 
 package jdk.test.lib.util;
 
-import jdk.test.lib.Platform;
-
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.lang.ProcessBuilder.Redirect;
+import java.lang.management.ManagementFactory;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
-import java.time.Duration;
 import java.util.ArrayList;
-import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import jdk.test.lib.Platform;
+
+import com.sun.management.UnixOperatingSystemMXBean;
 
 /**
  * Common library for various test file utility functions.
@@ -53,6 +59,7 @@ public final class FileUtils {
     private static final boolean IS_WINDOWS = Platform.isWindows();
     private static final int RETRY_DELETE_MILLIS = IS_WINDOWS ? 500 : 0;
     private static final int MAX_RETRY_DELETE_TIMES = IS_WINDOWS ? 15 : 0;
+    private static volatile boolean nativeLibLoaded;
 
     /**
      * Deletes a file, retrying if necessary.
@@ -91,7 +98,7 @@ public final class FileUtils {
      */
     public static void deleteFileIfExistsWithRetry(Path path) throws IOException {
         try {
-            if (Files.exists(path)) {
+            if (!Files.notExists(path)) {
                 deleteFileWithRetry0(path);
             }
         } catch (InterruptedException x) {
@@ -237,21 +244,104 @@ public final class FileUtils {
     }
 
     /**
+     * Checks whether all file systems are accessible and there are no
+     * duplicate mount points. This is performed by checking free disk
+     * space on all mounted file systems via a separate, spawned process.
+     * File systems are considered to be accessible if this process completes
+     * successfully before a given fixed duration has elapsed.
+     *
+     * @implNote On Unix this executes the {@code df} command in a separate
+     * process and on Windows always returns {@code true}.
+     *
+     * @return whether file systems appear to be accessible and duplicate-free
+     */
+    public static boolean areMountPointsAccessibleAndUnique() {
+        if (IS_WINDOWS) return true;
+
+        final AtomicBoolean areMountPointsOK = new AtomicBoolean(true);
+        Thread thr = new Thread(() -> {
+            try {
+                Process proc = new ProcessBuilder("df").start();
+                BufferedReader reader = new BufferedReader
+                    (new InputStreamReader(proc.getInputStream()));
+                // Skip the first line as it is the "df" output header.
+                if (reader.readLine() != null ) {
+                    Set mountPoints = new HashSet();
+                    String mountPoint = null;
+                    while ((mountPoint = reader.readLine()) != null) {
+                        if (!mountPoints.add(mountPoint)) {
+                            System.err.printf
+                                ("Config error: duplicate mount point %s%n",
+                                mountPoint);
+                            areMountPointsOK.set(false);
+                            break;
+                        }
+                    }
+                }
+
+                try {
+                    proc.waitFor(90, TimeUnit.SECONDS);
+                } catch (InterruptedException ignored) {
+                }
+                try {
+                    int exitValue = proc.exitValue();
+                    if (exitValue != 0) {
+                        System.err.printf("df process exited with %d != 0%n",
+                            exitValue);
+                        areMountPointsOK.set(false);
+                    }
+                } catch (IllegalThreadStateException ignored) {
+                    System.err.println("df command apparently hung");
+                    areMountPointsOK.set(false);
+                }
+            } catch (IOException ioe) {
+                throw new RuntimeException(ioe);
+            };
+        });
+
+        final AtomicReference throwableReference =
+            new AtomicReference<Throwable>();
+        thr.setUncaughtExceptionHandler(
+            new Thread.UncaughtExceptionHandler() {
+                public void uncaughtException(Thread t, Throwable e) {
+                    throwableReference.set(e);
+                }
+            });
+
+        thr.start();
+        try {
+            thr.join(120*1000L);
+        } catch (InterruptedException ie) {
+            throw new RuntimeException(ie);
+        }
+
+        Throwable uncaughtException = (Throwable)throwableReference.get();
+        if (uncaughtException != null) {
+            throw new RuntimeException(uncaughtException);
+        }
+
+        if (thr.isAlive()) {
+            throw new RuntimeException("df thread did not join in time");
+        }
+
+        return areMountPointsOK.get();
+    }
+
+    /**
      * List the open file descriptors (if supported by the 'lsof' command).
      * @param ps a printStream to send the output to
      * @throws UncheckedIOException if an error occurs
      */
     public static void listFileDescriptors(PrintStream ps) {
-        List<String> lsofDirs = List.of("/usr/bin", "/usr/sbin");
-        Optional<Path> lsof = lsofDirs.stream()
-                .map(s -> Paths.get(s, "lsof"))
-                .filter(f -> Files.isExecutable(f))
+
+        Optional<String[]> lsof = Arrays.stream(lsCommands)
+                .filter(args -> Files.isExecutable(Path.of(args[0])))
                 .findFirst();
-        lsof.ifPresent(exe -> {
+        lsof.ifPresent(args -> {
             try {
                 ps.printf("Open File Descriptors:%n");
                 long pid = ProcessHandle.current().pid();
-                ProcessBuilder pb = new ProcessBuilder(exe.toString(), "-p", Integer.toString((int) pid));
+                ProcessBuilder pb = new ProcessBuilder(args[0], args[1], Integer.toString((int) pid));
                 pb.redirectErrorStream(true);   // combine stderr and stdout
                 pb.redirectOutput(Redirect.PIPE);
 
@@ -273,4 +363,66 @@ public final class FileUtils {
             }
         });
     }
+
+    // Return the current process handle count
+    public static long getProcessHandleCount() {
+        if (IS_WINDOWS) {
+            if (!nativeLibLoaded) {
+                System.loadLibrary("FileUtils");
+                nativeLibLoaded = true;
+            }
+            return getWinProcessHandleCount();
+        } else {
+            return ((UnixOperatingSystemMXBean)ManagementFactory.getOperatingSystemMXBean()).getOpenFileDescriptorCount();
+        }
+    }
+
+    /**
+     * Patches a part of a file.
+     *
+     * @param path the file
+     * @param fromLine the first line to patch. This is the number you see in an editor, 1-based, inclusive.
+     * @param toLine the last line to patch. This is the number you see in an editor, inclusive.
+     *               Set {@code toLine} to {@code fromLine - 1} if you only want to insert lines.
+     * @param from lines to remove, used to ensure the correct lines are removed. Can be multiple lines or empty.
+     *            It's compared to existing lines with all lines trimmed and no new lines at both ends. Ignored if null.
+     * @param to the newly added lines, can be multiple lines or empty. New line at end is optional. Cannot be null.
+     * @throws IOException if there's an I/O error or {@code from} does not match the existing lines
+     * @throws IndexOutOfBoundsException if {@code fromLine} or {@code toLine} is invalid
+     */
+    public static void patch(Path path, int fromLine, int toLine, String from, String to) throws IOException {
+        var lines = Files.readAllLines(path);
+        // The next line does a from/to as well
+        var subList = lines.subList(fromLine - 1, toLine);
+        if (from != null) {
+            // Each line is trimmed so caller needs not care about indentation.
+            // Caller also needs not care about new lines on both ends.
+            // New lines inside are preserved.
+            String actuallyRemoved = subList.stream()
+                            .map(String::trim)
+                            .collect(Collectors.joining("\n")).trim();
+            String wantToRemove = from.lines()
+                            .map(String::trim)
+                            .collect(Collectors.joining("\n")).trim();
+            if (!actuallyRemoved.equals(wantToRemove)) {
+                throw new IOException("Removed not the same: ["
+                        + String.join("\\n", subList) + "] and ["
+                        + from.replaceAll("\\n", "\\\\n") + "]");
+            }
+        }
+        subList.clear();
+        lines.addAll(fromLine - 1, to.lines().toList());
+        Files.write(path, lines);
+    }
+
+    private static native long getWinProcessHandleCount();
+
+    // Possible command locations and arguments
+    static String[][] lsCommands = new String[][] {
+            {"/usr/bin/lsof", "-p"},
+            {"/usr/sbin/lsof", "-p"},
+            {"/bin/lsof", "-p"},
+            {"/sbin/lsof", "-p"},
+            {"/usr/local/bin/lsof", "-p"},
+    };
 }

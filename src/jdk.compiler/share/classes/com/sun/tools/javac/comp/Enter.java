@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -114,6 +114,7 @@ public class Enter extends JCTree.Visitor {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected Enter(Context context) {
         context.put(enterKey, this);
 
@@ -170,6 +171,11 @@ public class Enter extends JCTree.Visitor {
      */
     ListBuffer<ClassSymbol> uncompleted;
 
+    /** The queue of classes that should have typeEnter completer installed after
+     *  all the classes are discovered.
+     */
+    List<ClassSymbol> pendingCompleter = null;
+
     /** The queue of modules whose imports still need to be checked. */
     ListBuffer<JCCompilationUnit> unfinishedModules = new ListBuffer<>();
 
@@ -200,10 +206,10 @@ public class Enter extends JCTree.Visitor {
             env.dup(tree, env.info.dup(WriteableScope.create(tree.sym)));
         localEnv.enclClass = tree;
         localEnv.outer = env;
-        localEnv.info.isSelfCall = false;
         localEnv.info.lint = null; // leave this to be filled in by Attr,
                                    // when annotations have been processed
         localEnv.info.isAnonymousDiamond = TreeInfo.isDiamond(env.tree);
+        localEnv.info.ctorPrologue = false;
         return localEnv;
     }
 
@@ -253,7 +259,6 @@ public class Enter extends JCTree.Visitor {
             env.dup(tree, env.info.dup(WriteableScope.create(tree.sym)));
         localEnv.enclClass = predefClassDef;
         localEnv.outer = env;
-        localEnv.info.isSelfCall = false;
         localEnv.info.lint = null; // leave this to be filled in by Attr,
                                    // when annotations have been processed
         return localEnv;
@@ -307,8 +312,6 @@ public class Enter extends JCTree.Visitor {
 
     @Override
     public void visitTopLevel(JCCompilationUnit tree) {
-//        Assert.checkNonNull(tree.modle, tree.sourcefile.toString());
-
         JavaFileObject prev = log.useSource(tree.sourcefile);
         boolean addEnv = false;
         boolean isPkgInfo = tree.sourcefile.isNameCompatible("package-info",
@@ -326,6 +329,7 @@ public class Enter extends JCTree.Visitor {
             JCPackageDecl pd = tree.getPackage();
             if (pd != null) {
                 tree.packge = pd.packge = syms.enterPackage(tree.modle, TreeInfo.fullName(pd.pid));
+                setPackageSymbols.scan(pd);
                 if (   pd.annotations.nonEmpty()
                     || pkginfoOpt == PkgInfo.ALWAYS
                     || tree.docComments != null) {
@@ -355,10 +359,12 @@ public class Enter extends JCTree.Visitor {
             tree.packge.complete(); // Find all classes in package.
 
             Env<AttrContext> topEnv = topLevelEnv(tree);
-            Env<AttrContext> packageEnv = isPkgInfo ? topEnv.dup(pd) : null;
+            Env<AttrContext> packageEnv = null;
 
             // Save environment of package-info.java file.
             if (isPkgInfo) {
+                packageEnv = topEnv.dup(pd != null ? pd : tree);
+
                 Env<AttrContext> env0 = typeEnvs.get(tree.packge);
                 if (env0 != null) {
                     JCCompilationUnit tree0 = env0.toplevel;
@@ -375,10 +381,11 @@ public class Enter extends JCTree.Visitor {
                 Name name = names.package_info;
                 ClassSymbol c = syms.enterClass(tree.modle, name, tree.packge);
                 c.flatname = names.fromString(tree.packge + "." + name);
-                c.sourcefile = tree.sourcefile;
-            c.completer = Completer.NULL_COMPLETER;
+                c.classfile = c.sourcefile = tree.sourcefile;
+                c.completer = Completer.NULL_COMPLETER;
                 c.members_field = WriteableScope.create(c);
                 tree.packge.package_info = c;
+                tree.packge.sourcefile = tree.sourcefile;
             }
             classEnter(tree.defs, topEnv);
             if (addEnv) {
@@ -388,6 +395,31 @@ public class Enter extends JCTree.Visitor {
         log.useSource(prev);
         result = null;
     }
+        //where:
+        //set package Symbols to the package expression:
+        private final TreeScanner setPackageSymbols = new TreeScanner() {
+            Symbol currentPackage;
+
+            @Override
+            public void visitIdent(JCIdent tree) {
+                tree.sym = currentPackage;
+                tree.type = currentPackage.type;
+            }
+
+            @Override
+            public void visitSelect(JCFieldAccess tree) {
+                tree.sym = currentPackage;
+                tree.type = currentPackage.type;
+                currentPackage = currentPackage.owner;
+                super.visitSelect(tree);
+            }
+
+            @Override
+            public void visitPackageDef(JCPackageDecl tree) {
+                currentPackage = tree.packge;
+                scan(tree.pid);
+            }
+        };
 
     @Override
     public void visitClassDef(JCClassDecl tree) {
@@ -410,6 +442,9 @@ public class Enter extends JCTree.Visitor {
                 }
                 log.error(tree.pos(),
                           Errors.ClassPublicShouldBeInFile(topElement, tree.name));
+            }
+            if ((tree.mods.flags & IMPLICIT_CLASS) != 0) {
+                syms.removeClass(env.toplevel.modle, tree.name);
             }
         } else {
             if (!tree.name.isEmpty() &&
@@ -467,9 +502,10 @@ public class Enter extends JCTree.Visitor {
 
         // Fill out class fields.
         c.completer = Completer.NULL_COMPLETER; // do not allow the initial completer linger on.
-        c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree);
-        c.sourcefile = env.toplevel.sourcefile;
+        c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree) | FROM_SOURCE;
+        c.classfile = c.sourcefile = env.toplevel.sourcefile;
         c.members_field = WriteableScope.create(c);
+        c.isPermittedExplicit = tree.permitting.nonEmpty();
         c.clearAnnotationMetadata();
 
         ClassType ct = (ClassType)c.type;
@@ -492,12 +528,16 @@ public class Enter extends JCTree.Visitor {
         ct.typarams_field = classEnter(tree.typarams, localEnv);
         ct.allparams_field = null;
 
-        // install further completer for this type.
-        c.completer = typeEnter;
+        // schedule installation of further completer for this type.
+        if (pendingCompleter != null) {
+            pendingCompleter = pendingCompleter.prepend(c);
+        } else {
+            c.completer = typeEnter;
+        }
 
         // Add non-local class to uncompleted, to make sure it will be
         // completed later.
-        if (!c.isLocal() && uncompleted != null) uncompleted.append(c);
+        if (!c.isDirectlyOrIndirectlyLocal() && uncompleted != null) uncompleted.append(c);
 //      System.err.println("entering " + c.fullname + " in " + c.owner);//DEBUG
 
         // Recursively enter all member classes.
@@ -572,8 +612,18 @@ public class Enter extends JCTree.Visitor {
         if (typeEnter.completionEnabled) uncompleted = new ListBuffer<>();
 
         try {
-            // enter all classes, and construct uncompleted list
-            classEnter(trees, null);
+            List<ClassSymbol> prevPendingCompleter = pendingCompleter;
+            try {
+                pendingCompleter = List.nil();
+                // enter all classes, and construct uncompleted list
+                classEnter(trees, null);
+                // install further completer for classes recognized by the above task:
+                for (ClassSymbol sym : pendingCompleter) {
+                    sym.completer = typeEnter;
+                }
+            } finally {
+                pendingCompleter = prevPendingCompleter;
+            }
 
             // complete all uncompleted classes in memberEnter
             if (typeEnter.completionEnabled) {
@@ -609,4 +659,29 @@ public class Enter extends JCTree.Visitor {
     public void newRound() {
         typeEnvs.clear();
     }
+
+    public void unenter(JCCompilationUnit topLevel, JCTree tree) {
+        new UnenterScanner(topLevel.modle).scan(tree);
+    }
+        class UnenterScanner extends TreeScanner {
+            private final ModuleSymbol msym;
+
+            public UnenterScanner(ModuleSymbol msym) {
+                this.msym = msym;
+            }
+
+            @Override
+            public void visitClassDef(JCClassDecl tree) {
+                ClassSymbol csym = tree.sym;
+                //if something went wrong during method applicability check
+                //it is possible that nested expressions inside argument expression
+                //are left unchecked - in such cases there's nothing to clean up.
+                if (csym == null) return;
+                typeEnvs.remove(csym);
+                chk.removeCompiled(csym);
+                chk.clearLocalClassNameIndexes(csym);
+                syms.removeClass(msym, csym.flatname);
+                super.visitClassDef(tree);
+            }
+        }
 }

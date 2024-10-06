@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -20,22 +19,21 @@
  */
 package com.sun.org.apache.bcel.internal.generic;
 
-import com.sun.org.apache.bcel.internal.Const;
-
 /**
  * ASTORE - Store reference into local variable
- * <PRE>Stack ..., objectref -&gt; ... </PRE>
  *
- * @version $Id: ASTORE.java 1747278 2016-06-07 17:28:43Z britter $
+ * <PRE>
+ * Stack ..., objectref -&gt; ...
+ * </PRE>
+ * @LastModified: Jan 2020
  */
 public class ASTORE extends StoreInstruction {
 
     /**
-     * Empty constructor needed for the Class.newInstance() statement in
-     * Instruction.readInstruction(). Not to be used otherwise.
+     * Empty constructor needed for Instruction.readInstruction. Not to be used otherwise.
      */
     ASTORE() {
-        super(Const.ASTORE, Const.ASTORE_0);
+        super(com.sun.org.apache.bcel.internal.Const.ASTORE, com.sun.org.apache.bcel.internal.Const.ASTORE_0);
     }
 
     /**
@@ -44,14 +42,12 @@ public class ASTORE extends StoreInstruction {
      * @param n index of local variable
      */
     public ASTORE(final int n) {
-        super(Const.ASTORE, Const.ASTORE_0, n);
+        super(com.sun.org.apache.bcel.internal.Const.ASTORE, com.sun.org.apache.bcel.internal.Const.ASTORE_0, n);
     }
 
     /**
-     * Call corresponding visitor method(s). The order is: Call visitor methods
-     * of implemented interfaces first, then call methods according to the class
-     * hierarchy in descending order, i.e., the most specific visitXXX() call
-     * comes last.
+     * Call corresponding visitor method(s). The order is: Call visitor methods of implemented interfaces first, then call
+     * methods according to the class hierarchy in descending order, i.e., the most specific visitXXX() call comes last.
      *
      * @param v Visitor object
      */

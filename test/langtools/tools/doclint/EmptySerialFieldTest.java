@@ -1,20 +1,21 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8004832
+ * @bug 8004832 8247815
  * @summary Add new doclint package
- * @modules jdk.compiler/com.sun.tools.doclint
+ * @modules jdk.javadoc/jdk.javadoc.internal.doclint
  * @build DocLintTester
- * @run main DocLintTester -Xmsgs:-syntax EmptySerialFieldTest.java
- * @run main DocLintTester -Xmsgs:syntax -ref EmptySerialFieldTest.out EmptySerialFieldTest.java
+ * @run main DocLintTester -Xmsgs:-missing EmptySerialFieldTest.java
+ * @run main DocLintTester -Xmsgs:missing -ref EmptySerialFieldTest.out EmptySerialFieldTest.java
  */
 
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 
 /** . */
-public class EmptySerialFieldTest implements Serializable {
+public class EmptySerialFieldTest implements Serializable { /** . */ EmptySerialFieldTest() { }
 
     /**
+     * .
      * @serialField empty    String
      */
     private static final ObjectStreamField[] serialPersistentFields = {

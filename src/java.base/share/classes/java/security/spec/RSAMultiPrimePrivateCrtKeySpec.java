@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,7 +69,7 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
     * @param publicExponent  the public exponent e
     * @param privateExponent the private exponent d
     * @param primeP          the prime factor p of n
-    * @param primeQ          the prime factor q of q
+    * @param primeQ          the prime factor q of n
     * @param primeExponentP  this is d mod (p-1)
     * @param primeExponentQ  this is d mod (q-1)
     * @param crtCoefficient  the Chinese Remainder Theorem
@@ -78,7 +78,7 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
     *                        specified if there are only two prime factors
     *                        (p and q)
     * @throws NullPointerException     if any of the specified parameters
-    *         with the exception of {@code otherPrimeInfo} is null
+    *         except {@code otherPrimeInfo} is null
     * @throws IllegalArgumentException if an empty, i.e. 0-length,
     *         {@code otherPrimeInfo} is specified
     */
@@ -118,7 +118,7 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
     *                         (p and q)
     * @param keyParams        the parameters associated with key
     * @throws NullPointerException     if any of the specified parameters
-    *         with the exception of {@code otherPrimeInfo} and {@code keyParams}
+    *         except {@code otherPrimeInfo} and {@code keyParams}
     *         is null
     * @throws IllegalArgumentException if an empty, i.e. 0-length,
     *         {@code otherPrimeInfo} is specified

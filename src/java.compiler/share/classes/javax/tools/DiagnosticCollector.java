@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,13 +36,18 @@ import java.util.Objects;
  * @param <S> the type of source objects used by diagnostics received
  * by this object
  *
- * @author Peter von der Ah&eacute;
  * @since 1.6
  */
 public final class DiagnosticCollector<S> implements DiagnosticListener<S> {
     private List<Diagnostic<? extends S>> diagnostics =
             Collections.synchronizedList(new ArrayList<Diagnostic<? extends S>>());
 
+    /**
+     * Creates a new instance of DiagnosticCollector.
+     */
+    public DiagnosticCollector() {}
+
+    @Override
     public void report(Diagnostic<? extends S> diagnostic) {
         Objects.requireNonNull(diagnostic);
         diagnostics.add(diagnostic);

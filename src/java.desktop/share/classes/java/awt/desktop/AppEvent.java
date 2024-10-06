@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package java.awt.desktop;
 import java.awt.Desktop;
 import java.awt.GraphicsEnvironment;
 import java.awt.HeadlessException;
+import java.io.Serial;
 import java.util.EventObject;
 
 /**
@@ -35,9 +36,25 @@ import java.util.EventObject;
  * {@link java.awt.Desktop} instance of the current desktop context.
  *
  * @since 9
+ * @sealedGraph
  */
-public class AppEvent extends EventObject {
+public sealed class AppEvent extends EventObject
+    permits AboutEvent,
+            AppForegroundEvent,
+            AppHiddenEvent,
+            AppReopenedEvent,
+            FilesEvent,
+            OpenURIEvent,
+            PreferencesEvent,
+            QuitEvent,
+            ScreenSleepEvent,
+            SystemSleepEvent,
+            UserSessionEvent {
 
+    /**
+     * Use serialVersionUID from JDK 9 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = -5958503993556009432L;
 
     /**

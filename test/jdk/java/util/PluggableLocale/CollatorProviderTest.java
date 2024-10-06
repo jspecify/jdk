@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,22 +20,44 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 /*
- *
+ * @test
+ * @bug 4052440 8062588 8210406 8174269
+ * @summary CollatorProvider tests
+ * @library providersrc/foobarutils
+ *          providersrc/fooprovider
+ * @modules java.base/sun.util.locale.provider
+ *          java.base/sun.util.resources
+ * @build com.foobar.Utils
+ *        com.foo.*
+ * @run main/othervm -Djava.locale.providers=CLDR,SPI CollatorProviderTest
  */
 
-import java.text.*;
-import java.util.*;
-import sun.util.locale.provider.*;
-import sun.util.resources.*;
+import java.text.Collator;
+import java.text.ParseException;
+import java.text.RuleBasedCollator;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
+import java.util.Set;
+
+import com.foo.CollatorProviderImpl;
+
+import sun.util.locale.provider.AvailableLanguageTags;
+import sun.util.locale.provider.LocaleProviderAdapter;
+import sun.util.locale.provider.ResourceBundleBasedAdapter;
 
 public class CollatorProviderTest extends ProviderTest {
 
-    com.foo.CollatorProviderImpl cp = new com.foo.CollatorProviderImpl();
+    CollatorProviderImpl cp = new CollatorProviderImpl();
     List<Locale> availloc = Arrays.asList(Collator.getAvailableLocales());
     List<Locale> providerloc = Arrays.asList(cp.getAvailableLocales());
-    List<Locale> jreloc = Arrays.asList(LocaleProviderAdapter.forJRE().getAvailableLocales());
-    List<Locale> jreimplloc = Arrays.asList(LocaleProviderAdapter.forJRE().getCollatorProvider().getAvailableLocales());
+    List<Locale> fallbackloc = Arrays.asList(LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.FALLBACK).getAvailableLocales());
+    List<Locale> fallbackimplloc = Arrays.asList(LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.FALLBACK).getCollatorProvider().getAvailableLocales());
 
     public static void main(String[] s) {
         new CollatorProviderTest();
@@ -48,27 +70,28 @@ public class CollatorProviderTest extends ProviderTest {
 
     void availableLocalesTest() {
         Set<Locale> localesFromAPI = new HashSet<>(availloc);
-        Set<Locale> localesExpected = new HashSet<>(jreloc);
+        Set<Locale> localesExpected = new HashSet<>(fallbackloc);
         localesExpected.addAll(providerloc);
         if (localesFromAPI.equals(localesExpected)) {
             System.out.println("availableLocalesTest passed.");
         } else {
-            throw new RuntimeException("availableLocalesTest failed");
+            localesFromAPI.removeAll(localesExpected);
+            throw new RuntimeException("availableLocalesTest failed"+ localesFromAPI);
         }
     }
 
     void objectValidityTest() {
-        Collator def = Collator.getInstance(new Locale(""));
+        Collator def = Collator.getInstance(Locale.of(""));
         String defrules = ((RuleBasedCollator)def).getRules();
 
         for (Locale target: availloc) {
             // pure JRE implementation
-            Set<Locale> jreimplloc = new HashSet<>();
-            for (String tag : ((AvailableLanguageTags)LocaleProviderAdapter.forJRE().getCollatorProvider()).getAvailableLanguageTags()) {
-                jreimplloc.add(Locale.forLanguageTag(tag));
+            Set<Locale> fbil = new HashSet<>();
+            for (String tag : ((AvailableLanguageTags)LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.FALLBACK).getCollatorProvider()).getAvailableLanguageTags()) {
+                fbil.add(Locale.forLanguageTag(tag));
             }
-            ResourceBundle rb = ((ResourceBundleBasedAdapter)LocaleProviderAdapter.forJRE()).getLocaleData().getCollationData(target);
-            boolean jreSupportsLocale = jreimplloc.contains(target);
+            ResourceBundle rb = ((ResourceBundleBasedAdapter)LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.FALLBACK)).getLocaleData().getCollationData(target);
+            boolean fbSupportsLocale = fbil.contains(target);
 
             // result object
             Collator result = Collator.getInstance(target);
@@ -79,19 +102,19 @@ public class CollatorProviderTest extends ProviderTest {
                 providersResult = cp.getInstance(target);
             }
 
-            // JRE rule
-            Collator jresResult = null;
-            if (jreSupportsLocale) {
+            // Fallback rule
+            Collator fbResult = null;
+            if (fbSupportsLocale) {
                 try {
                     String rules = rb.getString("Rule");
-                    jresResult = new RuleBasedCollator(defrules+rules);
-                    jresResult.setDecomposition(Collator.NO_DECOMPOSITION);
+                    fbResult = new RuleBasedCollator(defrules+rules);
+                    fbResult.setDecomposition(Collator.NO_DECOMPOSITION);
                 } catch (MissingResourceException mre) {
                 } catch (ParseException pe) {
                 }
             }
 
-            checkValidity(target, jresResult, providersResult, result, jreSupportsLocale);
+            checkValidity(target, fbResult, providersResult, result, fbSupportsLocale);
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,16 +45,17 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
  * jimage testing.
  * @test
  * @summary Test jimage tool
+ * @bug 8222100
  * @library ../lib
+ * @enablePreview
  * @modules java.base/jdk.internal.jimage
- *          jdk.jdeps/com.sun.tools.classfile
  *          jdk.jlink/jdk.tools.jmod
  *          jdk.jlink/jdk.tools.jimage
  *          jdk.jlink/jdk.tools.jlink.internal
  *          jdk.compiler
  * @run build JImageTest
  * @run build tests.*
- * @run main/othervm -verbose:gc -Xmx1g JImageTest
+ * @run main/othervm/timeout=360 -verbose:gc -Xmx1g JImageTest
 */
 public class JImageTest {
 
@@ -93,9 +94,9 @@ public class JImageTest {
         }
 
         File jdkHome = new File(System.getProperty("test.jdk"));
-        // JPRT not yet ready for jmods
         Helper helper = Helper.newHelper();
         if (helper == null) {
+            // Skip test if the jmods directory is missing (e.g. exploded image)
             System.err.println("Test not run, NO jmods directory");
             return;
         }

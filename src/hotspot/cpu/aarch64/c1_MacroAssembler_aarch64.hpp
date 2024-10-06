@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2021, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP
-#define CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP
+#ifndef CPU_AARCH64_C1_MACROASSEMBLER_AARCH64_HPP
+#define CPU_AARCH64_C1_MACROASSEMBLER_AARCH64_HPP
 
 using MacroAssembler::build_frame;
 using MacroAssembler::null_check;
@@ -48,7 +48,7 @@ using MacroAssembler::null_check;
   );
 
   void initialize_header(Register obj, Register klass, Register len, Register t1, Register t2);
-  void initialize_body(Register obj, Register len_in_bytes, int hdr_size_in_bytes, Register t1);
+  void initialize_body(Register obj, Register len_in_bytes, int hdr_size_in_bytes, Register t1, Register t2);
 
   void float_cmp(bool is_float, int unordered_result,
                  FloatRegister f0, FloatRegister f1,
@@ -58,15 +58,16 @@ using MacroAssembler::null_check;
   // hdr     : must be r0, contents destroyed
   // obj     : must point to the object to lock, contents preserved
   // disp_hdr: must point to the displaced header location, contents preserved
-  // scratch : scratch register, contents destroyed
+  // temp    : temporary register, must not be rscratch1 or rscratch2
   // returns code offset at which to add null check debug information
-  int lock_object  (Register swap, Register obj, Register disp_hdr, Register scratch, Label& slow_case);
+  int lock_object  (Register swap, Register obj, Register disp_hdr, Register temp, Label& slow_case);
 
   // unlocking
   // hdr     : contents destroyed
   // obj     : must point to the object to lock, contents preserved
   // disp_hdr: must be r0 & must point to the displaced header location, contents destroyed
-  void unlock_object(Register swap, Register obj, Register lock, Label& slow_case);
+  // temp    : temporary register, must not be rscratch1 or rscratch2
+  void unlock_object(Register swap, Register obj, Register lock, Register temp, Label& slow_case);
 
   void initialize_object(
     Register obj,                      // result: pointer to object after successful allocation
@@ -93,13 +94,14 @@ using MacroAssembler::null_check;
   };
 
   // allocation of arrays
-  // obj        : will contain pointer to allocated object
-  // len        : array length in number of elements
-  // t          : scratch register - contents destroyed
-  // header_size: size of object header in words
-  // f          : element scale factor
-  // slow_case  : exit to slow case implementation if fast allocation fails
-  void allocate_array(Register obj, Register len, Register t, Register t2, int header_size, int f, Register klass, Label& slow_case);
+  // obj                 : will contain pointer to allocated object
+  // len                 : array length in number of elements
+  // t                   : scratch register - contents destroyed
+  // base_offset_in_bytes: offset of first array element, in bytes
+  // f                   : element scale factor
+  // slow_case           : exit to slow case implementation if fast allocation fails
+  // zero_array          : zero the allocated array or not
+  void allocate_array(Register obj, Register len, Register t, Register t2, int base_offset_in_bytes, int f, Register klass, Label& slow_case, bool zero_array);
 
   int  rsp_offset() const { return _rsp_offset; }
   void set_rsp_offset(int n) { _rsp_offset = n; }
@@ -107,8 +109,8 @@ using MacroAssembler::null_check;
   void invalidate_registers(bool inv_r0, bool inv_r19, bool inv_r2, bool inv_r3, bool inv_r4, bool inv_r5) PRODUCT_RETURN;
 
   // This platform only uses signal-based null checks. The Label is not needed.
-  void null_check(Register r, Label *Lnull = NULL) { MacroAssembler::null_check(r); }
+  void null_check(Register r, Label *Lnull = nullptr) { MacroAssembler::null_check(r); }
 
   void load_parameter(int offset_in_words, Register reg);
 
-#endif // CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP
+#endif // CPU_AARCH64_C1_MACROASSEMBLER_AARCH64_HPP

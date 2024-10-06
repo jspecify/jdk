@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
  */
 
 package sun.awt.image;
+
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.awt.image.RasterFormatException;
@@ -313,7 +314,7 @@ public class ByteInterleavedRaster extends ByteComponentRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        byte outData[];
+        byte[] outData;
         if (obj == null) {
             outData = new byte[numDataElements];
         } else {
@@ -541,7 +542,7 @@ public class ByteInterleavedRaster extends ByteComponentRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        byte inData[] = (byte[])obj;
+        byte[] inData = (byte[])obj;
         int off = (y-minY)*scanlineStride +
                   (x-minX)*pixelStride;
 
@@ -871,7 +872,7 @@ public class ByteInterleavedRaster extends ByteComponentRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        int samples[];
+        int[] samples;
         if (iArray != null) {
             samples = iArray;
         } else {
@@ -909,7 +910,7 @@ public class ByteInterleavedRaster extends ByteComponentRaster {
         return samples;
     }
 
-    public void setSamples(int x, int y, int w, int h, int b, int iArray[]) {
+    public void setSamples(int x, int y, int w, int h, int b, int[] iArray) {
         if ((x < this.minX) || (y < this.minY) ||
             (x + w > this.maxX) || (y + h > this.maxY)) {
             throw new ArrayIndexOutOfBoundsException
@@ -954,7 +955,7 @@ public class ByteInterleavedRaster extends ByteComponentRaster {
             throw new ArrayIndexOutOfBoundsException
                 ("Coordinate out of bounds!");
         }
-        int pixels[];
+        int[] pixels;
         if (iArray != null) {
             pixels = iArray;
         } else {
@@ -1194,7 +1195,7 @@ public class ByteInterleavedRaster extends ByteComponentRaster {
      * @param x0              Translated X origin of the subraster.
      * @param y0              Translated Y origin of the subraster.
      * @param bandList        Array of band indices.
-     * @exception RasterFormatException
+     * @throws RasterFormatException
      *            if the specified bounding box is outside of the parent raster.
      */
     public Raster createChild(int x, int y,
@@ -1223,7 +1224,7 @@ public class ByteInterleavedRaster extends ByteComponentRaster {
      * @param x0              Translated X origin of the subraster.
      * @param y0              Translated Y origin of the subraster.
      * @param bandList        Array of band indices.
-     * @exception RasterFormatException
+     * @throws RasterFormatException
      *            if the specified bounding box is outside of the parent Raster.
      */
     public WritableRaster createWritableChild(int x, int y,
@@ -1288,11 +1289,11 @@ public class ByteInterleavedRaster extends ByteComponentRaster {
     }
 
     public String toString() {
-        return new String ("ByteInterleavedRaster: width = "+width+" height = "
-                           + height
-                           +" #numDataElements "+numDataElements
-                           //  +" xOff = "+xOffset+" yOff = "+yOffset
-                           +" dataOff[0] = "+dataOffsets[0]);
+        return "ByteInterleavedRaster: width = " + width
+                + " height = " + height
+                + " #numDataElements " + numDataElements
+                //  +" xOff = "+xOffset+" yOff = "+yOffset
+                + " dataOff[0] = " + dataOffsets[0];
     }
 
 //    /**

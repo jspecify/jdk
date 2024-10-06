@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
  */
 
 package sun.nio.ch;
+
+import jdk.internal.event.FileForceEvent;
 
 import java.nio.channels.*;
 import java.util.concurrent.*;
@@ -50,19 +52,25 @@ public class SimpleAsynchronousFileChannelImpl
     // Used to make native read and write calls
     private static final FileDispatcher nd = new FileDispatcherImpl();
 
+    // file path
+    private final String path;
+
     // Thread-safe set of IDs of native threads, for signalling
     private final NativeThreadSet threads = new NativeThreadSet(2);
 
 
     SimpleAsynchronousFileChannelImpl(FileDescriptor fdObj,
+                                      String path,
                                       boolean reading,
                                       boolean writing,
                                       ExecutorService executor)
     {
         super(fdObj, reading, writing, executor);
+        this.path = path;
     }
 
     public static AsynchronousFileChannel open(FileDescriptor fdo,
+                                               String path,
                                                boolean reading,
                                                boolean writing,
                                                ThreadPool pool)
@@ -70,7 +78,7 @@ public class SimpleAsynchronousFileChannelImpl
         // Executor is either default or based on pool parameters
         ExecutorService executor = (pool == null) ?
             DefaultExecutorHolder.defaultExecutor : pool.executor();
-        return new SimpleAsynchronousFileChannelImpl(fdo, reading, writing, executor);
+        return new SimpleAsynchronousFileChannelImpl(fdo, path, reading, writing, executor);
     }
 
     @Override
@@ -151,8 +159,7 @@ public class SimpleAsynchronousFileChannelImpl
         }
     }
 
-    @Override
-    public void force(boolean metaData) throws IOException {
+    private void implForce(boolean metaData) throws IOException {
         int ti = threads.add();
         try {
             int n = 0;
@@ -170,6 +177,17 @@ public class SimpleAsynchronousFileChannelImpl
     }
 
     @Override
+    public void force(boolean metaData) throws IOException {
+        if (!FileForceEvent.enabled()) {
+            implForce(metaData);
+            return;
+        }
+        long start = FileForceEvent.timestamp();
+        implForce(metaData);
+        FileForceEvent.offer(start, path, metaData);
+    }
+
+    @Override
     <A> Future<FileLock> implLock(final long position,
                                   final long size,
                                   final boolean shared,
@@ -181,8 +199,10 @@ public class SimpleAsynchronousFileChannelImpl
         if (!shared && !writing)
             throw new NonWritableChannelException();
 
+        long len = (size != 0) ? size : Long.MAX_VALUE - Math.max(0, position);
+
         // add to lock table
-        final FileLockImpl fli = addToFileLockTable(position, size, shared);
+        final FileLockImpl fli = addToFileLockTable(position, len, shared);
         if (fli == null) {
             Throwable exc = new ClosedChannelException();
             if (handler == null)
@@ -203,7 +223,7 @@ public class SimpleAsynchronousFileChannelImpl
                     try {
                         begin();
                         do {
-                            n = nd.lock(fdObj, true, position, size, shared);
+                            n = nd.lock(fdObj, true, position, len, shared);
                         } while ((n == FileDispatcher.INTERRUPTED) && isOpen());
                         if (n != FileDispatcher.LOCKED || !isOpen()) {
                             throw new AsynchronousCloseException();
@@ -247,6 +267,9 @@ public class SimpleAsynchronousFileChannelImpl
             throw new NonReadableChannelException();
         if (!shared && !writing)
             throw new NonWritableChannelException();
+
+        if (size == 0)
+            size = Long.MAX_VALUE - Math.max(0, position);
 
         // add to lock table
         FileLockImpl fli = addToFileLockTable(position, size, shared);

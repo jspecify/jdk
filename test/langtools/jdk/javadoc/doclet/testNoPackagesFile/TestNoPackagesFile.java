@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,23 @@
  * @bug      4475679
  * @summary  Verify that packages.html is no longer generated since it is no
  *           longer used.
- * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestNoPackagesFile
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestNoPackagesFile extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestNoPackagesFile tester = new TestNoPackagesFile();
+        var tester = new TestNoPackagesFile();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 testSrc("C.java"));

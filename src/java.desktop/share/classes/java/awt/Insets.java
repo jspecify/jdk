@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 package java.awt;
 
-import org.jspecify.annotations.Nullable;
+import java.io.Serial;
 
 /**
  * An {@code Insets} object is a representation of the borders
@@ -81,9 +81,10 @@ public class Insets implements Cloneable, java.io.Serializable {
      */
     public int right;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = -2272572637695466749L;
 
     static {
@@ -134,9 +135,7 @@ public class Insets implements Cloneable, java.io.Serializable {
      *                          otherwise {@code false}.
      * @since       1.1
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj instanceof Insets) {
             Insets insets = (Insets)obj;
             return ((top == insets.top) && (left == insets.left) &&

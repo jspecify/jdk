@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,11 @@
 
 /*
  * @test
- * @bug      8188248
+ * @bug      8188248 8313931
  * @summary  NullPointerException on generic methods
- * @library  /tools/lib ../lib
+ * @library  /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester toolbox.ToolBox builder.ClassBuilder
+ * @build    javadoc.tester.* toolbox.ToolBox builder.ClassBuilder
  * @run main TestGenericMethodLinkTaglet
  */
 
@@ -38,13 +38,15 @@ import builder.ClassBuilder;
 import builder.ClassBuilder.MethodBuilder;
 import toolbox.ToolBox;
 
+import javadoc.tester.JavadocTester;
+
 public class TestGenericMethodLinkTaglet extends JavadocTester {
 
     final ToolBox tb;
 
     public static void main(String... args) throws Exception {
-        TestGenericMethodLinkTaglet tester = new TestGenericMethodLinkTaglet();
-        tester.runTests(m -> new Object[]{Paths.get(m.getName())});
+        var tester = new TestGenericMethodLinkTaglet();
+        tester.runTests();
     }
 
     TestGenericMethodLinkTaglet() {
@@ -52,7 +54,7 @@ public class TestGenericMethodLinkTaglet extends JavadocTester {
     }
 
     @Test
-    void test(Path base) throws Exception {
+    public void test(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         createTestClass(srcDir);
 
@@ -64,7 +66,8 @@ public class TestGenericMethodLinkTaglet extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("pkg/A.html", true,
-                "<a href=\"A.html\" title=\"class in pkg\"><code>A</code></a>");
+                """
+                    param <a href="#m1(T)-type-param-T"><code>T</code></a>""");
     }
 
     void createTestClass(Path srcDir) throws Exception {

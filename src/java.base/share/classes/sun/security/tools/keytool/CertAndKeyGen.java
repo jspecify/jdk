@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,11 +30,16 @@ import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateEncodingException;
 import java.security.*;
+import java.security.spec.ECGenParameterSpec;
+import java.security.spec.NamedParameterSpec;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
 
 import sun.security.pkcs10.PKCS10;
+import sun.security.util.SignatureUtil;
 import sun.security.x509.*;
-
 
 /**
  * Generate a pair of keys, and provide access to them.  This class is
@@ -48,8 +53,7 @@ import sun.security.x509.*;
  * parameters, such as DSS/DSA.  Some sites' Certificate Authorities
  * adopt fixed algorithm parameters, which speeds up some operations
  * including key generation and signing.  <em>At this time, this interface
- * does not provide a way to provide such algorithm parameters, e.g.
- * by providing the CA certificate which includes those parameters.</em>
+ * supports initializing with a named group.</em>
  *
  * <P>Also, note that at this time only signature-capable keys may be
  * acquired through this interface.  Diffie-Hellman keys, used for secure
@@ -73,27 +77,41 @@ public final class CertAndKeyGen {
      * @exception NoSuchAlgorithmException on unrecognized algorithms.
      */
     public CertAndKeyGen (String keyType, String sigAlg)
-    throws NoSuchAlgorithmException
+            throws NoSuchAlgorithmException
     {
         keyGen = KeyPairGenerator.getInstance(keyType);
         this.sigAlg = sigAlg;
+        this.keyType = keyType;
+    }
+
+    /**
+     * @see #CertAndKeyGen(String, String, String, PrivateKey, X500Name)
+     */
+    public CertAndKeyGen (String keyType, String sigAlg, String providerName)
+            throws NoSuchAlgorithmException, NoSuchProviderException
+    {
+        this(keyType, sigAlg, providerName, null, null);
     }
 
     /**
      * Creates a CertAndKeyGen object for a particular key type,
-     * signature algorithm, and provider.
+     * signature algorithm, and provider. The newly generated cert will
+     * be signed by the signer's private key when it is provided.
      *
-     * @param keyType type of key, e.g. "RSA", "DSA"
-     * @param sigAlg name of the signature algorithm, e.g. "MD5WithRSA",
-     *          "MD2WithRSA", "SHAwithDSA". If set to null, a default
-     *          algorithm matching the private key will be chosen after
-     *          the first keypair is generated.
+     * @param keyType type of key, e.g. "RSA", "DSA", "X25519", "DH", etc.
+     * @param sigAlg name of the signature algorithm, e.g. "SHA384WithRSA",
+     *          "SHA256withDSA", etc. If set to null, a default
+     *          algorithm matching the private key or signer's private
+     *          key will be chosen after the first keypair is generated.
      * @param providerName name of the provider
+     * @param signerPrivateKey (optional) signer's private key
+     * @param signerSubjectName (optional) signer's subject name
      * @exception NoSuchAlgorithmException on unrecognized algorithms.
      * @exception NoSuchProviderException on unrecognized providers.
      */
-    public CertAndKeyGen (String keyType, String sigAlg, String providerName)
-    throws NoSuchAlgorithmException, NoSuchProviderException
+    public CertAndKeyGen(String keyType, String sigAlg, String providerName,
+            PrivateKey signerPrivateKey, X500Name signerSubjectName)
+        throws NoSuchAlgorithmException, NoSuchProviderException
     {
         if (providerName == null) {
             keyGen = KeyPairGenerator.getInstance(keyType);
@@ -106,6 +124,10 @@ public final class CertAndKeyGen {
             }
         }
         this.sigAlg = sigAlg;
+        this.keyType = keyType;
+        this.signerPrivateKey = signerPrivateKey;
+        this.signerSubjectName = signerSubjectName;
+        this.signerFlag = signerPrivateKey != null;
     }
 
     /**
@@ -121,41 +143,58 @@ public final class CertAndKeyGen {
         prng = generator;
     }
 
-    // want "public void generate (X509Certificate)" ... inherit DSA/D-H param
-
-    /**
-     * Generates a random public/private key pair, with a given key
-     * size.  Different algorithms provide different degrees of security
-     * for the same key size, because of the "work factor" involved in
-     * brute force attacks.  As computers become faster, it becomes
-     * easier to perform such attacks.  Small keys are to be avoided.
-     *
-     * <P>Note that not all values of "keyBits" are valid for all
-     * algorithms, and not all public key algorithms are currently
-     * supported for use in X.509 certificates.  If the algorithm
-     * you specified does not produce X.509 compatible keys, an
-     * invalid key exception is thrown.
-     *
-     * @param keyBits the number of bits in the keys.
-     * @exception InvalidKeyException if the environment does not
-     *  provide X.509 public keys for this signature algorithm.
-     */
-    public void generate (int keyBits)
-    throws InvalidKeyException
-    {
-        KeyPair pair;
-
+    public void generate(String name) {
         try {
             if (prng == null) {
                 prng = new SecureRandom();
             }
-            keyGen.initialize(keyBits, prng);
-            pair = keyGen.generateKeyPair();
+            try {
+                keyGen.initialize(new NamedParameterSpec(name), prng);
+            } catch (InvalidAlgorithmParameterException e) {
+                if (keyType.equalsIgnoreCase("EC")) {
+                    // EC has another NamedParameterSpec
+                    keyGen.initialize(new ECGenParameterSpec(name), prng);
+                } else {
+                    throw e;
+                }
+            }
 
         } catch (Exception e) {
-            throw new IllegalArgumentException(e.getMessage());
+            throw new IllegalArgumentException(e.getMessage(), e);
         }
+        generateInternal();
+    }
 
+    // want "public void generate (X509Certificate)" ... inherit DSA/D-H param
+
+    public void generate(int keyBits) {
+        if (keyBits != -1) {
+            try {
+                if (prng == null) {
+                    prng = new SecureRandom();
+                }
+                keyGen.initialize(keyBits, prng);
+
+            } catch (Exception e) {
+                throw new IllegalArgumentException(e.getMessage(), e);
+            }
+        }
+        generateInternal();
+    }
+
+    /**
+     * Generates a random public/private key pair.
+     *
+     * <P>Note that not all public key algorithms are currently
+     * supported for use in X.509 certificates.  If the algorithm
+     * you specified does not produce X.509 compatible keys, an
+     * invalid key exception is thrown.
+     *
+     * @exception IllegalArgumentException if the environment does not
+     *  provide X.509 public keys for this signature algorithm.
+     */
+    private void generateInternal() {
+        KeyPair pair = keyGen.generateKeyPair();
         publicKey = pair.getPublic();
         privateKey = pair.getPrivate();
 
@@ -167,11 +206,20 @@ public final class CertAndKeyGen {
         }
 
         if (sigAlg == null) {
-            sigAlg = AlgorithmId.getDefaultSigAlgForKey(privateKey);
-            if (sigAlg == null) {
-                throw new IllegalArgumentException(
-                        "Cannot derive signature algorithm from "
-                                + privateKey.getAlgorithm());
+            if (signerFlag) {
+                sigAlg = SignatureUtil.getDefaultSigAlgForKey(signerPrivateKey);
+                if (sigAlg == null) {
+                    throw new IllegalArgumentException(
+                            "Cannot derive signature algorithm from "
+                                    + signerPrivateKey.getAlgorithm());
+                }
+            } else {
+                sigAlg = SignatureUtil.getDefaultSigAlgForKey(privateKey);
+                if (sigAlg == null) {
+                    throw new IllegalArgumentException(
+                            "Cannot derive signature algorithm from "
+                                    + privateKey.getAlgorithm());
+                }
             }
         }
     }
@@ -182,7 +230,7 @@ public final class CertAndKeyGen {
      *
      * XXX Note: This behaviour is needed for backwards compatibility.
      * What this method really should return is the public key of the
-     * generated key pair, regardless of whether or not it is an instance of
+     * generated key pair, regardless of whether it is an instance of
      * <code>X509Key</code>. Accordingly, the return type of this method
      * should be <code>PublicKey</code>.
      */
@@ -246,6 +294,8 @@ public final class CertAndKeyGen {
     }
 
     // Like above, plus a CertificateExtensions argument, which can be null.
+    // Create a self-signed certificate, or a certificate that is signed by
+    // a signer when the signer's private key is provided.
     public X509Certificate getSelfCertificate (X500Name myname, Date firstDate,
             long validity, CertificateExtensions ext)
     throws CertificateException, InvalidKeyException, SignatureException,
@@ -257,33 +307,46 @@ public final class CertAndKeyGen {
         try {
             lastDate = new Date ();
             lastDate.setTime (firstDate.getTime () + validity * 1000);
+            Calendar c = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+            c.setTime(lastDate);
+            if (c.get(Calendar.YEAR) > 9999) {
+                throw new CertificateException("Validity period ends at calendar year " +
+                        c.get(Calendar.YEAR) + " which is greater than 9999");
+            }
 
             CertificateValidity interval =
                                    new CertificateValidity(firstDate,lastDate);
 
             X509CertInfo info = new X509CertInfo();
             // Add all mandatory attributes
-            info.set(X509CertInfo.VERSION,
-                     new CertificateVersion(CertificateVersion.V3));
-            info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(
-                    new java.util.Random().nextInt() & 0x7fffffff));
-            AlgorithmId algID = AlgorithmId.get(sigAlg);
-            info.set(X509CertInfo.ALGORITHM_ID,
-                     new CertificateAlgorithmId(algID));
-            info.set(X509CertInfo.SUBJECT, myname);
-            info.set(X509CertInfo.KEY, new CertificateX509Key(publicKey));
-            info.set(X509CertInfo.VALIDITY, interval);
-            info.set(X509CertInfo.ISSUER, myname);
-            if (ext != null) info.set(X509CertInfo.EXTENSIONS, ext);
+            info.setVersion(new CertificateVersion(CertificateVersion.V3));
+            if (prng == null) {
+                prng = new SecureRandom();
+            }
+            info.setSerialNumber(CertificateSerialNumber.newRandom64bit(prng));
+            info.setSubject(myname);
+            info.setKey(new CertificateX509Key(publicKey));
+            info.setValidity(interval);
+            if (signerFlag) {
+                // use signer's subject name to set the issuer name
+                info.setIssuer(signerSubjectName);
+            } else {
+                info.setIssuer(myname);
+            }
+            if (ext != null) info.setExtensions(ext);
 
-            cert = new X509CertImpl(info);
-            cert.sign(privateKey, this.sigAlg);
+            if (signerFlag) {
+                // use signer's private key to sign
+                cert = X509CertImpl.newSigned(info, signerPrivateKey, sigAlg);
+            } else {
+                cert = X509CertImpl.newSigned(info, privateKey, sigAlg);
+            }
 
-            return (X509Certificate)cert;
+            return cert;
 
         } catch (IOException e) {
              throw new CertificateEncodingException("getSelfCert: " +
-                                                    e.getMessage());
+                                                    e.getMessage(), e);
         }
     }
 
@@ -295,46 +358,13 @@ public final class CertAndKeyGen {
         return getSelfCertificate(myname, new Date(), validity);
     }
 
-    /**
-     * Returns a PKCS #10 certificate request.  The caller uses either
-     * <code>PKCS10.print</code> or <code>PKCS10.toByteArray</code>
-     * operations on the result, to get the request in an appropriate
-     * transmission format.
-     *
-     * <P>PKCS #10 certificate requests are sent, along with some proof
-     * of identity, to Certificate Authorities (CAs) which then issue
-     * X.509 public key certificates.
-     *
-     * @param myname X.500 name of the subject
-     * @exception InvalidKeyException on key handling errors.
-     * @exception SignatureException on signature handling errors.
-     */
-    public PKCS10 getCertRequest (X500Name myname)
-    throws InvalidKeyException, SignatureException
-    {
-        PKCS10  req = new PKCS10 (publicKey);
-
-        try {
-            Signature signature = Signature.getInstance(sigAlg);
-            signature.initSign (privateKey);
-            req.encodeAndSign(myname, signature);
-
-        } catch (CertificateException e) {
-            throw new SignatureException (sigAlg + " CertificateException");
-
-        } catch (IOException e) {
-            throw new SignatureException (sigAlg + " IOException");
-
-        } catch (NoSuchAlgorithmException e) {
-            // "can't happen"
-            throw new SignatureException (sigAlg + " unavailable?");
-        }
-        return req;
-    }
-
     private SecureRandom        prng;
+    private final String        keyType;
     private String              sigAlg;
     private KeyPairGenerator    keyGen;
     private PublicKey           publicKey;
     private PrivateKey          privateKey;
+    private boolean             signerFlag;
+    private PrivateKey          signerPrivateKey;
+    private X500Name            signerSubjectName;
 }

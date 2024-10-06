@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,12 @@
 /* @test
  * @bug 4997445
  * @summary Test that with server=y, when VM runs to System.exit() no error happens
- * @library /lib/testlibrary
+ * @library /test/lib
  * @modules java.management
  *          jdk.jdi
- * @build jdk.testlibrary.* VMConnection RunToExit Exit0
+ * @build VMConnection RunToExit Exit0
  * @run driver RunToExit
  */
-import java.net.ServerSocket;
 import com.sun.jdi.Bootstrap;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.*;
@@ -42,13 +41,18 @@ import java.util.List;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import jdk.testlibrary.ProcessTools;
+
+import jdk.test.lib.JDWP;
+import jdk.test.lib.process.ProcessTools;
 
 public class RunToExit {
 
     /* Increment this when ERROR: seen */
     static volatile int error_seen = 0;
     static volatile boolean ready = false;
+
+    /* port the debuggee is listening on */
+    private static String address;
 
     /*
      * Find a connector by name
@@ -66,17 +70,16 @@ public class RunToExit {
     }
 
     /*
-     * Launch a server debuggee with the given address
+     * Launch a server debuggee, detect debuggee listening port
      */
-    private static Process launch(String address, String class_name) throws Exception {
+    private static Process launch(String class_name) throws Exception {
         String args[] = new String[]{
-            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address="
-                + address,
+            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=0",
             class_name
         };
         args = VMConnection.insertDebuggeeVMOptions(args);
 
-        ProcessBuilder launcher = ProcessTools.createJavaProcessBuilder(args);
+        ProcessBuilder launcher = ProcessTools.createLimitedTestJavaProcessBuilder(args);
 
         System.out.println(launcher.command().stream().collect(Collectors.joining(" ", "Starting: ", "")));
 
@@ -93,7 +96,12 @@ public class RunToExit {
     }
 
     private static boolean isTransportListening(String line) {
-        return line.startsWith("Listening for transport dt_socket");
+        JDWP.ListenAddress addr = JDWP.parseListenAddress(line);
+        if (addr == null) {
+            return false;
+        }
+        address = addr.address();
+        return true;
     }
 
     private static void checkForError(String line) {
@@ -103,28 +111,21 @@ public class RunToExit {
     }
 
     /*
-     * - pick a TCP port
-     * - Launch a server debuggee: server=y,suspend=y,address=${port}
+     * - Launch a server debuggee: server=y,suspend=y,address=0
+     * - detect the port debuggee is listening on
      * - run it to VM death
      * - verify we saw no error
      */
     public static void main(String args[]) throws Exception {
-        // find a free port
-        ServerSocket ss = new ServerSocket(0);
-        int port = ss.getLocalPort();
-        ss.close();
-
-        String address = String.valueOf(port);
-
         // launch the server debuggee
-        Process process = launch(address, "Exit0");
+        Process process = launch("Exit0");
 
         // attach to server debuggee and resume it so it can exit
         AttachingConnector conn = (AttachingConnector)findConnector("com.sun.jdi.SocketAttach");
         Map conn_args = conn.defaultArguments();
         Connector.IntegerArgument port_arg =
             (Connector.IntegerArgument)conn_args.get("port");
-        port_arg.setValue(port);
+        port_arg.setValue(address);
 
         System.out.println("Connection arguments: " + conn_args);
 

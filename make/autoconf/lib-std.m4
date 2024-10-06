@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
 ################################################################################
 AC_DEFUN_ONCE([LIB_SETUP_STD_LIBS],
 [
-  # statically link libstdc++ before C++ ABI is stablized on Linux unless
+  # statically link libstdc++ before C++ ABI is stabilized on Linux unless
   # dynamic build is configured on command line.
   AC_ARG_WITH([stdc++lib], [AS_HELP_STRING([--with-stdc++lib=<static>,<dynamic>,<default>],
       [force linking of the C++ runtime on Linux to either static or dynamic, default is static with dynamic as fallback])],
@@ -70,19 +70,12 @@ AC_DEFUN_ONCE([LIB_SETUP_STD_LIBS],
     else
       LIBCXX="$LIBCXX $STATIC_STDCXX_FLAGS"
       JVM_LDFLAGS="$JVM_LDFLAGS $STATIC_STDCXX_FLAGS"
+      ADLC_LDFLAGS="$ADLC_LDFLAGS $STATIC_STDCXX_FLAGS"
       # Ideally, we should test stdc++ for the BUILD toolchain separately. For now
       # just use the same setting as for the TARGET toolchain.
       OPENJDK_BUILD_JVM_LDFLAGS="$OPENJDK_BUILD_JVM_LDFLAGS $STATIC_STDCXX_FLAGS"
       AC_MSG_RESULT([static])
     fi
-  fi
-
-  # libCrun is the c++ runtime-library with SunStudio (roughly the equivalent of gcc's libstdc++.so)
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio && test "x$LIBCXX" = x; then
-    LIBCXX="${SYSROOT}/usr/lib${OPENJDK_TARGET_CPU_ISADIR}/libCrun.so.1"
-  fi
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    LIBCXX_JVM="-lCrun"
   fi
 
   AC_SUBST(LIBCXX)

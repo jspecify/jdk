@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,8 @@ import org.jspecify.annotations.Nullable;
 
 import java.security.PrivilegedAction;
 import java.security.AccessController;
-import jdk.internal.misc.JavaLangAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;
 
 @NullMarked
@@ -40,7 +40,7 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
                                                           same package as the Reference
                                                           class */
 
-    private static ReferenceQueue<Object> queue = new ReferenceQueue<>();
+    private static ReferenceQueue<Object> queue = new NativeReferenceQueue<>();
 
     /** Head of doubly linked list of Finalizers awaiting finalization. */
     private static Finalizer unfinalized = null;
@@ -67,9 +67,17 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
         return queue;
     }
 
+    static final boolean ENABLED = isFinalizationEnabled();
+
+    private static native boolean isFinalizationEnabled();
+
     /* Invoked by VM */
     static void register(Object finalizee) {
-        new Finalizer(finalizee);
+        if (ENABLED) {
+            new Finalizer(finalizee);
+        } else {
+            throw new InternalError("unexpected call to Finalizer::register when finalization is disabled");
+        }
     }
 
     private void runFinalizer(JavaLangAccess jla) {
@@ -89,8 +97,10 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
 
         try {
             Object finalizee = this.get();
-            if (finalizee != null && !(finalizee instanceof java.lang.Enum)) {
+            assert finalizee != null;
+            if (!(finalizee instanceof java.lang.Enum)) {
                 jla.invokeFinalize(finalizee);
+                reportComplete(finalizee);
 
                 // Clear stack slot containing this variable, to decrease
                 // the chances of false retention with a conservative GC
@@ -99,6 +109,8 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
         } catch (Throwable x) { }
         super.clear();
     }
+
+    private static native void reportComplete(Object finalizee);
 
     /* Create a privileged secondary finalizer thread in the system thread
      * group for the given Runnable, and wait for it to complete.
@@ -110,6 +122,7 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
      * The advantage of creating a fresh thread, however, is that it insulates
      * invokers of that method from a stalled or deadlocked finalizer thread.
      */
+    @SuppressWarnings("removal")
     private static void forkSecondaryFinalizer(final Runnable proc) {
         AccessController.doPrivileged(
             new PrivilegedAction<>() {
@@ -131,7 +144,7 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
 
     /* Called by Runtime.runFinalization() */
     static void runFinalization() {
-        if (VM.initLevel() == 0) {
+        if (VM.initLevel() == 0 || ! ENABLED) {
             return;
         }
 
@@ -159,16 +172,6 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
             if (running)
                 return;
 
-            // Finalizer thread starts before System.initializeSystemClass
-            // is called.  Wait until JavaLangAccess is available
-            while (VM.initLevel() == 0) {
-                // delay until VM completes initialization
-                try {
-                    VM.awaitInitLevel(1);
-                } catch (InterruptedException x) {
-                    // ignore and continue
-                }
-            }
             final JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
             running = true;
             for (;;) {
@@ -182,15 +185,15 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
         }
     }
 
-    static {
-        ThreadGroup tg = Thread.currentThread().getThreadGroup();
-        for (ThreadGroup tgn = tg;
-             tgn != null;
-             tg = tgn, tgn = tg.getParent());
-        Thread finalizer = new FinalizerThread(tg);
-        finalizer.setPriority(Thread.MAX_PRIORITY - 2);
-        finalizer.setDaemon(true);
-        finalizer.start();
+    /**
+     * Start the Finalizer thread as a daemon thread.
+     */
+    static void startFinalizerThread(ThreadGroup tg) {
+        if (ENABLED) {
+            Thread finalizer = new FinalizerThread(tg);
+            finalizer.setPriority(Thread.MAX_PRIORITY - 2);
+            finalizer.setDaemon(true);
+            finalizer.start();
+        }
     }
-
 }

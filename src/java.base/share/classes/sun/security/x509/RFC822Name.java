@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package sun.security.x509;
 
-import org.jspecify.annotations.Nullable;
-
 import java.io.IOException;
 import java.util.Locale;
 
@@ -44,7 +42,7 @@ import sun.security.util.*;
  */
 public class RFC822Name implements GeneralNameInterface
 {
-    private String name;
+    private final String name;
 
     /**
      * Create the RFC822Name object from the passed encoded Der value.
@@ -52,6 +50,7 @@ public class RFC822Name implements GeneralNameInterface
      * @param derValue the encoded DER RFC822Name.
      * @exception IOException on error.
      */
+    @SuppressWarnings("this-escape")
     public RFC822Name(DerValue derValue) throws IOException {
         name = derValue.getIA5String();
         parseName(name);
@@ -63,6 +62,7 @@ public class RFC822Name implements GeneralNameInterface
      * @param name the RFC822Name.
      * @throws IOException on invalid input name
      */
+    @SuppressWarnings("this-escape")
     public RFC822Name(String name) throws IOException {
         parseName(name);
         this.name = name;
@@ -70,7 +70,7 @@ public class RFC822Name implements GeneralNameInterface
 
     /**
      * Parse an RFC822Name string to see if it is a valid
-     * addr-spec according to IETF RFC822 and RFC2459:
+     * addr-spec according to IETF RFC 822 and RFC 5280:
      * [local-part@]domain
      * <p>
      * local-part@ could be empty for an RFC822Name NameConstraint,
@@ -81,12 +81,12 @@ public class RFC822Name implements GeneralNameInterface
      * @throws IOException if name is not valid
      */
     public void parseName(String name) throws IOException {
-        if (name == null || name.length() == 0) {
+        if (name == null || name.isEmpty()) {
             throw new IOException("RFC822Name may not be null or empty");
         }
         // See if domain is a valid domain name
         String domain = name.substring(name.indexOf('@')+1);
-        if (domain.length() == 0) {
+        if (domain.isEmpty()) {
             throw new IOException("RFC822Name may not end with @");
         } else {
             //An RFC822 NameConstraint could start with a ., although
@@ -116,9 +116,9 @@ public class RFC822Name implements GeneralNameInterface
      * Encode the RFC822 name into the DerOutputStream.
      *
      * @param out the DER stream to encode the RFC822Name to.
-     * @exception IOException on encoding errors.
      */
-    public void encode(DerOutputStream out) throws IOException {
+    @Override
+    public void encode(DerOutputStream out) {
         out.putIA5String(name);
     }
 
@@ -133,29 +133,25 @@ public class RFC822Name implements GeneralNameInterface
      * Compares this name with another, for equality.
      *
      * @return true iff the names are equivalent
-     * according to RFC2459.
+     * according to RFC 5280.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (this == obj)
             return true;
 
-        if (!(obj instanceof RFC822Name))
+        if (!(obj instanceof RFC822Name other))
             return false;
 
-        RFC822Name other = (RFC822Name)obj;
-
-        // RFC2459 mandates that these names are
+        // RFC 5280 mandates that these names are
         // not case-sensitive
         return name.equalsIgnoreCase(other.name);
     }
 
     /**
-     * Returns the hash code value for this object.
-     *
-     * @return a hash code value for this object.
+     * {@return the hash code value for this object}
      */
+    @Override
     public int hashCode() {
         return name.toUpperCase(Locale.ENGLISH).hashCode();
     }
@@ -170,14 +166,15 @@ public class RFC822Name implements GeneralNameInterface
      * </ul>.  These results are used in checking NameConstraints during
      * certification path verification.
      * <p>
-     * [RFC2459]    When the subjectAltName extension contains an Internet mail address,
-     * the address MUST be included as an rfc822Name. The format of an
-     * rfc822Name is an "addr-spec" as defined in RFC 822 [RFC 822]. An
-     * addr-spec has the form "local-part@domain". Note that an addr-spec
-     * has no phrase (such as a common name) before it, has no comment (text
+     *
+     * [RFC 5280]:
+     * When the subjectAltName extension contains an Internet mail address,
+     * the address MUST be stored in the rfc822Name.  The format of an
+     * rfc822Name is a "Mailbox" as defined in Section 4.1.2 of [RFC2821].
+     * A Mailbox has the form "Local-part@Domain".  Note that a Mailbox has
+     * no phrase (such as a common name) before it, has no comment (text
      * surrounded in parentheses) after it, and is not surrounded by "&lt;" and
-     * "&gt;". Note that while upper and lower case letters are allowed in an
-     * RFC 822 addr-spec, no significance is attached to the case.
+     * "&gt;".
      *
      * @param inputName to be checked for being constrained
      * @return constraint type above
@@ -191,7 +188,7 @@ public class RFC822Name implements GeneralNameInterface
         else if (inputName.getType() != (GeneralNameInterface.NAME_RFC822)) {
             constraintType = NAME_DIFF_TYPE;
         } else {
-            //RFC2459 specifies that case is not significant in RFC822Names
+            //RFC 5280 specifies that case is not significant in RFC822Names
             String inName =
                 (((RFC822Name)inputName).getName()).toLowerCase(Locale.ENGLISH);
             String thisName = name.toLowerCase(Locale.ENGLISH);
@@ -250,7 +247,7 @@ public class RFC822Name implements GeneralNameInterface
             subtree=subtree.substring(atNdx+1);
         }
 
-        /* count dots in dnsname, adding one if dnsname preceded by @ */
+        /* count dots in DNSName, adding one if DNSName preceded by @ */
         for (; subtree.lastIndexOf('.') >= 0; i++) {
             subtree=subtree.substring(0,subtree.lastIndexOf('.'));
         }

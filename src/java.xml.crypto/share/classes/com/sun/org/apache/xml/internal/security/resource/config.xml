@@ -96,8 +96,6 @@
       <SignatureAlgorithm URI="http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"
                           JAVACLASS="com.sun.org.apache.xml.internal.security.algorithms.implementations.SignatureBaseRSA$SignatureRSASHA512" />
                           
-      <SignatureAlgorithm URI="http://www.w3.org/2007/05/xmldsig-more#ripemd160-rsa-MGF1"
-                          JAVACLASS="com.sun.org.apache.xml.internal.security.algorithms.implementations.SignatureBaseRSA$SignatureRSARIPEMD160MGF1" />
       <SignatureAlgorithm URI="http://www.w3.org/2007/05/xmldsig-more#sha1-rsa-MGF1"
                           JAVACLASS="com.sun.org.apache.xml.internal.security.algorithms.implementations.SignatureBaseRSA$SignatureRSASHA1MGF1" />
       <SignatureAlgorithm URI="http://www.w3.org/2007/05/xmldsig-more#sha224-rsa-MGF1"
@@ -130,6 +128,11 @@
                           JAVACLASS="com.sun.org.apache.xml.internal.security.algorithms.implementations.SignatureECDSA$SignatureECDSASHA512" />
       <SignatureAlgorithm URI="http://www.w3.org/2007/05/xmldsig-more#ecdsa-ripemd160"
                           JAVACLASS="com.sun.org.apache.xml.internal.security.algorithms.implementations.SignatureECDSA$SignatureECDSARIPEMD160" />
+
+      <SignatureAlgorithm URI="http://www.w3.org/2021/04/xmldsig-more#eddsa-ed25519"
+                          JAVACLASS="com.sun.org.apache.xml.internal.security.algorithms.implementations.SignatureEDDSA$SignatureEd25519" />
+      <SignatureAlgorithm URI="http://www.w3.org/2021/04/xmldsig-more#eddsa-ed448"
+                          JAVACLASS="com.sun.org.apache.xml.internal.security.algorithms.implementations.SignatureEDDSA$SignatureEd448" />
                           
       <SignatureAlgorithm URI="http://www.w3.org/2001/04/xmldsig-more#hmac-md5"
                           JAVACLASS="com.sun.org.apache.xml.internal.security.algorithms.implementations.IntegrityHmac$IntegrityHmacMD5" />
@@ -250,8 +253,8 @@
                     RequiredKey="RSA"
                     JCEName="SHA1withRSA"/>
 
-         <Algorithm URI="http://www.w3.org/2001/04/xmldsig-more#rsa-sha2224"
-                    Description="RSA Signature with SHA-2224 message digest"
+         <Algorithm URI="http://www.w3.org/2001/04/xmldsig-more#rsa-sha224"
+                    Description="RSA Signature with SHA-224 message digest"
                     AlgorithmClass="Signature"
                     RequirementLevel="OPTIONAL"
                     SpecificationURL="http://www.ietf.org/rfc/rfc4051.txt"
@@ -326,6 +329,7 @@
                     AlgorithmClass="Signature"
                     RequirementLevel="OPTIONAL"
                     SpecificationURL="http://www.ietf.org/rfc/rfc4051.txt"
+                    RequiredKey="EC"
                     JCEName="SHA1withECDSA"/>
 
          <Algorithm URI="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha224"
@@ -357,6 +361,7 @@
                     AlgorithmClass="Signature"
                     RequirementLevel="OPTIONAL"
                     SpecificationURL="http://www.ietf.org/rfc/rfc4051.txt"
+                    RequiredKey="EC"
                     JCEName="SHA512withECDSA"/>
                     
          <Algorithm URI="http://www.w3.org/2007/05/xmldsig-more#ecdsa-ripemd160"
@@ -374,6 +379,7 @@
                     RequirementLevel="NOT RECOMMENDED"
                     SpecificationURL="http://www.ietf.org/rfc/rfc4051.txt"
                     KeyLength="0"
+                    RequiredKey=""
                     JCEName="HmacMD5"/>
 
          <Algorithm URI="http://www.w3.org/2001/04/xmldsig-more#hmac-ripemd160"
@@ -382,6 +388,7 @@
                     RequirementLevel="OPTIONAL"
                     SpecificationURL="http://www.ietf.org/rfc/rfc4051.txt"
                     KeyLength="0"
+                    RequiredKey=""
                     JCEName="HMACRIPEMD160"/>
 
          <Algorithm URI="http://www.w3.org/2000/09/xmldsig#hmac-sha1"
@@ -389,6 +396,7 @@
                     AlgorithmClass="Mac"
                     RequirementLevel="REQUIRED"
                     KeyLength="0"
+                    RequiredKey=""
                     JCEName="HmacSHA1"/>
                     
          <Algorithm URI="http://www.w3.org/2001/04/xmldsig-more#hmac-sha224"
@@ -397,6 +405,7 @@
                     RequirementLevel="OPTIONAL"
                     SpecificationURL="http://www.ietf.org/rfc/rfc4051.txt"
                     KeyLength="0"
+                    RequiredKey=""
                     JCEName="HmacSHA224"/>
 
          <Algorithm URI="http://www.w3.org/2001/04/xmldsig-more#hmac-sha256"
@@ -405,6 +414,7 @@
                     RequirementLevel="OPTIONAL"
                     SpecificationURL="http://www.ietf.org/rfc/rfc4051.txt"
                     KeyLength="0"
+                    RequiredKey=""
                     JCEName="HmacSHA256"/>
 
          <Algorithm URI="http://www.w3.org/2001/04/xmldsig-more#hmac-sha384"
@@ -413,6 +423,7 @@
                     RequirementLevel="OPTIONAL"
                     SpecificationURL="http://www.ietf.org/rfc/rfc4051.txt"
                     KeyLength="0"
+                    RequiredKey=""
                     JCEName="HmacSHA384"/>
 
          <Algorithm URI="http://www.w3.org/2001/04/xmldsig-more#hmac-sha512"
@@ -421,6 +432,7 @@
                     RequirementLevel="OPTIONAL"
                     SpecificationURL="http://www.ietf.org/rfc/rfc4051.txt"
                     KeyLength="0"
+                    RequiredKey=""
                     JCEName="HmacSHA512"/>
 
          <!-- Block encryption Algorithms -->
@@ -547,7 +559,9 @@
          <Algorithm URI="http://www.w3.org/2001/04/xmlenc#dh"
                     Description="Key Agreement Diffie-Hellman"
                     AlgorithmClass="KeyAgreement"
-                    RequirementLevel="OPTIONAL"/>
+                    RequirementLevel="OPTIONAL"
+                    RequiredKey="DH"
+                    JCEName="DH"/>
 
          <Algorithm URI="http://www.w3.org/2001/04/xmlenc#kw-tripledes"
                     Description="Symmetric Key Wrap using Triple DES"
@@ -643,6 +657,8 @@
                 DESCRIPTION="Uses an X509 SubjectName to retrieve a certificate from the storages" />
       <Resolver JAVACLASS="com.sun.org.apache.xml.internal.security.keys.keyresolver.implementations.X509IssuerSerialResolver"
                 DESCRIPTION="Uses an X509 IssuerName and IssuerSerial to retrieve a certificate from the storages" />
+      <Resolver JAVACLASS="com.sun.org.apache.xml.internal.security.keys.keyresolver.implementations.ECKeyValueResolver"
+                DESCRIPTION="Can extract EC public keys" />
    </KeyResolver>
  
    <PrefixMappings>
@@ -665,5 +681,7 @@
                      prefix="ec" />
       <PrefixMapping namespace="http://www.nue.et-inf.uni-siegen.de/~geuer-pollmann/#xpathFilter"
                      prefix="xx" />
+       <PrefixMapping namespace="http://www.w3.org/2009/xmldsig11#"
+                     prefix="dsig11" />
    </PrefixMappings>
 </Configuration>

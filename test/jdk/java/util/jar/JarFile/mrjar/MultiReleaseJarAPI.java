@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,14 @@
 
 /*
  * @test
- * @bug 8132734 8144062 8165723
+ * @bug 8132734 8144062 8165723 8199172
  * @summary Test the extended API and the aliasing additions in JarFile that
  *          support multi-release jar files
  * @library /lib/testlibrary/java/util/jar /test/lib
  * @build jdk.test.lib.RandomFactory
- *        Compiler JarBuilder CreateMultiReleaseTestJars
+ *        CreateMultiReleaseTestJars
+ *        jdk.test.lib.compiler.Compiler
+ *        jdk.test.lib.util.JarBuilder
  * @run testng MultiReleaseJarAPI
  */
 
@@ -46,7 +48,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import jdk.test.lib.RandomFactory;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -105,10 +106,21 @@ public class MultiReleaseJarAPI {
         testCustomMultiReleaseValue("false", false);
         testCustomMultiReleaseValue(" true", false);
         testCustomMultiReleaseValue("true ", false);
-        testCustomMultiReleaseValue("true\n ", false);
-        testCustomMultiReleaseValue("true\r ", false);
         testCustomMultiReleaseValue("true\n true", false);
+        testCustomMultiReleaseValue("true\r true", false);
         testCustomMultiReleaseValue("true\r\n true", false);
+
+        // "Multi-Release: true/false" not in main attributes
+        testCustomMultiReleaseValue("\r\n\r\nName: test\r\nMulti-Release: true\r\n",
+                                    false);
+        testCustomMultiReleaseValue("\n\nName: entryname\nMulti-Release: true\n",
+                                    false);
+        testCustomMultiReleaseValue("EndOfMainAttr: whatever\r\n" +
+                                    "\r\nName: entryname\r\nMulti-Release: true\r\n",
+                                    false);
+        testCustomMultiReleaseValue("EndOfMainAttr: whatever\r\n" +
+                                    "\nName: entryname\nMulti-Release: true\n",
+                                    false);
 
         // generate "random" Strings to use as extra attributes, and
         // verify that Multi-Release: true is always properly matched

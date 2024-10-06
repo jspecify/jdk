@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,15 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.util.Hashtable;
-import java.util.Vector;
-import java.util.Enumeration;
-
-import java.io.Serializable;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
-import java.io.IOException;
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.util.Vector;
 
 /**
  * A {@code CardLayout} object is a layout manager for a
@@ -59,10 +56,12 @@ import java.io.IOException;
  * @since       1.0
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class CardLayout implements LayoutManager2,
+public class CardLayout implements LayoutManager2,
                                    Serializable {
-
+    /**
+     * Use serialVersionUID from JDK 1.4 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = -4328196481005934313L;
 
     /*
@@ -72,11 +71,16 @@ public @UsesObjectEquals class CardLayout implements LayoutManager2,
      */
     Vector<Card> vector = new Vector<>();
 
-    /*
-     * A pair of Component and String that represents its name.
+    /**
+     * A pair of component and string that represents its name.
      */
-    class Card implements Serializable {
-        static final long serialVersionUID = 6640330810709497518L;
+    static class Card implements Serializable {
+
+        /**
+         * Use serialVersionUID from JDK 1.4 for interoperability.
+         */
+        @Serial
+        private static final long serialVersionUID = 6640330810709497518L;
         public String name;
         public Component comp;
         public Card(String cardName, Component cardComponent) {
@@ -114,11 +118,12 @@ public @UsesObjectEquals class CardLayout implements LayoutManager2,
     /**
      * @serialField tab         Hashtable
      *      deprecated, for forward compatibility only
-     * @serialField hgap        int
-     * @serialField vgap        int
-     * @serialField vector      Vector
-     * @serialField currentCard int
+     * @serialField hgap        int the horizontal Layout gap
+     * @serialField vgap        int the vertical Layout gap
+     * @serialField vector      Vector the pairs of components and their names
+     * @serialField currentCard int the index of Component currently displayed
      */
+    @Serial
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("tab", Hashtable.class),
         new ObjectStreamField("hgap", Integer.TYPE),
@@ -201,7 +206,7 @@ public @UsesObjectEquals class CardLayout implements LayoutManager2,
      * @param     constraints   a tag that identifies a particular
      *                                        card in the layout.
      * @see       java.awt.CardLayout#show(java.awt.Container, java.lang.String)
-     * @exception  IllegalArgumentException  if the constraint is not a string.
+     * @throws  IllegalArgumentException  if the constraint is not a string.
      */
     public void addLayoutComponent(Component comp, Object constraints) {
       synchronized (comp.getTreeLock()) {
@@ -563,7 +568,13 @@ public @UsesObjectEquals class CardLayout implements LayoutManager2,
 
     /**
      * Reads serializable fields from stream.
+     *
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
      */
+    @Serial
     @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream s)
         throws ClassNotFoundException, IOException
@@ -595,7 +606,11 @@ public @UsesObjectEquals class CardLayout implements LayoutManager2,
 
     /**
      * Writes serializable fields to stream.
+     *
+     * @param  s the {@code ObjectOutputStream} to write
+     * @throws IOException if an I/O error occurs
      */
+    @Serial
     private void writeObject(ObjectOutputStream s)
         throws IOException
     {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,26 +24,51 @@
  */
 package sun.net.ftp.impl;
 
-import java.net.*;
-import java.io.*;
+
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.Closeable;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketAddress;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedExceptionAction;
 import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.TimeZone;
 import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-import sun.net.ftp.*;
+import sun.net.ftp.FtpDirEntry;
+import sun.net.ftp.FtpDirParser;
+import sun.net.ftp.FtpProtocolException;
+import sun.net.ftp.FtpReplyCode;
+import sun.net.util.IPAddressUtil;
 import sun.util.logging.PlatformLogger;
 
 
@@ -106,19 +131,18 @@ public class FtpClient extends sun.net.ftp.FtpClient {
     private static Pattern[] patterns;
     private static Pattern linkp = Pattern.compile("(\\p{Print}+) \\-\\> (\\p{Print}+)$");
     private DateFormat df = DateFormat.getDateInstance(DateFormat.MEDIUM, java.util.Locale.US);
-
+    private static final boolean acceptPasvAddressVal;
     static {
         final int vals[] = {0, 0};
-        final String encs[] = {null};
-
-        AccessController.doPrivileged(
-                new PrivilegedAction<Object>() {
-
-                    public Object run() {
+        final String acceptPasvAddress[] = {null};
+        @SuppressWarnings("removal")
+        final String enc = AccessController.doPrivileged(
+                new PrivilegedAction<String>() {
+                    public String run() {
+                        acceptPasvAddress[0] = System.getProperty("jdk.net.ftp.trustPasvAddress", "false");
                         vals[0] = Integer.getInteger("sun.net.client.defaultReadTimeout", 300_000).intValue();
                         vals[1] = Integer.getInteger("sun.net.client.defaultConnectTimeout", 300_000).intValue();
-                        encs[0] = System.getProperty("file.encoding", "ISO8859_1");
-                        return null;
+                        return System.getProperty("file.encoding", "ISO8859_1");
                     }
                 });
         if (vals[0] == 0) {
@@ -133,7 +157,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
             defaultConnectTimeout = vals[1];
         }
 
-        encoding = encs[0];
+        encoding = enc;
         try {
             if (!isASCIISuperset(encoding)) {
                 encoding = "ISO8859_1";
@@ -146,6 +170,8 @@ public class FtpClient extends sun.net.ftp.FtpClient {
         for (int i = 0; i < patStrings.length; i++) {
             patterns[i] = Pattern.compile(patStrings[i]);
         }
+
+        acceptPasvAddressVal = Boolean.parseBoolean(acceptPasvAddress[0]);
     }
 
     /**
@@ -154,7 +180,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      * the NetworkClients will not work correctly in EBCDIC based systems.
      * However, we cannot just use ASCII or ISO8859_1 universally, because in
      * Asian locales, non-ASCII characters may be embedded in otherwise
-     * ASCII based protocols (eg. HTTP). The specifications (RFC2616, 2398)
+     * ASCII based protocols (e.g. HTTP). The specifications (RFC2616, 2398)
      * are a little ambiguous in this matter. For instance, RFC2398 [part 2.1]
      * says that the HTTP request URI should be escaped using a defined
      * mechanism, but there is no way to specify in the escaped string what
@@ -178,7 +204,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
             47, 63, 58, 64, 38, 61, 43, 36, 44};
 
         byte[] b = chkS.getBytes(encoding);
-        return java.util.Arrays.equals(b, chkB);
+        return Arrays.equals(b, chkB);
     }
 
     private class DefaultParser implements FtpDirParser {
@@ -288,10 +314,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
         }
     }
 
-    private class MLSxParser implements FtpDirParser {
-
-        private SimpleDateFormat df = new SimpleDateFormat("yyyyMMddhhmmss");
-
+    private static class MLSxParser implements FtpDirParser {
         public FtpDirEntry parseLine(String line) {
             String name = null;
             int i = line.lastIndexOf(';');
@@ -326,22 +349,14 @@ public class FtpClient extends sun.net.ftp.FtpClient {
             }
             s = file.getFact("Modify");
             if (s != null) {
-                Date d = null;
-                try {
-                    d = df.parse(s);
-                } catch (ParseException ex) {
-                }
+                Date d = parseRfc3659TimeValue(s);
                 if (d != null) {
                     file.setLastModified(d);
                 }
             }
             s = file.getFact("Create");
             if (s != null) {
-                Date d = null;
-                try {
-                    d = df.parse(s);
-                } catch (ParseException ex) {
-                }
+                Date d = parseRfc3659TimeValue(s);
                 if (d != null) {
                     file.setCreated(d);
                 }
@@ -433,7 +448,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
                 logger.finest("Server [" + serverAddr + "] --> " + response);
             }
 
-            if (response.length() == 0) {
+            if (response.isEmpty()) {
                 code = -1;
             } else {
                 try {
@@ -585,7 +600,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
             // the format will be :
             //  229 Entering Extended PASSIVE Mode (|||58210|)
             //
-            // So we'll use the regular expresions package to parse the output.
+            // So we'll use the regular expressions package to parse the output.
 
             if (epsvPat == null) {
                 epsvPat = Pattern.compile("^229 .* \\(\\|\\|\\|(\\d+)\\|\\)");
@@ -623,7 +638,6 @@ public class FtpClient extends sun.net.ftp.FtpClient {
             //
             // The regular expression is a bit more complex this time, because
             // the parenthesis are optionals and we have to use 3 groups.
-
             if (pasvPat == null) {
                 pasvPat = Pattern.compile("227 .* \\(?(\\d{1,3},\\d{1,3},\\d{1,3},\\d{1,3}),(\\d{1,3}),(\\d{1,3})\\)?");
             }
@@ -635,19 +649,23 @@ public class FtpClient extends sun.net.ftp.FtpClient {
             port = Integer.parseInt(m.group(3)) + (Integer.parseInt(m.group(2)) << 8);
             // IP address is simple
             String s = m.group(1).replace(',', '.');
-            dest = new InetSocketAddress(s, port);
+            if (!IPAddressUtil.isIPv4LiteralAddress(s))
+                throw new FtpProtocolException("PASV failed : "  + serverAnswer);
+            if (acceptPasvAddressVal) {
+                dest = new InetSocketAddress(s, port);
+            } else {
+                dest = validatePasvAddress(port, s, server.getInetAddress());
+            }
         }
+
         // Got everything, let's open the socket!
         Socket s;
         if (proxy != null) {
             if (proxy.type() == Proxy.Type.SOCKS) {
-                s = AccessController.doPrivileged(
-                        new PrivilegedAction<Socket>() {
-
-                            public Socket run() {
-                                return new Socket(proxy);
-                            }
-                        });
+                PrivilegedAction<Socket> pa = () -> new Socket(proxy);
+                @SuppressWarnings("removal")
+                var tmp = AccessController.doPrivileged(pa);
+                s = tmp;
             } else {
                 s = new Socket(Proxy.NO_PROXY);
             }
@@ -655,13 +673,9 @@ public class FtpClient extends sun.net.ftp.FtpClient {
             s = new Socket();
         }
 
-        InetAddress serverAddress = AccessController.doPrivileged(
-                new PrivilegedAction<InetAddress>() {
-                    @Override
-                    public InetAddress run() {
-                        return server.getLocalAddress();
-                    }
-                });
+        PrivilegedAction<InetAddress> pa = () -> server.getLocalAddress();
+        @SuppressWarnings("removal")
+        InetAddress serverAddress = AccessController.doPrivileged(pa);
 
         // Bind the socket to the same address as the control channel. This
         // is needed in case of multi-homed systems.
@@ -698,6 +712,80 @@ public class FtpClient extends sun.net.ftp.FtpClient {
         return s;
     }
 
+    static final String ERROR_MSG = "Address should be the same as originating server";
+
+    /**
+     * Returns an InetSocketAddress, based on value of acceptPasvAddressVal
+     * and other conditions such as the server address returned by pasv
+     * is not a hostname, is a socks proxy, or the loopback. An exception
+     * is thrown if none of the valid conditions are met.
+     */
+    private InetSocketAddress validatePasvAddress(int port, String s, InetAddress address)
+        throws FtpProtocolException
+    {
+        if (address == null) {
+            return InetSocketAddress.createUnresolved(serverAddr.getHostName(), port);
+        }
+        String serverAddress = address.getHostAddress();
+        if (serverAddress.equals(s)) {
+            return new InetSocketAddress(s, port);
+        } else if (address.isLoopbackAddress() && s.startsWith("127.")) { // can be 127.0
+            return new InetSocketAddress(s, port);
+        } else if (address.isLoopbackAddress()) {
+            if (privilegedLocalHost().getHostAddress().equals(s)) {
+                return new InetSocketAddress(s, port);
+            } else {
+                throw new FtpProtocolException(ERROR_MSG);
+            }
+        } else if (s.startsWith("127.")) {
+            if (privilegedLocalHost().equals(address)) {
+                return new InetSocketAddress(s, port);
+            } else {
+                throw new FtpProtocolException(ERROR_MSG);
+            }
+        }
+        String hostName = address.getHostName();
+        if (!(IPAddressUtil.isIPv4LiteralAddress(hostName) || IPAddressUtil.isIPv6LiteralAddress(hostName))) {
+            InetAddress[] names = privilegedGetAllByName(hostName);
+            String resAddress = Arrays
+                .stream(names)
+                .map(InetAddress::getHostAddress)
+                .filter(s::equalsIgnoreCase)
+                .findFirst()
+                .orElse(null);
+            if (resAddress != null) {
+                return new InetSocketAddress(s, port);
+            }
+        }
+        throw new FtpProtocolException(ERROR_MSG);
+    }
+
+    private static InetAddress privilegedLocalHost() throws FtpProtocolException {
+        PrivilegedExceptionAction<InetAddress> action = InetAddress::getLocalHost;
+        try {
+            @SuppressWarnings("removal")
+            var tmp = AccessController.doPrivileged(action);
+            return tmp;
+        } catch (Exception e) {
+            var ftpEx = new FtpProtocolException(ERROR_MSG);
+            ftpEx.initCause(e);
+            throw ftpEx;
+        }
+    }
+
+    private static InetAddress[] privilegedGetAllByName(String hostName) throws FtpProtocolException {
+        PrivilegedExceptionAction<InetAddress[]> pAction = () -> InetAddress.getAllByName(hostName);
+        try {
+            @SuppressWarnings("removal")
+            var tmp =AccessController.doPrivileged(pAction);
+            return tmp;
+        } catch (Exception e) {
+            var ftpEx = new FtpProtocolException(ERROR_MSG);
+            ftpEx.initCause(e);
+            throw ftpEx;
+        }
+    }
+
     /**
      * Opens a data connection with the server according to the set mode
      * (ACTIVE or PASSIVE) then send the command passed as an argument.
@@ -708,7 +796,6 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      */
     private Socket openDataConnection(String cmd) throws sun.net.ftp.FtpProtocolException, IOException {
         Socket clientSocket;
-
         if (passiveMode) {
             try {
                 return openPassiveDataConnection(cmd);
@@ -934,13 +1021,10 @@ public class FtpClient extends sun.net.ftp.FtpClient {
         Socket s;
         if (proxy != null) {
             if (proxy.type() == Proxy.Type.SOCKS) {
-                s = AccessController.doPrivileged(
-                        new PrivilegedAction<Socket>() {
-
-                            public Socket run() {
-                                return new Socket(proxy);
-                            }
-                        });
+                PrivilegedAction<Socket> pa = () -> new Socket(proxy);
+                @SuppressWarnings("removal")
+                var tmp = AccessController.doPrivileged(pa);
+                s = tmp;
             } else {
                 s = new Socket(Proxy.NO_PROXY);
             }
@@ -1049,7 +1133,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
         if (!isConnected()) {
             throw new sun.net.ftp.FtpProtocolException("Not connected yet", FtpReplyCode.BAD_SEQUENCE);
         }
-        if (user == null || user.length() == 0) {
+        if (user == null || user.isEmpty()) {
             throw new IllegalArgumentException("User name can't be null or empty");
         }
         tryLogin(user, password);
@@ -1088,7 +1172,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
         if (!isConnected()) {
             throw new sun.net.ftp.FtpProtocolException("Not connected yet", FtpReplyCode.BAD_SEQUENCE);
         }
-        if (user == null || user.length() == 0) {
+        if (user == null || user.isEmpty()) {
             throw new IllegalArgumentException("User name can't be null or empty");
         }
         tryLogin(user, password);
@@ -1152,7 +1236,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      * @exception <code>FtpProtocolException</code>
      */
     public sun.net.ftp.FtpClient changeDirectory(String remoteDirectory) throws sun.net.ftp.FtpProtocolException, IOException {
-        if (remoteDirectory == null || "".equals(remoteDirectory)) {
+        if (remoteDirectory == null || remoteDirectory.isEmpty()) {
             throw new IllegalArgumentException("directory can't be null or empty");
         }
 
@@ -1216,18 +1300,17 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      * Retrieves a file from the ftp server and writes it to the specified
      * <code>OutputStream</code>.
      * If the restart offset was set, then a <code>REST</code> command will be
-     * sent before the RETR in order to restart the tranfer from the specified
+     * sent before the RETR in order to restart the transfer from the specified
      * offset.
      * The <code>OutputStream</code> is not closed by this method at the end
      * of the transfer.
      *
      * @param name a {@code String} containing the name of the file to
-     *        retreive from the server.
+     *        retrieve from the server.
      * @param local the <code>OutputStream</code> the file should be written to.
      * @throws IOException if the transfer fails.
      */
     public sun.net.ftp.FtpClient getFile(String name, OutputStream local) throws sun.net.ftp.FtpProtocolException, IOException {
-        int mtu = 1500;
         if (restartOffset > 0) {
             Socket s;
             try {
@@ -1237,27 +1320,15 @@ public class FtpClient extends sun.net.ftp.FtpClient {
             }
             issueCommandCheck("RETR " + name);
             getTransferSize();
-            InputStream remote = createInputStream(s.getInputStream());
-            byte[] buf = new byte[mtu * 10];
-            int l;
-            while ((l = remote.read(buf)) >= 0) {
-                if (l > 0) {
-                    local.write(buf, 0, l);
-                }
+            try (InputStream remote = createInputStream(s.getInputStream())) {
+                remote.transferTo(local);
             }
-            remote.close();
         } else {
             Socket s = openDataConnection("RETR " + name);
             getTransferSize();
-            InputStream remote = createInputStream(s.getInputStream());
-            byte[] buf = new byte[mtu * 10];
-            int l;
-            while ((l = remote.read(buf)) >= 0) {
-                if (l > 0) {
-                    local.write(buf, 0, l);
-                }
+            try (InputStream remote = createInputStream(s.getInputStream())) {
+                remote.transferTo(local);
             }
-            remote.close();
         }
         return completePending();
     }
@@ -1354,18 +1425,11 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      */
     public sun.net.ftp.FtpClient putFile(String name, InputStream local, boolean unique) throws sun.net.ftp.FtpProtocolException, IOException {
         String cmd = unique ? "STOU " : "STOR ";
-        int mtu = 1500;
         if (type == TransferType.BINARY) {
             Socket s = openDataConnection(cmd + name);
-            OutputStream remote = createOutputStream(s.getOutputStream());
-            byte[] buf = new byte[mtu * 10];
-            int l;
-            while ((l = local.read(buf)) >= 0) {
-                if (l > 0) {
-                    remote.write(buf, 0, l);
-                }
+            try (OutputStream remote = createOutputStream(s.getOutputStream())) {
+                local.transferTo(remote);
             }
-            remote.close();
         }
         return completePending();
     }
@@ -1383,17 +1447,10 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      * @throws IOException if an error occurred during the transmission.
      */
     public sun.net.ftp.FtpClient appendFile(String name, InputStream local) throws sun.net.ftp.FtpProtocolException, IOException {
-        int mtu = 1500;
         Socket s = openDataConnection("APPE " + name);
-        OutputStream remote = createOutputStream(s.getOutputStream());
-        byte[] buf = new byte[mtu * 10];
-        int l;
-        while ((l = local.read(buf)) >= 0) {
-            if (l > 0) {
-                remote.write(buf, 0, l);
-            }
+        try (OutputStream remote = createOutputStream(s.getOutputStream())) {
+            local.transferTo(remote);
         }
-        remote.close();
         return completePending();
     }
 
@@ -1591,7 +1648,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      * <p>This method will actually block reading on the command channel for a
      * notification from the server that the command is finished. Such a
      * notification often carries extra information concerning the completion
-     * of the pending action (e.g. number of bytes transfered).</p>
+     * of the pending action (e.g. number of bytes transferred).</p>
      * <p>Note that this will return true immediately if no command or action
      * is pending</p>
      * <p>It should be also noted that most methods issuing commands to the ftp
@@ -1738,7 +1795,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      * @throws IOException if an error occurs during the transmission.
      */
     public long getSize(String path) throws sun.net.ftp.FtpProtocolException, IOException {
-        if (path == null || path.length() == 0) {
+        if (path == null || path.isEmpty()) {
             throw new IllegalArgumentException("path can't be null or empty");
         }
         issueCommandCheck("SIZE " + path);
@@ -1749,18 +1806,9 @@ public class FtpClient extends sun.net.ftp.FtpClient {
         }
         return -1;
     }
-    private static String[] MDTMformats = {
-        "yyyyMMddHHmmss.SSS",
-        "yyyyMMddHHmmss"
-    };
-    private static SimpleDateFormat[] dateFormats = new SimpleDateFormat[MDTMformats.length];
 
-    static {
-        for (int i = 0; i < MDTMformats.length; i++) {
-            dateFormats[i] = new SimpleDateFormat(MDTMformats[i]);
-            dateFormats[i].setTimeZone(TimeZone.getTimeZone("GMT"));
-        }
-    }
+    private static final DateTimeFormatter RFC3659_DATETIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss[.SSS]")
+                                                                                      .withZone(ZoneOffset.UTC);
 
     /**
      * Issues the MDTM [path] command to the server to get the modification
@@ -1777,19 +1825,20 @@ public class FtpClient extends sun.net.ftp.FtpClient {
     public Date getLastModified(String path) throws sun.net.ftp.FtpProtocolException, IOException {
         issueCommandCheck("MDTM " + path);
         if (lastReplyCode == FtpReplyCode.FILE_STATUS) {
-            String s = getResponseString().substring(4);
-            Date d = null;
-            for (SimpleDateFormat dateFormat : dateFormats) {
-                try {
-                    d = dateFormat.parse(s);
-                } catch (ParseException ex) {
-                }
-                if (d != null) {
-                    return d;
-                }
-            }
+            String s = getResponseString();
+            return parseRfc3659TimeValue(s.substring(4, s.length() - 1));
         }
         return null;
+    }
+
+    private static Date parseRfc3659TimeValue(String s) {
+        Date result = null;
+        try {
+            var d = ZonedDateTime.parse(s, RFC3659_DATETIME_FORMAT);
+            result = Date.from(d.toInstant());
+        } catch (DateTimeParseException ex) {
+        }
+        return result;
     }
 
     /**
@@ -1807,7 +1856,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
         return this;
     }
 
-    private class FtpFileIterator implements Iterator<FtpDirEntry>, Closeable {
+    private static class FtpFileIterator implements Iterator<FtpDirEntry>, Closeable {
 
         private BufferedReader in = null;
         private FtpDirEntry nextFile = null;
@@ -1877,7 +1926,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      * is finished iterating through the files.
      *
      * @param path the pathname of the directory to list or <code>null</code>
-     *        for the current working directoty.
+     *        for the current working directory.
      * @return a <code>Iterator</code> of files or <code>null</code> if the
      *         command failed.
      * @throws IOException if an error occurred during the transmission
@@ -1927,7 +1976,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      * Attempts to use Kerberos GSSAPI as an authentication mechanism with the
      * ftp server. This will issue an <code>AUTH GSSAPI</code> command, and if
      * it is accepted by the server, will followup with <code>ADAT</code>
-     * command to exchange the various tokens until authentification is
+     * command to exchange the various tokens until authentication is
      * successful. This conforms to Appendix I of RFC 2228.
      *
      * @return <code>true</code> if authentication was successful.
@@ -2009,7 +2058,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
 
     /**
      * Returns, when available, the size of the latest started transfer.
-     * This is retreived by parsing the response string received as an initial
+     * This is retrieved by parsing the response string received as an initial
      * response to a RETR or similar request.
      *
      * @return the size of the latest transfer or -1 if either there was no
@@ -2020,12 +2069,12 @@ public class FtpClient extends sun.net.ftp.FtpClient {
     }
 
     /**
-     * Returns, when available, the remote name of the last transfered file.
+     * Returns, when available, the remote name of the last transferred file.
      * This is mainly useful for "put" operation when the unique flag was
      * set since it allows to recover the unique file name created on the
      * server which may be different from the one submitted with the command.
      *
-     * @return the name the latest transfered file remote name, or
+     * @return the name the latest transferred file remote name, or
      *         <code>null</code> if that information is unavailable.
      */
     public String getLastFileName() {
@@ -2087,7 +2136,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
     /**
      * Sends a <code>CCC</code> command followed by a <code>PROT C</code>
      * command to the server terminating an encrypted session and reverting
-     * back to a non crypted transmission.
+     * back to a non encrypted transmission.
      *
      * @return <code>true</code> if the operation was successful.
      * @throws IOException if an error occurred during transmission.

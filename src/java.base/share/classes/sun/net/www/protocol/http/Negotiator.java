@@ -66,8 +66,8 @@ public abstract class Negotiator {
         } catch (ReflectiveOperationException roe) {
             finest(roe);
             Throwable t = roe.getCause();
-            if (t != null && t instanceof Exception)
-                finest((Exception)t);
+            if (t instanceof Exception exception)
+                finest(exception);
             return null;
         }
     }
@@ -82,5 +82,7 @@ public abstract class Negotiator {
             logger.finest("NegotiateAuthentication: " + e);
         }
     }
+
+    public void disposeContext() throws IOException { };
 }
 

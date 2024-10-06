@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,31 +23,28 @@
  */
 
 // no precompiled headers
-#include "jvm.h"
 #include "asm/macroAssembler.hpp"
-#include "classfile/classLoader.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jvm.h"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "nativeInst_x86.hpp"
-#include "os_share_windows.hpp"
+#include "os_windows.hpp"
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/os.inline.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
 #include "symbolengine.hpp"
 #include "unwind_windows_x86.hpp"
@@ -69,16 +66,17 @@
 #define REG_PC Eip
 #endif // AMD64
 
+JNIEXPORT
 extern LONG WINAPI topLevelExceptionFilter(_EXCEPTION_POINTERS* );
 
 // Install a win32 structured exception handler around thread.
-void os::os_exception_wrapper(java_call_t f, JavaValue* value, const methodHandle& method, JavaCallArguments* args, Thread* thread) {
+void os::os_exception_wrapper(java_call_t f, JavaValue* value, const methodHandle& method, JavaCallArguments* args, JavaThread* thread) {
   __try {
 
 #ifndef AMD64
     // We store the current thread in this wrapperthread location
     // and determine how far away this address is from the structured
-    // execption pointer that FS:[0] points to.  This get_thread
+    // exception pointer that FS:[0] points to.  This get_thread
     // code can then get the thread pointer via FS.
     //
     // Warning:  This routine must NEVER be inlined since we'd end up with
@@ -96,7 +94,7 @@ void os::os_exception_wrapper(java_call_t f, JavaValue* value, const methodHandl
       os::win32::set_thread_ptr_offset(thread_ptr_offset);
     }
 #ifdef ASSERT
-    // Verify that the offset hasn't changed since we initally captured
+    // Verify that the offset hasn't changed since we initially captured
     // it. This might happen if we accidentally ended up with an
     // inlined version of this routine.
     else {
@@ -168,7 +166,7 @@ typedef struct {
 // Arguments:  low and high are the address of the full reserved
 // codeCache area
 //
-bool os::register_code_area(char *low, char *high) {
+bool os::win32::register_code_area(char *low, char *high) {
 #ifdef AMD64
 
   ResourceMark rm;
@@ -182,7 +180,7 @@ bool os::register_code_area(char *low, char *high) {
   MacroAssembler* masm = new MacroAssembler(&cb);
   pDCD = (pDynamicCodeData) masm->pc();
 
-  masm->jump(ExternalAddress((address)&HandleExceptionFromCodeCache));
+  masm->jump(RuntimeAddress((address)&HandleExceptionFromCodeCache), rscratch1);
   masm->flush();
 
   // Create an Unwind Structure specifying no unwind info
@@ -212,143 +210,7 @@ bool os::register_code_area(char *low, char *high) {
   return true;
 }
 
-void os::initialize_thread(Thread* thr) {
-// Nothing to do.
-}
-
-// Atomics and Stub Functions
-
-typedef int32_t   xchg_func_t            (int32_t,  volatile int32_t*);
-typedef int64_t   xchg_long_func_t       (int64_t,  volatile int64_t*);
-typedef int32_t   cmpxchg_func_t         (int32_t,  volatile int32_t*, int32_t);
-typedef int8_t    cmpxchg_byte_func_t    (int8_t,   volatile int8_t*,  int8_t);
-typedef int64_t   cmpxchg_long_func_t    (int64_t,  volatile int64_t*, int64_t);
-typedef int32_t   add_func_t             (int32_t,  volatile int32_t*);
-typedef int64_t   add_long_func_t        (int64_t,  volatile int64_t*);
-
-#ifdef AMD64
-
-int32_t os::atomic_xchg_bootstrap(int32_t exchange_value, volatile int32_t* dest) {
-  // try to use the stub:
-  xchg_func_t* func = CAST_TO_FN_PTR(xchg_func_t*, StubRoutines::atomic_xchg_entry());
-
-  if (func != NULL) {
-    os::atomic_xchg_func = func;
-    return (*func)(exchange_value, dest);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  int32_t old_value = *dest;
-  *dest = exchange_value;
-  return old_value;
-}
-
-int64_t os::atomic_xchg_long_bootstrap(int64_t exchange_value, volatile int64_t* dest) {
-  // try to use the stub:
-  xchg_long_func_t* func = CAST_TO_FN_PTR(xchg_long_func_t*, StubRoutines::atomic_xchg_long_entry());
-
-  if (func != NULL) {
-    os::atomic_xchg_long_func = func;
-    return (*func)(exchange_value, dest);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  int64_t old_value = *dest;
-  *dest = exchange_value;
-  return old_value;
-}
-
-
-int32_t os::atomic_cmpxchg_bootstrap(int32_t exchange_value, volatile int32_t* dest, int32_t compare_value) {
-  // try to use the stub:
-  cmpxchg_func_t* func = CAST_TO_FN_PTR(cmpxchg_func_t*, StubRoutines::atomic_cmpxchg_entry());
-
-  if (func != NULL) {
-    os::atomic_cmpxchg_func = func;
-    return (*func)(exchange_value, dest, compare_value);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  int32_t old_value = *dest;
-  if (old_value == compare_value)
-    *dest = exchange_value;
-  return old_value;
-}
-
-int8_t os::atomic_cmpxchg_byte_bootstrap(int8_t exchange_value, volatile int8_t* dest, int8_t compare_value) {
-  // try to use the stub:
-  cmpxchg_byte_func_t* func = CAST_TO_FN_PTR(cmpxchg_byte_func_t*, StubRoutines::atomic_cmpxchg_byte_entry());
-
-  if (func != NULL) {
-    os::atomic_cmpxchg_byte_func = func;
-    return (*func)(exchange_value, dest, compare_value);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  int8_t old_value = *dest;
-  if (old_value == compare_value)
-    *dest = exchange_value;
-  return old_value;
-}
-
-#endif // AMD64
-
-int64_t os::atomic_cmpxchg_long_bootstrap(int64_t exchange_value, volatile int64_t* dest, int64_t compare_value) {
-  // try to use the stub:
-  cmpxchg_long_func_t* func = CAST_TO_FN_PTR(cmpxchg_long_func_t*, StubRoutines::atomic_cmpxchg_long_entry());
-
-  if (func != NULL) {
-    os::atomic_cmpxchg_long_func = func;
-    return (*func)(exchange_value, dest, compare_value);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  int64_t old_value = *dest;
-  if (old_value == compare_value)
-    *dest = exchange_value;
-  return old_value;
-}
-
-#ifdef AMD64
-
-int32_t os::atomic_add_bootstrap(int32_t add_value, volatile int32_t* dest) {
-  // try to use the stub:
-  add_func_t* func = CAST_TO_FN_PTR(add_func_t*, StubRoutines::atomic_add_entry());
-
-  if (func != NULL) {
-    os::atomic_add_func = func;
-    return (*func)(add_value, dest);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  return (*dest) += add_value;
-}
-
-int64_t os::atomic_add_long_bootstrap(int64_t add_value, volatile int64_t* dest) {
-  // try to use the stub:
-  add_long_func_t* func = CAST_TO_FN_PTR(add_long_func_t*, StubRoutines::atomic_add_long_entry());
-
-  if (func != NULL) {
-    os::atomic_add_long_func = func;
-    return (*func)(add_value, dest);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  return (*dest) += add_value;
-}
-
-xchg_func_t*         os::atomic_xchg_func         = os::atomic_xchg_bootstrap;
-xchg_long_func_t*    os::atomic_xchg_long_func    = os::atomic_xchg_long_bootstrap;
-cmpxchg_func_t*      os::atomic_cmpxchg_func      = os::atomic_cmpxchg_bootstrap;
-cmpxchg_byte_func_t* os::atomic_cmpxchg_byte_func = os::atomic_cmpxchg_byte_bootstrap;
-add_func_t*          os::atomic_add_func          = os::atomic_add_bootstrap;
-add_long_func_t*     os::atomic_add_long_func     = os::atomic_add_long_bootstrap;
-
-#endif // AMD64
-
-cmpxchg_long_func_t* os::atomic_cmpxchg_long_func = os::atomic_cmpxchg_long_bootstrap;
-
-#ifdef AMD64
+#ifdef HAVE_PLATFORM_PRINT_NATIVE_STACK
 /*
  * Windows/x64 does not use stack frames the way expected by Java:
  * [1] in most cases, there is no frame pointer. All locals are addressed via RSP
@@ -360,11 +222,11 @@ cmpxchg_long_func_t* os::atomic_cmpxchg_long_func = os::atomic_cmpxchg_long_boot
  *     while (...) {...  fr = os::get_sender_for_C_frame(&fr); }
  * loop in vmError.cpp. We need to roll our own loop.
  */
-bool os::platform_print_native_stack(outputStream* st, const void* context,
-                                     char *buf, int buf_size)
+bool os::win32::platform_print_native_stack(outputStream* st, const void* context,
+                                            char *buf, int buf_size, address& lastpc)
 {
   CONTEXT ctx;
-  if (context != NULL) {
+  if (context != nullptr) {
     memcpy(&ctx, context, sizeof(ctx));
   } else {
     RtlCaptureContext(&ctx);
@@ -381,15 +243,18 @@ bool os::platform_print_native_stack(outputStream* st, const void* context,
   stk.AddrPC.Offset       = ctx.Rip;
   stk.AddrPC.Mode         = AddrModeFlat;
 
+  // Ensure we consider dynamically loaded dll's
+  SymbolEngine::refreshModuleList();
+
   int count = 0;
-  address lastpc = 0;
+  address lastpc_internal = 0;
   while (count++ < StackPrintLimit) {
     intptr_t* sp = (intptr_t*)stk.AddrStack.Offset;
     intptr_t* fp = (intptr_t*)stk.AddrFrame.Offset; // NOT necessarily the same as ctx.Rbp!
     address pc = (address)stk.AddrPC.Offset;
 
-    if (pc != NULL) {
-      if (count == 2 && lastpc == pc) {
+    if (pc != nullptr) {
+      if (count == 2 && lastpc_internal == pc) {
         // Skip it -- StackWalk64() may return the same PC
         // (but different SP) on the first try.
       } else {
@@ -402,15 +267,18 @@ bool os::platform_print_native_stack(outputStream* st, const void* context,
         int line_no;
         if (SymbolEngine::get_source_info(pc, buf, sizeof(buf), &line_no)) {
           st->print("  (%s:%d)", buf, line_no);
+        } else {
+          st->print("  (no source info available)");
         }
         st->cr();
       }
-      lastpc = pc;
+      lastpc_internal = pc;
     }
 
     PVOID p = WindowsDbgHelp::symFunctionTableAccess64(GetCurrentProcess(), stk.AddrPC.Offset);
     if (!p) {
       // StackWalk64() can't handle this PC. Calling StackWalk64 again may cause crash.
+      lastpc = lastpc_internal;
       break;
     }
 
@@ -432,23 +300,22 @@ bool os::platform_print_native_stack(outputStream* st, const void* context,
 
   return true;
 }
-#endif // AMD64
+#endif // HAVE_PLATFORM_PRINT_NATIVE_STACK
 
-ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
+address os::fetch_frame_from_context(const void* ucVoid,
                     intptr_t** ret_sp, intptr_t** ret_fp) {
 
-  ExtendedPC  epc;
+  address  epc;
   CONTEXT* uc = (CONTEXT*)ucVoid;
 
-  if (uc != NULL) {
-    epc = ExtendedPC((address)uc->REG_PC);
+  if (uc != nullptr) {
+    epc = (address)uc->REG_PC;
     if (ret_sp) *ret_sp = (intptr_t*)uc->REG_SP;
     if (ret_fp) *ret_fp = (intptr_t*)uc->REG_FP;
   } else {
-    // construct empty ExtendedPC for return value checking
-    epc = ExtendedPC(NULL);
-    if (ret_sp) *ret_sp = (intptr_t *)NULL;
-    if (ret_fp) *ret_fp = (intptr_t *)NULL;
+    epc = nullptr;
+    if (ret_sp) *ret_sp = (intptr_t *)nullptr;
+    if (ret_fp) *ret_fp = (intptr_t *)nullptr;
   }
 
   return epc;
@@ -457,18 +324,20 @@ ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
 frame os::fetch_frame_from_context(const void* ucVoid) {
   intptr_t* sp;
   intptr_t* fp;
-  ExtendedPC epc = fetch_frame_from_context(ucVoid, &sp, &fp);
-  return frame(sp, fp, epc.pc());
-}
-
-// VC++ does not save frame pointer on stack in optimized build. It
-// can be turned off by /Oy-. If we really want to walk C frames,
-// we can use the StackWalk() API.
-frame os::get_sender_for_C_frame(frame* fr) {
-  return frame(fr->sender_sp(), fr->link(), fr->sender_pc());
+  address epc = fetch_frame_from_context(ucVoid, &sp, &fp);
+  if (!is_readable_pointer(epc)) {
+    // Try to recover from calling into bad memory
+    // Assume new frame has not been set up, the same as
+    // compiled frame stack bang
+    return frame(sp + 1, fp, (address)*sp);
+  }
+  return frame(sp, fp, epc);
 }
 
 #ifndef AMD64
+// Ignore "C4172: returning address of local variable or temporary" on 32bit
+PRAGMA_DIAG_PUSH
+PRAGMA_DISABLE_MSVC_WARNING(4172)
 // Returns an estimate of the current stack pointer. Result must be guaranteed
 // to point into the calling threads stack, and be no lower than the current
 // stack pointer.
@@ -477,6 +346,7 @@ address os::current_stack_pointer() {
   address sp = (address)&dummy;
   return sp;
 }
+PRAGMA_DIAG_POP
 #else
 // Returns the current stack pointer. Accurate value needed for
 // os::verify_stack_alignment().
@@ -488,54 +358,58 @@ address os::current_stack_pointer() {
 }
 #endif
 
-
-#ifndef AMD64
-intptr_t* _get_previous_fp() {
-  intptr_t **frameptr;
-  __asm {
-    mov frameptr, ebp
-  };
-  // ebp (frameptr) is for this frame (_get_previous_fp). We want the ebp for the
-  // caller of os::current_frame*(), so go up two frames. However, for
-  // optimized builds, _get_previous_fp() will be inlined, so only go
-  // up 1 frame in that case.
-#ifdef _NMT_NOINLINE_
-  return **(intptr_t***)frameptr;
-#else
-  return *frameptr;
-#endif
+bool os::win32::get_frame_at_stack_banging_point(JavaThread* thread,
+        struct _EXCEPTION_POINTERS* exceptionInfo, address pc, frame* fr) {
+  PEXCEPTION_RECORD exceptionRecord = exceptionInfo->ExceptionRecord;
+  address addr = (address) exceptionRecord->ExceptionInformation[1];
+  if (Interpreter::contains(pc)) {
+    *fr = os::fetch_frame_from_context((void*)exceptionInfo->ContextRecord);
+    if (!fr->is_first_java_frame()) {
+      // get_frame_at_stack_banging_point() is only called when we
+      // have well defined stacks so java_sender() calls do not need
+      // to assert safe_for_sender() first.
+      *fr = fr->java_sender();
+    }
+  } else {
+    // more complex code with compiled code
+    assert(!Interpreter::contains(pc), "Interpreted methods should have been handled above");
+    CodeBlob* cb = CodeCache::find_blob(pc);
+    if (cb == nullptr || !cb->is_nmethod() || cb->is_frame_complete_at(pc)) {
+      // Not sure where the pc points to, fallback to default
+      // stack overflow handling
+      return false;
+    } else {
+      // in compiled code, the stack banging is performed just after the return pc
+      // has been pushed on the stack
+      intptr_t* fp = (intptr_t*)exceptionInfo->ContextRecord->REG_FP;
+      intptr_t* sp = (intptr_t*)exceptionInfo->ContextRecord->REG_SP;
+      *fr = frame(sp + 1, fp, (address)*sp);
+      if (!fr->is_java_frame()) {
+        // See java_sender() comment above.
+        *fr = fr->java_sender();
+      }
+    }
+  }
+  assert(fr->is_java_frame(), "Safety check");
+  return true;
 }
-#endif // !AMD64
+
+
+// VC++ does not save frame pointer on stack in optimized build. It
+// can be turned off by /Oy-. If we really want to walk C frames,
+// we can use the StackWalk() API.
+frame os::get_sender_for_C_frame(frame* fr) {
+  ShouldNotReachHere();
+  return frame();
+}
 
 frame os::current_frame() {
-
-#ifdef AMD64
-  // apparently _asm not supported on windows amd64
-  typedef intptr_t*      get_fp_func           ();
-  get_fp_func* func = CAST_TO_FN_PTR(get_fp_func*,
-                                     StubRoutines::x86::get_previous_fp_entry());
-  if (func == NULL) return frame();
-  intptr_t* fp = (*func)();
-  if (fp == NULL) {
-    return frame();
-  }
-#else
-  intptr_t* fp = _get_previous_fp();
-#endif // AMD64
-
-  frame myframe((intptr_t*)os::current_stack_pointer(),
-                (intptr_t*)fp,
-                CAST_FROM_FN_PTR(address, os::current_frame));
-  if (os::is_first_C_frame(&myframe)) {
-    // stack is not walkable
-    return frame();
-  } else {
-    return os::get_sender_for_C_frame(&myframe);
-  }
+  return frame();  // cannot walk Windows frames this way.  See os::get_native_stack
+                   // and os::platform_print_native_stack
 }
 
 void os::print_context(outputStream *st, const void *context) {
-  if (context == NULL) return;
+  if (context == nullptr) return;
 
   const CONTEXT* uc = (const CONTEXT*)context;
 
@@ -579,63 +453,70 @@ void os::print_context(outputStream *st, const void *context) {
 #endif // AMD64
   st->cr();
   st->cr();
+}
 
-  intptr_t *sp = (intptr_t *)uc->REG_SP;
-  st->print_cr("Top of Stack: (sp=" PTR_FORMAT ")", sp);
-  print_hex_dump(st, (address)sp, (address)(sp + 32), sizeof(intptr_t));
+void os::print_tos_pc(outputStream *st, const void *context) {
+  if (context == nullptr) return;
+
+  const CONTEXT* uc = (const CONTEXT*)context;
+
+  address sp = (address)uc->REG_SP;
+  print_tos(st, sp);
   st->cr();
 
   // Note: it may be unsafe to inspect memory near pc. For example, pc may
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
-  address pc = (address)uc->REG_PC;
-  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", pc);
-  print_hex_dump(st, pc - 32, pc + 32, sizeof(char));
+  address pc = os::fetch_frame_from_context(uc).pc();
+  print_instructions(st, pc);
   st->cr();
 }
 
-
-void os::print_register_info(outputStream *st, const void *context) {
-  if (context == NULL) return;
+void os::print_register_info(outputStream *st, const void *context, int& continuation) {
+  const int register_count = AMD64_ONLY(16) NOT_AMD64(8);
+  int n = continuation;
+  assert(n >= 0 && n <= register_count, "Invalid continuation value");
+  if (context == nullptr || n == register_count) {
+    return;
+  }
 
   const CONTEXT* uc = (const CONTEXT*)context;
-
-  st->print_cr("Register to memory mapping:");
-  st->cr();
-
-  // this is only for the "general purpose" registers
-
+  while (n < register_count) {
+    // Update continuation with next index before printing location
+    continuation = n + 1;
+# define CASE_PRINT_REG(n, str, id) case n: st->print(str); print_location(st, uc->id);
+    switch (n) {
 #ifdef AMD64
-  st->print("RIP="); print_location(st, uc->Rip);
-  st->print("RAX="); print_location(st, uc->Rax);
-  st->print("RBX="); print_location(st, uc->Rbx);
-  st->print("RCX="); print_location(st, uc->Rcx);
-  st->print("RDX="); print_location(st, uc->Rdx);
-  st->print("RSP="); print_location(st, uc->Rsp);
-  st->print("RBP="); print_location(st, uc->Rbp);
-  st->print("RSI="); print_location(st, uc->Rsi);
-  st->print("RDI="); print_location(st, uc->Rdi);
-  st->print("R8 ="); print_location(st, uc->R8);
-  st->print("R9 ="); print_location(st, uc->R9);
-  st->print("R10="); print_location(st, uc->R10);
-  st->print("R11="); print_location(st, uc->R11);
-  st->print("R12="); print_location(st, uc->R12);
-  st->print("R13="); print_location(st, uc->R13);
-  st->print("R14="); print_location(st, uc->R14);
-  st->print("R15="); print_location(st, uc->R15);
+    CASE_PRINT_REG( 0, "RAX=", Rax); break;
+    CASE_PRINT_REG( 1, "RBX=", Rbx); break;
+    CASE_PRINT_REG( 2, "RCX=", Rcx); break;
+    CASE_PRINT_REG( 3, "RDX=", Rdx); break;
+    CASE_PRINT_REG( 4, "RSP=", Rsp); break;
+    CASE_PRINT_REG( 5, "RBP=", Rbp); break;
+    CASE_PRINT_REG( 6, "RSI=", Rsi); break;
+    CASE_PRINT_REG( 7, "RDI=", Rdi); break;
+    CASE_PRINT_REG( 8, "R8 =", R8); break;
+    CASE_PRINT_REG( 9, "R9 =", R9); break;
+    CASE_PRINT_REG(10, "R10=", R10); break;
+    CASE_PRINT_REG(11, "R11=", R11); break;
+    CASE_PRINT_REG(12, "R12=", R12); break;
+    CASE_PRINT_REG(13, "R13=", R13); break;
+    CASE_PRINT_REG(14, "R14=", R14); break;
+    CASE_PRINT_REG(15, "R15=", R15); break;
 #else
-  st->print("EIP="); print_location(st, uc->Eip);
-  st->print("EAX="); print_location(st, uc->Eax);
-  st->print("EBX="); print_location(st, uc->Ebx);
-  st->print("ECX="); print_location(st, uc->Ecx);
-  st->print("EDX="); print_location(st, uc->Edx);
-  st->print("ESP="); print_location(st, uc->Esp);
-  st->print("EBP="); print_location(st, uc->Ebp);
-  st->print("ESI="); print_location(st, uc->Esi);
-  st->print("EDI="); print_location(st, uc->Edi);
-#endif
-
-  st->cr();
+    CASE_PRINT_REG(0, "EAX=", Eax); break;
+    CASE_PRINT_REG(1, "EBX=", Ebx); break;
+    CASE_PRINT_REG(2, "ECX=", Ecx); break;
+    CASE_PRINT_REG(3, "EDX=", Edx); break;
+    CASE_PRINT_REG(4, "ESP=", Esp); break;
+    CASE_PRINT_REG(5, "EBP=", Ebp); break;
+    CASE_PRINT_REG(6, "ESI=", Esi); break;
+    CASE_PRINT_REG(7, "EDI=", Edi); break;
+#endif // AMD64
+    }
+# undef CASE_PRINT_REG
+    ++n;
+  }
 }
 
 extern "C" int SpinPause () {
@@ -652,10 +533,27 @@ extern "C" int SpinPause () {
 #endif // AMD64
 }
 
+juint os::cpu_microcode_revision() {
+  juint result = 0;
+  BYTE data[8] = {0};
+  HKEY key;
+  DWORD status = RegOpenKey(HKEY_LOCAL_MACHINE,
+               "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", &key);
+  if (status == ERROR_SUCCESS) {
+    DWORD size = sizeof(data);
+    status = RegQueryValueEx(key, "Update Revision", nullptr, nullptr, data, &size);
+    if (status == ERROR_SUCCESS) {
+      if (size == 4) result = *((juint*)data);
+      if (size == 8) result = *((juint*)data + 1); // upper 32-bits
+    }
+    RegCloseKey(key);
+  }
+  return result;
+}
 
 void os::setup_fpu() {
 #ifndef AMD64
-  int fpu_cntrl_word = StubRoutines::fpu_cntrl_wrd_std();
+  int fpu_cntrl_word = StubRoutines::x86::fpu_cntrl_wrd_std();
   __asm fldcw fpu_cntrl_word;
 #endif // !AMD64
 }
@@ -665,7 +563,7 @@ void os::verify_stack_alignment() {
 #ifdef AMD64
   // The current_stack_pointer() calls generated get_previous_sp stub routine.
   // Only enable the assert after the routine becomes available.
-  if (StubRoutines::code1() != NULL) {
+  if (StubRoutines::initial_stubs_code() != nullptr) {
     assert(((intptr_t)os::current_stack_pointer() & (StackAlignmentInBytes-1)) == 0, "incorrect stack alignment");
   }
 #endif

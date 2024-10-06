@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
+import java.lang.ref.WeakReference;
 import java.security.AccessController;
 
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;
-import jdk.internal.module.IllegalAccessLogger;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
@@ -58,7 +59,10 @@ import sun.security.util.SecurityConstants;
  * {@code Field}s, {@code Method}s, or {@code Constructor}s are used to get or
  * set fields, to invoke methods, or to create and initialize new instances of
  * classes, respectively. Every reflected object checks that the code using it
- * is in an appropriate class, package, or module. </p>
+ * is in an appropriate class, package, or module. The check when invoked by
+ * <a href="{@docRoot}/../specs/jni/index.html">JNI code</a> with no Java
+ * class on the stack only succeeds if the member and the declaring class are
+ * public, and the class is in a package that is exported to all modules. </p>
  *
  * <p> The one variation from Java language access control is that the checks
  * by reflected objects assume readability. That is, the module containing
@@ -70,15 +74,19 @@ import sun.security.util.SecurityConstants;
  * object corresponds to a member in an exported or open package
  * (see {@link #setAccessible(boolean)}). </p>
  *
+ * @spec jni/index.html Java Native Interface Specification
  * @jls 6.6 Access Control
  * @since 1.2
- * @revised 9
- * @spec JPMS
  */
 @NullMarked
 public class AccessibleObject implements AnnotatedElement {
+    static {
+        // AccessibleObject is initialized early in initPhase1
+        SharedSecrets.setJavaLangReflectAccess(new ReflectAccess());
+    }
 
     static void checkPermission() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             // SecurityConstants.ACCESS_PERMISSION is used to check
@@ -114,8 +122,6 @@ public class AccessibleObject implements AnnotatedElement {
      *         java.lang.Class}
      * @see SecurityManager#checkPermission
      * @see ReflectPermission
-     * @revised 9
-     * @spec JPMS
      */
     @CallerSensitive
     public static void setAccessible(AccessibleObject[] array, boolean flag) {
@@ -165,11 +171,32 @@ public class AccessibleObject implements AnnotatedElement {
      *     open module. </li>
      * </ul>
      *
+     * <p> This method may be used by <a href="{@docRoot}/../specs/jni/index.html">JNI code</a>
+     * with no caller class on the stack to enable access to a {@link Member member}
+     * of {@link Member#getDeclaringClass() declaring class} {@code D} if and only if:
+     * <ul>
+     *     <li> The member is {@code public} and {@code D} is {@code public} in
+     *     a package that the module containing {@code D} {@link
+     *     Module#isExported(String,Module) exports} unconditionally. </li>
+     * </ul>
+     *
      * <p> This method cannot be used to enable access to private members,
      * members with default (package) access, protected instance members, or
      * protected constructors when the declaring class is in a different module
      * to the caller and the package containing the declaring class is not open
      * to the caller's module. </p>
+     *
+     * <p> This method cannot be used to enable {@linkplain Field#set <em>write</em>}
+     * access to a <em>non-modifiable</em> final field.  The following fields
+     * are non-modifiable:
+     * <ul>
+     * <li>static final fields declared in any class or interface</li>
+     * <li>final fields declared in a {@linkplain Class#isHidden() hidden class}</li>
+     * <li>final fields declared in a {@linkplain Class#isRecord() record}</li>
+     * </ul>
+     * <p> The {@code accessible} flag when {@code true} suppresses Java language access
+     * control checks to only enable {@linkplain Field#get <em>read</em>} access to
+     * these non-modifiable final fields.
      *
      * <p> If there is a security manager, its
      * {@code checkPermission} method is first called with a
@@ -178,10 +205,10 @@ public class AccessibleObject implements AnnotatedElement {
      * @param flag the new value for the {@code accessible} flag
      * @throws InaccessibleObjectException if access cannot be enabled
      * @throws SecurityException if the request is denied by the security manager
+     *
+     * @spec jni/index.html Java Native Interface Specification
      * @see #trySetAccessible
      * @see java.lang.invoke.MethodHandles#privateLookupIn
-     * @revised 9
-     * @spec JPMS
      */
     @CallerSensitive   // overrides in Method/Field/Constructor are @CS
     public void setAccessible(boolean flag) {
@@ -232,6 +259,11 @@ public class AccessibleObject implements AnnotatedElement {
      *     }
      * }</pre>
      *
+     * <p> If this method is invoked by <a href="{@docRoot}/../specs/jni/index.html">JNI code</a>
+     * with no caller class on the stack, the {@code accessible} flag can
+     * only be set if the member and the declaring class are public, and
+     * the class is in a package that is exported unconditionally. </p>
+     *
      * <p> If there is a security manager, its {@code checkPermission} method
      * is first called with a {@code ReflectPermission("suppressAccessChecks")}
      * permission. </p>
@@ -240,8 +272,8 @@ public class AccessibleObject implements AnnotatedElement {
      *         {@code false} if access cannot be enabled.
      * @throws SecurityException if the request is denied by the security manager
      *
+     * @spec jni/index.html Java Native Interface Specification
      * @since 9
-     * @spec JPMS
      * @see java.lang.invoke.MethodHandles#privateLookupIn
      */
     @CallerSensitive
@@ -291,6 +323,16 @@ public class AccessibleObject implements AnnotatedElement {
             throw new IllegalCallerException();   // should not happen
         }
 
+        if (caller == null) {
+            // No caller frame when a native thread attaches to the VM
+            // only allow access to a public accessible member
+            boolean canAccess = Reflection.verifyPublicMemberAccess(declaringClass, declaringClass.getModifiers());
+            if (!canAccess && throwExceptionIfDenied) {
+                throwInaccessibleObjectException(caller, declaringClass);
+            }
+            return canAccess;
+        }
+
         Module callerModule = caller.getModule();
         Module declaringModule = declaringClass.getModule();
 
@@ -299,19 +341,13 @@ public class AccessibleObject implements AnnotatedElement {
         if (!declaringModule.isNamed()) return true;
 
         String pn = declaringClass.getPackageName();
-        int modifiers;
-        if (this instanceof Executable) {
-            modifiers = ((Executable) this).getModifiers();
-        } else {
-            modifiers = ((Field) this).getModifiers();
-        }
+        int modifiers = ((Member)this).getModifiers();
 
         // class is public and package is exported to caller
         boolean isClassPublic = Modifier.isPublic(declaringClass.getModifiers());
         if (isClassPublic && declaringModule.isExported(pn, callerModule)) {
             // member is public
             if (Modifier.isPublic(modifiers)) {
-                logIfExportedForIllegalAccess(caller, declaringClass);
                 return true;
             }
 
@@ -319,35 +355,45 @@ public class AccessibleObject implements AnnotatedElement {
             if (Modifier.isProtected(modifiers)
                 && Modifier.isStatic(modifiers)
                 && isSubclassOf(caller, declaringClass)) {
-                logIfExportedForIllegalAccess(caller, declaringClass);
                 return true;
             }
         }
 
         // package is open to caller
         if (declaringModule.isOpen(pn, callerModule)) {
-            logIfOpenedForIllegalAccess(caller, declaringClass);
             return true;
         }
 
         if (throwExceptionIfDenied) {
-            // not accessible
-            String msg = "Unable to make ";
-            if (this instanceof Field)
-                msg += "field ";
-            msg += this + " accessible: " + declaringModule + " does not \"";
-            if (isClassPublic && Modifier.isPublic(modifiers))
-                msg += "exports";
-            else
-                msg += "opens";
-            msg += " " + pn + "\" to " + callerModule;
-            InaccessibleObjectException e = new InaccessibleObjectException(msg);
-            if (printStackTraceWhenAccessFails()) {
-                e.printStackTrace(System.err);
-            }
-            throw e;
+            throwInaccessibleObjectException(caller, declaringClass);
         }
         return false;
+    }
+
+    private void throwInaccessibleObjectException(Class<?> caller, Class<?> declaringClass) {
+        boolean isClassPublic = Modifier.isPublic(declaringClass.getModifiers());
+        String pn = declaringClass.getPackageName();
+        int modifiers = ((Member)this).getModifiers();
+
+        // not accessible
+        String msg = "Unable to make ";
+        if (this instanceof Field)
+            msg += "field ";
+        msg += this + " accessible";
+        msg += caller == null ? " by JNI attached native thread with no caller frame: " : ": ";
+        msg += declaringClass.getModule() + " does not \"";
+        if (isClassPublic && Modifier.isPublic(modifiers))
+            msg += "exports";
+        else
+            msg += "opens";
+        msg += " " + pn + "\"" ;
+        if (caller != null)
+            msg += " to " + caller.getModule();
+        InaccessibleObjectException e = new InaccessibleObjectException(msg);
+        if (printStackTraceWhenAccessFails()) {
+            e.printStackTrace(System.err);
+        }
+        throw e;
     }
 
     private boolean isSubclassOf(Class<?> queryClass, Class<?> ofClass) {
@@ -358,30 +404,6 @@ public class AccessibleObject implements AnnotatedElement {
             queryClass = queryClass.getSuperclass();
         }
         return false;
-    }
-
-    private void logIfOpenedForIllegalAccess(Class<?> caller, Class<?> declaringClass) {
-        Module callerModule = caller.getModule();
-        Module targetModule = declaringClass.getModule();
-        // callerModule is null during early startup
-        if (callerModule != null && !callerModule.isNamed() && targetModule.isNamed()) {
-            IllegalAccessLogger logger = IllegalAccessLogger.illegalAccessLogger();
-            if (logger != null) {
-                logger.logIfOpenedForIllegalAccess(caller, declaringClass, this::toShortString);
-            }
-        }
-    }
-
-    private void logIfExportedForIllegalAccess(Class<?> caller, Class<?> declaringClass) {
-        Module callerModule = caller.getModule();
-        Module targetModule = declaringClass.getModule();
-        // callerModule is null during early startup
-        if (callerModule != null && !callerModule.isNamed() && targetModule.isNamed()) {
-            IllegalAccessLogger logger = IllegalAccessLogger.illegalAccessLogger();
-            if (logger != null) {
-                logger.logIfExportedForIllegalAccess(caller, declaringClass, this::toShortString);
-            }
-        }
     }
 
     /**
@@ -403,9 +425,6 @@ public class AccessibleObject implements AnnotatedElement {
      * This method may return {@code false} on a reflected object that is
      * accessible to the caller. To test if this reflected object is accessible,
      * it should use {@link #canAccess(Object)}.
-     *
-     * @revised 9
-     * @spec JPMS
      */
     @Deprecated(since="9")
     public boolean isAccessible() {
@@ -423,8 +442,12 @@ public class AccessibleObject implements AnnotatedElement {
      * <p> This method returns {@code true} if the {@code accessible} flag
      * is set to {@code true}, i.e. the checks for Java language access control
      * are suppressed, or if the caller can access the member as
-     * specified in <cite>The Java&trade; Language Specification</cite>,
-     * with the variation noted in the class description. </p>
+     * specified in <cite>The Java Language Specification</cite>,
+     * with the variation noted in the class description.
+     * If this method is invoked by <a href="{@docRoot}/../specs/jni/index.html">JNI code</a>
+     * with no caller class on the stack, this method returns {@code true}
+     * if the member and the declaring class are public, and the class is in
+     * a package that is exported unconditionally. </p>
      *
      * @param obj an instance object of the declaring class of this reflected
      *            object if it is an instance method or field
@@ -441,8 +464,8 @@ public class AccessibleObject implements AnnotatedElement {
      *              declaring class} of the member.</li>
      *         </ul>
      *
+     * @spec jni/index.html Java Native Interface Specification
      * @since 9
-     * @spec JPMS
      * @jls 6.6 Access Control
      * @see #trySetAccessible
      * @see #setAccessible(boolean)
@@ -463,7 +486,7 @@ public class AccessibleObject implements AnnotatedElement {
             }
             // if this object is an instance member, the given object
             // must be a subclass of the declaring class of this reflected object
-            if (!declaringClass.isAssignableFrom(obj.getClass())) {
+            if (!declaringClass.isInstance(obj)) {
                 throw new IllegalArgumentException("object is not an instance of "
                                                    + declaringClass.getName());
             }
@@ -487,6 +510,7 @@ public class AccessibleObject implements AnnotatedElement {
     /**
      * Constructor: only used by the Java Virtual Machine.
      */
+    @Deprecated(since="17")
     protected AccessibleObject() {}
 
     // Indicates whether language-level access checks are overridden
@@ -500,20 +524,32 @@ public class AccessibleObject implements AnnotatedElement {
     // Reflection factory used by subclasses for creating field,
     // method, and constructor accessors. Note that this is called
     // very early in the bootstrapping process.
+    @SuppressWarnings("removal")
     static final ReflectionFactory reflectionFactory =
         AccessController.doPrivileged(
             new ReflectionFactory.GetReflectionFactoryAction());
 
     /**
+     * {@inheritDoc}
+     *
+     * <p> Note that any annotation returned by this method is a
+     * declaration annotation.
+     *
+     * @implSpec
+     * The default implementation throws {@link
+     * UnsupportedOperationException}; subclasses should override this method.
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
+    @Override
     public <T extends Annotation> @Nullable T getAnnotation(Class<T> annotationClass) {
-        throw new AssertionError("All subclasses should override this method");
+        throw new UnsupportedOperationException("All subclasses should override this method");
     }
 
     /**
      * {@inheritDoc}
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
@@ -523,22 +559,42 @@ public class AccessibleObject implements AnnotatedElement {
     }
 
     /**
+     * {@inheritDoc}
+     *
+     * <p> Note that any annotations returned by this method are
+     * declaration annotations.
+     *
+     * @implSpec
+     * The default implementation throws {@link
+     * UnsupportedOperationException}; subclasses should override this method.
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.8
      */
     @Override
     public <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
-        throw new AssertionError("All subclasses should override this method");
+        throw new UnsupportedOperationException("All subclasses should override this method");
     }
 
     /**
+     * {@inheritDoc}
+     *
+     * <p> Note that any annotations returned by this method are
+     * declaration annotations.
+     *
      * @since 1.5
      */
+    @Override
     public Annotation[] getAnnotations() {
         return getDeclaredAnnotations();
     }
 
     /**
+     * {@inheritDoc}
+     *
+     * <p> Note that any annotation returned by this method is a
+     * declaration annotation.
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.8
      */
@@ -551,6 +607,11 @@ public class AccessibleObject implements AnnotatedElement {
     }
 
     /**
+     * {@inheritDoc}
+     *
+     * <p> Note that any annotations returned by this method are
+     * declaration annotations.
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.8
      */
@@ -563,30 +624,87 @@ public class AccessibleObject implements AnnotatedElement {
     }
 
     /**
+     * {@inheritDoc}
+     *
+     * <p> Note that any annotations returned by this method are
+     * declaration annotations.
+     *
+     * @implSpec
+     * The default implementation throws {@link
+     * UnsupportedOperationException}; subclasses should override this method.
+     *
      * @since 1.5
      */
+    @Override
     public Annotation[] getDeclaredAnnotations()  {
-        throw new AssertionError("All subclasses should override this method");
+        throw new UnsupportedOperationException("All subclasses should override this method");
     }
 
     // Shared access checking logic.
 
     // For non-public members or members in package-private classes,
-    // it is necessary to perform somewhat expensive security checks.
-    // If the security check succeeds for a given class, it will
+    // it is necessary to perform somewhat expensive access checks.
+    // If the access check succeeds for a given class, it will
     // always succeed (it is not affected by the granting or revoking
     // of permissions); we speed up the check in the common case by
     // remembering the last Class for which the check succeeded.
     //
-    // The simple security check for Constructor is to see if
+    // The simple access check for Constructor is to see if
     // the caller has already been seen, verified, and cached.
-    // (See also Class.newInstance(), which uses a similar method.)
     //
-    // A more complicated security check cache is needed for Method and Field
-    // The cache can be either null (empty cache), a 2-array of {caller,targetClass},
+    // A more complicated access check cache is needed for Method and Field
+    // The cache can be either null (empty cache), {caller,targetClass} pair,
     // or a caller (with targetClass implicitly equal to memberClass).
-    // In the 2-array case, the targetClass is always different from the memberClass.
-    volatile Object securityCheckCache;
+    // In the {caller,targetClass} case, the targetClass is always different
+    // from the memberClass.
+    volatile Object accessCheckCache;
+
+    private static class Cache {
+        final WeakReference<Class<?>> callerRef;
+        final WeakReference<Class<?>> targetRef;
+
+        Cache(Class<?> caller, Class<?> target) {
+            this.callerRef = new WeakReference<>(caller);
+            this.targetRef = new WeakReference<>(target);
+        }
+
+        boolean isCacheFor(Class<?> caller, Class<?> refc) {
+            return callerRef.refersTo(caller) && targetRef.refersTo(refc);
+        }
+
+        static Object protectedMemberCallerCache(Class<?> caller, Class<?> refc) {
+            return new Cache(caller, refc);
+        }
+    }
+
+    /*
+     * Returns true if the previous access check was verified for the
+     * given caller accessing a protected member with an instance of
+     * the given targetClass where the target class is different than
+     * the declaring member class.
+     */
+    private boolean isAccessChecked(Class<?> caller, Class<?> targetClass) {
+        Object cache = accessCheckCache;  // read volatile
+        if (cache instanceof Cache c) {
+            return c.isCacheFor(caller, targetClass);
+        }
+        return false;
+    }
+
+    /*
+     * Returns true if the previous access check was verified for the
+     * given caller accessing a static member or an instance member of
+     * the target class that is the same as the declaring member class.
+     */
+    private boolean isAccessChecked(Class<?> caller) {
+        Object cache = accessCheckCache;  // read volatile
+        if (cache instanceof WeakReference) {
+            @SuppressWarnings("unchecked")
+            WeakReference<Class<?>> ref = (WeakReference<Class<?>>) cache;
+            return ref.refersTo(caller);
+        }
+        return false;
+    }
 
     final void checkAccess(Class<?> caller, Class<?> memberClass,
                            Class<?> targetClass, int modifiers)
@@ -608,21 +726,13 @@ public class AccessibleObject implements AnnotatedElement {
         if (caller == memberClass) {  // quick check
             return true;             // ACCESS IS OK
         }
-        Object cache = securityCheckCache;  // read volatile
         if (targetClass != null // instance member or constructor
             && Modifier.isProtected(modifiers)
             && targetClass != memberClass) {
-            // Must match a 2-list of { caller, targetClass }.
-            if (cache instanceof Class[]) {
-                Class<?>[] cache2 = (Class<?>[]) cache;
-                if (cache2[1] == targetClass &&
-                    cache2[0] == caller) {
-                    return true;     // ACCESS IS OK
-                }
-                // (Test cache[1] first since range check for [1]
-                // subsumes range check for [0].)
+            if (isAccessChecked(caller, targetClass)) {
+                return true;         // ACCESS IS OK
             }
-        } else if (cache == caller) {
+        } else if (isAccessChecked(caller)) {
             // Non-protected case (or targetClass == memberClass or static member).
             return true;             // ACCESS IS OK
         }
@@ -635,26 +745,25 @@ public class AccessibleObject implements AnnotatedElement {
     private boolean slowVerifyAccess(Class<?> caller, Class<?> memberClass,
                                      Class<?> targetClass, int modifiers)
     {
+
+        if (caller == null) {
+            // No caller frame when a native thread attaches to the VM
+            // only allow access to a public accessible member
+            return Reflection.verifyPublicMemberAccess(memberClass, modifiers);
+        }
+
         if (!Reflection.verifyMemberAccess(caller, memberClass, targetClass, modifiers)) {
             // access denied
             return false;
         }
 
-        // access okay
-        logIfExportedForIllegalAccess(caller, memberClass);
-
         // Success: Update the cache.
         Object cache = (targetClass != null
                         && Modifier.isProtected(modifiers)
                         && targetClass != memberClass)
-                        ? new Class<?>[] { caller, targetClass }
-                        : caller;
-
-        // Note:  The two cache elements are not volatile,
-        // but they are effectively final.  The Java memory model
-        // guarantees that the initializing stores for the cache
-        // elements will occur before the volatile write.
-        securityCheckCache = cache;         // write volatile
+                        ? Cache.protectedMemberCallerCache(caller, targetClass)
+                        : new WeakReference<>(caller);
+        accessCheckCache = cache;         // write volatile
         return true;
     }
 

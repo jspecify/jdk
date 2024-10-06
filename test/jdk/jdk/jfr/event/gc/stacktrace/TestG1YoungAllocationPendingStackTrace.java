@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -31,7 +29,9 @@ package jdk.jfr.event.gc.stacktrace;
  *
  * @requires vm.gc == "null" | vm.gc == "G1"
  * @library /test/lib /test/jdk
- * @run main/othervm -XX:+UseG1GC -Xlog:gc* jdk.jfr.event.gc.stacktrace.TestG1YoungAllocationPendingStackTrace
+ * @run main/othervm -XX:+UseG1GC -Xlog:gc*
+ *                   -XX:FlightRecorderOptions:stackdepth=256
+ *                   jdk.jfr.event.gc.stacktrace.TestG1YoungAllocationPendingStackTrace
  */
 public class TestG1YoungAllocationPendingStackTrace {
 

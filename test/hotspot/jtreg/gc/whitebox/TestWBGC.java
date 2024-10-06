@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,28 +21,29 @@
  * questions.
  */
 
+package gc.whitebox;
+
 /*
- * @test TestWBGC
+ * @test
  * @bug 8055098
- * @summary Test verify that WB methods isObjectInOldGen and youngGC works correctly.
- * @requires vm.gc != "Z"
+ * @summary Test to verify that WB methods isObjectInOldGen and youngGC work correctly.
+ * @requires vm.gc != "Z" & vm.gc != "Shenandoah"
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run driver TestWBGC
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run driver gc.whitebox.TestWBGC
  */
 import jdk.test.lib.Asserts;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 public class TestWBGC {
 
     public static void main(String args[]) throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-                true,
+        OutputAnalyzer output = ProcessTools.executeTestJava(
                 "-Xbootclasspath/a:.",
                 "-XX:+UnlockDiagnosticVMOptions",
                 "-XX:+WhiteBoxAPI",
@@ -50,7 +51,6 @@ public class TestWBGC {
                 "-Xlog:gc",
                 GCYoungTest.class.getName());
 
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
         System.out.println(output.getStdout());
         output.shouldHaveExitValue(0);
         output.shouldContain("WhiteBox Initiated Young GC");

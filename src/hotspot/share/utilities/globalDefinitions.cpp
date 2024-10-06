@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,11 @@
  */
 
 #include "precompiled.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/os.hpp"
+#include "runtime/signature.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 // Basic error support
 
@@ -35,6 +38,12 @@ int LogBytesPerHeapOop = 0;
 int LogBitsPerHeapOop  = 0;
 int BytesPerHeapOop    = 0;
 int BitsPerHeapOop     = 0;
+
+// Old CDS options
+bool RequireSharedSpaces;
+extern "C" {
+JNIEXPORT jboolean UseSharedSpaces = true;
+}
 
 // Object alignment, in units of HeapWords.
 // Defaults are -1 so things will break badly if incorrectly initialized.
@@ -50,43 +59,60 @@ uint64_t OopEncodingHeapMax = 0;
 
 // Something to help porters sleep at night
 
+#ifdef ASSERT
+static BasicType char2type(int ch) {
+  switch (ch) {
+#define EACH_SIG(ch, bt, ignore) \
+    case ch: return bt;
+    SIGNATURE_TYPES_DO(EACH_SIG, ignore)
+#undef EACH_SIG
+  }
+  return T_ILLEGAL;
+}
+
+extern bool signature_constants_sane();
+#endif //ASSERT
+
 void basic_types_init() {
 #ifdef ASSERT
 #ifdef _LP64
-  assert(min_intx ==  (intx)CONST64(0x8000000000000000), "correct constant");
-  assert(max_intx ==  CONST64(0x7FFFFFFFFFFFFFFF), "correct constant");
-  assert(max_uintx == CONST64(0xFFFFFFFFFFFFFFFF), "correct constant");
-  assert( 8 == sizeof( intx),      "wrong size for basic type");
-  assert( 8 == sizeof( jobject),   "wrong size for basic type");
+  static_assert(min_intx ==  (intx)CONST64(0x8000000000000000), "correct constant");
+  static_assert(max_intx ==  CONST64(0x7FFFFFFFFFFFFFFF), "correct constant");
+  static_assert(max_uintx == CONST64(0xFFFFFFFFFFFFFFFF), "correct constant");
+  static_assert( 8 == sizeof( intx),      "wrong size for basic type");
+  static_assert( 8 == sizeof( jobject),   "wrong size for basic type");
 #else
-  assert(min_intx ==  (intx)0x80000000,  "correct constant");
-  assert(max_intx ==  0x7FFFFFFF,  "correct constant");
-  assert(max_uintx == 0xFFFFFFFF,  "correct constant");
-  assert( 4 == sizeof( intx),      "wrong size for basic type");
-  assert( 4 == sizeof( jobject),   "wrong size for basic type");
+  static_assert(min_intx ==  (intx)0x80000000,  "correct constant");
+  static_assert(max_intx ==  0x7FFFFFFF,  "correct constant");
+  static_assert(max_uintx == 0xFFFFFFFF,  "correct constant");
+  static_assert( 4 == sizeof( intx),      "wrong size for basic type");
+  static_assert( 4 == sizeof( jobject),   "wrong size for basic type");
 #endif
-  assert( (~max_juint) == 0,  "max_juint has all its bits");
-  assert( (~max_uintx) == 0,  "max_uintx has all its bits");
-  assert( (~max_julong) == 0, "max_julong has all its bits");
-  assert( 1 == sizeof( jbyte),     "wrong size for basic type");
-  assert( 2 == sizeof( jchar),     "wrong size for basic type");
-  assert( 2 == sizeof( jshort),    "wrong size for basic type");
-  assert( 4 == sizeof( juint),     "wrong size for basic type");
-  assert( 4 == sizeof( jint),      "wrong size for basic type");
-  assert( 1 == sizeof( jboolean),  "wrong size for basic type");
-  assert( 8 == sizeof( jlong),     "wrong size for basic type");
-  assert( 4 == sizeof( jfloat),    "wrong size for basic type");
-  assert( 8 == sizeof( jdouble),   "wrong size for basic type");
-  assert( 1 == sizeof( u1),        "wrong size for basic type");
-  assert( 2 == sizeof( u2),        "wrong size for basic type");
-  assert( 4 == sizeof( u4),        "wrong size for basic type");
-  assert(wordSize == BytesPerWord, "should be the same since they're used interchangeably");
-  assert(wordSize == HeapWordSize, "should be the same since they're also used interchangeably");
+  static_assert( (~max_juint) == 0,  "max_juint has all its bits");
+  static_assert( (~max_uintx) == 0,  "max_uintx has all its bits");
+  static_assert( (~max_julong) == 0, "max_julong has all its bits");
+  static_assert( 1 == sizeof( jbyte),     "wrong size for basic type");
+  static_assert( 2 == sizeof( jchar),     "wrong size for basic type");
+  static_assert( 2 == sizeof( jshort),    "wrong size for basic type");
+  static_assert( 4 == sizeof( juint),     "wrong size for basic type");
+  static_assert( 4 == sizeof( jint),      "wrong size for basic type");
+  static_assert( 1 == sizeof( jboolean),  "wrong size for basic type");
+  static_assert( 8 == sizeof( jlong),     "wrong size for basic type");
+  static_assert( 4 == sizeof( jfloat),    "wrong size for basic type");
+  static_assert( 8 == sizeof( jdouble),   "wrong size for basic type");
+  static_assert( 1 == sizeof( u1),        "wrong size for basic type");
+  static_assert( 2 == sizeof( u2),        "wrong size for basic type");
+  static_assert( 4 == sizeof( u4),        "wrong size for basic type");
+  static_assert(wordSize == BytesPerWord, "should be the same since they're used interchangeably");
+  static_assert(wordSize == HeapWordSize, "should be the same since they're also used interchangeably");
+
+  assert(signature_constants_sane(), "");
 
   int num_type_chars = 0;
   for (int i = 0; i < 99; i++) {
     if (type2char((BasicType)i) != 0) {
       assert(char2type(type2char((BasicType)i)) == i, "proper inverses");
+      assert(Signature::basic_type(type2char((BasicType)i)) == i, "proper inverses");
       num_type_chars++;
     }
   }
@@ -127,11 +153,10 @@ void basic_types_init() {
     }
   }
   // These are assumed, e.g., when filling HeapWords with juints.
-  assert(is_power_of_2(sizeof(juint)), "juint must be power of 2");
-  assert(is_power_of_2(HeapWordSize), "HeapWordSize must be power of 2");
-  assert((size_t)HeapWordSize >= sizeof(juint),
-         "HeapWord should be at least as large as juint");
-  assert(sizeof(NULL) == sizeof(char*), "NULL must be same size as pointer");
+  static_assert(is_power_of_2(sizeof(juint)), "juint must be power of 2");
+  static_assert(is_power_of_2(HeapWordSize), "HeapWordSize must be power of 2");
+  static_assert((size_t)HeapWordSize >= sizeof(juint),
+                "HeapWord should be at least as large as juint");
 #endif
 
   if( JavaPriority1_To_OSPriority != -1 )
@@ -177,11 +202,20 @@ void basic_types_init() {
 
 
 // Map BasicType to signature character
-char type2char_tab[T_CONFLICT+1]={ 0, 0, 0, 0, 'Z', 'C', 'F', 'D', 'B', 'S', 'I', 'J', 'L', '[', 'V', 0, 0, 0, 0, 0};
+char type2char_tab[T_CONFLICT+1] = {
+  0, 0, 0, 0,
+  JVM_SIGNATURE_BOOLEAN, JVM_SIGNATURE_CHAR,
+  JVM_SIGNATURE_FLOAT,   JVM_SIGNATURE_DOUBLE,
+  JVM_SIGNATURE_BYTE,    JVM_SIGNATURE_SHORT,
+  JVM_SIGNATURE_INT,     JVM_SIGNATURE_LONG,
+  JVM_SIGNATURE_CLASS,   JVM_SIGNATURE_ARRAY,
+  JVM_SIGNATURE_VOID,    0,
+  0, 0, 0, 0
+};
 
 // Map BasicType to Java type name
 const char* type2name_tab[T_CONFLICT+1] = {
-  NULL, NULL, NULL, NULL,
+  nullptr, nullptr, nullptr, nullptr,
   "boolean",
   "char",
   "float",
@@ -199,12 +233,23 @@ const char* type2name_tab[T_CONFLICT+1] = {
   "*narrowklass*",
   "*conflict*"
 };
+const char* type2name(BasicType t) {
+  if (t < ARRAY_SIZE(type2name_tab)) {
+    return type2name_tab[t];
+  } else if (t == T_ILLEGAL) {
+    return "*illegal*";
+  } else {
+    fatal("invalid type %d", t);
+    return "invalid type";
+  }
+}
+
 
 
 BasicType name2type(const char* name) {
   for (int i = T_BOOLEAN; i <= T_VOID; i++) {
     BasicType t = (BasicType)i;
-    if (type2name_tab[t] != NULL && 0 == strcmp(type2name_tab[t], name))
+    if (type2name_tab[t] != nullptr && 0 == strcmp(type2name_tab[t], name))
       return t;
   }
   return T_ILLEGAL;
@@ -286,7 +331,7 @@ int _type2aelembytes[T_CONFLICT+1] = {
 
 #ifdef ASSERT
 int type2aelembytes(BasicType t, bool allow_address) {
-  assert(allow_address || t != T_ADDRESS, " ");
+  assert((allow_address || t != T_ADDRESS) && t <= T_CONFLICT, "unexpected basic type");
   return _type2aelembytes[t];
 }
 #endif
@@ -362,5 +407,31 @@ STATIC_ASSERT(nth_bit(1|2) == 0x8);
 STATIC_ASSERT(right_n_bits(3)   == 0x7);
 STATIC_ASSERT(right_n_bits(1|2) == 0x7);
 
-STATIC_ASSERT(left_n_bits(3)   == (intptr_t) LP64_ONLY(0xE000000000000000) NOT_LP64(0xE0000000));
-STATIC_ASSERT(left_n_bits(1|2) == (intptr_t) LP64_ONLY(0xE000000000000000) NOT_LP64(0xE0000000));
+// Check for Flush-To-Zero mode
+
+// On some processors faster execution can be achieved by setting a
+// mode to return zero for extremely small results, rather than an
+// IEEE-754 subnormal number. This mode is not compatible with the
+// Java Language Standard.
+
+// We need the addition of _large_subnormal and _small_subnormal to be
+// performed at runtime. _small_subnormal is volatile so that
+// expressions involving it cannot be evaluated at compile time.
+static const double large_subnormal_double
+  = jdouble_cast(0x0030000000000000); // 0x1.0p-1020;
+static const volatile double small_subnormal_double
+  = jdouble_cast(0x0000000000000003); // 0x0.0000000000003p-1022;
+
+// Quickly test to make sure IEEE-754 subnormal numbers are correctly
+// handled.
+bool IEEE_subnormal_handling_OK() {
+  // _small_subnormal is the smallest subnormal number that has two
+  // bits set. _large_subnormal is a number such that, when
+  // _small_subnormal is added to it, must be rounded according to the
+  // mode. These two tests detect the rounding mode in use. If
+  // subnormals are turned off (i.e. subnormals-are-zero) flush-to-
+  // zero mode is in use.
+
+  return (large_subnormal_double + small_subnormal_double > large_subnormal_double
+          && -large_subnormal_double - small_subnormal_double < -large_subnormal_double);
+}

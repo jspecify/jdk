@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,75 +21,39 @@
  * questions.
  */
 
-import java.util.ArrayList;
-import java.util.List;
 import java.io.File;
-import java.nio.file.Files;
-import java.io.IOException;
-import java.io.BufferedInputStream;
 import java.util.stream.Collectors;
-import java.io.FileInputStream;
-
-import sun.jvm.hotspot.HotSpotAgent;
-import sun.jvm.hotspot.debugger.*;
 
 import jdk.test.lib.apps.LingeredApp;
+import jdk.test.lib.Asserts;
 import jdk.test.lib.JDKToolLauncher;
-import jdk.test.lib.JDKToolFinder;
-import jdk.test.lib.Platform;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.SA.SATestUtils;
 import jdk.test.lib.Utils;
-import jdk.test.lib.Asserts;
 import jdk.test.lib.hprof.HprofParser;
-import jdk.test.lib.hprof.parser.HprofReader;
-import jdk.test.lib.hprof.parser.PositionDataInputStream;
-import jdk.test.lib.hprof.model.Snapshot;
 
 /**
  * @test
  * @library /test/lib
- * @requires vm.hasSAandCanAttach & os.family != "mac"
+ * @requires vm.hasSA
  * @modules java.base/jdk.internal.misc
  *          jdk.hotspot.agent/sun.jvm.hotspot
  *          jdk.hotspot.agent/sun.jvm.hotspot.utilities
  *          jdk.hotspot.agent/sun.jvm.hotspot.oops
  *          jdk.hotspot.agent/sun.jvm.hotspot.debugger
- * @run main/othervm TestHeapDumpForInvokeDynamic
+ * @run driver TestHeapDumpForInvokeDynamic
  */
 
 public class TestHeapDumpForInvokeDynamic {
 
     private static LingeredAppWithInvokeDynamic theApp = null;
 
-    private static void verifyHeapDump(String heapFile) {
-
-        File heapDumpFile = new File(heapFile);
-        Asserts.assertTrue(heapDumpFile.exists() && heapDumpFile.isFile(),
-                          "Could not create dump file " + heapDumpFile.getAbsolutePath());
-        try (PositionDataInputStream in = new PositionDataInputStream(
-                new BufferedInputStream(new FileInputStream(heapFile)))) {
-            int i = in.readInt();
-            if (HprofReader.verifyMagicNumber(i)) {
-                Snapshot sshot;
-                HprofReader r = new HprofReader(heapFile, in, 0,
-                                                false, 0);
-                sshot = r.read();
-            } else {
-                throw new IOException("Unrecognized magic number: " + i);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            Asserts.fail("Could not read dump file " + heapFile);
-        } finally {
-            heapDumpFile.delete();
-        }
-    }
-
     private static void attachDumpAndVerify(String heapDumpFileName,
                                             long lingeredAppPid) throws Exception {
 
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jhsdb");
+        launcher.addVMArgs(Utils.getTestJavaOpts());
         launcher.addToolArg("jmap");
         launcher.addToolArg("--binaryheap");
         launcher.addToolArg("--dumpfile");
@@ -97,8 +61,7 @@ public class TestHeapDumpForInvokeDynamic {
         launcher.addToolArg("--pid");
         launcher.addToolArg(Long.toString(lingeredAppPid));
 
-        ProcessBuilder processBuilder = new ProcessBuilder();
-        processBuilder.command(launcher.getCommand());
+        ProcessBuilder processBuilder = SATestUtils.createProcessBuilder(launcher);
         System.out.println(
             processBuilder.command().stream().collect(Collectors.joining(" ")));
 
@@ -108,11 +71,11 @@ public class TestHeapDumpForInvokeDynamic {
         SAOutput.shouldContain(heapDumpFileName);
         System.out.println(SAOutput.getOutput());
 
-        verifyHeapDump(heapDumpFileName);
+        HprofParser.parseAndVerify(new File(heapDumpFileName));
     }
 
     public static void main (String... args) throws Exception {
-
+        SATestUtils.skipIfCannotAttach(); // throws SkippedException if attach not expected to work.
         String heapDumpFileName = "lambdaHeapDump.bin";
 
         File heapDumpFile = new File(heapDumpFileName);
@@ -121,12 +84,8 @@ public class TestHeapDumpForInvokeDynamic {
         }
 
         try {
-            List<String> vmArgs = new ArrayList<String>();
-            vmArgs.add("-XX:+UsePerfData");
-            vmArgs.addAll(Utils.getVmOptions());
-
             theApp = new LingeredAppWithInvokeDynamic();
-            LingeredApp.startApp(vmArgs, theApp);
+            LingeredApp.startApp(theApp, "-XX:+UsePerfData", "-Xmx512m");
             attachDumpAndVerify(heapDumpFileName, theApp.getPid());
         } finally {
             LingeredApp.stopApp(theApp);

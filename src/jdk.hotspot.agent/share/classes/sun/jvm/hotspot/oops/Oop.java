@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,11 @@
 package sun.jvm.hotspot.oops;
 
 import java.io.*;
-import java.util.*;
-import sun.jvm.hotspot.utilities.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 // Oop represents the superclass for all types of
 // objects in the HotSpot object heap.
@@ -113,8 +113,8 @@ public class Oop {
   }
 
   public boolean equals(Object obj) {
-    if (obj != null && (obj instanceof Oop)) {
-      return getHandle().equals(((Oop) obj).getHandle());
+    if (obj instanceof Oop other) {
+      return getHandle().equals(other.getHandle());
     }
     return false;
  }

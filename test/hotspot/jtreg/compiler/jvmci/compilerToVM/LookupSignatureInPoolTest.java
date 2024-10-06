@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * @requires vm.jvmci
  * @library /test/lib /
  * @library ../common/patches
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  *          java.base/jdk.internal.reflect
  *          java.base/jdk.internal.org.objectweb.asm
  *          java.base/jdk.internal.org.objectweb.asm.tree
@@ -36,12 +36,11 @@
  *          jdk.internal.vm.ci/jdk.vm.ci.meta
  *
  * @build jdk.internal.vm.ci/jdk.vm.ci.hotspot.CompilerToVMHelper
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI
- *                   -Djvmci.Compiler=null
+ *                   -XX:-UseJVMCICompiler
  *                   compiler.jvmci.compilerToVM.LookupSignatureInPoolTest
  */
 
@@ -97,18 +96,12 @@ public class LookupSignatureInPoolTest {
         if (entry == null) {
             return;
         }
-        int index = cpi;
-        String cached = "";
-        int cpci = dummyClass.getCPCacheIndex(cpi);
-        if (cpci != ConstantPoolTestsHelper.NO_CP_CACHE_PRESENT) {
-            index = cpci;
-            cached = "cached ";
-        }
-        String sigToVerify = CompilerToVMHelper.lookupSignatureInPool(constantPoolCTVM, index);
+        int opcode = ConstantPoolTestsHelper.getDummyOpcode(cpType);
+        int index = dummyClass.getCPCacheIndex(cpi);
+        Asserts.assertTrue(index != ConstantPoolTestsHelper.NO_CP_CACHE_PRESENT, "the class must have been rewritten");
+        String sigToVerify = CompilerToVMHelper.lookupSignatureInPool(constantPoolCTVM, index, opcode);
         String sigToRefer = entry.type;
-        String msg = String.format("Wrong signature accessed by %sconstant pool index %d",
-                                   cached,
-                                   index);
+        String msg = String.format("Wrong signature accessed by cached constant pool index %d", index);
         Asserts.assertEQ(sigToVerify, sigToRefer, msg);
     }
 }

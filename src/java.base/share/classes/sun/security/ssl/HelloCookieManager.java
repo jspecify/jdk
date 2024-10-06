@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,10 @@ package sun.security.ssl;
 
 import java.io.IOException;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.concurrent.locks.ReentrantLock;
 import static sun.security.ssl.ClientHello.ClientHelloMessage;
 
 /**
@@ -44,6 +46,8 @@ abstract class HelloCookieManager {
         private volatile D13HelloCookieManager d13HelloCookieManager;
         private volatile T13HelloCookieManager t13HelloCookieManager;
 
+        private final ReentrantLock managerLock = new ReentrantLock();
+
         Builder(SecureRandom secureRandom) {
             this.secureRandom = secureRandom;
         }
@@ -55,11 +59,14 @@ abstract class HelloCookieManager {
                         return d13HelloCookieManager;
                     }
 
-                    synchronized (this) {
+                    managerLock.lock();
+                    try {
                         if (d13HelloCookieManager == null) {
                             d13HelloCookieManager =
                                     new D13HelloCookieManager(secureRandom);
                         }
+                    } finally {
+                        managerLock.unlock();
                     }
 
                     return d13HelloCookieManager;
@@ -68,11 +75,14 @@ abstract class HelloCookieManager {
                         return d10HelloCookieManager;
                     }
 
-                    synchronized (this) {
+                    managerLock.lock();
+                    try {
                         if (d10HelloCookieManager == null) {
                             d10HelloCookieManager =
                                     new D10HelloCookieManager(secureRandom);
                         }
+                    } finally {
+                        managerLock.unlock();
                     }
 
                     return d10HelloCookieManager;
@@ -83,11 +93,14 @@ abstract class HelloCookieManager {
                         return t13HelloCookieManager;
                     }
 
-                    synchronized (this) {
+                    managerLock.lock();
+                    try {
                         if (t13HelloCookieManager == null) {
                             t13HelloCookieManager =
                                     new T13HelloCookieManager(secureRandom);
                         }
+                    } finally {
+                        managerLock.unlock();
                     }
 
                     return t13HelloCookieManager;
@@ -109,9 +122,11 @@ abstract class HelloCookieManager {
             class D10HelloCookieManager extends HelloCookieManager {
 
         final SecureRandom secureRandom;
-        private int         cookieVersion;  // allow to wrap, version + sequence
-        private byte[]      cookieSecret;
-        private byte[]      legacySecret;
+        private int               cookieVersion;  // allow to wrap, version + sequence
+        private final byte[]      cookieSecret;
+        private final byte[]      legacySecret;
+
+        private final ReentrantLock d10ManagerLock = new ReentrantLock();
 
         D10HelloCookieManager(SecureRandom secureRandom) {
             this.secureRandom = secureRandom;
@@ -126,11 +141,12 @@ abstract class HelloCookieManager {
 
         @Override
         byte[] createCookie(ServerHandshakeContext context,
-                ClientHelloMessage clientHello) throws IOException {
+                ClientHelloMessage clientHello) {
             int version;
             byte[] secret;
 
-            synchronized (this) {
+            d10ManagerLock.lock();
+            try {
                 version = cookieVersion;
                 secret = cookieSecret;
 
@@ -141,9 +157,17 @@ abstract class HelloCookieManager {
                 }
 
                 cookieVersion++;
+            } finally {
+                d10ManagerLock.unlock();
             }
 
-            MessageDigest md = JsseJce.getMessageDigest("SHA-256");
+            MessageDigest md;
+            try {
+                md = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException nsae) {
+                throw new RuntimeException(
+                    "MessageDigest algorithm SHA-256 is not available", nsae);
+            }
             byte[] helloBytes = clientHello.getHelloCookieBytes();
             md.update(helloBytes);
             byte[] cookie = md.digest(secret);      // 32 bytes
@@ -154,28 +178,37 @@ abstract class HelloCookieManager {
 
         @Override
         boolean isCookieValid(ServerHandshakeContext context,
-            ClientHelloMessage clientHello, byte[] cookie) throws IOException {
+            ClientHelloMessage clientHello, byte[] cookie) {
             // no cookie exchange or not a valid cookie length
             if ((cookie == null) || (cookie.length != 32)) {
                 return false;
             }
 
             byte[] secret;
-            synchronized (this) {
+            d10ManagerLock.lock();
+            try {
                 if (((cookieVersion >> 24) & 0xFF) == cookie[0]) {
                     secret = cookieSecret;
                 } else {
                     secret = legacySecret;  // including out of window cookies
                 }
+            } finally {
+                d10ManagerLock.unlock();
             }
 
-            MessageDigest md = JsseJce.getMessageDigest("SHA-256");
+            MessageDigest md;
+            try {
+                md = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException nsae) {
+                throw new RuntimeException(
+                    "MessageDigest algorithm SHA-256 is not available", nsae);
+            }
             byte[] helloBytes = clientHello.getHelloCookieBytes();
             md.update(helloBytes);
             byte[] target = md.digest(secret);      // 32 bytes
             target[0] = cookie[0];
 
-            return Arrays.equals(target, cookie);
+            return MessageDigest.isEqual(target, cookie);
         }
     }
 
@@ -186,13 +219,13 @@ abstract class HelloCookieManager {
 
         @Override
         byte[] createCookie(ServerHandshakeContext context,
-                ClientHelloMessage clientHello) throws IOException {
+                ClientHelloMessage clientHello) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
         @Override
         boolean isCookieValid(ServerHandshakeContext context,
-            ClientHelloMessage clientHello, byte[] cookie) throws IOException {
+            ClientHelloMessage clientHello, byte[] cookie) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
     }
@@ -204,6 +237,8 @@ abstract class HelloCookieManager {
         private int             cookieVersion;      // version + sequence
         private final byte[]    cookieSecret;
         private final byte[]    legacySecret;
+
+        private final ReentrantLock t13ManagerLock = new ReentrantLock();
 
         T13HelloCookieManager(SecureRandom secureRandom) {
             this.secureRandom = secureRandom;
@@ -217,11 +252,12 @@ abstract class HelloCookieManager {
 
         @Override
         byte[] createCookie(ServerHandshakeContext context,
-                ClientHelloMessage clientHello) throws IOException {
+                ClientHelloMessage clientHello) {
             int version;
             byte[] secret;
 
-            synchronized (this) {
+            t13ManagerLock.lock();
+            try {
                 version = cookieVersion;
                 secret = cookieSecret;
 
@@ -232,10 +268,20 @@ abstract class HelloCookieManager {
                 }
 
                 cookieVersion++;        // allow wrapped version number
+            } finally {
+                t13ManagerLock.unlock();
             }
 
-            MessageDigest md = JsseJce.getMessageDigest(
+            MessageDigest md;
+            try {
+                md = MessageDigest.getInstance(
                     context.negotiatedCipherSuite.hashAlg.name);
+            } catch (NoSuchAlgorithmException nsae) {
+                throw new RuntimeException(
+                        "MessageDigest algorithm " +
+                        context.negotiatedCipherSuite.hashAlg.name +
+                        " is not available", nsae);
+            }
             byte[] headerBytes = clientHello.getHeaderBytes();
             md.update(headerBytes);
             byte[] headerCookie = md.digest(secret);
@@ -292,24 +338,34 @@ abstract class HelloCookieManager {
                     Arrays.copyOfRange(cookie, 3 + hashLen, cookie.length);
 
             byte[] secret;
-            synchronized (this) {
+            t13ManagerLock.lock();
+            try {
                 if ((byte)((cookieVersion >> 24) & 0xFF) == cookie[2]) {
                     secret = cookieSecret;
                 } else {
                     secret = legacySecret;  // including out of window cookies
                 }
+            } finally {
+                t13ManagerLock.unlock();
             }
 
-            MessageDigest md = JsseJce.getMessageDigest(cs.hashAlg.name);
+            MessageDigest md;
+            try {
+                md = MessageDigest.getInstance(cs.hashAlg.name);
+            } catch (NoSuchAlgorithmException nsae) {
+                throw new RuntimeException(
+                        "MessageDigest algorithm " +
+                        cs.hashAlg.name + " is not available", nsae);
+            }
             byte[] headerBytes = clientHello.getHeaderBytes();
             md.update(headerBytes);
             byte[] headerCookie = md.digest(secret);
 
-            if (!Arrays.equals(headerCookie, prevHeadCookie)) {
+            if (!MessageDigest.isEqual(headerCookie, prevHeadCookie)) {
                 return false;
             }
 
-            // Use the ClientHello hash in the cookie for transtript
+            // Use the ClientHello hash in the cookie for transcript
             // hash calculation for stateless HelloRetryRequest.
             //
             // Transcript-Hash(ClientHello1, HelloRetryRequest, ... Mn) =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -74,13 +74,13 @@ import java.awt.print.PrinterJob;
 import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.text.AttributedString;
-import java.util.EnumSet;
 import java.util.Vector;
 
 import javax.imageio.*;
 import javax.swing.*;
 
 import static java.awt.RenderingHints.*;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 /**
  * FontPanel.java
@@ -95,14 +95,14 @@ import static java.awt.RenderingHints.*;
 public final class FontPanel extends JPanel implements AdjustmentListener {
 
     /// Drawing Option Constants
-    private final String STYLES[] =
+    private final String[] STYLES =
       { "plain", "bold", "italic", "bold italic" };
 
     private final int NONE = 0;
     private final int SCALE = 1;
     private final int SHEAR = 2;
     private final int ROTATE = 3;
-    private final String TRANSFORMS[] =
+    private final String[] TRANSFORMS =
       { "with no transforms", "with scaling", "with Shearing", "with rotation" };
 
     private final int DRAW_STRING = 0;
@@ -112,7 +112,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
     private final int TL_DRAW = 4;
     private final int GV_OUTLINE = 5;
     private final int TL_OUTLINE = 6;
-    private final String METHODS[] = {
+    private final String[] METHODS = {
         "drawString", "drawChars", "drawBytes", "drawGlyphVector",
         "TextLayout.draw", "GlyphVector.getOutline", "TextLayout.getOutline" };
 
@@ -120,9 +120,9 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
     public final int ALL_GLYPHS = 1;
     public final int USER_TEXT = 2;
     public final int FILE_TEXT = 3;
-    private final String MS_OPENING[] =
+    private final String[] MS_OPENING =
       { " Unicode ", " Glyph Code ", " lines ", " lines " };
-    private final String MS_CLOSING[] =
+    private final String[] MS_CLOSING =
       { "", "", " of User Text ", " of LineBreakMeasurer-reformatted Text " };
 
     /// General Graphics Variable
@@ -153,10 +153,10 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
     private Object lcdContrast = getDefaultLCDContrast();
     private int drawMethod = DRAW_STRING;
     private int textToUse = RANGE_TEXT;
-    private String userText[] = null;
-    private String fileText[] = null;
-    private int drawRange[] = { 0x0000, 0x007f };
-    private String fontInfos[] = new String[2];
+    private String[] userText = null;
+    private String[] fileText = null;
+    private int[] drawRange = { 0x0000, 0x007f };
+    private String[] fontInfos = new String[2];
     private boolean showGrid = true;
 
     /// Parent Font2DTest panel
@@ -271,8 +271,8 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
         fc.repaint();
     }
 
-    public void setTextToDraw( int i, int range[],
-                               String textSet[], String fileData[] ) {
+    public void setTextToDraw( int i, int[] range,
+                               String[] textSet, String[] fileData ) {
         textToUse = i;
 
         if ( textToUse == RANGE_TEXT )
@@ -377,8 +377,8 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
                              String name, float size, int style,
                              int transform, int g2transform,
                              int text, int method, int aa, int fm,
-                             int contrast, String user[] ) {
-        int range[] = { start, end };
+                             int contrast, String[] user ) {
+        int[] range = { start, end };
 
         /// Since repaint call has a low priority, these functions will finish
         /// before the actual repainting is done
@@ -392,7 +392,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
         setTransformG2( g2transform ); // ABP
         setDrawMethod( method );
         setRenderingHints(AAValues.getValue(aa), FMValues.getValue(fm),
-                          new Integer(contrast));
+                          Integer.valueOf(contrast));
     }
 
     /// Writes the current screen to PNG file
@@ -434,7 +434,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
         private int canvasInset_X = 5, canvasInset_Y = 5;
 
         /// LineBreak'ed TextLayout vector
-        private Vector lineBreakTLs = null;
+        private Vector<TextLayout> lineBreakTLs = null;
 
         /// Whether the current draw command requested is for printing
         private boolean isPrinting = false;
@@ -458,7 +458,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
         private String backupStatusString = null;
 
         /// Error constants
-        private final String ERRORS[] = {
+        private final String[] ERRORS = {
             "ERROR: drawBytes cannot handle characters beyond 0x00FF. Select different range or draw methods.",
             "ERROR: Cannot fit text with the current font size. Resize the window or use smaller font size.",
             "ERROR: Cannot print with the current font size. Use smaller font size.",
@@ -480,7 +480,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
             /// Creates an invisble pointer by giving it bogus image
             /// Possibly find a workaround for this...
             Toolkit tk = Toolkit.getDefaultToolkit();
-            byte bogus[] = { (byte) 0 };
+            byte[] bogus = { (byte) 0 };
             blankCursor =
               tk.createCustomCursor( tk.createImage( bogus ), new Point(0, 0), "" );
 
@@ -545,8 +545,8 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
         public void modeSpecificDrawChar( Graphics2D g2, int charCode,
                                           int baseX, int baseY ) {
             GlyphVector gv;
-            int oneGlyph[] = { charCode };
-            char charArray[] = Character.toChars( charCode );
+            int[] oneGlyph = { charCode };
+            char[] charArray = Character.toChars( charCode );
 
             FontRenderContext frc = g2.getFontRenderContext();
             AffineTransform oldTX = g2.getTransform();
@@ -563,7 +563,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
             // we need to convert back to user space to be able to
             // calculate the shift as baseX is in user space.
             try {
-                 double pt[] = new double[4];
+                 double[] pt = new double[4];
                  pt[0] = r2d2.getX();
                  pt[1] = r2d2.getY();
                  pt[2] = r2d2.getX()+r2d2.getWidth();
@@ -597,7 +597,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
                   case DRAW_BYTES:
                     if ( charCode > 0xff )
                       throw new CannotDrawException( DRAW_BYTES_ERROR );
-                    byte oneByte[] = { (byte) charCode };
+                    byte[] oneByte = { (byte) charCode };
                     g2.drawBytes( oneByte, 0, 1, 0, 0 );
                     break;
                   case DRAW_GLYPHV:
@@ -644,7 +644,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
                 break;
               case DRAW_BYTES:
                 try {
-                    byte lineBytes[] = line.getBytes( "ISO-8859-1" );
+                    byte[] lineBytes = line.getBytes(ISO_8859_1);
                     g2.drawBytes( lineBytes, 0, lineBytes.length, 0, 0 );
                 }
                 catch ( Exception e ) {
@@ -740,7 +740,8 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
                 verticalBar.setValues( oldValue, numCharDown, 0, totalNumRows );
             }
             if ( totalNumRows <= numCharDown && drawStart == 0) {
-              verticalBar.setEnabled( false );
+              // the disabled scroll bar looks odd with Nimbus L&F.
+              verticalBar.setEnabled( true );
             }
             else {
               verticalBar.setEnabled( true );
@@ -800,7 +801,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
                 if ( textToUse == FILE_TEXT ) {
                     if ( !isPrinting )
                       f2dt.fireChangeStatus( "LineBreaking Text... Please Wait", false );
-                    lineBreakTLs = new Vector();
+                    lineBreakTLs = new Vector<>();
                     for ( int i = 0; i < fileText.length; i++ ) {
                         AttributedString as =
                           new AttributedString( fileText[i], g2.getFont().getAttributes() );
@@ -929,12 +930,12 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
                 float xPos, yPos = (float) canvasInset_Y;
                 g2.drawRect( 0, 0, w - 1, h - 1 );
                 for ( int i = drawStart; i <= drawEnd; i++ ) {
-                    TextLayout oneLine = (TextLayout) lineBreakTLs.elementAt( i );
+                    TextLayout oneLine = lineBreakTLs.elementAt( i );
                     xPos =
                       oneLine.isLeftToRight() ?
                       canvasInset_X : ( (float) w - oneLine.getAdvance() - canvasInset_X );
 
-                    float fmData[] = {0, oneLine.getAscent(), 0, oneLine.getDescent(), 0, oneLine.getLeading()};
+                    float[] fmData = {0, oneLine.getAscent(), 0, oneLine.getDescent(), 0, oneLine.getLeading()};
                     if (g2Transform != NONE) {
                         AffineTransform at = getAffineTransform(g2Transform);
                         at.transform( fmData, 0, fmData, 0, 3);
@@ -992,9 +993,9 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
             /// Back up metrics and other drawing info before printing modifies it
             int backupDrawStart = drawStart, backupDrawEnd = drawEnd;
             int backupNumCharAcross = numCharAcross, backupNumCharDown = numCharDown;
-            Vector backupLineBreakTLs = null;
+            Vector<TextLayout> backupLineBreakTLs = null;
             if ( textToUse == FILE_TEXT )
-              backupLineBreakTLs = (Vector) lineBreakTLs.clone();
+              backupLineBreakTLs = new Vector<>(lineBreakTLs);
 
             printPageNumber = pageIndex;
             isPrinting = true;
@@ -1137,7 +1138,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
                                   zoomAreaWidth / 2, (int) ( maxAscent * ZOOM ));
             g2.dispose();
             if ( !nowZooming )
-              zoomWindow.show();
+              zoomWindow.setVisible(true);
             /// This is sort of redundant... since there is a paint function
             /// inside zoomWindow definition that does the drawImage.
             /// (I should be able to call just repaint() here)
@@ -1176,7 +1177,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
         public void mouseReleased( MouseEvent e ) {
             if ( textToUse == RANGE_TEXT || textToUse == ALL_GLYPHS ) {
                 if ( nowZooming )
-                  zoomWindow.hide();
+                  zoomWindow.setVisible(false);
                 nowZooming = false;
             }
             this.setCursor( Cursor.getDefaultCursor() );
@@ -1246,7 +1247,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
        }
        public static Object getValue(int ordinal) {
            if (valArray == null) {
-               valArray = (FMValues[])EnumSet.allOf(FMValues.class).toArray(new FMValues[0]);
+               valArray = FMValues.values();
            }
            for (int i=0;i<valArray.length;i++) {
                if (valArray[i].ordinal() == ordinal) {
@@ -1257,7 +1258,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
        }
        private static FMValues[] getArray() {
            if (valArray == null) {
-               valArray = (FMValues[])EnumSet.allOf(FMValues.class).toArray(new FMValues[0]);
+               valArray = FMValues.values();
            }
            return valArray;
        }
@@ -1308,7 +1309,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
 
        public static Object getValue(int ordinal) {
            if (valArray == null) {
-               valArray = (AAValues[])EnumSet.allOf(AAValues.class).toArray(new AAValues[0]);
+               valArray = AAValues.values();
            }
            for (int i=0;i<valArray.length;i++) {
                if (valArray[i].ordinal() == ordinal) {
@@ -1320,8 +1321,7 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
 
        private static AAValues[] getArray() {
            if (valArray == null) {
-               Object [] oa = EnumSet.allOf(AAValues.class).toArray(new AAValues[0]);
-               valArray = (AAValues[])(EnumSet.allOf(AAValues.class).toArray(new AAValues[0]));
+               valArray = AAValues.values();
            }
            return valArray;
        }

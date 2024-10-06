@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_ASM_ASSEMBLER_HPP
-#define SHARE_VM_ASM_ASSEMBLER_HPP
+#ifndef SHARE_ASM_ASSEMBLER_HPP
+#define SHARE_ASM_ASSEMBLER_HPP
 
 #include "asm/codeBuffer.hpp"
 #include "asm/register.hpp"
 #include "code/oopRecorder.hpp"
 #include "code/relocInfo.hpp"
 #include "memory/allocation.hpp"
-#include "runtime/vm_version.hpp"
+#include "utilities/checkedCast.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
@@ -73,7 +73,7 @@ class Label;
  */
 class Label {
  private:
-  enum { PatchCacheSize = 4 };
+  enum { PatchCacheSize = 4 debug_only( +4 ) };
 
   // _loc encodes both the binding state (via its sign)
   // and the binding locator (via its value) of a label.
@@ -92,12 +92,17 @@ class Label {
   int _patch_index;
   GrowableArray<int>* _patch_overflow;
 
-  Label(const Label&) { ShouldNotReachHere(); }
+  NONCOPYABLE(Label);
  protected:
 
   // The label will be bound to a location near its users.
   bool _is_near;
 
+#ifdef ASSERT
+  // Sourcre file and line location of jump instruction
+  int _lines[PatchCacheSize];
+  const char* _files[PatchCacheSize];
+#endif
  public:
 
   /**
@@ -116,7 +121,7 @@ class Label {
 #endif // PRODUCT
 
   /**
-   * Returns the position of the the Label in the code buffer
+   * Returns the position of the Label in the code buffer
    * The position is a 'locator', which encodes both offset and section.
    */
   int loc() const {
@@ -141,7 +146,7 @@ class Label {
    * @param cb         the code buffer being patched
    * @param branch_loc the locator of the branch instruction in the code buffer
    */
-  void add_patch_at(CodeBuffer* cb, int branch_loc);
+  void add_patch_at(CodeBuffer* cb, int branch_loc, const char* file = nullptr, int line = 0);
 
   /**
    * Iterate over the list of patches, resolving the instructions
@@ -152,12 +157,20 @@ class Label {
   void init() {
     _loc = -1;
     _patch_index = 0;
-    _patch_overflow = NULL;
+    _patch_overflow = nullptr;
     _is_near = false;
   }
 
   Label() {
     init();
+  }
+
+  ~Label() {
+    assert(is_bound() || is_unused(), "Label was never bound to a location, but it was used as a jmp target");
+  }
+
+  void reset() {
+    init(); //leave _patch_overflow because it points to CodeBuffer.
   }
 };
 
@@ -214,14 +227,15 @@ class AbstractAssembler : public ResourceObj  {
   bool isByte(int x) const             { return 0 <= x && x < 0x100; }
   bool isShiftCount(int x) const       { return 0 <= x && x < 32; }
 
-  // Instruction boundaries (required when emitting relocatable values).
+  // Mark instruction boundaries, this is required when emitting relocatable values.
+  // Basically, all instructions that directly or indirectly use Assembler::emit_data* methods.
   class InstructionMark: public StackObj {
    private:
     AbstractAssembler* _assm;
 
    public:
     InstructionMark(AbstractAssembler* assm) : _assm(assm) {
-      assert(assm->inst_mark() == NULL, "overlapping instructions");
+      assert(assm->inst_mark() == nullptr, "overlapping instructions");
       _assm->set_inst_mark();
     }
     ~InstructionMark() {
@@ -229,6 +243,22 @@ class AbstractAssembler : public ResourceObj  {
     }
   };
   friend class InstructionMark;
+
+ public:
+  // count size of instructions which are skipped from inline heuristics
+  class InlineSkippedInstructionsCounter: public StackObj {
+   private:
+    AbstractAssembler* _assm;
+    address _start;
+   public:
+    InlineSkippedInstructionsCounter(AbstractAssembler* assm) : _assm(assm), _start(assm->pc()) {
+    }
+    ~InlineSkippedInstructionsCounter() {
+      _assm->register_skipped(checked_cast<int>(_assm->pc() - _start));
+    }
+  };
+
+ protected:
 #ifdef ASSERT
   // Make it return true on platforms which need to verify
   // instruction boundaries for some operations.
@@ -262,6 +292,20 @@ class AbstractAssembler : public ResourceObj  {
   };
 #endif
 
+  // sign-extended tolerant cast needed by callers of emit_int8 and emit_int16
+  // Some callers pass signed types that need to fit into the unsigned type so check
+  // that the range is correct.
+  template <typename T>
+  constexpr T narrow_cast(int x) const {
+    if (x < 0) {
+      using stype = std::make_signed_t<T>;
+      assert(x >= std::numeric_limits<stype>::min(), "too negative"); // >= -128 for 8 bits
+      return static_cast<T>(x);  // cut off sign bits
+    } else {
+      return checked_cast<T>(x);
+    }
+  }
+
  public:
 
   // Creation
@@ -270,62 +314,89 @@ class AbstractAssembler : public ResourceObj  {
   // ensure buf contains all code (call this before using/copying the code)
   void flush();
 
-  void emit_int8(   int8_t  x) { code_section()->emit_int8(   x); }
-  void emit_int16(  int16_t x) { code_section()->emit_int16(  x); }
-  void emit_int32(  int32_t x) { code_section()->emit_int32(  x); }
-  void emit_int64(  int64_t x) { code_section()->emit_int64(  x); }
+  void emit_int8(       int x1)                                     { code_section()->emit_int8(narrow_cast<uint8_t>(x1)); }
 
-  void emit_float(  jfloat  x) { code_section()->emit_float(  x); }
-  void emit_double( jdouble x) { code_section()->emit_double( x); }
-  void emit_address(address x) { code_section()->emit_address(x); }
+  void emit_int16(       int x)                                     { code_section()->emit_int16(narrow_cast<uint16_t>(x)); }
 
-  // min and max values for signed immediate ranges
-  static int min_simm(int nbits) { return -(intptr_t(1) << (nbits - 1))    ; }
-  static int max_simm(int nbits) { return  (intptr_t(1) << (nbits - 1)) - 1; }
+  void emit_int16(      int x1,     int x2)                         { code_section()->emit_int16(narrow_cast<uint8_t>(x1),
+                                                                                                 narrow_cast<uint8_t>(x2)); }
 
-  // Define some:
-  static int min_simm10() { return min_simm(10); }
-  static int min_simm13() { return min_simm(13); }
-  static int min_simm16() { return min_simm(16); }
+  void emit_int24(      int x1,     int x2,     int x3)             { code_section()->emit_int24(narrow_cast<uint8_t>(x1),
+                                                                                                 narrow_cast<uint8_t>(x2),
+                                                                                                 narrow_cast<uint8_t>(x3)); }
 
-  // Test if x is within signed immediate range for nbits
-  static bool is_simm(intptr_t x, int nbits) { return min_simm(nbits) <= x && x <= max_simm(nbits); }
+  void emit_int32(  uint32_t x)                                     { code_section()->emit_int32(x); }
+  void emit_int32(      int x1,     int x2,     int x3,     int x4) { code_section()->emit_int32(narrow_cast<uint8_t>(x1),
+                                                                                                 narrow_cast<uint8_t>(x2),
+                                                                                                 narrow_cast<uint8_t>(x3),
+                                                                                                 narrow_cast<uint8_t>(x4)); }
 
-  // Define some:
-  static bool is_simm5( intptr_t x) { return is_simm(x, 5 ); }
-  static bool is_simm8( intptr_t x) { return is_simm(x, 8 ); }
-  static bool is_simm10(intptr_t x) { return is_simm(x, 10); }
-  static bool is_simm11(intptr_t x) { return is_simm(x, 11); }
-  static bool is_simm12(intptr_t x) { return is_simm(x, 12); }
-  static bool is_simm13(intptr_t x) { return is_simm(x, 13); }
-  static bool is_simm16(intptr_t x) { return is_simm(x, 16); }
-  static bool is_simm26(intptr_t x) { return is_simm(x, 26); }
-  static bool is_simm32(intptr_t x) { return is_simm(x, 32); }
+  void emit_int64(  uint64_t x)                                     { code_section()->emit_int64(x); }
+
+  void emit_float(  jfloat  x)                                      { code_section()->emit_float(x); }
+  void emit_double( jdouble x)                                      { code_section()->emit_double(x); }
+  void emit_address(address x)                                      { code_section()->emit_address(x); }
+
+  enum { min_simm10 = -512 };
+
+  // Test if x is within signed immediate range for width.
+  static bool is_simm(int64_t x, uint w) {
+    precond(1 < w && w < 64);
+    int64_t limes = INT64_C(1) << (w - 1);
+    return -limes <= x && x < limes;
+  }
+
+  static bool is_simm8(int64_t x) { return is_simm(x, 8); }
+  static bool is_simm9(int64_t x) { return is_simm(x, 9); }
+  static bool is_simm10(int64_t x) { return is_simm(x, 10); }
+  static bool is_simm16(int64_t x) { return is_simm(x, 16); }
+  static bool is_simm32(int64_t x) { return is_simm(x, 32); }
+
+  // Test if x is within unsigned immediate range for width.
+  static bool is_uimm(uint64_t x, uint w) {
+    precond(0 < w && w < 64);
+    uint64_t limes = UINT64_C(1) << w;
+    return x < limes;
+  }
+
+  static bool is_uimm12(uint64_t x) { return is_uimm(x, 12); }
+  static bool is_uimm32(uint64_t x) { return is_uimm(x, 32); }
 
   // Accessors
   CodeSection*  code_section() const   { return _code_section; }
   CodeBuffer*   code()         const   { return code_section()->outer(); }
   int           sect()         const   { return code_section()->index(); }
   address       pc()           const   { return code_section()->end();   }
+  address       begin()        const   { return code_section()->start(); }
   int           offset()       const   { return code_section()->size();  }
   int           locator()      const   { return CodeBuffer::locator(offset(), sect()); }
 
   OopRecorder*  oop_recorder() const   { return _oop_recorder; }
   void      set_oop_recorder(OopRecorder* r) { _oop_recorder = r; }
 
-  address       inst_mark() const { return code_section()->mark();       }
-  void      set_inst_mark()       {        code_section()->set_mark();   }
-  void    clear_inst_mark()       {        code_section()->clear_mark(); }
+  void   register_skipped(int size) { code_section()->register_skipped(size); }
+
+  address       inst_mark() const         { return code_section()->mark();          }
+  void      set_inst_mark()               {        code_section()->set_mark();      }
+  void      set_inst_mark(address addr)   {        code_section()->set_mark(addr);  }
+  void    clear_inst_mark()               {        code_section()->clear_mark();    }
+  void set_inst_end(address addr)         {        code_section()->set_end(addr);   }
 
   // Constants in code
   void relocate(RelocationHolder const& rspec, int format = 0) {
     assert(!pd_check_instruction_mark()
-        || inst_mark() == NULL || inst_mark() == code_section()->end(),
+        || inst_mark() == nullptr || inst_mark() == code_section()->end(),
         "call relocate() between instructions");
     code_section()->relocate(code_section()->end(), rspec, format);
   }
   void relocate(   relocInfo::relocType rtype, int format = 0) {
     code_section()->relocate(code_section()->end(), rtype, format);
+  }
+  void relocate(address addr, relocInfo::relocType rtype, int format = 0) {
+    code_section()->relocate(addr, rtype, format);
+  }
+  void relocate(address addr, RelocationHolder const& rspec, int format = 0) {
+    code_section()->relocate(addr, rspec, format);
   }
 
   static int code_fill_byte();         // used to pad out odd-sized code buffers
@@ -357,7 +428,7 @@ class AbstractAssembler : public ResourceObj  {
   address int_constant(jint c) {
     CodeSection* c1 = _code_section;
     address ptr = start_a_const(sizeof(c), sizeof(c));
-    if (ptr != NULL) {
+    if (ptr != nullptr) {
       emit_int32(c);
       end_a_const(c1);
     }
@@ -366,7 +437,7 @@ class AbstractAssembler : public ResourceObj  {
   address long_constant(jlong c) {
     CodeSection* c1 = _code_section;
     address ptr = start_a_const(sizeof(c), sizeof(c));
-    if (ptr != NULL) {
+    if (ptr != nullptr) {
       emit_int64(c);
       end_a_const(c1);
     }
@@ -375,7 +446,7 @@ class AbstractAssembler : public ResourceObj  {
   address double_constant(jdouble c) {
     CodeSection* c1 = _code_section;
     address ptr = start_a_const(sizeof(c), sizeof(c));
-    if (ptr != NULL) {
+    if (ptr != nullptr) {
       emit_double(c);
       end_a_const(c1);
     }
@@ -384,7 +455,7 @@ class AbstractAssembler : public ResourceObj  {
   address float_constant(jfloat c) {
     CodeSection* c1 = _code_section;
     address ptr = start_a_const(sizeof(c), sizeof(c));
-    if (ptr != NULL) {
+    if (ptr != nullptr) {
       emit_float(c);
       end_a_const(c1);
     }
@@ -393,7 +464,7 @@ class AbstractAssembler : public ResourceObj  {
   address address_constant(address c) {
     CodeSection* c1 = _code_section;
     address ptr = start_a_const(sizeof(c), sizeof(c));
-    if (ptr != NULL) {
+    if (ptr != nullptr) {
       emit_address(c);
       end_a_const(c1);
     }
@@ -402,29 +473,38 @@ class AbstractAssembler : public ResourceObj  {
   address address_constant(address c, RelocationHolder const& rspec) {
     CodeSection* c1 = _code_section;
     address ptr = start_a_const(sizeof(c), sizeof(c));
-    if (ptr != NULL) {
+    if (ptr != nullptr) {
       relocate(rspec);
       emit_address(c);
       end_a_const(c1);
     }
     return ptr;
   }
-
-  // Bootstrapping aid to cope with delayed determination of constants.
-  // Returns a static address which will eventually contain the constant.
-  // The value zero (NULL) stands instead of a constant which is still uncomputed.
-  // Thus, the eventual value of the constant must not be zero.
-  // This is fine, since this is designed for embedding object field
-  // offsets in code which must be generated before the object class is loaded.
-  // Field offsets are never zero, since an object's header (mark word)
-  // is located at offset zero.
-  RegisterOrConstant delayed_value(int(*value_fn)(), Register tmp, int offset = 0);
-  RegisterOrConstant delayed_value(address(*value_fn)(), Register tmp, int offset = 0);
-  virtual RegisterOrConstant delayed_value_impl(intptr_t* delayed_value_addr, Register tmp, int offset) = 0;
-  // Last overloading is platform-dependent; look in assembler_<arch>.cpp.
-  static intptr_t* delayed_value_addr(int(*constant_fn)());
-  static intptr_t* delayed_value_addr(address(*constant_fn)());
-  static void update_delayed_values();
+  address array_constant(BasicType bt, GrowableArray<jvalue>* c, int alignment) {
+    CodeSection* c1 = _code_section;
+    int len = c->length();
+    int size = type2aelembytes(bt) * len;
+    address ptr = start_a_const(size, alignment);
+    if (ptr != nullptr) {
+      for (int i = 0; i < len; i++) {
+        jvalue e = c->at(i);
+        switch(bt) {
+          case T_BOOLEAN: emit_int8(e.z);   break;
+          case T_BYTE:    emit_int8(e.b);   break;
+          case T_CHAR:    emit_int16(e.c);  break;
+          case T_SHORT:   emit_int16(e.s);  break;
+          case T_INT:     emit_int32(e.i);  break;
+          case T_LONG:    emit_int64(e.j);  break;
+          case T_FLOAT:   emit_float(e.f);  break;
+          case T_DOUBLE:  emit_double(e.d); break;
+          default:
+            ShouldNotReachHere();
+        }
+      }
+      end_a_const(c1);
+    }
+    return ptr;
+  }
 
   // Bang stack to trigger StackOverflowError at a safe location
   // implementation delegates to machine-specific bang_stack_with_offset
@@ -439,10 +519,10 @@ class AbstractAssembler : public ResourceObj  {
    * @param branch the location of the instruction to patch
    * @param masm the assembler which generated the branch
    */
-  void pd_patch_instruction(address branch, address target);
+  void pd_patch_instruction(address branch, address target, const char* file, int line);
 
 };
 
 #include CPU_HEADER(assembler)
 
-#endif // SHARE_VM_ASM_ASSEMBLER_HPP
+#endif // SHARE_ASM_ASSEMBLER_HPP

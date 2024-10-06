@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,16 @@
 package jdk.tools.jlink.internal;
 
 import java.io.DataOutputStream;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
+
 import jdk.tools.jlink.builder.ImageBuilder;
 import jdk.tools.jlink.plugin.Plugin;
-import jdk.tools.jlink.plugin.PluginException;
 import jdk.tools.jlink.plugin.Plugin.Category;
+import jdk.tools.jlink.plugin.PluginException;
 import jdk.tools.jlink.plugin.ResourcePool;
 
 /**
@@ -50,6 +49,7 @@ public final class ImagePluginConfiguration {
 
     static {
         CATEGORIES_ORDER.add(Category.FILTER);
+        CATEGORIES_ORDER.add(Category.ADDER);
         CATEGORIES_ORDER.add(Category.TRANSFORMER);
         CATEGORIES_ORDER.add(Category.MODULEINFO_TRANSFORMER);
         CATEGORIES_ORDER.add(Category.SORTER);
@@ -64,7 +64,7 @@ public final class ImagePluginConfiguration {
     }
 
     /*
-     * Create a stack of plugins from a a configuration.
+     * Create a stack of plugins from a configuration.
      */
     public static ImagePluginStack parseConfiguration(Jlink.PluginsConfiguration pluginsConfiguration)
             throws Exception {
@@ -94,7 +94,7 @@ public final class ImagePluginConfiguration {
         }
 
         List<Plugin> orderedPlugins = new ArrayList<>();
-        plugins.entrySet().stream().forEach((entry) -> {
+        plugins.entrySet().forEach((entry) -> {
             orderedPlugins.addAll(entry.getValue());
         });
         Plugin lastSorter = null;

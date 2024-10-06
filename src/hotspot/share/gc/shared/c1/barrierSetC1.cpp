@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "c1/c1_Defs.hpp"
 #include "c1/c1_LIRGenerator.hpp"
+#include "classfile/javaClasses.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "utilities/macros.hpp"
 
@@ -62,9 +63,13 @@ LIR_Opr BarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_registe
 
   if (resolve_in_register) {
     LIR_Opr resolved_addr = gen->new_pointer_register();
-    __ leal(addr_opr, resolved_addr);
-    resolved_addr = LIR_OprFact::address(new LIR_Address(resolved_addr, access.type()));
-    return resolved_addr;
+    if (needs_patching) {
+      __ leal(addr_opr, resolved_addr, lir_patch_normal, access.patch_emit_info());
+      access.clear_decorators(C1_NEEDS_PATCHING);
+    } else {
+      __ leal(addr_opr, resolved_addr);
+    }
+    return LIR_OprFact::address(new LIR_Address(resolved_addr, access.type()));
   } else {
     return addr_opr;
   }
@@ -87,6 +92,13 @@ void BarrierSetC1::load_at(LIRAccess& access, LIR_Opr result) {
 
   LIR_Opr resolved = resolve_address(access, false);
   access.set_resolved_addr(resolved);
+  load_at_resolved(access, result);
+}
+
+void BarrierSetC1::load(LIRAccess& access, LIR_Opr result) {
+  DecoratorSet decorators = access.decorators();
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  assert(!in_heap, "consider using load_at");
   load_at_resolved(access, result);
 }
 
@@ -128,7 +140,7 @@ LIR_Opr BarrierSetC1::atomic_add_at(LIRAccess& access, LIRItem& value) {
 
 void BarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   DecoratorSet decorators = access.decorators();
-  bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses) && os::is_MP();
+  bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
   bool needs_patching = (decorators & C1_NEEDS_PATCHING) != 0;
   bool mask_boolean = (decorators & C1_MASK_BOOLEAN) != 0;
   LIRGenerator* gen = access.gen();
@@ -137,7 +149,7 @@ void BarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
     value = gen->mask_boolean(access.base().opr(), value, access.access_emit_info());
   }
 
-  if (is_volatile && os::is_MP()) {
+  if (is_volatile) {
     __ membar_release();
   }
 
@@ -156,22 +168,25 @@ void BarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
 void BarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
   LIRGenerator *gen = access.gen();
   DecoratorSet decorators = access.decorators();
-  bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses) && os::is_MP();
+  bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
   bool needs_patching = (decorators & C1_NEEDS_PATCHING) != 0;
   bool mask_boolean = (decorators & C1_MASK_BOOLEAN) != 0;
+  bool in_native = (decorators & IN_NATIVE) != 0;
 
   if (support_IRIW_for_not_multiple_copy_atomic_cpu && is_volatile) {
     __ membar();
   }
 
   LIR_PatchCode patch_code = needs_patching ? lir_patch_normal : lir_patch_none;
-  if (is_volatile && !needs_patching) {
+  if (in_native) {
+    __ move_wide(access.resolved_addr()->as_address_ptr(), result);
+  } else if (is_volatile && !needs_patching) {
     gen->volatile_field_load(access.resolved_addr()->as_address_ptr(), result, access.access_emit_info());
   } else {
     __ load(access.resolved_addr()->as_address_ptr(), result, access.access_emit_info(), patch_code);
   }
 
-  if (is_volatile && os::is_MP()) {
+  if (is_volatile) {
     __ membar_acquire();
   }
 
@@ -179,7 +194,7 @@ void BarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
   if (mask_boolean) {
     LabelObj* equalZeroLabel = new LabelObj();
     __ cmp(lir_cond_equal, result, 0);
-    __ branch(lir_cond_equal, T_BOOLEAN, equalZeroLabel->label());
+    __ branch(lir_cond_equal, equalZeroLabel->label());
     __ move(LIR_OprFact::intConst(1), result);
     __ branch_destination(equalZeroLabel->label());
   }
@@ -208,8 +223,8 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
   //
   // We need to generate code similar to the following...
   //
-  // if (offset == java_lang_ref_Reference::referent_offset) {
-  //   if (src != NULL) {
+  // if (offset == java_lang_ref_Reference::referent_offset()) {
+  //   if (src != nullptr) {
   //     if (klass(src)->reference_type() != REF_NONE) {
   //       pre_barrier(..., value, ...);
   //     }
@@ -233,7 +248,7 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
                      constant->as_jlong());
 
 
-    if (off_con != (jlong) java_lang_ref_Reference::referent_offset) {
+    if (off_con != (jlong) java_lang_ref_Reference::referent_offset()) {
       // The constant offset is something other than referent_offset.
       // We can skip generating/checking the remaining guards and
       // skip generation of the code stub.
@@ -254,7 +269,7 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
     // We still need to continue with the checks.
     if (base.is_constant()) {
       ciObject* src_con = base.get_jobject_constant();
-      guarantee(src_con != NULL, "no source constant");
+      guarantee(src_con != nullptr, "no source constant");
 
       if (src_con->is_null_object()) {
         // The constant src object is null - We can skip
@@ -272,7 +287,7 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
     // Can the klass of object be statically determined to be
     // a sub-class of Reference?
     ciType* type = base.value()->declared_type();
-    if ((type != NULL) && type->is_loaded()) {
+    if ((type != nullptr) && type->is_loaded()) {
       if (type->is_subtype_of(gen->compilation()->env()->Reference_klass())) {
         gen_type_check = false;
       } else if (type->is_klass() &&
@@ -286,6 +301,10 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
   if (gen_pre_barrier) {
     // We can have generate one runtime check here. Let's start with
     // the offset check.
+    // Allocate temp register to base and load it here, otherwise
+    // control flow below may confuse register allocator.
+    LIR_Opr base_reg = gen->new_register(T_OBJECT);
+    __ move(base.result(), base_reg);
     if (gen_offset_check) {
       // if (offset != referent_offset) -> continue
       // If offset is an int then we can do the comparison with the
@@ -296,31 +315,31 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
       LIR_Opr referent_off;
 
       if (offset->type() == T_INT) {
-        referent_off = LIR_OprFact::intConst(java_lang_ref_Reference::referent_offset);
+        referent_off = LIR_OprFact::intConst(java_lang_ref_Reference::referent_offset());
       } else {
         assert(offset->type() == T_LONG, "what else?");
         referent_off = gen->new_register(T_LONG);
-        __ move(LIR_OprFact::longConst(java_lang_ref_Reference::referent_offset), referent_off);
+        __ move(LIR_OprFact::longConst(java_lang_ref_Reference::referent_offset()), referent_off);
       }
       __ cmp(lir_cond_notEqual, offset, referent_off);
-      __ branch(lir_cond_notEqual, offset->type(), cont->label());
+      __ branch(lir_cond_notEqual, cont->label());
     }
     if (gen_source_check) {
       // offset is a const and equals referent offset
       // if (source == null) -> continue
-      __ cmp(lir_cond_equal, base.result(), LIR_OprFact::oopConst(NULL));
-      __ branch(lir_cond_equal, T_OBJECT, cont->label());
+      __ cmp(lir_cond_equal, base_reg, LIR_OprFact::oopConst(nullptr));
+      __ branch(lir_cond_equal, cont->label());
     }
-    LIR_Opr src_klass = gen->new_register(T_OBJECT);
+    LIR_Opr src_klass = gen->new_register(T_METADATA);
     if (gen_type_check) {
       // We have determined that offset == referent_offset && src != null.
       // if (src->_klass->_reference_type == REF_NONE) -> continue
-      __ move(new LIR_Address(base.result(), oopDesc::klass_offset_in_bytes(), T_ADDRESS), src_klass);
+      gen->load_klass(base_reg, src_klass, nullptr);
       LIR_Address* reference_type_addr = new LIR_Address(src_klass, in_bytes(InstanceKlass::reference_type_offset()), T_BYTE);
       LIR_Opr reference_type = gen->new_register(T_INT);
       __ move(reference_type_addr, reference_type);
       __ cmp(lir_cond_equal, reference_type, LIR_OprFact::intConst(REF_NONE));
-      __ branch(lir_cond_equal, T_INT, cont->label());
+      __ branch(lir_cond_equal, cont->label());
     }
   }
 }

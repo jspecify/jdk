@@ -22,8 +22,6 @@
  */
 package com.sun.org.apache.xml.internal.security.keys.content.x509;
 
-import org.jspecify.annotations.Nullable;
-
 import java.security.cert.X509Certificate;
 
 import com.sun.org.apache.xml.internal.security.exceptions.XMLSecurityException;
@@ -82,9 +80,8 @@ public class XMLX509SubjectName extends SignatureElementProxy implements XMLX509
     }
 
     /** {@inheritDoc} */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (!(obj instanceof XMLX509SubjectName)) {
             return false;
         }
@@ -96,6 +93,7 @@ public class XMLX509SubjectName extends SignatureElementProxy implements XMLX509
         return thisSubject.equals(otherSubject);
     }
 
+    @Override
     public int hashCode() {
         int result = 17;
         result = 31 * result + this.getSubjectName().hashCode();
@@ -103,6 +101,7 @@ public class XMLX509SubjectName extends SignatureElementProxy implements XMLX509
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getBaseLocalName() {
         return Constants._TAG_X509SUBJECTNAME;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,7 +70,9 @@ public class location005 {
 
     public static void main (String argv[]) {
         int result = run(argv, System.out);
-        System.exit(result + PASS_BASE);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run (String argv[], PrintStream out) {
@@ -148,7 +150,7 @@ public class location005 {
         IOPipe pipe     = new IOPipe(debuggee);
 
         debuggee.redirectStderr(out);
-        log2("setvalue003a debuggee launched");
+        log2(debuggeeName + " debuggee launched");
         debuggee.resume();
 
         String line = pipe.readln();

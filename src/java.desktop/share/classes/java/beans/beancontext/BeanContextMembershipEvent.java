@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,7 @@
 
 package java.beans.beancontext;
 
-import java.util.EventObject;
-
-import java.beans.beancontext.BeanContext;
-import java.beans.beancontext.BeanContextEvent;
-
+import java.io.Serial;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -54,11 +50,19 @@ import java.util.Iterator;
  * @see         java.beans.beancontext.BeanContextEvent
  * @see         java.beans.beancontext.BeanContextMembershipListener
  */
+
+@SuppressWarnings("removal")
+@Deprecated(since = "23", forRemoval = true)
 public class BeanContextMembershipEvent extends BeanContextEvent {
+
+    /**
+     * Use serialVersionUID from JDK 1.7 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = 3499346510334590959L;
 
     /**
-     * Contruct a BeanContextMembershipEvent
+     * Construct a BeanContextMembershipEvent
      *
      * @param bc        The BeanContext source
      * @param changes   The Children affected
@@ -76,11 +80,11 @@ public class BeanContextMembershipEvent extends BeanContextEvent {
     }
 
     /**
-     * Contruct a BeanContextMembershipEvent
+     * Construct a BeanContextMembershipEvent
      *
      * @param bc        The BeanContext source
      * @param changes   The Children effected
-     * @exception       NullPointerException if changes associated with this
+     * @throws       NullPointerException if changes associated with this
      *                  event are null.
      */
 
@@ -130,6 +134,7 @@ public class BeanContextMembershipEvent extends BeanContextEvent {
     * The list of children affected by this
     * event notification.
     */
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({"rawtypes",
+                       "serial"}) // Not statically typed as Serializable
     protected Collection children;
 }

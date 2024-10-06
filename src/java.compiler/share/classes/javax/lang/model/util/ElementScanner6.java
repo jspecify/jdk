@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,19 +30,20 @@ import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import static javax.lang.model.SourceVersion.*;
 
-
 /**
  * A scanning visitor of program elements with default behavior
  * appropriate for the {@link SourceVersion#RELEASE_6 RELEASE_6}
  * source version.  The <code>visit<i>Xyz</i></code> methods in this
- * class scan their component elements by calling {@code scan} on
- * their {@linkplain Element#getEnclosedElements enclosed elements},
- * {@linkplain ExecutableElement#getParameters parameters}, etc., as
- * indicated in the individual method specifications.  A subclass can
- * control the order elements are visited by overriding the
- * <code>visit<i>Xyz</i></code> methods.  Note that clients of a scanner
- * may get the desired behavior be invoking {@code v.scan(e, p)} rather
- * than {@code v.visit(e, p)} on the root objects of interest.
+ * class scan their component elements by calling {@link
+ * #scan(Element, P) scan} on their {@linkplain
+ * Element#getEnclosedElements enclosed elements}, {@linkplain
+ * ExecutableElement#getParameters parameters}, etc., as indicated in
+ * the individual method specifications.  A subclass can control the
+ * order elements are visited by overriding the
+ * <code>visit<i>Xyz</i></code> methods.  Note that clients of a
+ * scanner may get the desired behavior by invoking {@code v.scan(e,
+ * p)} rather than {@code v.visit(e, p)} on the root objects of
+ * interest.
  *
  * <p>When a subclass overrides a <code>visit<i>Xyz</i></code> method, the
  * new method can cause the enclosed elements to be scanned in the
@@ -56,27 +57,26 @@ import static javax.lang.model.SourceVersion.*;
  * calling <code>super.visit<i>Xyz</i></code>, an overriding visit method
  * should call {@code scan} with the elements in the desired order.
  *
- * <p> Methods in this class may be overridden subject to their
- * general contract.  Note that annotating methods in concrete
- * subclasses with {@link java.lang.Override @Override} will help
- * ensure that methods are overridden as intended.
+ * @apiNote
+ * Methods in this class may be overridden subject to their general
+ * contract.
  *
- * <p> <b>WARNING:</b> The {@code ElementVisitor} interface
+ * <p id=note_for_subclasses><strong>WARNING:</strong> The {@code ElementVisitor} interface
  * implemented by this class may have methods added to it in the
  * future to accommodate new, currently unknown, language structures
- * added to future versions of the Java&trade; programming language.
+ * added to future versions of the Java programming language.
  * Therefore, methods whose names begin with {@code "visit"} may be
  * added to this class in the future; to avoid incompatibilities,
  * classes which extend this class should not declare any instance
- * methods with names beginning with {@code "visit"}.
+ * methods with names beginning with {@code "visit"}.</p>
  *
  * <p>When such a new visit method is added, the default
- * implementation in this class will be to call the {@link
+ * implementation in this class will be to directly or indirectly call the {@link
  * #visitUnknown visitUnknown} method.  A new element scanner visitor
  * class will also be introduced to correspond to the new language
  * level; this visitor will have different default behavior for the
- * visit method in question.  When the new visitor is introduced, all
- * or portions of this visitor may be deprecated.
+ * visit method in question.  When a new visitor is introduced,
+ * portions of this visitor class may be deprecated, including its constructors.
  *
  * @param <R> the return type of this visitor's methods.  Use {@link
  *            Void} for visitors that do not need to return results.
@@ -84,13 +84,10 @@ import static javax.lang.model.SourceVersion.*;
  *            methods.  Use {@code Void} for visitors that do not need an
  *            additional parameter.
  *
- * @author Joseph D. Darcy
- * @author Scott Seligman
- * @author Peter von der Ah&eacute;
- *
  * @see ElementScanner7
  * @see ElementScanner8
  * @see ElementScanner9
+ * @see ElementScanner14
  * @since 1.6
  */
 @SupportedSourceVersion(RELEASE_6)
@@ -164,42 +161,49 @@ public class ElementScanner6<R, P> extends AbstractElementVisitor6<R, P> {
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritDoc ElementVisitor}
      *
      * @implSpec This implementation scans the enclosed elements.
      *
-     * @param e  {@inheritDoc}
-     * @param p  {@inheritDoc}
+     * @param e  {@inheritDoc ElementVisitor}
+     * @param p  {@inheritDoc ElementVisitor}
      * @return the result of scanning
      */
+    @Override
     public R visitPackage(PackageElement e, P p) {
         return scan(e.getEnclosedElements(), p);
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritDoc ElementVisitor}
      *
      * @implSpec This implementation scans the enclosed elements.
+     * Note that type parameters are <em>not</em> scanned by this
+     * implementation since type parameters are not considered to be
+     * {@linkplain TypeElement#getEnclosedElements enclosed elements
+     * of a type}.
      *
-     * @param e  {@inheritDoc}
-     * @param p  {@inheritDoc}
+     * @param e  {@inheritDoc ElementVisitor}
+     * @param p  {@inheritDoc ElementVisitor}
      * @return the result of scanning
      */
+    @Override
     public R visitType(TypeElement e, P p) {
         return scan(e.getEnclosedElements(), p);
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritDoc ElementVisitor}
      *
      * @implSpec This implementation scans the enclosed elements, unless the
      * element is a {@code RESOURCE_VARIABLE} in which case {@code
      * visitUnknown} is called.
      *
-     * @param e  {@inheritDoc}
-     * @param p  {@inheritDoc}
+     * @param e  {@inheritDoc ElementVisitor}
+     * @param p  {@inheritDoc ElementVisitor}
      * @return the result of scanning
      */
+    @Override
     public R visitVariable(VariableElement e, P p) {
         if (e.getKind() != ElementKind.RESOURCE_VARIABLE)
             return scan(e.getEnclosedElements(), p);
@@ -208,28 +212,48 @@ public class ElementScanner6<R, P> extends AbstractElementVisitor6<R, P> {
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritDoc ElementVisitor}
      *
      * @implSpec This implementation scans the parameters.
+     * Note that type parameters are <em>not</em> scanned by this
+     * implementation.
      *
-     * @param e  {@inheritDoc}
-     * @param p  {@inheritDoc}
+     * @param e  {@inheritDoc ElementVisitor}
+     * @param p  {@inheritDoc ElementVisitor}
      * @return the result of scanning
      */
+    @Override
     public R visitExecutable(ExecutableElement e, P p) {
         return scan(e.getParameters(), p);
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritDoc ElementVisitor}
      *
      * @implSpec This implementation scans the enclosed elements.
      *
-     * @param e  {@inheritDoc}
-     * @param p  {@inheritDoc}
+     * @param e  {@inheritDoc ElementVisitor}
+     * @param p  {@inheritDoc ElementVisitor}
      * @return the result of scanning
      */
+    @Override
     public R visitTypeParameter(TypeParameterElement e, P p) {
         return scan(e.getEnclosedElements(), p);
+    }
+
+    /**
+     * {@inheritDoc ElementVisitor}
+     *
+     * @implSpec This implementation calls {@code visitUnknown(e, p)}.
+     *
+     * @param e  {@inheritDoc ElementVisitor}
+     * @param p  {@inheritDoc ElementVisitor}
+     * @return the result of scanning
+     *
+     * @since 14
+     */
+    @Override
+    public R visitRecordComponent(RecordComponentElement e, P p) {
+        return visitUnknown(e, p);
     }
 }

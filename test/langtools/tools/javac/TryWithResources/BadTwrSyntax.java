@@ -3,13 +3,12 @@
  * @bug 6911256 6964740
  * @author Joseph D. Darcy
  * @summary Verify bad TWRs don't compile
- * @compile/fail/ref=BadTwrSyntax6.out -XDrawDiagnostics -source 6 BadTwrSyntax.java
  * @compile/fail/ref=BadTwrSyntax.out -XDrawDiagnostics BadTwrSyntax.java
  */
 
 import java.io.IOException;
 public class BadTwrSyntax implements AutoCloseable {
-    public static void main(String... args) throws Exception {
+    public static void meth() {
         // illegal double semicolon ending resources
         try(BadTwr twrflow = new BadTwr();;) {
             System.out.println(twrflow.toString());

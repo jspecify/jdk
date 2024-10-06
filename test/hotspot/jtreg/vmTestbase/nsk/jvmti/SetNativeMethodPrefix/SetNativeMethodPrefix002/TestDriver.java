@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  *
  * @comment duplicate SetNativeMethodPrefix001 in current directory
  * @run driver nsk.jvmti.NativeLibraryCopier
@@ -58,16 +57,15 @@ import java.util.Arrays;
 
 public class TestDriver {
     public static void main(String[] args) throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-                true,
+        ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(
                 "-agentlib:SetNativeMethodPrefix001=trace=all",
                 "-agentlib:SetNativeMethodPrefix002-01=trace=all prefix=wa_",
                 "-agentlib:SetNativeMethodPrefix002-02=trace=all prefix=wb_",
                 "-agentlib:SetNativeMethodPrefix002-03=trace=all prefix=wc_",
                 nsk.jvmti.SetNativeMethodPrefix.SetNativeMethodPrefix002.class.getName()
         );
-        String envName = Platform.isWindows() ? "PATH" :
-                (Platform.isOSX() ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH");
+
+        String envName = Platform.sharedLibraryPathVariableName();
         pb.environment()
           .merge(envName, ".", (x, y) -> y + File.pathSeparator + x);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 
 package javax.print.attribute.standard;
 
+import java.io.Serial;
+
 import javax.print.attribute.Attribute;
 import javax.print.attribute.EnumSyntax;
 import javax.print.attribute.PrintJobAttribute;
@@ -43,8 +45,11 @@ import javax.print.attribute.PrintRequestAttribute;
  * name returned by {@code getName()} is the IPP attribute name. The
  * enumeration's integer value is the IPP enum value. The {@code toString()}
  * method returns the IPP string representation of the attribute value. See
- * <a href="http://www.ietf.org/rfc/rfc2911.txt">RFC 2911</a> Section 15.1 for a
+ * <a href="https://www.rfc-editor.org/info/rfc2911">RFC 2911</a> Section 15.1 for a
  * fuller description of the IPP fidelity attribute.
+ *
+ * @spec https://www.rfc-editor.org/info/rfc2911
+ *      RFC 2911: Internet Printing Protocol/1.1: Model and Semantics
  */
 public final class Fidelity extends EnumSyntax
         implements PrintJobAttribute, PrintRequestAttribute {
@@ -52,6 +57,7 @@ public final class Fidelity extends EnumSyntax
     /**
      * Use serialVersionUID from JDK 1.4 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = 6320827847329172308L;
 
     /**

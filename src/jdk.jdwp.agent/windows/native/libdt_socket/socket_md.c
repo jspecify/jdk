@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
 #include <ws2tcpip.h>
 
 #include "sysSocket.h"
-#include "socketTransport.h"
 
 typedef jboolean bool_t;
 
@@ -199,10 +198,15 @@ dbgsysSend(int fd, char *buf, size_t nBytes, int flags) {
 }
 
 int
-dbgsysGetAddrInfo(char *hostname, char *service,
-                  struct addrinfo *hints,
+dbgsysGetAddrInfo(const char *hostname, const char *service,
+                  const struct addrinfo *hints,
                   struct addrinfo **result) {
-  return getaddrinfo(hostname, service, hints, result);
+    return getaddrinfo(hostname, service, hints, result);
+}
+
+void
+dbgsysFreeAddrInfo(struct addrinfo *info) {
+    freeaddrinfo(info);
 }
 
 unsigned short
@@ -214,7 +218,7 @@ int
 dbgsysSocket(int domain, int type, int protocol) {
   int fd = (int)socket(domain, type, protocol);
   if (fd != SOCKET_ERROR) {
-      SetHandleInformation((HANDLE)(UINT_PTR)fd, HANDLE_FLAG_INHERIT, FALSE);
+    SetHandleInformation((HANDLE)(UINT_PTR)fd, HANDLE_FLAG_INHERIT, FALSE);
   }
   return fd;
 }
@@ -241,15 +245,6 @@ dbgsysBind(int fd, struct sockaddr *name, socklen_t namelen) {
 
 
 uint32_t
-dbgsysInetAddr(const char* cp) {
-    uint32_t addr;
-    if (inet_pton(AF_INET, cp, &addr) < 1) {
-      return -1;
-    }
-    return addr;
-}
-
-uint32_t
 dbgsysHostToNetworkLong(uint32_t hostlong) {
     return (uint32_t)htonl((u_long)hostlong);
 }
@@ -269,22 +264,13 @@ dbgsysNetworkToHostLong(uint32_t netlong) {
     return (uint32_t)ntohl((u_long)netlong);
 }
 
-/*
- * Below Adapted from PlainSocketImpl.c, win32 version 1.18. Changed exception
- * throws to returns of SYS_ERR; we should improve the error codes
- * eventually. Changed java objects to values the debugger back end can
- * more easily deal with.
- */
-
 int
 dbgsysSetSocketOption(int fd, jint cmd, jboolean on, jvalue value)
 {
     if (cmd == TCP_NODELAY) {
-        struct protoent *proto = getprotobyname("TCP");
-        int tcp_level = (proto == 0 ? IPPROTO_TCP: proto->p_proto);
         long onl = (long)on;
 
-        if (setsockopt(fd, tcp_level, TCP_NODELAY,
+        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
                        (char *)&onl, sizeof(long)) < 0) {
                 return SYS_ERR;
         }
@@ -406,7 +392,7 @@ dbgsysGetLastIOError(char *buf, jint size) {
     if (i < table_size) {
         strcpy(buf, winsock_errors[i].errString);
     } else {
-        sprintf(buf, "winsock error %d", error);
+        snprintf(buf, size, "winsock error %d", error);
     }
     return 0;
 }

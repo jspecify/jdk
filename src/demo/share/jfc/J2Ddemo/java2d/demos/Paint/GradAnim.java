@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -258,7 +258,7 @@ public class GradAnim extends AnimatingControlsSurface {
         }
     }
 
-    public static void main(String argv[]) {
+    public static void main(String[] argv) {
         createDemoFrame(new GradAnim());
     }
 
@@ -266,13 +266,13 @@ public class GradAnim extends AnimatingControlsSurface {
     class DemoControls extends CustomControls implements ActionListener {
 
         GradAnim demo;
-        JComboBox combo;
+        JComboBox<String> combo;
 
         @SuppressWarnings("LeakingThisInConstructor")
         public DemoControls(GradAnim demo) {
             super(demo.name);
             this.demo = demo;
-            combo = new JComboBox();
+            combo = new JComboBox<>();
             combo.addActionListener(this);
             combo.addItem("2-color GradientPaint");
             combo.addItem("3-color LinearGradientPaint");

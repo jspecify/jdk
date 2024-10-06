@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_INTERPRETER_BYTECODEHISTOGRAM_HPP
-#define SHARE_VM_INTERPRETER_BYTECODEHISTOGRAM_HPP
+#ifndef SHARE_INTERPRETER_BYTECODEHISTOGRAM_HPP
+#define SHARE_INTERPRETER_BYTECODEHISTOGRAM_HPP
 
 #include "interpreter/bytecodes.hpp"
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 
 // BytecodeCounter counts the number of bytecodes executed
 
@@ -71,10 +71,10 @@ class BytecodeHistogram: AllStatic {
 
 
 // BytecodePairHistogram collects number of executions of bytecode pairs.
-// A bytecode pair is any sequence of two consequtive bytecodes.
+// A bytecode pair is any sequence of two consecutive bytecodes.
 
 class BytecodePairHistogram: AllStatic {
- public: // for SparcWorks
+ public: // for solstudio
   enum Constants {
     log2_number_of_codes = 8,                         // use a power of 2 for faster addressing
     number_of_codes      = 1 << log2_number_of_codes, // must be no less than Bytecodes::number_of_codes
@@ -95,4 +95,4 @@ class BytecodePairHistogram: AllStatic {
   static void print(float cutoff = 0.01F)   PRODUCT_RETURN;   // cutoff in percent
 };
 
-#endif // SHARE_VM_INTERPRETER_BYTECODEHISTOGRAM_HPP
+#endif // SHARE_INTERPRETER_BYTECODEHISTOGRAM_HPP

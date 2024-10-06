@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,13 +38,13 @@ static bool is_large_value(const JavaValue& value) {
 }
 #endif // ASSERT
 
-static Symbol* resolve(const char* str, TRAPS) {
-  assert(str != NULL, "invariant");
-  return SymbolTable::lookup(str, (int)strlen(str), THREAD);
+static Symbol* resolve(const char* str) {
+  assert(str != nullptr, "invariant");
+  return SymbolTable::new_symbol(str);
 }
 
 static Klass* resolve(Symbol* k_sym, TRAPS) {
-  assert(k_sym != NULL, "invariant");
+  assert(k_sym != nullptr, "invariant");
   return SystemDictionary::resolve_or_fail(k_sym, true, THREAD);
 }
 
@@ -54,7 +54,6 @@ JfrJavaArguments::Parameters::Parameters() : _storage_index(0), _java_stack_slot
 }
 
 void JfrJavaArguments::Parameters::push(const JavaValue& value) {
-  assert(_storage != NULL, "invariant");
   assert(!is_large_value(value), "invariant");
   assert(_storage_index < SIZE, "invariant");
   _storage[_storage_index++] = value;
@@ -62,7 +61,6 @@ void JfrJavaArguments::Parameters::push(const JavaValue& value) {
 }
 
 void JfrJavaArguments::Parameters::push_large(const JavaValue& value) {
-  assert(_storage != NULL, "invariant");
   assert(is_large_value(value), "invariant");
   assert(_storage_index < SIZE, "invariant");
   _storage[_storage_index++] = value;
@@ -70,10 +68,9 @@ void JfrJavaArguments::Parameters::push_large(const JavaValue& value) {
 }
 
 void JfrJavaArguments::Parameters::set_receiver(const oop receiver) {
-  assert(_storage != NULL, "invariant");
-  assert(receiver != NULL, "invariant");
+  assert(receiver != nullptr, "invariant");
   JavaValue value(T_OBJECT);
-  value.set_jobject((jobject)receiver);
+  value.set_oop(receiver);
   _storage[0] = value;
 }
 
@@ -84,11 +81,10 @@ void JfrJavaArguments::Parameters::set_receiver(Handle receiver) {
 oop JfrJavaArguments::Parameters::receiver() const {
   assert(has_receiver(), "invariant");
   assert(_storage[0].get_type() == T_OBJECT, "invariant");
-  return (oop)_storage[0].get_jobject();
+  return _storage[0].get_oop();
 }
 
 bool JfrJavaArguments::Parameters::has_receiver() const {
-  assert(_storage != NULL, "invariant");
   assert(_storage_index >= 1, "invariant");
   assert(_java_stack_slots >= 1, "invariant");
   return _storage[0].get_type() == T_OBJECT;
@@ -96,7 +92,7 @@ bool JfrJavaArguments::Parameters::has_receiver() const {
 
 void JfrJavaArguments::Parameters::push_oop(const oop obj) {
   JavaValue value(T_OBJECT);
-  value.set_jobject((jobject)obj);
+  value.set_oop(obj);
   push(value);
 }
 
@@ -173,7 +169,7 @@ void JfrJavaArguments::Parameters::copy(JavaCallArguments& args, TRAPS) const {
         args.push_double(values(i).get_jdouble());
         break;
       case T_OBJECT:
-        args.push_oop(Handle(THREAD, (oop)values(i).get_jobject()));
+        args.push_oop(Handle(THREAD, values(i).get_oop()));
         break;
       case T_ADDRESS:
         args.push_jobject(values(i).get_jobject());
@@ -184,92 +180,92 @@ void JfrJavaArguments::Parameters::copy(JavaCallArguments& args, TRAPS) const {
   }
 }
 
-JfrJavaArguments::JfrJavaArguments(JavaValue* result) : _result(result), _klass(NULL), _name(NULL), _signature(NULL), _array_length(0) {
-  assert(result != NULL, "invariant");
+JfrJavaArguments::JfrJavaArguments(JavaValue* result) : _result(result), _klass(nullptr), _name(nullptr), _signature(nullptr), _array_length(-1) {
+  assert(result != nullptr, "invariant");
 }
 
 JfrJavaArguments::JfrJavaArguments(JavaValue* result, const char* klass_name, const char* name, const char* signature, TRAPS) :
   _result(result),
-  _klass(NULL),
-  _name(NULL),
-  _signature(NULL),
-  _array_length(0) {
-  assert(result != NULL, "invariant");
-  if (klass_name != NULL) {
+  _klass(nullptr),
+  _name(nullptr),
+  _signature(nullptr),
+  _array_length(-1) {
+  assert(result != nullptr, "invariant");
+  if (klass_name != nullptr) {
     set_klass(klass_name, CHECK);
   }
-  if (name != NULL) {
-    set_name(name, CHECK);
+  if (name != nullptr) {
+    set_name(name);
   }
-  if (signature != NULL) {
-    set_signature(signature, THREAD);
+  if (signature != nullptr) {
+    set_signature(signature);
   }
 }
 
 JfrJavaArguments::JfrJavaArguments(JavaValue* result, const Klass* klass, const Symbol* name, const Symbol* signature) : _result(result),
-  _klass(NULL),
-  _name(NULL),
-  _signature(NULL),
-  _array_length(0) {
-  assert(result != NULL, "invariant");
-  if (klass != NULL) {
+  _klass(nullptr),
+  _name(nullptr),
+  _signature(nullptr),
+  _array_length(-1) {
+  assert(result != nullptr, "invariant");
+  if (klass != nullptr) {
     set_klass(klass);
   }
-  if (name != NULL) {
+  if (name != nullptr) {
     set_name(name);
   }
-  if (signature != NULL) {
+  if (signature != nullptr) {
     set_signature(signature);
   }
 }
 
 Klass* JfrJavaArguments::klass() const {
-  assert(_klass != NULL, "invariant");
+  assert(_klass != nullptr, "invariant");
   return const_cast<Klass*>(_klass);
 }
 
 void JfrJavaArguments::set_klass(const char* klass_name, TRAPS) {
-  assert(klass_name != NULL, "invariant");
-  Symbol* const k_sym = resolve(klass_name, CHECK);
-  assert(k_sym != NULL, "invariant");
+  assert(klass_name != nullptr, "invariant");
+  Symbol* const k_sym = resolve(klass_name);
+  assert(k_sym != nullptr, "invariant");
   const Klass* const klass = resolve(k_sym, CHECK);
   set_klass(klass);
 }
 
 void JfrJavaArguments::set_klass(const Klass* klass) {
-  assert(klass != NULL, "invariant");
+  assert(klass != nullptr, "invariant");
   _klass = klass;
 }
 
 Symbol* JfrJavaArguments::name() const {
-  assert(_name != NULL, "invariant");
+  assert(_name != nullptr, "invariant");
   return const_cast<Symbol*>(_name);
 }
 
-void JfrJavaArguments::set_name(const char* name, TRAPS) {
-  assert(name != NULL, "invariant");
-  const Symbol* const sym = resolve(name, CHECK);
+void JfrJavaArguments::set_name(const char* name) {
+  assert(name != nullptr, "invariant");
+  const Symbol* const sym = resolve(name);
   set_name(sym);
 }
 
 void JfrJavaArguments::set_name(const Symbol* name) {
-  assert(name != NULL, "invariant");
+  assert(name != nullptr, "invariant");
   _name = name;
 }
 
 Symbol* JfrJavaArguments::signature() const {
-  assert(_signature != NULL, "invariant");
+  assert(_signature != nullptr, "invariant");
   return const_cast<Symbol*>(_signature);
 }
 
-void JfrJavaArguments::set_signature(const char* signature, TRAPS) {
-  assert(signature != NULL, "invariant");
-  const Symbol* const sym = resolve(signature, CHECK);
+void JfrJavaArguments::set_signature(const char* signature) {
+  assert(signature != nullptr, "invariant");
+  const Symbol* const sym = resolve(signature);
   set_signature(sym);
 }
 
 void JfrJavaArguments::set_signature(const Symbol* signature) {
-  assert(signature != NULL, "invariant");
+  assert(signature != nullptr, "invariant");
   _signature = signature;
 }
 
@@ -283,7 +279,7 @@ void JfrJavaArguments::set_array_length(int length) {
 }
 
 JavaValue* JfrJavaArguments::result() const {
-  assert(_result != NULL, "invariant");
+  assert(_result != nullptr, "invariant");
   return const_cast<JavaValue*>(_result);
 }
 
@@ -348,7 +344,7 @@ void JfrJavaArguments::copy(JavaCallArguments& args, TRAPS) {
 }
 
 void JfrJavaCall::call_static(JfrJavaArguments* args, TRAPS) {
-  assert(args != NULL, "invariant");
+  assert(args != nullptr, "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(THREAD));
   ResourceMark rm(THREAD);
   HandleMark hm(THREAD);
@@ -358,7 +354,7 @@ void JfrJavaCall::call_static(JfrJavaArguments* args, TRAPS) {
 }
 
 void JfrJavaCall::call_special(JfrJavaArguments* args, TRAPS) {
-  assert(args != NULL, "invariant");
+  assert(args != nullptr, "invariant");
   assert(args->has_receiver(), "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(THREAD));
   ResourceMark rm(THREAD);
@@ -369,7 +365,7 @@ void JfrJavaCall::call_special(JfrJavaArguments* args, TRAPS) {
 }
 
 void JfrJavaCall::call_virtual(JfrJavaArguments* args, TRAPS) {
-  assert(args != NULL, "invariant");
+  assert(args != nullptr, "invariant");
   assert(args->has_receiver(), "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(THREAD));
   ResourceMark rm(THREAD);

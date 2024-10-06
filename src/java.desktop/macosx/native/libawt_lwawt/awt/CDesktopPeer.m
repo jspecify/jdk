@@ -24,9 +24,9 @@
  */
 
 
+#import "JNIUtilities.h"
 #import <CoreFoundation/CoreFoundation.h>
 #import <ApplicationServices/ApplicationServices.h>
-#import <JavaNativeFoundation/JavaNativeFoundation.h>
 
 /*
  * Class:     sun_lwawt_macosx_CDesktopPeer
@@ -37,19 +37,19 @@ JNIEXPORT jint JNICALL Java_sun_lwawt_macosx_CDesktopPeer__1lsOpenURI
 (JNIEnv *env, jclass clz, jstring uri)
 {
     OSStatus status = noErr;
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
     // I would love to use NSWorkspace here, but it's not thread safe. Why? I don't know.
     // So we use LaunchServices directly.
 
-    NSURL *url = [NSURL URLWithString:JNFJavaToNSString(env, uri)];
+    NSURL *url = [NSURL URLWithString:JavaStringToNSString(env, uri)];
 
     LSLaunchFlags flags = kLSLaunchDefaults;
 
     LSApplicationParameters params = {0, flags, NULL, NULL, NULL, NULL, NULL};
     status = LSOpenURLsWithRole((CFArrayRef)[NSArray arrayWithObject:url], kLSRolesAll, NULL, &params, NULL, 0);
 
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
     return status;
 }
 
@@ -62,16 +62,16 @@ JNIEXPORT jint JNICALL Java_sun_lwawt_macosx_CDesktopPeer__1lsOpenFile
 (JNIEnv *env, jclass clz, jstring jpath, jboolean print)
 {
     OSStatus status = noErr;
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
     // I would love to use NSWorkspace here, but it's not thread safe. Why? I don't know.
     // So we use LaunchServices directly.
 
-    NSString *path  = JNFNormalizedNSStringForPath(env, jpath);
+    NSString *path  = NormalizedPathNSStringFromJavaString(env, jpath);
 
     NSURL *url = [NSURL fileURLWithPath:(NSString *)path];
 
-    // This byzantine workaround is necesary, or else directories won't open in Finder
+    // This byzantine workaround is necessary, or else directories won't open in Finder
     url = (NSURL *)CFURLCreateWithFileSystemPath(NULL, (CFStringRef)[url path], kCFURLPOSIXPathStyle, false);
 
     LSLaunchFlags flags = kLSLaunchDefaults;
@@ -81,7 +81,7 @@ JNF_COCOA_ENTER(env);
     status = LSOpenURLsWithRole((CFArrayRef)[NSArray arrayWithObject:url], kLSRolesAll, NULL, &params, NULL, 0);
     [url release];
 
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
     return status;
 }
 

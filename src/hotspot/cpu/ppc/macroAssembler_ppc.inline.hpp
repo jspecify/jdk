@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_MACROASSEMBLER_PPC_INLINE_HPP
-#define CPU_PPC_VM_MACROASSEMBLER_PPC_INLINE_HPP
+#ifndef CPU_PPC_MACROASSEMBLER_PPC_INLINE_HPP
+#define CPU_PPC_MACROASSEMBLER_PPC_INLINE_HPP
 
 #include "asm/assembler.inline.hpp"
 #include "asm/macroAssembler.hpp"
@@ -33,7 +33,11 @@
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "oops/accessDecorators.hpp"
+#include "oops/compressedOops.hpp"
+#include "runtime/os.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
+#include "runtime/vm_version.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 inline bool MacroAssembler::is_ld_largeoffset(address a) {
   const int inst1 = *(int *)a;
@@ -55,9 +59,9 @@ inline int MacroAssembler::get_ld_largeoffset_offset(address a) {
 }
 
 inline void MacroAssembler::round_to(Register r, int modulus) {
-  assert(is_power_of_2_long((jlong)modulus), "must be power of 2");
+  assert(is_power_of_2((jlong)modulus), "must be power of 2");
   addi(r, r, modulus-1);
-  clrrdi(r, r, log2_long((jlong)modulus));
+  clrrdi(r, r, log2i_exact((jlong)modulus));
 }
 
 // Move register if destination register and target register are different.
@@ -186,7 +190,7 @@ inline void MacroAssembler::set_oop(AddressLiteral obj_addr, Register d) {
   load_const(d, obj_addr);
 }
 
-inline void MacroAssembler::pd_patch_instruction(address branch, address target) {
+inline void MacroAssembler::pd_patch_instruction(address branch, address target, const char* file, int line) {
   jint& stub_inst = *(jint*) branch;
   stub_inst = patched_branch(target - branch, stub_inst, 0);
 }
@@ -234,6 +238,54 @@ inline bool MacroAssembler::is_bc_far_variant3_at(address instruction_addr) {
          is_endgroup(instruction_2);
 }
 
+// set dst to -1, 0, +1 as follows: if CCR0bi is "greater than", dst is set to 1,
+// if CCR0bi is "equal", dst is set to 0, otherwise it's set to -1.
+inline void MacroAssembler::set_cmp3(Register dst) {
+  assert_different_registers(dst, R0);
+  // P10, prefer using setbc instructions
+  if (VM_Version::has_brw()) {
+    setbc(R0, CCR0, Assembler::greater); // Set 1 to R0 if CCR0bi is "greater than", otherwise 0
+    setnbc(dst, CCR0, Assembler::less); // Set -1 to dst if CCR0bi is "less than", otherwise 0
+  } else {
+    mfcr(R0); // copy CR register to R0
+    srwi(dst, R0, 30); // copy the first two bits to dst
+    srawi(R0, R0, 31); // move the first bit to last position - sign extended
+  }
+  orr(dst, dst, R0); // dst | R0 will be -1, 0, or +1
+}
+
+// set dst to (treat_unordered_like_less ? -1 : +1)
+inline void MacroAssembler::set_cmpu3(Register dst, bool treat_unordered_like_less) {
+  if (treat_unordered_like_less) {
+    cror(CCR0, Assembler::less, CCR0, Assembler::summary_overflow); // treat unordered like less
+  } else {
+    cror(CCR0, Assembler::greater, CCR0, Assembler::summary_overflow); // treat unordered like greater
+  }
+  set_cmp3(dst);
+}
+
+// Branch-free implementation to convert !=0 to 1
+// Set register dst to 1 if dst is non-zero. Uses setbcr instruction on Power10.
+inline void MacroAssembler::normalize_bool(Register dst, Register temp, bool is_64bit) {
+
+  if (VM_Version::has_brw()) {
+    if (is_64bit) {
+      cmpdi(CCR0, dst, 0);
+    } else {
+      cmpwi(CCR0, dst, 0);
+    }
+    setbcr(dst, CCR0, Assembler::equal);
+  } else {
+    assert_different_registers(temp, dst);
+    neg(temp, dst);
+    orr(temp, dst, temp);
+    if (is_64bit) {
+      srdi(dst, temp, 63);
+    } else {
+      srwi(dst, temp, 31);
+    }
+  }
+}
 
 // Convenience bc_far versions
 inline void MacroAssembler::blt_far(ConditionRegister crx, Label& L, int optimize) { MacroAssembler::bc_far(bcondCRbiIs1, bi0(crx, less), L, optimize); }
@@ -265,7 +317,7 @@ inline address MacroAssembler::last_calls_return_pc() {
 
 // Read from the polling page, its address is already in a register.
 inline void MacroAssembler::load_from_polling_page(Register polling_page_address, int offset) {
-  if (SafepointMechanism::uses_thread_local_poll() && USE_POLL_BIT_ONLY) {
+  if (USE_POLL_BIT_ONLY) {
     int encoding = SafepointMechanism::poll_bit();
     tdi(traptoGreaterThanUnsigned | traptoEqual, polling_page_address, encoding);
   } else {
@@ -278,12 +330,6 @@ inline void MacroAssembler::load_from_polling_page(Register polling_page_address
 inline void MacroAssembler::trap_null_check(Register a, trap_to_bits cmp) {
   assert(TrapBasedNullChecks, "sanity");
   tdi(cmp, a/*reg a*/, 0);
-}
-inline void MacroAssembler::trap_zombie_not_entrant() {
-  tdi(traptoUnconditional, 0/*reg 0*/, 1);
-}
-inline void MacroAssembler::trap_should_not_reach_here() {
-  tdi_unchecked(traptoUnconditional, 0/*reg 0*/, 2);
 }
 
 inline void MacroAssembler::trap_ic_miss_check(Register a, Register b) {
@@ -328,69 +374,75 @@ inline void MacroAssembler::null_check(Register a, int offset, Label *Lis_null) 
 
 inline void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators,
                                             Register base, RegisterOrConstant ind_or_offs, Register val,
-                                            Register tmp1, Register tmp2, Register tmp3, bool needs_frame) {
+                                            Register tmp1, Register tmp2, Register tmp3,
+                                            MacroAssembler::PreservationLevel preservation_level) {
   assert((decorators & ~(AS_RAW | IN_HEAP | IN_NATIVE | IS_ARRAY | IS_NOT_NULL |
-                         ON_UNKNOWN_OOP_REF)) == 0, "unsupported decorator");
+                         ON_UNKNOWN_OOP_REF | IS_DEST_UNINITIALIZED)) == 0, "unsupported decorator");
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bool as_raw = (decorators & AS_RAW) != 0;
-  decorators = AccessInternal::decorator_fixup(decorators);
+  decorators = AccessInternal::decorator_fixup(decorators, type);
   if (as_raw) {
     bs->BarrierSetAssembler::store_at(this, decorators, type,
                                       base, ind_or_offs, val,
-                                      tmp1, tmp2, tmp3, needs_frame);
+                                      tmp1, tmp2, tmp3, preservation_level);
   } else {
     bs->store_at(this, decorators, type,
                  base, ind_or_offs, val,
-                 tmp1, tmp2, tmp3, needs_frame);
+                 tmp1, tmp2, tmp3, preservation_level);
   }
 }
 
 inline void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators,
                                            Register base, RegisterOrConstant ind_or_offs, Register dst,
-                                           Register tmp1, Register tmp2, bool needs_frame, Label *L_handle_null) {
+                                           Register tmp1, Register tmp2,
+                                           MacroAssembler::PreservationLevel preservation_level,
+                                           Label *L_handle_null) {
   assert((decorators & ~(AS_RAW | IN_HEAP | IN_NATIVE | IS_ARRAY | IS_NOT_NULL |
                          ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF)) == 0, "unsupported decorator");
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  decorators = AccessInternal::decorator_fixup(decorators);
+  decorators = AccessInternal::decorator_fixup(decorators, type);
   bool as_raw = (decorators & AS_RAW) != 0;
   if (as_raw) {
     bs->BarrierSetAssembler::load_at(this, decorators, type,
                                      base, ind_or_offs, dst,
-                                     tmp1, tmp2, needs_frame, L_handle_null);
+                                     tmp1, tmp2, preservation_level, L_handle_null);
   } else {
     bs->load_at(this, decorators, type,
                 base, ind_or_offs, dst,
-                tmp1, tmp2, needs_frame, L_handle_null);
+                tmp1, tmp2, preservation_level, L_handle_null);
   }
 }
 
 inline void MacroAssembler::load_heap_oop(Register d, RegisterOrConstant offs, Register s1,
                                           Register tmp1, Register tmp2,
-                                          bool needs_frame, DecoratorSet decorators, Label *L_handle_null) {
-  access_load_at(T_OBJECT, IN_HEAP | decorators, s1, offs, d, tmp1, tmp2, needs_frame, L_handle_null);
+                                          MacroAssembler::PreservationLevel preservation_level,
+                                          DecoratorSet decorators, Label *L_handle_null) {
+  access_load_at(T_OBJECT, decorators | IN_HEAP, s1, offs, d, tmp1, tmp2,
+                 preservation_level, L_handle_null);
 }
 
-inline void MacroAssembler::store_heap_oop(Register d, RegisterOrConstant offs, Register s1,
+inline void MacroAssembler::store_heap_oop(Register val, RegisterOrConstant offs, Register base,
                                            Register tmp1, Register tmp2, Register tmp3,
-                                           bool needs_frame, DecoratorSet decorators) {
-  access_store_at(T_OBJECT, IN_HEAP | decorators, s1, offs, d, tmp1, tmp2, tmp3, needs_frame);
+                                           MacroAssembler::PreservationLevel preservation_level,
+                                           DecoratorSet decorators) {
+  access_store_at(T_OBJECT, decorators | IN_HEAP, base, offs, val, tmp1, tmp2, tmp3, preservation_level);
 }
 
 inline Register MacroAssembler::encode_heap_oop_not_null(Register d, Register src) {
   Register current = (src != noreg) ? src : d; // Oop to be compressed is in d if no src provided.
-  if (Universe::narrow_oop_base_overlaps()) {
-    sub_const_optimized(d, current, Universe::narrow_oop_base(), R0);
+  if (CompressedOops::base_overlaps()) {
+    sub_const_optimized(d, current, CompressedOops::base(), R0);
     current = d;
   }
-  if (Universe::narrow_oop_shift() != 0) {
-    rldicl(d, current, 64-Universe::narrow_oop_shift(), 32);  // Clears the upper bits.
+  if (CompressedOops::shift() != 0) {
+    rldicl(d, current, 64-CompressedOops::shift(), 32);  // Clears the upper bits.
     current = d;
   }
   return current; // Encoded oop is in this register.
 }
 
 inline Register MacroAssembler::encode_heap_oop(Register d, Register src) {
-  if (Universe::narrow_oop_base() != NULL) {
+  if (CompressedOops::base() != nullptr) {
     if (VM_Version::has_isel()) {
       cmpdi(CCR0, src, 0);
       Register co = encode_heap_oop_not_null(d, src);
@@ -410,20 +462,20 @@ inline Register MacroAssembler::encode_heap_oop(Register d, Register src) {
 }
 
 inline Register MacroAssembler::decode_heap_oop_not_null(Register d, Register src) {
-  if (Universe::narrow_oop_base_disjoint() && src != noreg && src != d &&
-      Universe::narrow_oop_shift() != 0) {
-    load_const_optimized(d, Universe::narrow_oop_base(), R0);
-    rldimi(d, src, Universe::narrow_oop_shift(), 32-Universe::narrow_oop_shift());
+  if (CompressedOops::base_disjoint() && src != noreg && src != d &&
+      CompressedOops::shift() != 0) {
+    load_const_optimized(d, CompressedOops::base(), R0);
+    rldimi(d, src, CompressedOops::shift(), 32-CompressedOops::shift());
     return d;
   }
 
   Register current = (src != noreg) ? src : d; // Compressed oop is in d if no src provided.
-  if (Universe::narrow_oop_shift() != 0) {
-    sldi(d, current, Universe::narrow_oop_shift());
+  if (CompressedOops::shift() != 0) {
+    sldi(d, current, CompressedOops::shift());
     current = d;
   }
-  if (Universe::narrow_oop_base() != NULL) {
-    add_const_optimized(d, current, Universe::narrow_oop_base(), R0);
+  if (CompressedOops::base() != nullptr) {
+    add_const_optimized(d, current, CompressedOops::base(), R0);
     current = d;
   }
   return current; // Decoded oop is in this register.
@@ -432,7 +484,7 @@ inline Register MacroAssembler::decode_heap_oop_not_null(Register d, Register sr
 inline void MacroAssembler::decode_heap_oop(Register d) {
   Label isNull;
   bool use_isel = false;
-  if (Universe::narrow_oop_base() != NULL) {
+  if (CompressedOops::base() != nullptr) {
     cmpwi(CCR0, d, 0);
     if (VM_Version::has_isel()) {
       use_isel = true;
@@ -480,4 +532,4 @@ inline address MacroAssembler::function_entry() { return pc(); }
 inline address MacroAssembler::function_entry() { return emit_fd(); }
 #endif
 
-#endif // CPU_PPC_VM_MACROASSEMBLER_PPC_INLINE_HPP
+#endif // CPU_PPC_MACROASSEMBLER_PPC_INLINE_HPP

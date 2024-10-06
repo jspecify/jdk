@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,10 @@ public class equals001 {
     private final static String classToCheckName = prefix + "ClassToCheck";
 
     public static void main(String argv[]) {
-        System.exit(95 + run(argv, System.out));
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run(String argv[], PrintStream out) {
@@ -219,7 +222,7 @@ class ClassOfFields {
     protected Long LR0, LR1[]={LR0}, LR2[][]={LR1};
     transient Long LT0, LT1[]={LT0}, LT2[][]={LT1};
     volatile  Long LV0, LV1[]={LV0}, LV2[][]={LV1};
-    final     Long LF0 = new Long(999), LF1[]={LF0}, LF2[][]={LF1};
+    final     Long LF0 = Long.valueOf(999), LF1[]={LF0}, LF2[][]={LF1};
 
     interface Inter {}
     Inter E0, E1[]={E0}, E2[][]={E1};

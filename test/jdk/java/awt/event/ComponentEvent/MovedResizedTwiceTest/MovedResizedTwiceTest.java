@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,18 +23,24 @@
 
 /*
   @test
-  @bug 5025858
+  @key headful
+  @bug 5025858 8144125
   @summary Tests that after programmatically moving or resizing a component,
-corresponding ComponentEvents are generated only once
-  @author artem.ananiev: area=awt.event
-  @run main/manual MovedResizedTwiceTest
+           corresponding ComponentEvents are generated only once
 */
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.Button;
+import java.awt.Component;
+import java.awt.Frame;
+import java.awt.Point;
+import java.awt.Robot;
+import java.awt.Window;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 
 /*
-  IMPORTANT: this test is made manual as some window managers may generate
+  IMPORTANT: this test can fail because some window managers may generate
   strange events and that would lead to the test to fail. However, on most
   popular platforms (windows, linux w/ KDE or GNOME, solaris w/ CDE or
   GNOME) it usually passes successfully.

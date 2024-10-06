@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,10 +35,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
+import java.util.Set;
+import java.util.function.Consumer;
 
 import com.sun.jdi.BooleanType;
 import com.sun.jdi.BooleanValue;
@@ -46,7 +48,6 @@ import com.sun.jdi.ByteType;
 import com.sun.jdi.ByteValue;
 import com.sun.jdi.CharType;
 import com.sun.jdi.CharValue;
-import com.sun.jdi.ClassLoaderReference;
 import com.sun.jdi.ClassNotLoadedException;
 import com.sun.jdi.DoubleType;
 import com.sun.jdi.DoubleValue;
@@ -58,6 +59,7 @@ import com.sun.jdi.InternalException;
 import com.sun.jdi.LongType;
 import com.sun.jdi.LongValue;
 import com.sun.jdi.ModuleReference;
+import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.PathSearchingVirtualMachine;
 import com.sun.jdi.PrimitiveType;
 import com.sun.jdi.ReferenceType;
@@ -112,7 +114,7 @@ class VirtualMachineImpl extends MirrorImpl
     // tested unsynchronized (since once true, it stays true), but must
     // be set synchronously
     private Map<Long, ReferenceType> typesByID;
-    private TreeSet<ReferenceType> typesBySignature;
+    private Set<ReferenceType> typesBySignature;
     private boolean retrievedAllTypes = false;
 
     private Map<Long, ModuleReference> modulesByID;
@@ -124,7 +126,7 @@ class VirtualMachineImpl extends MirrorImpl
     // "objectsByID" protected by "synchronized(this)".
     private final Map<Long, SoftObjectReference> objectsByID = new HashMap<>();
     private final ReferenceQueue<ObjectReferenceImpl> referenceQueue = new ReferenceQueue<>();
-    static private final int DISPOSE_THRESHOLD = 50;
+    private static final int DISPOSE_THRESHOLD = 50;
     private final List<SoftObjectReference> batchedDisposeRequests =
             Collections.synchronizedList(new ArrayList<>(DISPOSE_THRESHOLD + 10));
 
@@ -318,12 +320,16 @@ class VirtualMachineImpl extends MirrorImpl
 
     public List<ReferenceType> classesByName(String className) {
         validateVM();
-        String signature = JNITypeParser.typeNameToSignature(className);
+        return classesBySignature(JNITypeParser.typeNameToSignature(className));
+    }
+
+    List<ReferenceType> classesBySignature(String signature) {
+        validateVM();
         List<ReferenceType> list;
         if (retrievedAllTypes) {
-           list = findReferenceTypes(signature);
+            list = findReferenceTypes(signature);
         } else {
-           list = retrieveClassesBySignature(signature);
+            list = retrieveClassesBySignature(signature);
         }
         return Collections.unmodifiableList(list);
     }
@@ -339,6 +345,27 @@ class VirtualMachineImpl extends MirrorImpl
             a = new ArrayList<>(typesBySignature);
         }
         return Collections.unmodifiableList(a);
+    }
+
+    /**
+     * Performs an action for each loaded type.
+     */
+    public void forEachClass(Consumer<ReferenceType> action) {
+        for (ReferenceType type : allClasses()) {
+            try {
+                action.accept(type);
+            } catch (ObjectCollectedException ex) {
+                // Some classes might be unloaded and garbage collected since
+                // we retrieved the copy of all loaded classes and started
+                // iterating over them. In this case calling methods on such types
+                // might result in com.sun.jdi.ObjectCollectedException
+                // being thrown. We ignore such classes and keep iterating.
+                if ((vm.traceFlags & VirtualMachine.TRACE_OBJREFS) != 0) {
+                    vm.printTrace("ObjectCollectedException was thrown while " +
+                            "accessing unloaded class " + type.name());
+                }
+            }
+        }
     }
 
     public void
@@ -718,12 +745,14 @@ class VirtualMachineImpl extends MirrorImpl
             capabilitiesNew().canRedefineClasses;
     }
 
+    @Deprecated(since="15")
     public boolean canAddMethod() {
         validateVM();
         return hasNewCapabilities() &&
             capabilitiesNew().canAddMethod;
     }
 
+    @Deprecated(since="15")
     public boolean canUnrestrictedlyRedefineClasses() {
         validateVM();
         return hasNewCapabilities() &&
@@ -807,6 +836,10 @@ class VirtualMachineImpl extends MirrorImpl
         return versionInfo().jdwpMajor >= 9;
     }
 
+    boolean mayCreateVirtualThreads() {
+        return versionInfo().jdwpMajor >= 19;
+    }
+
     public void setDebugTraceMode(int traceFlags) {
         validateVM();
         this.traceFlags = traceFlags;
@@ -847,14 +880,9 @@ class VirtualMachineImpl extends MirrorImpl
                 throw new InternalException("Invalid reference type tag");
         }
 
-        /*
-         * If a signature was specified, make sure to set it ASAP, to
-         * prevent any needless JDWP command to retrieve it. (for example,
-         * typesBySignature.add needs the signature, to maintain proper
-         * ordering.
-         */
-        if (signature != null) {
-            type.setSignature(signature);
+        if (signature == null && retrievedAllTypes) {
+            // do not cache if signature is not provided
+            return type;
         }
 
         typesByID.put(id, type);
@@ -924,7 +952,7 @@ class VirtualMachineImpl extends MirrorImpl
 
     private void initReferenceTypes() {
         typesByID = new HashMap<>(300);
-        typesBySignature = new TreeSet<>();
+        typesBySignature = new HashSet<>();
     }
 
     ReferenceTypeImpl referenceType(long ref, byte tag) {
@@ -972,6 +1000,9 @@ class VirtualMachineImpl extends MirrorImpl
                 }
                 if (retType == null) {
                     retType = addReferenceType(id, tag, signature);
+                }
+                if (signature != null) {
+                    retType.setSignature(signature);
                 }
             }
             return retType;
@@ -1155,9 +1186,7 @@ class VirtualMachineImpl extends MirrorImpl
 
     Type findBootType(String signature) throws ClassNotLoadedException {
         List<ReferenceType> types = retrieveClassesBySignature(signature);
-        Iterator<ReferenceType> iter = types.iterator();
-        while (iter.hasNext()) {
-            ReferenceType type = iter.next();
+        for (ReferenceType type : types) {
             if (type.classLoader() == null) {
                 return type;
             }
@@ -1299,7 +1328,7 @@ class VirtualMachineImpl extends MirrorImpl
             int size = batchedDisposeRequests.size();
             if (size >= DISPOSE_THRESHOLD) {
                 if ((traceFlags & TRACE_OBJREFS) != 0) {
-                    printTrace("Dispose threashold reached. Will dispose "
+                    printTrace("Dispose threshold reached. Will dispose "
                                + size + " object references...");
                 }
                 requests = new JDWP.VirtualMachine.DisposeObjects.Request[size];
@@ -1343,10 +1372,17 @@ class VirtualMachineImpl extends MirrorImpl
         //if ((traceFlags & TRACE_OBJREFS) != 0) {
         //    printTrace("Checking for softly reachable objects");
         //}
+        boolean found = false;
         while ((ref = referenceQueue.poll()) != null) {
             SoftObjectReference softRef = (SoftObjectReference)ref;
             removeObjectMirror(softRef);
             batchForDispose(softRef);
+            found = true;
+        }
+
+        if (found) {
+            // If we batched any ObjectReferences for disposing, we can dispose them now.
+            processBatchedDisposes();
         }
     }
 
@@ -1420,24 +1456,7 @@ class VirtualMachineImpl extends MirrorImpl
         return object;
     }
 
-    synchronized void removeObjectMirror(ObjectReferenceImpl object) {
-        // Handle any queue elements that are not strongly reachable
-        processQueue();
-
-        SoftObjectReference ref = objectsByID.remove(object.ref());
-        if (ref != null) {
-            batchForDispose(ref);
-        } else {
-            /*
-             * If there's a live ObjectReference about, it better be part
-             * of the cache.
-             */
-            throw new InternalException("ObjectReference " + object.ref() +
-                                        " not found in object cache");
-        }
-    }
-
-    synchronized void removeObjectMirror(SoftObjectReference ref) {
+    private synchronized void removeObjectMirror(SoftObjectReference ref) {
         /*
          * This will remove the soft reference if it has not been
          * replaced in the cache.
@@ -1527,7 +1546,7 @@ class VirtualMachineImpl extends MirrorImpl
         return threadGroupForJDI;
     }
 
-   static private class SoftObjectReference extends SoftReference<ObjectReferenceImpl> {
+   private static class SoftObjectReference extends SoftReference<ObjectReferenceImpl> {
        int count;
        Long key;
 

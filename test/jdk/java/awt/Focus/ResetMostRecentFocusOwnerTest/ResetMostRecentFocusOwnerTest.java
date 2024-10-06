@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,15 +26,12 @@
   @key headful
   @bug      8013773
   @summary  Tests that disabled component is not retained as most recent focus owner.
-  @author   Anton.Tarasov: area=awt.focus
   @library  ../../regtesthelpers
   @build    Util
   @run      main ResetMostRecentFocusOwnerTest
 */
 
-import java.applet.Applet;
 import java.awt.AWTEvent;
-import java.awt.FlowLayout;
 import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.event.AWTEventListener;
@@ -44,15 +41,13 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import test.java.awt.regtesthelpers.Util;
 
-public class ResetMostRecentFocusOwnerTest extends Applet {
+public class ResetMostRecentFocusOwnerTest {
 
     public static void main(String[] args) {
         ResetMostRecentFocusOwnerTest app = new ResetMostRecentFocusOwnerTest();
-        app.init();
         app.start();
     }
 
-    @Override
     public void start() {
 
         Toolkit.getDefaultToolkit().addAWTEventListener(new AWTEventListener() {
@@ -68,7 +63,7 @@ public class ResetMostRecentFocusOwnerTest extends Applet {
         final JButton b1 = new JButton("button1");
         frame1.add(b1);
         frame1.pack();
-        frame1.setLocation(0, 300);
+        frame1.setLocation(100, 300);
 
         Util.showWindowWait(frame1);
 
@@ -86,7 +81,7 @@ public class ResetMostRecentFocusOwnerTest extends Applet {
         robot.delay(500);
 
         //
-        // It's expeced that the focus is restored to <button1>.
+        // It's expected that the focus is restored to <button1>.
         // If not, click <button1> to set focus on it.
         //
         if (!b1.hasFocus()) {

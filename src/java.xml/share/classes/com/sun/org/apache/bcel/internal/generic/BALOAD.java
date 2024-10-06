@@ -22,9 +22,10 @@ package com.sun.org.apache.bcel.internal.generic;
 
 /**
  * BALOAD - Load byte or boolean from array
- * <PRE>Stack: ..., arrayref, index -&gt; ..., value</PRE>
  *
- * @version $Id: BALOAD.java 1747278 2016-06-07 17:28:43Z britter $
+ * <PRE>
+ * Stack: ..., arrayref, index -&gt; ..., value
+ * </PRE>
  */
 public class BALOAD extends ArrayInstruction implements StackProducer {
 
@@ -36,10 +37,8 @@ public class BALOAD extends ArrayInstruction implements StackProducer {
     }
 
     /**
-     * Call corresponding visitor method(s). The order is: Call visitor methods
-     * of implemented interfaces first, then call methods according to the class
-     * hierarchy in descending order, i.e., the most specific visitXXX() call
-     * comes last.
+     * Call corresponding visitor method(s). The order is: Call visitor methods of implemented interfaces first, then call
+     * methods according to the class hierarchy in descending order, i.e., the most specific visitXXX() call comes last.
      *
      * @param v Visitor object
      */

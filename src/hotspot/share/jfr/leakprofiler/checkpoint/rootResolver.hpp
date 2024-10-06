@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,17 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_LEAKPROFILER_CHECKPOINT_ROOTRESOLVER_HPP
-#define SHARE_VM_JFR_LEAKPROFILER_CHECKPOINT_ROOTRESOLVER_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_CHECKPOINT_ROOTRESOLVER_HPP
+#define SHARE_JFR_LEAKPROFILER_CHECKPOINT_ROOTRESOLVER_HPP
 
-#include "memory/allocation.hpp"
 #include "jfr/leakprofiler/utilities/rootType.hpp"
+#include "jfr/leakprofiler/utilities/unifiedOopRef.hpp"
+#include "memory/allStatic.hpp"
 #include "oops/oopsHierarchy.hpp"
 
 struct RootCallbackInfo {
-  const void* _high;
-  const void* _low;
+  address _high;
+  address _low;
   const void* _context;
   OldObjectRoot::System _system;
   OldObjectRoot::Type _type;
@@ -41,7 +42,7 @@ class RootCallback {
  public:
   virtual bool process(const RootCallbackInfo& info) = 0;
   virtual int entries() const = 0;
-  virtual const void* at(int idx) const = 0;
+  virtual UnifiedOopRef at(int idx) const = 0;
 };
 
 class RootResolver : public AllStatic {
@@ -49,4 +50,4 @@ class RootResolver : public AllStatic {
   static void resolve(RootCallback& callback);
 };
 
-#endif // SHARE_VM_JFR_LEAKPROFILER_CHECKPOINT_ROOTRESOLVER_HPP
+#endif // SHARE_JFR_LEAKPROFILER_CHECKPOINT_ROOTRESOLVER_HPP

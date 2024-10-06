@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  * questions.
  */
 
+#include "jvm.h"
 #include "util.h"
 #include "utf_util.h"
 #include "transport.h"
@@ -49,6 +50,15 @@ typedef struct TransportInfo {
 
 static struct jdwpTransportCallback callback = {jvmtiAllocate, jvmtiDeallocate};
 
+static void freeTransportInfo(TransportInfo *info) {
+    if (info) {
+        jvmtiDeallocate(info->name);
+        jvmtiDeallocate(info->address);
+        jvmtiDeallocate(info->allowed_peers);
+        jvmtiDeallocate(info);
+    }
+}
+
 /*
  * Print the last transport error
  */
@@ -68,10 +78,10 @@ printLastError(jdwpTransportEnv *t, jdwpTransportError err)
 
         /* Convert this string to UTF8 */
         len = (int)strlen(msg);
-        maxlen = len+len/2+2; /* Should allow for plenty of room */
-        utf8msg = (jbyte*)jvmtiAllocate(maxlen+1);
+        maxlen = len * 4 + 1;
+        utf8msg = (jbyte*)jvmtiAllocate(maxlen);
         if (utf8msg != NULL) {
-           (void)utf8FromPlatform(msg, len, utf8msg, maxlen+1);
+           (void)utf8FromPlatform(msg, len, utf8msg, maxlen);
         }
     }
     if (rv == JDWPTRANSPORT_ERROR_NONE) {
@@ -95,6 +105,13 @@ findTransportOnLoad(void *handle)
     if (handle == NULL) {
         return onLoad;
     }
+#if defined(_WIN32) && !defined(_WIN64)
+    onLoad = (jdwpTransport_OnLoad_t)
+                 dbgsysFindLibraryEntry(handle, "_jdwpTransport_OnLoad@16");
+    if (onLoad != NULL) {
+        return onLoad;
+    }
+#endif
     onLoad = (jdwpTransport_OnLoad_t)
                  dbgsysFindLibraryEntry(handle, "jdwpTransport_OnLoad");
     return onLoad;
@@ -105,7 +122,11 @@ static void *
 loadTransportLibrary(const char *libdir, const char *name)
 {
     char buf[MAXPATHLEN*2+100];
-#ifndef STATIC_BUILD
+
+    if (JVM_IsStaticallyLinked()) {
+        return (dbgsysLoadLibrary(NULL, buf, sizeof(buf)));
+    }
+
     void *handle;
     char libname[MAXPATHLEN+2];
     const char *plibdir;
@@ -129,9 +150,6 @@ loadTransportLibrary(const char *libdir, const char *name)
     /* dlopen (unix) / LoadLibrary (windows) the transport library */
     handle = dbgsysLoadLibrary(libname, buf, sizeof(buf));
     return handle;
-#else
-    return (dbgsysLoadLibrary(NULL, buf, sizeof(buf)));
-#endif
 }
 
 /*
@@ -338,12 +356,14 @@ acceptThread(jvmtiEnv* jvmti_env, JNIEnv* jni_env, void* arg)
 
     LOG_MISC(("Begin accept thread"));
 
-    info = (TransportInfo*)(void*)arg;
+    info = (TransportInfo*)arg;
     t = info->transport;
     rc = (*t)->Accept(t, info->timeout, 0);
 
     /* System property no longer needed */
     setTransportProperty(jni_env, NULL);
+    /* TransportInfo data no longer needed */
+    freeTransportInfo(info);
 
     if (rc != JDWPTRANSPORT_ERROR_NONE) {
         /*
@@ -364,10 +384,14 @@ acceptThread(jvmtiEnv* jvmti_env, JNIEnv* jni_env, void* arg)
 static void JNICALL
 attachThread(jvmtiEnv* jvmti_env, JNIEnv* jni_env, void* arg)
 {
-    TransportInfo *info = (TransportInfo*)(void*)arg;
+    TransportInfo *info = (TransportInfo*)arg;
+    jdwpTransportEnv *t = info->transport;
+
+    /* TransportInfo data no longer needed */
+    freeTransportInfo(info);
 
     LOG_MISC(("Begin attach thread"));
-    connectionInitiated(info->transport);
+    connectionInitiated(t);
     LOG_MISC(("End attach thread"));
 }
 
@@ -477,7 +501,7 @@ transport_startTransport(jboolean isServer, char *name, char *address,
     if (info->transport == NULL) {
         serror = loadTransport(name, info);
         if (serror != JDWP_ERROR(NONE)) {
-            jvmtiDeallocate(info);
+            freeTransportInfo(info);
             return serror;
         }
     }
@@ -486,7 +510,7 @@ transport_startTransport(jboolean isServer, char *name, char *address,
     trans = info->transport;
 
     if (isServer) {
-        char *retAddress;
+        char *retAddress = NULL;
         char *launchCommand;
         jvmtiError error;
         int len;
@@ -570,6 +594,9 @@ transport_startTransport(jboolean isServer, char *name, char *address,
             goto handleError;
         }
 
+        /* reset info - it will be deallocated by acceptThread */
+        info = NULL;
+
         launchCommand = debugInit_launchOnInit();
         if (launchCommand != NULL) {
             serror = launch(launchCommand, name, retAddress);
@@ -582,13 +609,14 @@ transport_startTransport(jboolean isServer, char *name, char *address,
                     name, retAddress));
             }
         }
+        jvmtiDeallocate(retAddress);
         return JDWP_ERROR(NONE);
 
 handleError:
-        jvmtiDeallocate(info->name);
-        jvmtiDeallocate(info->address);
-        jvmtiDeallocate(info->allowed_peers);
-        jvmtiDeallocate(info);
+        if (retAddress != NULL) {
+            jvmtiDeallocate(retAddress);
+        }
+        freeTransportInfo(info);
     } else {
         /*
          * Note that we don't attempt to do a launch here. Launching
@@ -607,7 +635,7 @@ handleError:
              /* The name, address and allowed_peers fields in 'info'
               * are not allocated in the non-server case so
               * they do not need to be freed. */
-             jvmtiDeallocate(info);
+             freeTransportInfo(info);
              return serror;
          }
 

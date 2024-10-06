@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,50 +24,38 @@
 #ifndef SHARE_GC_Z_ZHEAP_HPP
 #define SHARE_GC_Z_ZHEAP_HPP
 
-#include "gc/shared/gcTimer.hpp"
 #include "gc/z/zAllocationFlags.hpp"
+#include "gc/z/zAllocator.hpp"
 #include "gc/z/zArray.hpp"
-#include "gc/z/zList.hpp"
-#include "gc/z/zLock.hpp"
-#include "gc/z/zMark.hpp"
-#include "gc/z/zObjectAllocator.hpp"
-#include "gc/z/zPage.hpp"
+#include "gc/z/zGeneration.hpp"
+#include "gc/z/zPageAge.hpp"
 #include "gc/z/zPageAllocator.hpp"
 #include "gc/z/zPageTable.hpp"
-#include "gc/z/zReferenceProcessor.hpp"
-#include "gc/z/zRelocate.hpp"
-#include "gc/z/zRelocationSet.hpp"
-#include "gc/z/zRelocationSetSelector.hpp"
-#include "gc/z/zRootsIterator.hpp"
-#include "gc/z/zWeakRootsProcessor.hpp"
+#include "gc/z/zPageType.hpp"
 #include "gc/z/zServiceability.hpp"
-#include "gc/z/zWorkers.hpp"
-#include "memory/allocation.hpp"
+
+class OopFieldClosure;
 
 class ZHeap {
+  friend class ZForwardingTest;
+  friend class ZLiveMapTest;
   friend class VMStructs;
 
 private:
-  static ZHeap*       _heap;
+  static ZHeap*           _heap;
 
-  ZWorkers            _workers;
-  ZObjectAllocator    _object_allocator;
-  ZPageAllocator      _page_allocator;
-  ZPageTable          _pagetable;
-  ZMark               _mark;
-  ZReferenceProcessor _reference_processor;
-  ZWeakRootsProcessor _weak_roots_processor;
-  ZRelocate           _relocate;
-  ZRelocationSet      _relocation_set;
-  ZServiceability     _serviceability;
+  ZPageAllocator          _page_allocator;
+  ZPageTable              _page_table;
 
-  size_t heap_min_size() const;
-  size_t heap_max_size() const;
-  size_t heap_max_reserve_size() const;
+  ZAllocatorEden          _allocator_eden;
+  ZAllocatorForRelocation _allocator_relocation[ZAllocator::_relocation_allocators];
 
-  void out_of_memory();
-  void flip_views();
-  void fixup_partial_loads();
+  ZServiceability         _serviceability;
+
+  ZGenerationOld          _old;
+  ZGenerationYoung        _young;
+
+  bool                    _initialized;
 
 public:
   static ZHeap* heap();
@@ -76,17 +64,19 @@ public:
 
   bool is_initialized() const;
 
+  void out_of_memory();
+
   // Heap metrics
+  size_t initial_capacity() const;
   size_t min_capacity() const;
   size_t max_capacity() const;
-  size_t current_max_capacity() const;
+  size_t soft_max_capacity() const;
   size_t capacity() const;
-  size_t max_reserve() const;
-  size_t used_high() const;
-  size_t used_low() const;
   size_t used() const;
-  size_t allocated() const;
-  size_t reclaimed() const;
+  size_t used_generation(ZGenerationId id) const;
+  size_t used_young() const;
+  size_t used_old() const;
+  size_t unused() const;
 
   size_t tlab_capacity() const;
   size_t tlab_used() const;
@@ -94,80 +84,61 @@ public:
   size_t unsafe_max_tlab_alloc() const;
 
   bool is_in(uintptr_t addr) const;
+  bool is_in_page_relaxed(const ZPage* page, zaddress addr) const;
 
-  // Block
-  uintptr_t block_start(uintptr_t addr) const;
-  size_t block_size(uintptr_t addr) const;
-  bool block_is_obj(uintptr_t addr) const;
+  bool is_young(zaddress addr) const;
+  bool is_young(volatile zpointer* ptr) const;
 
-  // Workers
-  uint nconcurrent_worker_threads() const;
-  uint nconcurrent_no_boost_worker_threads() const;
-  void set_boost_worker_threads(bool boost);
-  void worker_threads_do(ThreadClosure* tc) const;
-  void print_worker_threads_on(outputStream* st) const;
+  bool is_old(zaddress addr) const;
+  bool is_old(volatile zpointer* ptr) const;
 
-  // Reference processing
-  ReferenceDiscoverer* reference_discoverer();
-  void set_soft_reference_policy(bool clear);
+  ZPage* page(zaddress addr) const;
+  ZPage* page(volatile zpointer* addr) const;
 
-  // Non-strong reference processing
-  void process_non_strong_references();
+  // Liveness
+  bool is_object_live(zaddress addr) const;
+  bool is_object_strongly_live(zaddress addr) const;
+  void keep_alive(oop obj);
+  void mark_flush_and_free(Thread* thread);
 
   // Page allocation
-  ZPage* alloc_page(uint8_t type, size_t size, ZAllocationFlags flags);
+  ZPage* alloc_page(ZPageType type, size_t size, ZAllocationFlags flags, ZPageAge age);
   void undo_alloc_page(ZPage* page);
-  bool retain_page(ZPage* page);
-  void release_page(ZPage* page, bool reclaimed);
+  void free_page(ZPage* page);
+  size_t free_empty_pages(const ZArray<ZPage*>* pages);
 
   // Object allocation
-  uintptr_t alloc_tlab(size_t size);
-  uintptr_t alloc_object(size_t size);
-  uintptr_t alloc_object_for_relocation(size_t size);
-  void undo_alloc_object_for_relocation(uintptr_t addr, size_t size);
-  bool is_alloc_stalled() const;
-  void check_out_of_memory();
+  bool is_alloc_stalling() const;
+  bool is_alloc_stalling_for_old() const;
+  void handle_alloc_stalling_for_young();
+  void handle_alloc_stalling_for_old(bool cleared_soft_refs);
 
-  // Marking
-  bool is_object_live(uintptr_t addr) const;
-  bool is_object_strongly_live(uintptr_t addr) const;
-  template <bool finalizable, bool publish> void mark_object(uintptr_t addr);
-  void mark_start();
-  void mark();
-  void mark_flush_and_free(Thread* thread);
-  bool mark_end();
-
-  // Post-marking & Pre-relocation
-  void destroy_detached_pages();
-
-  // Relocation set
-  void select_relocation_set();
-  void prepare_relocation_set();
-  void reset_relocation_set();
-
-  // Relocation
-  bool is_relocating(uintptr_t addr) const;
-  void relocate_start();
-  uintptr_t relocate_object(uintptr_t addr);
-  uintptr_t forward_object(uintptr_t addr);
-  void relocate();
+  // Continuations
+  bool is_allocating(zaddress addr) const;
 
   // Iteration
-  void object_iterate(ObjectClosure* cl, bool visit_referents);
+  void object_iterate(ObjectClosure* object_cl, bool visit_weaks);
+  void object_and_field_iterate_for_verify(ObjectClosure* object_cl, OopFieldClosure* field_cl, bool visit_weaks);
+  ParallelObjectIteratorImpl* parallel_object_iterator(uint nworkers, bool visit_weaks);
+
+  void threads_do(ThreadClosure* tc) const;
 
   // Serviceability
   void serviceability_initialize();
-  GCMemoryManager* serviceability_memory_manager();
-  MemoryPool* serviceability_memory_pool();
+  GCMemoryManager* serviceability_cycle_memory_manager(bool minor);
+  GCMemoryManager* serviceability_pause_memory_manager(bool minor);
+  MemoryPool* serviceability_memory_pool(ZGenerationId id);
   ZServiceabilityCounters* serviceability_counters();
 
   // Printing
   void print_on(outputStream* st) const;
   void print_extended_on(outputStream* st) const;
+  bool print_location(outputStream* st, uintptr_t addr) const;
+  bool print_location(outputStream* st, zaddress addr) const;
+  bool print_location(outputStream* st, zpointer ptr) const;
 
   // Verification
-  bool is_oop(oop object) const;
-  void verify();
+  bool is_oop(uintptr_t addr) const;
 };
 
 #endif // SHARE_GC_Z_ZHEAP_HPP

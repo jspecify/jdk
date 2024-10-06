@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,22 +30,30 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import javax.swing.AbstractButton;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.JTabbedPane;
+import javax.swing.JToggleButton;
+import javax.swing.SingleSelectionModel;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.text.*;
-import javax.swing.border.*;
-import javax.swing.colorchooser.*;
-import javax.swing.filechooser.*;
-import javax.accessibility.*;
-
-import java.awt.*;
-import java.awt.event.*;
-import java.beans.*;
-import java.util.*;
-import java.io.*;
-import java.applet.*;
-import java.net.*;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Insets;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.util.Vector;
 
 /**
  * JButton, JRadioButton, JToggleButton, JCheckBox Demos
@@ -61,12 +69,12 @@ public class ButtonDemo extends DemoModule implements ChangeListener {
     JPanel radioButtonPanel = new JPanel();
     JPanel toggleButtonPanel = new JPanel();
 
-    Vector buttons = new Vector();
-    Vector checkboxes = new Vector();
-    Vector radiobuttons = new Vector();
-    Vector togglebuttons = new Vector();
+    Vector<Component> buttons = new Vector<>();
+    Vector<Component> checkboxes = new Vector<>();
+    Vector<Component> radiobuttons = new Vector<>();
+    Vector<Component> togglebuttons = new Vector<>();
 
-    Vector currentControls = buttons;
+    Vector<Component> currentControls = buttons;
 
     JButton button;
     JCheckBox check;
@@ -466,12 +474,12 @@ public class ButtonDemo extends DemoModule implements ChangeListener {
                     String command = cb.getActionCommand();
                     if(command == "Enabled") {
                         for(int i = 0; i < currentControls.size(); i++) {
-                            c = (Component) currentControls.elementAt(i);
+                            c = currentControls.elementAt(i);
                             c.setEnabled(cb.isSelected());
                             c.invalidate();
                         }
                     } else if(command == "PaintBorder") {
-                        c = (Component) currentControls.elementAt(0);
+                        c = currentControls.elementAt(0);
                         if(c instanceof AbstractButton) {
                             for(int i = 0; i < currentControls.size(); i++) {
                                 b = (AbstractButton) currentControls.elementAt(i);
@@ -480,7 +488,7 @@ public class ButtonDemo extends DemoModule implements ChangeListener {
                             }
                         }
                     } else if(command == "PaintFocus") {
-                        c = (Component) currentControls.elementAt(0);
+                        c = currentControls.elementAt(0);
                         if(c instanceof AbstractButton) {
                             for(int i = 0; i < currentControls.size(); i++) {
                                 b = (AbstractButton) currentControls.elementAt(i);
@@ -489,7 +497,7 @@ public class ButtonDemo extends DemoModule implements ChangeListener {
                             }
                         }
                     } else if(command == "ContentFilled") {
-                        c = (Component) currentControls.elementAt(0);
+                        c = currentControls.elementAt(0);
                         if(c instanceof AbstractButton) {
                             for(int i = 0; i < currentControls.size(); i++) {
                                 b = (AbstractButton) currentControls.elementAt(i);
@@ -549,7 +557,7 @@ public class ButtonDemo extends DemoModule implements ChangeListener {
         }
     }
 
-    public Vector getCurrentControls() {
+    public Vector<Component> getCurrentControls() {
         return currentControls;
     }
 }

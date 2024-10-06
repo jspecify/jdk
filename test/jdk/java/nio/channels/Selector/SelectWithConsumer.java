@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,14 @@
  */
 
 /* @test
- * @bug 8199433
+ * @summary Unit test for Selector.select/selectNow(Consumer)
+ * @bug 8199433 8208780
  * @run testng SelectWithConsumer
- * @summary Unit test for Selector select(Consumer), select(Consumer,long) and
- *          selectNow(Consumer)
+ */
+
+/* @test
+ * @requires (os.family == "windows")
+ * @run testng/othervm -Djava.nio.channels.spi.SelectorProvider=sun.nio.ch.WindowsSelectorProvider SelectWithConsumer
  */
 
 import java.io.Closeable;
@@ -62,9 +66,19 @@ public class SelectWithConsumer {
         var interestOps = key.interestOps();
         var notifiedOps = new AtomicInteger();
 
+        if (expectedOps == 0) {
+            // ensure select(Consumer) does not block indefinitely
+            sel.wakeup();
+        } else {
+            // ensure that the channel is ready for all expected operations
+            sel.select();
+            while ((key.readyOps() & interestOps) != expectedOps) {
+                Thread.sleep(100);
+                sel.select();
+            }
+        }
+
         // select(Consumer)
-        if (expectedOps == 0)
-            sel.wakeup(); // ensure select does not block
         notifiedOps.set(0);
         int n = sel.select(k -> {
             assertTrue(Thread.currentThread() == callerThread);
@@ -187,19 +201,21 @@ public class SelectWithConsumer {
             // write to sink to ensure that the source is readable
             sink.write(messageBuffer());
 
+            // wait for key1 to be readable
+            sel.select();
+            assertTrue(key2.isWritable());
+            while (!key1.isReadable()) {
+                Thread.sleep(20);
+                sel.select();
+            }
+
             var counter = new AtomicInteger();
 
             // select(Consumer)
             counter.set(0);
             int n = sel.select(k -> {
+                assertTrue(k == key1 || k == key2);
                 counter.incrementAndGet();
-                if (k == key1) {
-                    assertTrue(k.isReadable());
-                } else if (k == key2) {
-                    assertTrue(k.isWritable());
-                } else {
-                    assertTrue(false);
-                }
             });
             assertTrue(n == 2);
             assertTrue(counter.get() == 2);
@@ -207,14 +223,8 @@ public class SelectWithConsumer {
             // select(Consumer, timeout)
             counter.set(0);
             n = sel.select(k -> {
+                assertTrue(k == key1 || k == key2);
                 counter.incrementAndGet();
-                if (k == key1) {
-                    assertTrue(k.isReadable());
-                } else if (k == key2) {
-                    assertTrue(k.isWritable());
-                } else {
-                    assertTrue(false);
-                }
             }, 1000);
             assertTrue(n == 2);
             assertTrue(counter.get() == 2);
@@ -222,14 +232,8 @@ public class SelectWithConsumer {
             // selectNow(Consumer)
             counter.set(0);
             n = sel.selectNow(k -> {
+                assertTrue(k == key1 || k == key2);
                 counter.incrementAndGet();
-                if (k == key1) {
-                    assertTrue(k.isReadable());
-                } else if (k == key2) {
-                    assertTrue(k.isWritable());
-                } else {
-                    assertTrue(false);
-                }
             });
             assertTrue(n == 2);
             assertTrue(counter.get() == 2);
@@ -304,11 +308,10 @@ public class SelectWithConsumer {
             Pipe.SinkChannel sink = p.sink();
             source.configureBlocking(false);
             source.register(sel, SelectionKey.OP_READ);
-            long start = System.currentTimeMillis();
+            long start = millisTime();
             int n = sel.select(k -> assertTrue(false), 1000L);
-            long duration = System.currentTimeMillis() - start;
+            expectDuration(start, 500, Long.MAX_VALUE);
             assertTrue(n == 0);
-            assertTrue(duration > 500, "select took " + duration + " ms");
         } finally {
             closePipe(p);
         }
@@ -328,11 +331,10 @@ public class SelectWithConsumer {
         // select(Consumer, timeout)
         try (Selector sel = Selector.open()) {
             sel.wakeup();
-            long start = System.currentTimeMillis();
+            long start = millisTime();
             int n = sel.select(k -> assertTrue(false), 60*1000);
-            long duration = System.currentTimeMillis() - start;
+            expectDuration(start, 0, 20_000);
             assertTrue(n == 0);
-            assertTrue(duration < 5000, "select took " + duration + " ms");
         }
     }
 
@@ -350,12 +352,10 @@ public class SelectWithConsumer {
         // select(Consumer, timeout)
         try (Selector sel = Selector.open()) {
             scheduleWakeup(sel, 1, SECONDS);
-            long start = System.currentTimeMillis();
+            long start = millisTime();
             int n = sel.select(k -> assertTrue(false), 60*1000);
-            long duration = System.currentTimeMillis() - start;
+            expectDuration(start, 0, 20_000);
             assertTrue(n == 0);
-            assertTrue(duration > 500 && duration < 10*1000,
-                    "select took " + duration + " ms");
         }
     }
 
@@ -377,11 +377,10 @@ public class SelectWithConsumer {
         // select(Consumer, timeout)
         try (Selector sel = Selector.open()) {
             Thread.currentThread().interrupt();
-            long start = System.currentTimeMillis();
+            long start = millisTime();
             int n = sel.select(k -> assertTrue(false), 60*1000);
-            long duration = System.currentTimeMillis() - start;
+            expectDuration(start, 0, 20_000);
             assertTrue(n == 0);
-            assertTrue(duration < 5000, "select took " + duration + " ms");
             assertTrue(Thread.currentThread().isInterrupted());
             assertTrue(sel.isOpen());
         } finally {
@@ -407,9 +406,7 @@ public class SelectWithConsumer {
         // select(Consumer, timeout)
         try (Selector sel = Selector.open()) {
             scheduleInterrupt(Thread.currentThread(), 1, SECONDS);
-            long start = System.currentTimeMillis();
             int n = sel.select(k -> assertTrue(false), 60*1000);
-            long duration = System.currentTimeMillis() - start;
             assertTrue(n == 0);
             assertTrue(Thread.currentThread().isInterrupted());
             assertTrue(sel.isOpen());
@@ -454,13 +451,17 @@ public class SelectWithConsumer {
 
         // select(Consumer, timeout)
         try (Selector sel = Selector.open()) {
+            long before = System.nanoTime();
             scheduleClose(sel, 3, SECONDS);
-            long start = System.currentTimeMillis();
+            long start = System.nanoTime();
             int n = sel.select(k -> assertTrue(false), 60*1000);
-            long duration = System.currentTimeMillis() - start;
+            long after = System.nanoTime();
+            long selectDuration = (after - start) / 1000000;
+            long scheduleDuration = (start - before) / 1000000;
             assertTrue(n == 0);
-            assertTrue(duration > 2000 && duration < 10*1000,
-                    "select took " + duration + " ms");
+            assertTrue(selectDuration > 2000 && selectDuration < 10*1000,
+                    "select took " + selectDuration + " ms schedule took " +
+                    scheduleDuration + " ms");
             assertFalse(sel.isOpen());
         }
     }
@@ -755,5 +756,33 @@ public class SelectWithConsumer {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Returns the current time in milliseconds.
+     */
+    private static long millisTime() {
+        long now = System.nanoTime();
+        return TimeUnit.MILLISECONDS.convert(now, TimeUnit.NANOSECONDS);
+    }
+
+    /**
+     * Check the duration of a task. The method will fail with an
+     * AssertionError if the millisecond duration does not satisfy:
+     *
+     *     duration >= min && duration <= max
+     *
+     * Note that the inequalities are not strict, i.e., are inclusive.
+     *
+     * @param start start time, in milliseconds
+     * @param min minimum expected duration, in milliseconds
+     * @param max maximum expected duration, in milliseconds
+     */
+    private static void expectDuration(long start, long min, long max) {
+        long duration = millisTime() - start;
+        assertTrue(duration >= min,
+                "Duration " + duration + "ms, expected >= " + min + "ms");
+        assertTrue(duration <= max,
+                "Duration " + duration + "ms, expected <= " + max + "ms");
     }
 }

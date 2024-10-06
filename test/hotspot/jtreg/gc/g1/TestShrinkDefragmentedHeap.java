@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+package gc.g1;
+
 /**
  * @test TestShrinkDefragmentedHeap
  * @bug 8038423 8129590
@@ -32,8 +34,10 @@
  *     3. invoke gc and check that memory returned to the system (amount of committed memory got down)
  *
  * @library /test/lib /
+ * @requires vm.gc.G1
  * @modules java.base/jdk.internal.misc
  *          java.management/sun.management
+ * @run driver gc.g1.TestShrinkDefragmentedHeap
  */
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
@@ -57,7 +61,7 @@ public class TestShrinkDefragmentedHeap {
     private static final int REGION_SIZE        = 1 * 1024 * 1024;
 
     public static void main(String[] args) throws Exception, Throwable {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+        OutputAnalyzer output = ProcessTools.executeLimitedTestJava(
                 "-XX:InitialHeapSize=" + INITIAL_HEAP_SIZE,
                 "-Xmn" + MINIMAL_YOUNG_SIZE,
                 "-Xmx" + MAXIMUM_HEAP_SIZE,
@@ -70,7 +74,6 @@ public class TestShrinkDefragmentedHeap {
                 GCTest.class.getName()
         );
 
-        OutputAnalyzer output = ProcessTools.executeProcess(pb);
         output.shouldHaveExitValue(0);
     }
 
@@ -136,7 +139,7 @@ public class TestShrinkDefragmentedHeap {
             garbage.subList(0, garbage.size() - 1).clear();
 
             // do not free last one element from last list
-            ArrayList stuff = garbage.get(garbage.size() - 1);
+            ArrayList<byte[]> stuff = garbage.get(garbage.size() - 1);
             if (stuff.size() > 1) {
                 stuff.subList(0, stuff.size() - 1).clear();
             }
@@ -156,7 +159,7 @@ public class TestShrinkDefragmentedHeap {
             );
         }
 
-        private static void allocateList(List garbage, int count, int size) {
+        private static void allocateList(List<byte[]> garbage, int count, int size) {
             for (int i = 0; i < count; i++) {
                 garbage.add(new byte[size]);
             }

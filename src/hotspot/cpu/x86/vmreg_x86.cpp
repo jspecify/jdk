@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 #include "precompiled.hpp"
 #include "asm/assembler.hpp"
 #include "code/vmreg.hpp"
-
+#include "vmreg_x86.inline.hpp"
 
 
 void VMRegImpl::set_regName() {
@@ -48,7 +48,7 @@ void VMRegImpl::set_regName() {
 
   XMMRegister xreg = ::as_XMMRegister(0);
   for (; i < ConcreteRegisterImpl::max_xmm;) {
-    for (int j = 0 ; j < XMMRegisterImpl::max_slots_per_register ; j++) {
+    for (int j = 0 ; j < XMMRegister::max_slots_per_register ; j++) {
       regName[i++] = xreg->name();
     }
     xreg = xreg->successor();
@@ -56,7 +56,7 @@ void VMRegImpl::set_regName() {
 
   KRegister kreg = ::as_KRegister(0);
   for (; i < ConcreteRegisterImpl::max_kpr;) {
-    for (int j = 0; j < KRegisterImpl::max_slots_per_register; j++) {
+    for (int j = 0; j < KRegister::max_slots_per_register; j++) {
       regName[i++] = kreg->name();
     }
     kreg = kreg->successor();

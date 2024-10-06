@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,16 +23,25 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_FRAME_ZERO_HPP
-#define CPU_ZERO_VM_FRAME_ZERO_HPP
-
-#include "runtime/synchronizer.hpp"
+#ifndef CPU_ZERO_FRAME_ZERO_HPP
+#define CPU_ZERO_FRAME_ZERO_HPP
 
 // A frame represents a physical stack frame on the Zero stack.
 
  public:
   enum {
-    pc_return_offset = 0
+    pc_return_offset = 0,
+    metadata_words   = 0,
+    // size, in words, of metadata at frame bottom, i.e. it is not part of the
+    // caller/callee overlap
+    metadata_words_at_bottom                         = metadata_words,
+    // size, in words, of frame metadata at the frame top, i.e. it is located
+    // between a callee frame and its stack arguments, where it is part
+    // of the caller/callee overlap
+    metadata_words_at_top                            = 0,
+    frame_alignment  = 16,
+    // size, in words, of maximum shift in frame position due to alignment
+    align_wiggle     =  1
   };
 
   // Constructor
@@ -51,9 +60,7 @@
     return (intptr_t *) zeroframe();
   }
 
-#ifdef CC_INTERP
   inline interpreterState get_interpreterState() const;
-#endif // CC_INTERP
 
  public:
   const EntryFrame *zero_entryframe() const {
@@ -77,4 +84,9 @@
 
   static jint interpreter_frame_expression_stack_direction() { return -1; }
 
-#endif // CPU_ZERO_VM_FRAME_ZERO_HPP
+  inline address* sender_pc_addr() const;
+
+  template <typename RegisterMapT>
+  static void update_map_with_saved_link(RegisterMapT* map, intptr_t** link_addr);
+
+#endif // CPU_ZERO_FRAME_ZERO_HPP

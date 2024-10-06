@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -67,20 +67,19 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.util.EnumSet;
+import java.lang.reflect.InvocationTargetException;
 import java.util.StringTokenizer;
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import javax.swing.*;
 import javax.swing.event.*;
+import javax.swing.plaf.nimbus.NimbusLookAndFeel;
 
-/**
- * Font2DTest.java
- *
- * @author Shinsuke Fukuda
- * @author Ankit Patel [Conversion to Swing - 01/07/30]
- */
-
-/// Main Font2DTest Class
+import static java.nio.charset.StandardCharsets.UTF_16;
 
 public final class Font2DTest extends JPanel
     implements ActionListener, ItemListener, ChangeListener {
@@ -94,6 +93,12 @@ public final class Font2DTest extends JPanel
 
     /// Other menus to set parameters for text drawing
     private final ChoiceV2 fontMenu;
+    private JPanel fontMenuPanel;
+    private JPanel stylePanel;
+    private LabelV2 fontMenuLabel = null;
+    private LabelV2 styleLabel = null;
+    private ChoiceV2 fontNameMenu;
+    private ChoiceV2 fontSubFamilyMenu;
     private final JTextField sizeField;
     private final ChoiceV2 styleMenu;
     private final ChoiceV2 textMenu;
@@ -101,8 +106,8 @@ public final class Font2DTest extends JPanel
     private final ChoiceV2 transformMenu;
     private final ChoiceV2 transformMenuG2;
     private final ChoiceV2 methodsMenu;
-    private final JComboBox antiAliasMenu;
-    private final JComboBox fracMetricsMenu;
+    private final JComboBox<FontPanel.AAValues> antiAliasMenu;
+    private final JComboBox<FontPanel.FMValues> fracMetricsMenu;
 
     private final JSlider contrastSlider;
 
@@ -110,31 +115,36 @@ public final class Font2DTest extends JPanel
     private CheckboxMenuItemV2 displayGridCBMI;
     private CheckboxMenuItemV2 force16ColsCBMI;
     private CheckboxMenuItemV2 showFontInfoCBMI;
+    private JRadioButtonMenuItem familyAndStyleRBMI;
+    private JRadioButtonMenuItem familyAndSubFamilyRBMI;
+    private JRadioButtonMenuItem fontNameRBMI;
 
     /// JDialog boxes
     private JDialog userTextDialog;
     private JTextArea userTextArea;
     private JDialog printDialog;
     private JDialog fontInfoDialog;
-    private LabelV2 fontInfos[] = new LabelV2[2];
+    private LabelV2[] fontInfos = new LabelV2[2];
     private JFileChooser filePromptDialog = null;
 
     private ButtonGroup printCBGroup;
-    private JRadioButton printModeCBs[] = new JRadioButton[3];
+    private JRadioButton[] printModeCBs = new JRadioButton[3];
 
     /// Status bar
     private final LabelV2 statusBar;
 
-    private int fontStyles [] = {Font.PLAIN, Font.BOLD, Font.ITALIC, Font.BOLD | Font.ITALIC};
+    private String currentFontName = Font.DIALOG;
+    private int[] fontStyles  = {Font.PLAIN, Font.BOLD, Font.ITALIC, Font.BOLD | Font.ITALIC};
 
     /// Text filename
     private String tFileName;
 
     // Enabled or disabled status of canDisplay check
     private static boolean canDisplayCheck = true;
+    private static final Locale l = Locale.getDefault();
 
     /// Initialize GUI variables and its layouts
-    public Font2DTest( JFrame f, boolean isApplet ) {
+    public Font2DTest( JFrame f) {
         parent = f;
 
         rm = new RangeMenu( this, parent );
@@ -142,6 +152,8 @@ public final class Font2DTest extends JPanel
         statusBar = new LabelV2("");
 
         fontMenu = new ChoiceV2( this, canDisplayCheck );
+        fontNameMenu = new ChoiceV2( this, false );
+        fontSubFamilyMenu = new ChoiceV2( this, false );
         sizeField = new JTextField( "12", 3 );
         sizeField.addActionListener( this );
         styleMenu = new ChoiceV2( this );
@@ -151,10 +163,10 @@ public final class Font2DTest extends JPanel
         methodsMenu = new ChoiceV2( this );
 
         antiAliasMenu =
-            new JComboBox(EnumSet.allOf(FontPanel.AAValues.class).toArray());
+            new JComboBox<>(FontPanel.AAValues.values());
         antiAliasMenu.addActionListener(this);
         fracMetricsMenu =
-            new JComboBox(EnumSet.allOf(FontPanel.FMValues.class).toArray());
+            new JComboBox<>(FontPanel.FMValues.values());
         fracMetricsMenu.addActionListener(this);
 
         contrastSlider = new JSlider(JSlider.HORIZONTAL, 100, 250,
@@ -166,12 +178,52 @@ public final class Font2DTest extends JPanel
         contrastSlider.setPaintLabels(true);
         contrastSlider.addChangeListener(this);
         setupPanel();
-        setupMenu( isApplet );
-        setupDialog( isApplet );
+        setupMenu();
+        setupDialog();
 
         if(canDisplayCheck) {
             fireRangeChanged();
         }
+    }
+
+    private void addFontMenuToGBL(String labelText,
+                                  JComponent menuContainer,
+                                  GridBagLayout gbl,
+                                  GridBagConstraints gbc,
+                                  int leftInset,
+                                  Container target) {
+
+        fontMenuLabel = new LabelV2(labelText);
+        fontMenuLabel.setLabelFor(menuContainer);
+        GridBagConstraints gbcLabel = (GridBagConstraints) gbc.clone();
+        gbcLabel.insets = new Insets(2, leftInset, 2, 0);
+        gbcLabel.gridwidth = 1;
+        gbcLabel.weightx = 0;
+        gbcLabel.anchor = GridBagConstraints.EAST;
+        gbl.setConstraints(fontMenuLabel, gbcLabel);
+        target.add(fontMenuLabel);
+        gbl.setConstraints(menuContainer, gbc);
+        target.add( menuContainer );
+    }
+
+    private void addStyleMenuToGBL(String labelText,
+                                  JComponent menuContainer,
+                                  GridBagLayout gbl,
+                                  GridBagConstraints gbc,
+                                  int leftInset,
+                                  Container target) {
+
+        styleLabel = new LabelV2(labelText);
+        styleLabel.setLabelFor(menuContainer);
+        GridBagConstraints gbcLabel = (GridBagConstraints) gbc.clone();
+        gbcLabel.insets = new Insets(2, leftInset, 2, 0);
+        gbcLabel.gridwidth = 1;
+        gbcLabel.weightx = 0;
+        gbcLabel.anchor = GridBagConstraints.EAST;
+        gbl.setConstraints(styleLabel, gbcLabel);
+        target.add(styleLabel);
+        gbl.setConstraints(menuContainer, gbc);
+        target.add(menuContainer);
     }
 
     /// Set up the main interface panel
@@ -183,43 +235,49 @@ public final class Font2DTest extends JPanel
         gbc.insets = new Insets( 2, 0, 2, 2 );
         this.setLayout( gbl );
 
-        addLabeledComponentToGBL( "Font: ", fontMenu, gbl, gbc, this );
-        addLabeledComponentToGBL( "Size: ", sizeField, gbl, gbc, this );
+        fontMenuPanel = new JPanel();
+        fontMenuPanel.setLayout(new GridLayout());
+        fontMenuPanel.add(fontMenu);
+        addFontMenuToGBL(FAMILY_LABEL_TEXT, fontMenuPanel, gbl, gbc, 2, this );
+
+        stylePanel = new JPanel();
+        stylePanel.setLayout(new GridLayout());
+        stylePanel.add(styleMenu);
+        addStyleMenuToGBL(STYLE_LABEL_TEXT, stylePanel, gbl, gbc, 40, this );
+
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         addLabeledComponentToGBL( "Font Transform:",
-                                  transformMenu, gbl, gbc, this );
+                                  transformMenu, gbl, gbc, 20, this );
         gbc.gridwidth = 1;
 
-        addLabeledComponentToGBL( "Range: ", rm, gbl, gbc, this );
-        addLabeledComponentToGBL( "Style: ", styleMenu, gbl, gbc, this );
+        addLabeledComponentToGBL( "Range: ", rm, gbl, gbc, 2, this );
+        addLabeledComponentToGBL( "Size: ", sizeField, gbl, gbc, 40, this );
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         addLabeledComponentToGBL( "Graphics Transform: ",
-                                  transformMenuG2, gbl, gbc, this );
+                                  transformMenuG2, gbl, gbc, 20, this );
         gbc.gridwidth = 1;
 
         gbc.anchor = GridBagConstraints.WEST;
-        addLabeledComponentToGBL( "Method: ", methodsMenu, gbl, gbc, this );
-        addLabeledComponentToGBL("", null, gbl, gbc, this);
+        addLabeledComponentToGBL( "Method: ", methodsMenu, gbl, gbc, 2, this );
+        addLabeledComponentToGBL("", null, gbl, gbc, 40, this);
         gbc.anchor = GridBagConstraints.EAST;
-        gbc.gridwidth = GridBagConstraints.REMAINDER;
-        addLabeledComponentToGBL( "Text to use:", textMenu, gbl, gbc, this );
 
-        gbc.weightx=1;
+        gbc.gridwidth = GridBagConstraints.REMAINDER;
+        addLabeledComponentToGBL( "Text to use:", textMenu, gbl, gbc, 20, this );
+
         gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.WEST;
         addLabeledComponentToGBL("LCD contrast: ",
-                                  contrastSlider, gbl, gbc, this);
+                                  contrastSlider, gbl, gbc, 2, this);
 
         gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.NONE;
         addLabeledComponentToGBL("Antialiasing: ",
-                                  antiAliasMenu, gbl, gbc, this);
+                                  antiAliasMenu, gbl, gbc, 40, this);
 
         gbc.anchor = GridBagConstraints.EAST;
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         addLabeledComponentToGBL("Fractional metrics: ",
-                                  fracMetricsMenu, gbl, gbc, this);
+                                  fracMetricsMenu, gbl, gbc, 20, this);
 
         gbc.weightx = 1;
         gbc.weighty = 1;
@@ -240,16 +298,23 @@ public final class Font2DTest extends JPanel
                                            JComponent c,
                                            GridBagLayout gbl,
                                            GridBagConstraints gbc,
+                                           int leftInset,
                                            Container target ) {
         LabelV2 l = new LabelV2( name );
+        l.setLabelFor(c);
         GridBagConstraints gbcLabel = (GridBagConstraints) gbc.clone();
-        gbcLabel.insets = new Insets( 2, 2, 2, 0 );
+        if (gbcLabel.gridwidth == GridBagConstraints.REMAINDER) {
+            gbcLabel.gridwidth = GridBagConstraints.RELATIVE;
+        }
+
+        gbcLabel.insets = new Insets( 2, leftInset, 2, 0 );
         gbcLabel.gridwidth = 1;
         gbcLabel.weightx = 0;
 
         if ( c == null )
           c = new JLabel( "" );
 
+        gbcLabel.anchor = GridBagConstraints.EAST;
         gbl.setConstraints( l, gbcLabel );
         target.add( l );
         gbl.setConstraints( c, gbc );
@@ -257,7 +322,7 @@ public final class Font2DTest extends JPanel
     }
 
     /// Sets up menu entries
-    private void setupMenu( boolean isApplet ) {
+    private void setupMenu() {
         JMenu fileMenu = new JMenu( "File" );
         JMenu optionMenu = new JMenu( "Option" );
 
@@ -269,17 +334,28 @@ public final class Font2DTest extends JPanel
         fileMenu.add( new MenuItemV2( "Page Setup...", this ));
         fileMenu.add( new MenuItemV2( "Print...", this ));
         fileMenu.addSeparator();
-        if ( !isApplet )
-          fileMenu.add( new MenuItemV2( "Exit", this ));
-        else
-          fileMenu.add( new MenuItemV2( "Close", this ));
-
+        fileMenu.add( new MenuItemV2( "Exit", this ));
         displayGridCBMI = new CheckboxMenuItemV2( "Display Grid", true, this );
         force16ColsCBMI = new CheckboxMenuItemV2( "Force 16 Columns", false, this );
         showFontInfoCBMI = new CheckboxMenuItemV2( "Display Font Info", false, this );
         optionMenu.add( displayGridCBMI );
         optionMenu.add( force16ColsCBMI );
         optionMenu.add( showFontInfoCBMI );
+        optionMenu.addSeparator();
+        familyAndStyleRBMI = new JRadioButtonMenuItem("Select font using Family Name and Style");
+        familyAndStyleRBMI.addActionListener(this);
+        familyAndSubFamilyRBMI = new JRadioButtonMenuItem("Select font using Family Name and SubFamily");
+        familyAndSubFamilyRBMI.addActionListener(this);
+        fontNameRBMI = new JRadioButtonMenuItem("Select font using Full Name");
+        fontNameRBMI.addActionListener(this);
+        ButtonGroup bg = new ButtonGroup();
+        bg.add(familyAndStyleRBMI);
+        bg.add(familyAndSubFamilyRBMI);
+        bg.add(fontNameRBMI);
+        familyAndStyleRBMI.setSelected(true);
+        optionMenu.add(familyAndStyleRBMI);
+        optionMenu.add(familyAndSubFamilyRBMI);
+        optionMenu.add(fontNameRBMI);
 
         JMenuBar mb = parent.getJMenuBar();
         if ( mb == null )
@@ -289,12 +365,17 @@ public final class Font2DTest extends JPanel
 
         parent.setJMenuBar( mb );
 
-        String fontList[] =
-          GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
+        String[] fontList = getAllFamilyNames();
+        for (int i = 0; i < fontList.length; i++ ) {
+            fontMenu.addItem( fontList[i] );
+        }
+        fontMenu.setSelectedItem("Dialog");
 
-        for ( int i = 0; i < fontList.length; i++ )
-          fontMenu.addItem( fontList[i] );
-        fontMenu.setSelectedItem( "Dialog" );
+        fontList = getAllFontNames();
+        for (int i = 0; i < fontList.length; i++ ) {
+           fontNameMenu.addItem( fontList[i] );
+        }
+        fontNameMenu.setSelectedItem("Dialog");
 
         styleMenu.addItem( "Plain" );
         styleMenu.addItem( "Bold" );
@@ -327,11 +408,8 @@ public final class Font2DTest extends JPanel
     }
 
     /// Sets up the all dialogs used in Font2DTest...
-    private void setupDialog( boolean isApplet ) {
-        if (!isApplet)
-                filePromptDialog = new JFileChooser( );
-        else
-                filePromptDialog = null;
+    private void setupDialog() {
+        filePromptDialog = new JFileChooser();
 
         /// Prepare user text dialog...
         userTextDialog = new JDialog( parent, "User Text", false );
@@ -359,7 +437,7 @@ public final class Font2DTest extends JPanel
         userTextDialog.pack();
         userTextDialog.addWindowListener( new WindowAdapter() {
             public void windowClosing( WindowEvent e ) {
-                userTextDialog.hide();
+                userTextDialog.setVisible(false);
             }
         });
 
@@ -385,7 +463,7 @@ public final class Font2DTest extends JPanel
         printDialog.setResizable( false );
         printDialog.addWindowListener( new WindowAdapter() {
             public void windowClosing( WindowEvent e ) {
-                printDialog.hide();
+                printDialog.setVisible(false);
             }
         });
         printDialog.getContentPane().setLayout( new GridLayout( printModeCBs.length + 2, 1 ));
@@ -402,7 +480,7 @@ public final class Font2DTest extends JPanel
         fontInfoDialog.setResizable( false );
         fontInfoDialog.addWindowListener( new WindowAdapter() {
             public void windowClosing( WindowEvent e ) {
-                fontInfoDialog.hide();
+                fontInfoDialog.setVisible(false);
                 showFontInfoCBMI.setState( false );
             }
         });
@@ -422,7 +500,7 @@ public final class Font2DTest extends JPanel
     /// RangeMenu object signals using this function
     /// when Unicode range has been changed and text needs to be redrawn
     public void fireRangeChanged() {
-        int range[] = rm.getSelectedRange();
+        int[] range = rm.getSelectedRange();
         fp.setTextToDraw( fp.RANGE_TEXT, range, null, null );
         if(canDisplayCheck) {
             setupFontList(range[0], range[1]);
@@ -433,8 +511,6 @@ public final class Font2DTest extends JPanel
 
     /// Changes the message on the status bar
     public void fireChangeStatus( String message, boolean error ) {
-        /// If this is not ran as an applet, use own status bar,
-        /// Otherwise, use the appletviewer/browser's status bar
         statusBar.setText( message );
         if ( error )
           fp.showingError = true;
@@ -445,7 +521,7 @@ public final class Font2DTest extends JPanel
     /// Updates the information about the selected font
     public void fireUpdateFontInfo() {
         if ( showFontInfoCBMI.getState() ) {
-            String infos[] = fp.getFontInfo();
+            String[] infos = fp.getFontInfo();
             for ( int i = 0; i < fontInfos.length; i++ )
               fontInfos[i].setText( infos[i] );
             fontInfoDialog.pack();
@@ -467,7 +543,7 @@ public final class Font2DTest extends JPanel
         int style = fontStyles[styleMenu.getSelectedIndex()];
         Font f;
         for (int i = 0; i < listCount; i++) {
-            String fontName = (String)fontMenu.getItemAt(i);
+            String fontName = fontMenu.getItemAt(i);
             f = new Font(fontName, style, size);
             if ((rm.getSelectedIndex() != RangeMenu.SURROGATES_AREA_INDEX) &&
                 canDisplayRange(f, rangeStart, rangeEnd)) {
@@ -533,7 +609,7 @@ public final class Font2DTest extends JPanel
     private String[] parseUserText( String orig ) {
         int length = orig.length();
         StringTokenizer perLine = new StringTokenizer( orig, "\n" );
-        String textLines[] = new String[ perLine.countTokens() ];
+        String[] textLines = new String[ perLine.countTokens() ];
         int lineNumber = 0;
 
         while ( perLine.hasMoreElements() ) {
@@ -583,14 +659,15 @@ public final class Font2DTest extends JPanel
     /// Then breaks the text into String array, delimited at every line break
     private void readTextFile( String fileName ) {
         try {
-            String fileText, textLines[];
+            String fileText;
+            String[] textLines;
             BufferedInputStream bis =
               new BufferedInputStream( new FileInputStream( fileName ));
             int numBytes = bis.available();
             if (numBytes == 0) {
                 throw new Exception("Text file " + fileName + " is empty");
             }
-            byte byteData[] = new byte[ numBytes ];
+            byte[] byteData = new byte[ numBytes ];
             bis.read( byteData, 0, numBytes );
             bis.close();
 
@@ -598,7 +675,7 @@ public final class Font2DTest extends JPanel
             if (numBytes >= 2 &&
                 (( byteData[0] == (byte) 0xFF && byteData[1] == (byte) 0xFE ) ||
                  ( byteData[0] == (byte) 0xFE && byteData[1] == (byte) 0xFF )))
-              fileText = new String( byteData, "UTF-16" );
+              fileText = new String(byteData, UTF_16);
             /// Otherwise, use system default encoding
             else
               fileText = new String( byteData );
@@ -648,15 +725,19 @@ public final class Font2DTest extends JPanel
             BufferedOutputStream bos =
               new BufferedOutputStream( new FileOutputStream( fileName ));
             /// Prepend title and the option that is only obtainable here
-            int range[] = rm.getSelectedRange();
+            int[] range = rm.getSelectedRange();
             String completeOptions =
               ( "Font2DTest Option File\n" +
                 displayGridCBMI.getState() + "\n" +
                 force16ColsCBMI.getState() + "\n" +
                 showFontInfoCBMI.getState() + "\n" +
+                fontSelectionType + "\n" +
+                (String)fontMenu.getSelectedItem() + "\n" +
+                (String)fontNameMenu.getSelectedItem() + "\n" +
+                (String)fontSubFamilyMenu.getSelectedItem() + "\n" +
                 rm.getSelectedItem() + "\n" +
                 range[0] + "\n" + range[1] + "\n" + curOptions + tFileName);
-            byte toBeWritten[] = completeOptions.getBytes( "UTF-16" );
+            byte[] toBeWritten = completeOptions.getBytes(UTF_16);
             bos.write( toBeWritten, 0, toBeWritten.length );
             bos.close();
         }
@@ -672,9 +753,9 @@ public final class Font2DTest extends JPanel
 
         /// Set the visibility of User Text dialog
         if ( selectedText == fp.USER_TEXT )
-          userTextDialog.show();
+          userTextDialog.setVisible(true);
         else
-          userTextDialog.hide();
+          userTextDialog.setVisible(false);
         /// Change the visibility/status/availability of Print JDialog buttons
         printModeCBs[ fp.ONE_PAGE ].setSelected( true );
         if ( selectedText == fp.FILE_TEXT || selectedText == fp.USER_TEXT ) {
@@ -714,14 +795,14 @@ public final class Font2DTest extends JPanel
             BufferedInputStream bis =
               new BufferedInputStream( new FileInputStream( fileName ));
             int numBytes = bis.available();
-            byte byteData[] = new byte[ numBytes ];
+            byte[] byteData = new byte[ numBytes ];
             bis.read( byteData, 0, numBytes );
             bis.close();
             if ( numBytes < 2 ||
                 (byteData[0] != (byte) 0xFE || byteData[1] != (byte) 0xFF) )
               throw new Exception( "Not a Font2DTest options file" );
 
-            String options = new String( byteData, "UTF-16" );
+            String options = new String(byteData, UTF_16);
             StringTokenizer perLine = new StringTokenizer( options, "\n" );
             String title = perLine.nextToken();
             if ( !title.equals( "Font2DTest Option File" ))
@@ -731,6 +812,10 @@ public final class Font2DTest extends JPanel
             boolean displayGridOpt = Boolean.parseBoolean( perLine.nextToken() );
             boolean force16ColsOpt = Boolean.parseBoolean( perLine.nextToken() );
             boolean showFontInfoOpt = Boolean.parseBoolean( perLine.nextToken() );
+            int fontSelType = Integer.parseInt( perLine.nextToken() );
+            String fmItem = perLine.nextToken();
+            String fnmItem = perLine.nextToken();
+            String fsmItem = perLine.nextToken();
             String rangeNameOpt = perLine.nextToken();
             int rangeStartOpt = Integer.parseInt( perLine.nextToken() );
             int rangeEndOpt = Integer.parseInt( perLine.nextToken() );
@@ -744,7 +829,7 @@ public final class Font2DTest extends JPanel
             int antialiasOpt = Integer.parseInt(perLine.nextToken());
             int fractionalOpt = Integer.parseInt(perLine.nextToken());
             int lcdContrast = Integer.parseInt(perLine.nextToken());
-            String userTextOpt[] = { "Font2DTest!" };
+            String[] userTextOpt = { "Font2DTest!" };
             String dialogEntry = "Font2DTest!";
             if (textToUseOpt == fp.USER_TEXT )  {
                 int numLines = perLine.countTokens(), lineNumber = 0;
@@ -763,7 +848,11 @@ public final class Font2DTest extends JPanel
             force16ColsCBMI.setState( force16ColsOpt );
             showFontInfoCBMI.setState( showFontInfoOpt );
             rm.setSelectedRange( rangeNameOpt, rangeStartOpt, rangeEndOpt );
-            fontMenu.setSelectedItem( fontNameOpt );
+            currentFontName = fontNameOpt;
+            setFontSelectionType(fontSelType);
+            fontMenu.setSelectedItem( fmItem );
+            fontNameMenu.setSelectedItem( fnmItem );
+            fontSubFamilyMenu.setSelectedItem( fsmItem );
             sizeField.setText( String.valueOf( fontSizeOpt ));
             styleMenu.setSelectedIndex( fontStyleOpt );
             transformMenu.setSelectedIndex( fontTransformOpt );
@@ -792,10 +881,10 @@ public final class Font2DTest extends JPanel
                             lcdContrast, userTextOpt );
             if ( showFontInfoOpt ) {
                 fireUpdateFontInfo();
-                fontInfoDialog.show();
+                fontInfoDialog.setVisible(true);
             }
             else
-              fontInfoDialog.hide();
+              fontInfoDialog.setVisible(false);
         }
         catch ( Exception ex ) {
             fireChangeStatus( "ERROR: Failed to Load Options File; See Stack Trace", true );
@@ -818,12 +907,116 @@ public final class Font2DTest extends JPanel
                 }
             });
             f.pack();
-            f.show();
+            f.setVisible(true);
         }
         catch ( Exception ex ) {
             fireChangeStatus( "ERROR: Failed to Load PNG File; See Stack Trace", true );
             ex.printStackTrace();
         }
+    }
+
+    static final int FAMILY_AND_STYLE     = 1;
+    static final int FONT_NAME            = 2;
+    static final int FAMILY_AND_SUBFAMILY = 3;
+    static int fontSelectionType = FAMILY_AND_STYLE;
+
+    static final String FAMILY_LABEL_TEXT = "Font Family:";
+    static final String NAME_LABEL_TEXT = "Font Name:";
+    static final String STYLE_LABEL_TEXT = "Style:";
+    static final String SUBFAMILY_LABEL_TEXT = "Subfamily:";
+
+    void setUseFamilyAndStyle() {
+        if (fontSelectionType == FAMILY_AND_STYLE) {
+            return;
+        }
+        fontMenuLabel.setText(FAMILY_LABEL_TEXT);
+        fontMenuPanel.removeAll();
+        fontMenuPanel.add(fontMenu);
+        if (fontSelectionType == FAMILY_AND_SUBFAMILY) {
+            styleLabel.setText(STYLE_LABEL_TEXT);
+            stylePanel.removeAll();
+            stylePanel.add(styleMenu);
+        }
+        fontSelectionType = FAMILY_AND_STYLE;
+        if (!familyAndStyleRBMI.isSelected()) {
+           familyAndStyleRBMI.setSelected(true);
+        }
+        styleMenu.setSelectedIndex(0);
+        currentFontName = (String)fontMenu.getSelectedItem();
+        fp.setFontParams(currentFontName,
+                         Float.parseFloat(sizeField.getText()),
+                         0, // want to reset style to PLAIN
+                         transformMenu.getSelectedIndex());
+        revalidate();
+        repaint();
+    }
+
+    void setUseFontName() {
+        if (fontSelectionType == FONT_NAME) {
+            return;
+        }
+        fontMenuLabel.setText(NAME_LABEL_TEXT);
+        fontMenuPanel.removeAll();
+        fontMenuPanel.add(fontNameMenu);
+        if (fontSelectionType == FAMILY_AND_SUBFAMILY) {
+            styleLabel.setText(STYLE_LABEL_TEXT);
+            stylePanel.removeAll();
+            stylePanel.add(styleMenu);
+        }
+        fontSelectionType = FONT_NAME;
+        if (!fontNameRBMI.isSelected()) {
+           fontNameRBMI.setSelected(true);
+        }
+        styleMenu.setSelectedIndex(0);
+        currentFontName = (String)fontNameMenu.getSelectedItem();
+        fp.setFontParams(currentFontName,
+                         Float.parseFloat(sizeField.getText()),
+                         0, // want to reset style to PLAIN
+                         transformMenu.getSelectedIndex());
+        revalidate();
+        repaint();
+    }
+
+    void setUseFamilyAndSubFamily() {
+        if (fontSelectionType == FAMILY_AND_SUBFAMILY) {
+            return;
+        }
+        fontMenuLabel.setText(FAMILY_LABEL_TEXT);
+        fontMenuPanel.removeAll();
+        fontMenuPanel.add(fontMenu);
+        styleLabel.setText(SUBFAMILY_LABEL_TEXT);
+        stylePanel.removeAll();
+        styleMenu.setSelectedIndex(0);
+        String family = (String)fontMenu.getSelectedItem();
+        updateSubFamilyMenu(family);
+        stylePanel.add(fontSubFamilyMenu);
+        fontSelectionType = FAMILY_AND_SUBFAMILY;
+        if (!familyAndSubFamilyRBMI.isSelected()) {
+           familyAndSubFamilyRBMI.setSelected(true);
+        }
+        String subname = (String)fontSubFamilyMenu.getSelectedItem();
+        Font font = FontFamily.getFont(family, subname);
+        currentFontName = (font != null) ? font.getFontName(l) : family;
+        fp.setFontParams(currentFontName,
+                         Float.parseFloat(sizeField.getText()),
+                         0, // want to reset style to PLAIN
+                         transformMenu.getSelectedIndex());
+        revalidate();
+        repaint();
+    }
+
+    void setFontSelectionType(int fsType) {
+         switch (fsType) {
+             case FAMILY_AND_STYLE     :
+                  setUseFamilyAndStyle();
+                  break;
+             case FONT_NAME            :
+                  setUseFontName();
+                  break;
+             case FAMILY_AND_SUBFAMILY :
+                  setUseFamilyAndSubFamily();
+                  break;
+         }
     }
 
     /// Interface functions...
@@ -837,7 +1030,14 @@ public final class Font2DTest extends JPanel
             JMenuItem mi = (JMenuItem) source;
             String itemName = mi.getText();
 
-            if ( itemName.equals( "Save Selected Options..." )) {
+            if (source == familyAndStyleRBMI) {
+               setUseFamilyAndStyle();
+            } else if (source == familyAndSubFamilyRBMI) {
+               setUseFamilyAndSubFamily();
+            } else if (source == fontNameRBMI) {
+               setUseFontName();
+            }
+            else if ( itemName.equals( "Save Selected Options..." )) {
                 String fileName = promptFile( true, "options.txt" );
                 if ( fileName != null )
                   writeCurrentOptions( fileName );
@@ -860,7 +1060,7 @@ public final class Font2DTest extends JPanel
             else if ( itemName.equals( "Page Setup..." ))
               fp.doPageSetup();
             else if ( itemName.equals( "Print..." ))
-              printDialog.show();
+              printDialog.setVisible(true);
             else if ( itemName.equals( "Close" ))
               parent.dispose();
             else if ( itemName.equals( "Exit" ))
@@ -879,11 +1079,12 @@ public final class Font2DTest extends JPanel
             } catch (Exception se) {
                  sizeField.setText("12");
             }
-            if ( tf == sizeField )
-              fp.setFontParams( fontMenu.getSelectedItem(),
+            if ( tf == sizeField ) {
+               fp.setFontParams(currentFontName,
                                 sz,
                                 styleMenu.getSelectedIndex(),
                                 transformMenu.getSelectedIndex() );
+               }
         }
 
         else if ( source instanceof JButton ) {
@@ -892,23 +1093,57 @@ public final class Font2DTest extends JPanel
             if ( itemName.equals( "Print" )) {
                 for ( int i = 0; i < printModeCBs.length; i++ )
                   if ( printModeCBs[i].isSelected() ) {
-                      printDialog.hide();
+                      printDialog.setVisible(false);
                       fp.doPrint( i );
                   }
             }
             else if ( itemName.equals( "Cancel" ))
-              printDialog.hide();
+              printDialog.setVisible(false);
             /// Update button from Usert Text JDialog...
             else if ( itemName.equals( "Update" ))
               fp.setTextToDraw( fp.USER_TEXT, null,
                                 parseUserText( userTextArea.getText() ), null );
         }
         else if ( source instanceof JComboBox ) {
-            JComboBox c = (JComboBox) source;
+            JComboBox<?> c = (JComboBox<?>) source;
 
             /// RangeMenu handles actions by itself and then calls fireRangeChanged,
             /// so it is not listed or handled here
-            if ( c == fontMenu || c == styleMenu || c == transformMenu ) {
+            if ( c == fontMenu || c == fontNameMenu || c == fontSubFamilyMenu ||
+                 c == styleMenu || c == transformMenu )
+            {
+                if (c == fontNameMenu) {
+                   currentFontName = (String)fontNameMenu.getSelectedItem();
+                }
+                else if ((c == fontMenu) && (fontSelectionType == FAMILY_AND_STYLE)) {
+                   currentFontName = (String)fontMenu.getSelectedItem();
+                }
+                else if ((c == fontMenu) && (fontSelectionType == FAMILY_AND_SUBFAMILY)) {
+                   String family = (String)fontMenu.getSelectedItem();
+                   updateSubFamilyMenu(family);
+                   String subname = (String)fontSubFamilyMenu.getSelectedItem();
+                   Font font = FontFamily.getFont(family, subname);
+                   if (font == null) return;
+                   currentFontName = font.getFontName(l);
+                }
+                else if (c == fontSubFamilyMenu) {
+                   /*
+                    * When switching families, all items are removed from the sub family list.
+                    * This triggers a synchronous recursive ActionEvent on the EDT, which should
+                    * be ignored here, the code removes them adds the new items and will then
+                    *  use the new default selected item.
+                    * If we do not return, we'll not find a match and can get an NPE.
+                    * This feels unsatisfactory, but it works.
+                    */
+                   if (fontSubFamilyMenu.getItemCount() == 0) {
+                       return;
+                   }
+                   String family = (String)fontMenu.getSelectedItem();
+                   String subname = (String)fontSubFamilyMenu.getSelectedItem();
+                   Font font = FontFamily.getFont(family, subname);
+                   if (font == null) return;
+                   currentFontName = font.getFontName(l);
+                }
                 float sz = 12f;
                 try {
                     sz = Float.parseFloat(sizeField.getText());
@@ -919,7 +1154,7 @@ public final class Font2DTest extends JPanel
                 } catch (Exception se) {
                     sizeField.setText("12");
                 }
-                fp.setFontParams(fontMenu.getSelectedItem(),
+                fp.setFontParams(currentFontName,
                                  sz,
                                  styleMenu.getSelectedIndex(),
                                  transformMenu.getSelectedIndex());
@@ -995,10 +1230,10 @@ public final class Font2DTest extends JPanel
             else if ( cbmi == showFontInfoCBMI ) {
                 if ( showFontInfoCBMI.getState() ) {
                     fireUpdateFontInfo();
-                    fontInfoDialog.show();
+                    fontInfoDialog.setVisible(true);
                 }
                 else
-                  fontInfoDialog.hide();
+                  fontInfoDialog.setVisible(false);
             }
         }
     }
@@ -1015,11 +1250,177 @@ public final class Font2DTest extends JPanel
         System.exit(0);
     }
 
-    /// Main function
-    public static void main(String argv[]) {
+    static class FontFamily {
 
-        if(argv.length > 0) {
-            if(argv[0].equalsIgnoreCase("-disablecandisplaycheck") ||
+        static Map<String, FontFamily> familyMap = new HashMap<>();
+        private static Locale l = Locale.getDefault();
+        private List<Font> fonts = new ArrayList<>();
+        private List<String> subFamilyNames = new ArrayList<>();
+        private Map<String, Font> nameToFontMap = new HashMap<>();
+        private String familyName;
+
+        private FontFamily(String name) {
+           this.familyName = name;
+       }
+
+       String stripFamily(String family, String fullName) {
+           if (family.equals(fullName)) {
+               return "";
+           }
+           char[] familyChars = family.toCharArray();
+           char[] fullChars = fullName.toCharArray();
+           int familyIndex = 0;
+           int fullIndex = 0;
+           // there's probably a clever regexp way to do this
+           // iterate over the chars in the family , if they are the same
+           // keep going, if there's a '-' or ' ', skip it. In the font name,
+           // do the same. If you reach the end of the family without some
+           // other diff, return what's left of the fullName.
+           while (familyIndex < familyChars.length && fullIndex < fullChars.length) {
+           //while (familyIndex < familyChars.length) {
+              if (fullIndex == fullChars.length) {
+                  System.err.println("WEIRD FONT " + family + " " + fullName);
+                  break;
+              }
+              if (familyChars[familyIndex] == fullChars[fullIndex]) {
+                  familyIndex++; fullIndex++;
+              }
+              else if (familyChars[familyIndex] == ' ' && fullChars[fullIndex] == '-') {
+                  familyIndex++; fullIndex++;
+              }
+              else if (familyChars[familyIndex] == '-' && fullChars[fullIndex] == ' ') {
+                  familyIndex++; fullIndex++;
+              }
+              else if (familyChars[familyIndex] == ' ' || familyChars[familyIndex] == '-') {
+                  familyIndex++;
+              }
+              else if (fullChars[fullIndex] == ' ' || fullChars[fullIndex] == '-') {
+                  fullIndex++;
+              } else {
+                  break;
+              }
+           }
+           if (fullIndex == fullChars.length) {
+               return fullName;
+           } else {
+               return fullName.substring(fullIndex);
+           }
+       }
+
+       /*
+        * Getting the string to display here can be an art.
+        * If the family is "Arial Black", then for a regular font, the
+        * full name may be "Arial Black", or "Arial-Black", as reported on macOS.
+        * For this case for the specific font might want to display the
+        * full name, or synthesise "Regular". But to do that we have to
+        * recognise that ' ' to '-' mapping.
+        * For "Arial Black Italic" (Arial-Black-Italic) we want to be able to
+        * trim so we display just "Italic".
+        * Then we need to be able to map the text selection back to the
+        * right font.
+        */
+       void add(Font f) {
+           String fontName = f.getFontName(l);
+           int flen = familyName.length();
+           int nlen = fontName.length();
+           String sfn;
+
+           if (fontName.equals(familyName)) {
+               sfn = "Regular";
+           }
+           else {
+               sfn = stripFamily(familyName, fontName);
+               sfn = sfn.replace('-', ' ');
+           }
+
+           fonts.add(f);
+           subFamilyNames.add(sfn);
+           nameToFontMap.put(sfn, f);
+       }
+
+       String[] getSubFamilyNames() {
+           return subFamilyNames.stream().sorted().toArray(String[]::new);
+       }
+
+
+       Font getFontForSubFamilyName(String name) {
+           return nameToFontMap.get(name);
+       }
+
+       static FontFamily getFontFamily(String name) {
+           return familyMap.get(name);
+       }
+
+       static FontFamily createFontFamily(String name) {
+           FontFamily f = familyMap.get(name);
+           if (f == null) {
+               f = new FontFamily(name);
+               familyMap.put(name, f);
+           }
+           return f;
+       }
+
+       /*
+        * familyName must be a name of an existing FontFamily
+        * name, must be a valid "subFamilyName" within that FontFamily
+        * as returned by getSubFamilyNames()
+        */
+       static Font getFont(String familyName, String subFamilyName) {
+           FontFamily family = getFontFamily(familyName);
+           return family.getFontForSubFamilyName(subFamilyName);
+        }
+    }
+
+    static String[] familyNames;
+    static Font[] allFonts;
+    static List<String> allFontNames;
+    static Map<String, FontFamily> familyMap = new HashMap<>();
+
+    private static void buildFontInfo() {
+        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        familyNames = ge.getAvailableFontFamilyNames();
+        allFonts = ge.getAllFonts();
+        allFontNames = new ArrayList<String>();
+        Locale l = Locale.getDefault();
+        for (Font f : allFonts) {
+           allFontNames.add(f.getFontName(l));
+           String family = f.getFamily(l);
+           FontFamily ff = FontFamily.getFontFamily(family);
+           if (ff == null) {
+              ff = FontFamily.createFontFamily(family);
+           }
+           ff.add(f);
+        }
+    }
+
+    String getFontNameFor(String family, String subFamily) {
+         return family + " " + subFamily;
+    }
+
+    void updateSubFamilyMenu(String name) {
+         FontFamily family = FontFamily.getFontFamily(name);
+         fontSubFamilyMenu.removeAllItems();
+
+         String [] sfNames = family.getSubFamilyNames();
+         for (int i=0; i<sfNames.length; i++) {
+             fontSubFamilyMenu.addItem(sfNames[i]);
+         }
+         fontSubFamilyMenu.setSelectedIndex(0); // better be at least one !
+    }
+
+    static String[] getAllFontNames() {
+        return allFontNames.stream().sorted().toArray(String[]::new);
+    }
+
+   static String[] getAllFamilyNames() {
+       return familyNames;
+   }
+
+    /// Main function
+    public static void main(String[] argv) {
+
+        if (argv.length > 0) {
+            if (argv[0].equalsIgnoreCase("-disablecandisplaycheck") ||
                argv[0].equalsIgnoreCase("-dcdc")) {
                 canDisplayCheck = false;
             }
@@ -1028,17 +1429,23 @@ public final class Font2DTest extends JPanel
             }
         }
 
-        UIManager.put("swing.boldMetal", Boolean.FALSE);
-        final JFrame f = new JFrame( "Font2DTest" );
-        final Font2DTest f2dt = new Font2DTest( f, false );
-        f.addWindowListener( new WindowAdapter() {
-            public void windowOpening( WindowEvent e ) { f2dt.repaint(); }
-            public void windowClosing( WindowEvent e ) { System.exit(0); }
-        });
+        buildFontInfo();
+        try {
+           UIManager.setLookAndFeel(new NimbusLookAndFeel());
+            SwingUtilities.invokeAndWait(() -> {
+                final JFrame f = new JFrame( "Font2DTest" );
+                final Font2DTest f2dt = new Font2DTest( f);
+                f.addWindowListener( new WindowAdapter() {
+                    public void windowOpening( WindowEvent e ) { f2dt.repaint(); }
+                    public void windowClosing( WindowEvent e ) { System.exit(0); }
+                });
 
-        f.getContentPane().add( f2dt );
-        f.pack();
-        f.show();
+                f.getContentPane().add( f2dt );
+                f.pack();
+                f.setVisible(true);
+            });
+        } catch (UnsupportedLookAndFeelException|InterruptedException|InvocationTargetException e) {
+        }
     }
 
     /// Inner class definitions...
@@ -1069,7 +1476,7 @@ public final class Font2DTest extends JPanel
         }
     }
 
-    private final class ChoiceV2 extends JComboBox {
+    private final class ChoiceV2 extends JComboBox<String> {
 
         private BitSet bitSet = null;
 
@@ -1140,7 +1547,7 @@ public final class Font2DTest extends JPanel
             this.choice = choice;
         }
 
-        public Component getListCellRendererComponent(JList list,
+        public Component getListCellRendererComponent(JList<?> list,
                                                       Object value,
                                                       int index,
                                                       boolean isSelected,

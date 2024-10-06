@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -136,7 +136,7 @@ public class FileChooserDemo extends JPanel implements ActionListener {
     private JRadioButton openRadioButton;
     private JRadioButton saveRadioButton;
     private JRadioButton customButton;
-    private JComboBox lafComboBox;
+    private JComboBox<SupportedLaF> lafComboBox;
     private JRadioButton justFilesRadioButton;
     private JRadioButton justDirectoriesRadioButton;
     private JRadioButton bothFilesAndDirectoriesRadioButton;
@@ -158,7 +158,7 @@ public class FileChooserDemo extends JPanel implements ActionListener {
         for (UIManager.LookAndFeelInfo lafInfo : installedLafs) {
             try {
                 Class<?> lnfClass = Class.forName(lafInfo.getClassName());
-                LookAndFeel laf = (LookAndFeel) (lnfClass.newInstance());
+                LookAndFeel laf = (LookAndFeel) (lnfClass.getDeclaredConstructor().newInstance());
                 if (laf.isSupportedLookAndFeel()) {
                     String name = lafInfo.getName();
                     SupportedLaF supportedLaF = new SupportedLaF(name, laf);
@@ -292,7 +292,7 @@ public class FileChooserDemo extends JPanel implements ActionListener {
         showButton.setMnemonic('s');
 
         // Create laf combo box
-        lafComboBox = new JComboBox(supportedLaFs.toArray());
+        lafComboBox = new JComboBox<>(supportedLaFs.toArray(new SupportedLaF[0]));
         lafComboBox.setSelectedItem(nimbusLaF);
         lafComboBox.setEditable(false);
         lafComboBox.addActionListener(optionListener);
@@ -729,7 +729,7 @@ public class FileChooserDemo extends JPanel implements ActionListener {
                     frame.pack();
                 } catch (UnsupportedLookAndFeelException exc) {
                     // This should not happen because we already checked
-                    ((DefaultComboBoxModel) lafComboBox.getModel()).
+                    ((DefaultComboBoxModel<?>) lafComboBox.getModel()).
                             removeElement(supportedLaF);
                 }
             }
@@ -791,7 +791,7 @@ public class FileChooserDemo extends JPanel implements ActionListener {
         }
     }
 
-    public static void main(String s[]) {
+    public static void main(String[] s) {
         try {
             SwingUtilities.invokeAndWait(new Runnable() {
 
@@ -800,7 +800,7 @@ public class FileChooserDemo extends JPanel implements ActionListener {
                      * NOTE: By default, the look and feel will be set to the
                      * Cross Platform Look and Feel (which is currently Metal).
                      * The following code tries to set the Look and Feel to Nimbus.
-                     * http://docs.oracle.com/javase/tutorial/uiswing/lookandfeel/nimbus.html
+                     * https://docs.oracle.com/javase/tutorial/uiswing/lookandfeel/nimbus.html
                      */
                     try {
                         for (LookAndFeelInfo info : UIManager.

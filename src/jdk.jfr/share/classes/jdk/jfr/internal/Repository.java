@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,26 +27,27 @@ package jdk.jfr.internal;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.Instant;
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.Set;
 
 import jdk.jfr.internal.SecuritySupport.SafePath;
+import jdk.jfr.internal.management.ChunkFilename;
+import jdk.jfr.internal.util.ValueFormatter;
 
 public final class Repository {
 
     private static final int MAX_REPO_CREATION_RETRIES = 1000;
-    private static final JVM jvm = JVM.getJVM();
     private static final Repository instance = new Repository();
 
-    public final static DateTimeFormatter REPO_DATE_FORMAT = DateTimeFormatter
-            .ofPattern("yyyy_MM_dd_HH_mm_ss");
+    private static final String JFR_REPOSITORY_LOCATION_PROPERTY = "jdk.jfr.repository";
 
     private final Set<SafePath> cleanupDirectories = new HashSet<>();
     private SafePath baseLocation;
     private SafePath repository;
+    private ChunkFilename chunkFilename;
 
     private Repository() {
     }
@@ -55,10 +56,15 @@ public final class Repository {
         return instance;
     }
 
-    public synchronized void setBasePath(SafePath baseLocation) throws Exception {
+    public synchronized void setBasePath(SafePath baseLocation) throws IOException {
+        if(baseLocation.equals(this.baseLocation)) {
+            Logger.log(LogTag.JFR, LogLevel.INFO, "Same base repository path " + baseLocation.toString() + " is set");
+            return;
+        }
         // Probe to see if repository can be created, needed for fail fast
         // during JVM startup or JFR.configure
         this.repository = createRepository(baseLocation);
+        this.chunkFilename = null;
         try {
             // Remove so we don't "leak" repositories, if JFR is never started
             // and shutdown hook not added.
@@ -69,33 +75,49 @@ public final class Repository {
         this.baseLocation = baseLocation;
     }
 
-    synchronized void ensureRepository() throws Exception {
+    public synchronized void ensureRepository() throws IOException {
         if (baseLocation == null) {
             setBasePath(SecuritySupport.JAVA_IO_TMPDIR);
         }
     }
 
-    synchronized RepositoryChunk newChunk(Instant timestamp) {
+    synchronized RepositoryChunk newChunk() {
+        LocalDateTime timestamp = timestamp();
         try {
             if (!SecuritySupport.existDirectory(repository)) {
                 this.repository = createRepository(baseLocation);
-                jvm.setRepositoryLocation(repository.toString());
+                JVM.setRepositoryLocation(repository.toString());
+                SecuritySupport.setProperty(JFR_REPOSITORY_LOCATION_PROPERTY, repository.toString());
                 cleanupDirectories.add(repository);
+                chunkFilename = null;
             }
-            return new RepositoryChunk(repository, timestamp);
+            if (chunkFilename == null) {
+                chunkFilename = ChunkFilename.newPriviliged(repository.toPath());
+            }
+            String filename = chunkFilename.next(timestamp);
+            return new RepositoryChunk(new SafePath(filename));
         } catch (Exception e) {
-            String errorMsg = String.format("Could not create chunk in repository %s, %s", repository, e.getMessage());
+            String errorMsg = String.format("Could not create chunk in repository %s, %s: %s", repository, e.getClass(), e.getMessage());
             Logger.log(LogTag.JFR, LogLevel.ERROR, errorMsg);
-            jvm.abort(errorMsg);
+            JVM.abort(errorMsg);
             throw new InternalError("Could not abort after JFR disk creation error");
         }
     }
 
-    private static SafePath createRepository(SafePath basePath) throws Exception {
+    private static LocalDateTime timestamp() {
+        try {
+            return LocalDateTime.now();
+        } catch (DateTimeException d) {
+            Logger.log(LogTag.JFR, LogLevel.INFO, "Could not create LocalDateTime with the default time zone. Using UTC time zone for chunk filename.");
+            return LocalDateTime.now(ZoneOffset.UTC);
+        }
+    }
+
+    private static SafePath createRepository(SafePath basePath) throws IOException {
         SafePath canonicalBaseRepositoryPath = createRealBasePath(basePath);
         SafePath f = null;
 
-        String basename = REPO_DATE_FORMAT.format(LocalDateTime.now()) + "_" + JVM.getJVM().getPid();
+        String basename = ValueFormatter.formatDateTime(timestamp()) + "_" + JVM.getPid();
         String name = basename;
 
         int i = 0;
@@ -108,13 +130,12 @@ public final class Repository {
         }
 
         if (i == MAX_REPO_CREATION_RETRIES) {
-            throw new Exception("Unable to create JFR repository directory using base location (" + basePath + ")");
+            throw new IOException("Unable to create JFR repository directory using base location (" + basePath + ")");
         }
-        SafePath canonicalRepositoryPath = SecuritySupport.toRealPath(f);
-        return canonicalRepositoryPath;
+        return SecuritySupport.toRealPath(f);
     }
 
-    private static SafePath createRealBasePath(SafePath safePath) throws Exception {
+    private static SafePath createRealBasePath(SafePath safePath) throws IOException {
         if (SecuritySupport.exists(safePath)) {
             if (!SecuritySupport.isWritable(safePath)) {
                 throw new IOException("JFR repository directory (" + safePath.toString() + ") exists, but isn't writable");
@@ -149,12 +170,16 @@ public final class Repository {
     }
 
     synchronized void clear() {
+        if (Options.getPreserveRepository()) {
+            return;
+        }
+
         for (SafePath p : cleanupDirectories) {
             try {
                 SecuritySupport.clearDirectory(p);
                 Logger.log(LogTag.JFR, LogLevel.INFO, "Removed repository " + p);
             } catch (IOException e) {
-                Logger.log(LogTag.JFR, LogLevel.ERROR, "Repository " + p + " could not be removed at shutdown: " + e.getMessage());
+                Logger.log(LogTag.JFR, LogLevel.INFO, "Repository " + p + " could not be removed at shutdown: " + e.getMessage());
             }
         }
     }
@@ -162,4 +187,9 @@ public final class Repository {
     public synchronized SafePath getRepositoryPath() {
         return repository;
     }
+
+    public synchronized SafePath getBaseLocation() {
+        return baseLocation;
+    }
+
 }

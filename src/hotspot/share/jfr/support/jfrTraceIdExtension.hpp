@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -22,60 +22,84 @@
 *
 */
 
-#ifndef SHARE_VM_JFR_SUPPORT_JFRTRACEIDEXTENSION_HPP
-#define SHARE_VM_JFR_SUPPORT_JFRTRACEIDEXTENSION_HPP
+#ifndef SHARE_JFR_SUPPORT_JFRTRACEIDEXTENSION_HPP
+#define SHARE_JFR_SUPPORT_JFRTRACEIDEXTENSION_HPP
 
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.hpp"
+#include "utilities/macros.hpp"
 
 #define DEFINE_TRACE_ID_FIELD mutable traceid _trace_id
 
 #define DEFINE_TRACE_ID_METHODS \
   traceid trace_id() const { return _trace_id; } \
-  traceid* const trace_id_addr() const { return &_trace_id; } \
+  traceid* trace_id_addr() const { return &_trace_id; } \
   void set_trace_id(traceid id) const { _trace_id = id; }
 
 #define DEFINE_TRACE_ID_SIZE \
   static size_t trace_id_size() { return sizeof(traceid); }
 
 #define INIT_ID(data) JfrTraceId::assign(data)
+#define ASSIGN_PRIMITIVE_CLASS_ID(data) JfrTraceId::assign_primitive_klass_id()
 #define REMOVE_ID(k) JfrTraceId::remove(k);
+#define REMOVE_METHOD_ID(method) JfrTraceId::remove(method);
 #define RESTORE_ID(k) JfrTraceId::restore(k);
+
+static constexpr const uint16_t cleared_epoch_bits = 512 | 256;
 
 class JfrTraceFlag {
  private:
-  mutable jbyte _flags;
+  mutable uint16_t _flags;
  public:
-  JfrTraceFlag() : _flags(0) {}
-  explicit JfrTraceFlag(jbyte flags) : _flags(flags) {}
-  void set_flag(jbyte flag) const {
-    _flags |= flag;
-  }
-  void clear_flag(jbyte flag) const {
-    _flags &= (~flag);
-  }
-  jbyte flags() const { return _flags; }
-  bool is_set(jbyte flag) const {
+  JfrTraceFlag() : _flags(cleared_epoch_bits) {}
+  bool is_set(uint16_t flag) const {
     return (_flags & flag) != 0;
   }
-  jbyte* const flags_addr() const {
-    return &_flags;
+
+  uint16_t flags() const {
+    return _flags;
+  }
+
+  void set_flags(uint16_t flags) const {
+    _flags = flags;
+  }
+
+  uint8_t* flags_addr() const {
+#ifdef VM_LITTLE_ENDIAN
+    return reinterpret_cast<uint8_t*>(&_flags);
+#else
+    return reinterpret_cast<uint8_t*>(&_flags) + 1;
+#endif
+  }
+
+  uint8_t* meta_addr() const {
+#ifdef VM_LITTLE_ENDIAN
+    return reinterpret_cast<uint8_t*>(&_flags) + 1;
+#else
+    return reinterpret_cast<uint8_t*>(&_flags);
+#endif
   }
 };
 
 #define DEFINE_TRACE_FLAG mutable JfrTraceFlag _trace_flags
 
 #define DEFINE_TRACE_FLAG_ACCESSOR                 \
-  void set_trace_flag(jbyte flag) const {          \
-    _trace_flags.set_flag(flag);                   \
-  }                                                \
-  jbyte trace_flags() const {                      \
-    return _trace_flags.flags();                   \
-  }                                                \
-  bool is_trace_flag_set(jbyte flag) const {       \
+  bool is_trace_flag_set(uint16_t flag) const {    \
     return _trace_flags.is_set(flag);              \
   }                                                \
-  jbyte* const trace_flags_addr() const {          \
+  uint16_t trace_flags() const {                   \
+    return _trace_flags.flags();                   \
+  }                                                \
+  void set_trace_flags(uint16_t flags) const {     \
+    _trace_flags.set_flags(flags);                 \
+  }                                                \
+  uint8_t* trace_flags_addr() const {              \
     return _trace_flags.flags_addr();              \
+  }                                                \
+  uint8_t* trace_meta_addr() const {               \
+    return _trace_flags.meta_addr();               \
+  }                                                \
+  void copy_trace_flags(uint16_t rhs_flags) const { \
+    _trace_flags.set_flags(_trace_flags.flags() | rhs_flags); \
   }
 
-#endif // SHARE_VM_JFR_SUPPORT_JFRTRACEIDEXTENSION_HPP
+#endif // SHARE_JFR_SUPPORT_JFRTRACEIDEXTENSION_HPP

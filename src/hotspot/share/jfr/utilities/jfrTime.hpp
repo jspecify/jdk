@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_UTILITIES_JFRTIME_HPP
-#define SHARE_VM_JFR_UTILITIES_JFRTIME_HPP
+#ifndef SHARE_JFR_UTILITIES_JFRTIME_HPP
+#define SHARE_JFR_UTILITIES_JFRTIME_HPP
 
+#include "jfr/utilities/jfrAllocation.hpp"
 #include "utilities/ticks.hpp"
 
 typedef TimeInstant<CounterRepresentation, FastUnorderedElapsedCounterSource> JfrTicks;
@@ -41,4 +42,13 @@ class JfrTime {
   static const void* time_function();
 };
 
-#endif // SHARE_VM_JFR_UTILITIES_JFRTIME_HPP
+// For dynamically allocated Ticks values.
+class JfrTicksWrapper : public JfrCHeapObj {
+ private:
+  JfrTicks _ticks;
+ public:
+  JfrTicksWrapper() : _ticks(JfrTicks::now()) {}
+  operator JfrTicks() const { return _ticks; }
+};
+
+#endif // SHARE_JFR_UTILITIES_JFRTIME_HPP

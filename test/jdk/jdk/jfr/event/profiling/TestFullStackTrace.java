@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -113,7 +111,7 @@ public class TestFullStackTrace {
             if(!isEventFound[i]) {
                // no assertion, let's retry.
                // Could be race condition, i.e safe point during Thread.sleep
-               System.out.println("Falied to validate all threads, will retry.");
+               System.out.println("Failed to validate all threads, will retry.");
                return false;
             }
         }
@@ -123,7 +121,7 @@ public class TestFullStackTrace {
     public static String getTopMethodName(RecordedEvent event) {
         List<RecordedFrame> frames = event.getStackTrace().getFrames();
         Asserts.assertFalse(frames.isEmpty(), "JavaFrames was empty");
-        return frames.get(0).getMethod().getName();
+        return frames.getFirst().getMethod().getName();
     }
 
     private static void checkEvent(RecordedEvent event, int expectedDepth) throws Throwable {
@@ -146,7 +144,7 @@ public class TestFullStackTrace {
             boolean isTruncateExpected = expectedDepth > MAX_DEPTH;
             Asserts.assertEquals(isTruncated, isTruncateExpected, "Wrong value for isTruncated. Expected:" + isTruncateExpected);
 
-            String firstMethod = frames.get(frames.size() - 1).getMethod().getName();
+            String firstMethod = frames.getLast().getMethod().getName();
             boolean isFullTrace = "run".equals(firstMethod);
             String msg = String.format("Wrong values for isTruncated=%b, isFullTrace=%b", isTruncated, isFullTrace);
             Asserts.assertTrue(isTruncated != isFullTrace, msg);

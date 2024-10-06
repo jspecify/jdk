@@ -1,6 +1,5 @@
 /*
- *
- * Copyright (c) 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,19 +29,19 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import javax.swing.JScrollPane;
+import javax.swing.JTree;
+import javax.swing.tree.DefaultMutableTreeNode;
 
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.tree.*;
-import javax.accessibility.*;
+import java.awt.BorderLayout;
+import java.awt.Insets;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.beans.*;
-import java.util.*;
-import java.io.*;
-import java.applet.*;
-import java.net.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * JTree Demo
@@ -74,7 +73,7 @@ public class TreeDemo extends DemoModule {
 
     public JScrollPane createTree() {
         DefaultMutableTreeNode top = new DefaultMutableTreeNode(getString("TreeDemo.music"));
-        DefaultMutableTreeNode catagory = null ;
+        DefaultMutableTreeNode category = null;
         DefaultMutableTreeNode artist = null;
         DefaultMutableTreeNode record = null;
 
@@ -84,7 +83,7 @@ public class TreeDemo extends DemoModule {
         try {
             // convert url to buffered string
             InputStream is = url.openStream();
-            InputStreamReader isr = new InputStreamReader(is, "UTF-8");
+            InputStreamReader isr = new InputStreamReader(is, UTF_8);
             BufferedReader reader = new BufferedReader(isr);
 
             // read one line at a time, put into tree
@@ -94,12 +93,12 @@ public class TreeDemo extends DemoModule {
                 char linetype = line.charAt(0);
                 switch(linetype) {
                    case 'C':
-                     catagory = new DefaultMutableTreeNode(line.substring(2));
-                     top.add(catagory);
+                     category = new DefaultMutableTreeNode(line.substring(2));
+                     top.add(category);
                      break;
                    case 'A':
-                     if(catagory != null) {
-                         catagory.add(artist = new DefaultMutableTreeNode(line.substring(2)));
+                     if(category != null) {
+                         category.add(artist = new DefaultMutableTreeNode(line.substring(2)));
                      }
                      break;
                    case 'R':

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,10 @@
  *
  */
 
-#ifndef CPU_S390_VM_TEMPLATETABLE_S390_HPP
-#define CPU_S390_VM_TEMPLATETABLE_S390_HPP
+#ifndef CPU_S390_TEMPLATETABLE_S390_HPP
+#define CPU_S390_TEMPLATETABLE_S390_HPP
 
-  static void prepare_invoke(int byte_no,
-                             Register method,         // linked method (or i-klass)
-                             Register index = noreg,  // itable index, MethodType, etc.
-                             Register recv  = noreg,  // If caller wants to see it.
-                             Register flags = noreg); // If caller wants to test it.
+  static void prepare_invoke(Register cache, Register recv);
   static void invokevirtual_helper(Register index, Register recv,
                                    Register flags);
 
@@ -38,4 +34,4 @@
   static void index_check(Register array, Register index, unsigned int shift);
   static void index_check_without_pop(Register array, Register index);
 
-#endif // CPU_S390_VM_TEMPLATETABLE_S390_HPP
+#endif // CPU_S390_TEMPLATETABLE_S390_HPP

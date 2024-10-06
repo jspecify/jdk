@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,10 @@
  * @test
  * @bug 8025091 8198890
  * @summary Verify the presence visible members in the case of
- *          member hiding and overridding.
- * @library /tools/lib ../lib
+ *          member hiding and overriding.
+ * @library /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester toolbox.ToolBox builder.ClassBuilder
+ * @build javadoc.tester.* toolbox.ToolBox builder.ClassBuilder
  * @run main TestVisibleMembers
  */
 
@@ -43,12 +43,14 @@ import builder.ClassBuilder.*;
 import toolbox.ToolBox;
 import builder.ClassBuilder;
 
+import javadoc.tester.JavadocTester;
+
 public class TestVisibleMembers extends JavadocTester {
 
     final ToolBox tb;
     public static void main(String... args) throws Exception {
-        TestVisibleMembers tester = new TestVisibleMembers();
-        tester.runTests(m -> new Object[] { Paths.get(m.getName()) });
+        var tester = new TestVisibleMembers();
+        tester.runTests();
     }
 
     TestVisibleMembers() {
@@ -56,7 +58,7 @@ public class TestVisibleMembers extends JavadocTester {
     }
 
     @Test
-    void testChronoDiamondLeafDetail(Path base) throws Exception {
+    public void testChronoDiamondLeafDetail(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         emitChronoDiamondLeaf(srcDir);
 
@@ -84,7 +86,7 @@ public class TestVisibleMembers extends JavadocTester {
     }
 
     @Test
-    void testChronoDiamondLeafSummary(Path base) throws Exception {
+    public void testChronoDiamondLeafSummary(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         emitChronoDiamondLeaf(srcDir);
 
@@ -182,7 +184,7 @@ public class TestVisibleMembers extends JavadocTester {
     }
 
     @Test
-    void testNestedInterfaceDetail(Path base) throws Exception {
+    public void testNestedInterfaceDetail(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         emitNestedInterface(srcDir);
 
@@ -202,7 +204,7 @@ public class TestVisibleMembers extends JavadocTester {
     }
 
     @Test
-    void testNestedInterfaceSummary(Path base) throws Exception {
+    public void testNestedInterfaceSummary(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         emitNestedInterface(srcDir);
 
@@ -256,7 +258,7 @@ public class TestVisibleMembers extends JavadocTester {
     }
 
     @Test
-    void testStreamsMissingLinksDetail(Path base) throws Exception {
+    public void testStreamsMissingLinksDetail(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         emitStreamsMissingLinks(srcDir);
 
@@ -264,13 +266,14 @@ public class TestVisibleMembers extends JavadocTester {
         javadoc("-d", outDir.toString(),
                 "-html5",
                 "--override-methods=detail",
+                "--no-platform-links",
                 "-sourcepath", srcDir.toString(),
                 "p");
         checkExit(Exit.OK);
 
         checkOrder("p/C.html",
                 "METHOD DETAIL",
-                "public", "void", "method()",
+                "public", "void", "method",
                 "See Also:",
                 "sub()",
                 "sub1()");
@@ -291,7 +294,7 @@ public class TestVisibleMembers extends JavadocTester {
     }
 
     @Test
-    void testStreamsMissingLinksSummary(Path base) throws Exception {
+    public void testStreamsMissingLinksSummary(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         emitStreamsMissingLinks(srcDir);
 
@@ -299,13 +302,14 @@ public class TestVisibleMembers extends JavadocTester {
         javadoc("-d", outDir.toString(),
                 "-html5",
                 "--override-methods=summary",
+                "--no-platform-links",
                 "-sourcepath", srcDir.toString(),
                 "p");
         checkExit(Exit.OK);
 
         checkOrder("p/C.html",
                 "METHOD DETAIL",
-                "public", "void", "method()", "See Also:", "sub()", "I.sub1()",
+                "public", "void", "method", "See Also:", "sub()", "sub1()",
                 "public", "void", "m", "Method in C. See", "I.length()"
                 );
 
@@ -321,9 +325,8 @@ public class TestVisibleMembers extends JavadocTester {
                 "METHOD DETAIL",
                 "Method sub in p.IImpl",
                 "Specified by:", "I.html",
+                "Specified by:", "II.html",
                 "END OF CLASS DATA");
-
-        checkUnique("p/IImpl.html", "Specified by:");
     }
 
     // see j.u.Spliterator
@@ -395,7 +398,7 @@ public class TestVisibleMembers extends JavadocTester {
     }
 
     @Test
-    void testVisibleMemberTableDetail(Path base) throws Exception {
+    public void testVisibleMemberTableDetail(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         emitVisibleMemberTable(srcDir);
 
@@ -409,10 +412,10 @@ public class TestVisibleMembers extends JavadocTester {
 
         checkOrder("p/C.html",
                 "METHOD DETAIL",
-                "public", "void", "m()", "Method m in p.B",
-                "public", "void", "n()", "Method n in p.A",
-                "public", "void", "o()", "Description copied from class:", ">A<", "Method o in p.A",
-                "public", "void", "p()", "Method p in p.B",
+                "public", "void", "m", "Method m in p.B",
+                "public", "void", "n", "Method n in p.A",
+                "public", "void", "o", "Description copied from class:", ">A<", "Method o in p.A",
+                "public", "void", "p", "Method p in p.B",
                 "END OF CLASS DATA");
 
         checkOutput("p/C.html", false,
@@ -447,7 +450,7 @@ public class TestVisibleMembers extends JavadocTester {
     }
 
     @Test
-    void testVisibleMemberTableSummary(Path base) throws Exception {
+    public void testVisibleMemberTableSummary(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         emitVisibleMemberTable(srcDir);
 
@@ -469,10 +472,10 @@ public class TestVisibleMembers extends JavadocTester {
 
         checkOrder("p/C.html",
                 "METHOD DETAIL",
-                "public", "void", "m()", "Method m in p.B",
-                "public", "void", "n()", "Method n in p.A",
-                "public", "void", "o()", "Description copied from class:", ">A<", "Method o in p.A",
-                "public", "void", "p()", "Method p in p.B",
+                "public", "void", "m", "Method m in p.B",
+                "public", "void", "n", "Method n in p.A",
+                "public", "void", "o", "Description copied from class:", ">A<", "Method o in p.A",
+                "public", "void", "p", "Method p in p.B",
                 "END OF CLASS DATA");
 
         checkOutput("p/C.html", false,
@@ -569,7 +572,7 @@ public class TestVisibleMembers extends JavadocTester {
     }
 
     @Test
-    void testHiddenMembersDetail(Path base) throws Exception {
+    public void testHiddenMembersDetail(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         emitHiddenMembers(srcDir);
 
@@ -604,7 +607,7 @@ public class TestVisibleMembers extends JavadocTester {
     }
 
     @Test
-    void testHiddenMembersSummary(Path base) throws Exception {
+    public void testHiddenMembersSummary(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         emitHiddenMembers(srcDir);
 

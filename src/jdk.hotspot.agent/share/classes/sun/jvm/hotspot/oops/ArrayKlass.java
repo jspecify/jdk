@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,8 @@ import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.memory.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 // ArrayKlass is the abstract class for all array classes
 
@@ -68,31 +70,31 @@ public class ArrayKlass extends Klass {
   }
 
   public long  getDimension()       { return         dimension.getValue(this); }
-  public Klass getHigherDimension() { return (Klass) higherDimension.getValue(this); }
-  public Klass getLowerDimension()  { return (Klass) lowerDimension.getValue(this); }
+  public ObjArrayKlass getHigherDimension() { return (ObjArrayKlass) higherDimension.getValue(this); }
+  public ArrayKlass getLowerDimension()     { return (ArrayKlass) lowerDimension.getValue(this); }
 
   // constant class names - javaLangCloneable, javaIoSerializable, javaLangObject
-  // Initialized lazily to avoid initialization ordering dependencies between ArrayKlass and SymbolTable
-  private static Symbol javaLangCloneableName;
-  private static Symbol javaLangObjectName;
-  private static Symbol javaIoSerializableName;
-  private static Symbol javaLangCloneableName() {
+  // Initialized lazily to avoid initialization ordering dependencies between ArrayKlass and String
+  private static String javaLangCloneableName;
+  private static String javaLangObjectName;
+  private static String javaIoSerializableName;
+  private static String javaLangCloneableName() {
     if (javaLangCloneableName == null) {
-      javaLangCloneableName = VM.getVM().getSymbolTable().probe("java/lang/Cloneable");
+      javaLangCloneableName = "java/lang/Cloneable";
     }
     return javaLangCloneableName;
   }
 
-  private static Symbol javaLangObjectName() {
+  private static String javaLangObjectName() {
     if (javaLangObjectName == null) {
-      javaLangObjectName = VM.getVM().getSymbolTable().probe("java/lang/Object");
+      javaLangObjectName = "java/lang/Object";
     }
     return javaLangObjectName;
   }
 
-  private static Symbol javaIoSerializableName() {
+  private static String javaIoSerializableName() {
     if (javaIoSerializableName == null) {
-      javaIoSerializableName = VM.getVM().getSymbolTable().probe("java/io/Serializable");
+      javaIoSerializableName = "java/io/Serializable";
     }
     return javaIoSerializableName;
   }

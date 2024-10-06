@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,8 @@
  *
  */
 
-#ifndef CPU_ARM_VM_FRAME_ARM_HPP
-#define CPU_ARM_VM_FRAME_ARM_HPP
-
-#include "runtime/synchronizer.hpp"
+#ifndef CPU_ARM_FRAME_ARM_HPP
+#define CPU_ARM_FRAME_ARM_HPP
 
  public:
   enum {
@@ -37,22 +35,12 @@
     sender_sp_offset                                 =  2,
 
     // Interpreter frames
-#ifdef AARCH64
-    interpreter_frame_gp_saved_result_offset         =  4, // for native calls only
-    interpreter_frame_fp_saved_result_offset         =  3, // for native calls only
-#endif
     interpreter_frame_oop_temp_offset                =  2, // for native calls only
 
     interpreter_frame_sender_sp_offset               = -1,
-#ifdef AARCH64
-    interpreter_frame_stack_top_offset               = interpreter_frame_sender_sp_offset - 1,
-    interpreter_frame_extended_sp_offset             = interpreter_frame_stack_top_offset - 1,
-    interpreter_frame_method_offset                  = interpreter_frame_extended_sp_offset - 1,
-#else
     // outgoing sp before a call to an invoked method
     interpreter_frame_last_sp_offset                 = interpreter_frame_sender_sp_offset - 1,
     interpreter_frame_method_offset                  = interpreter_frame_last_sp_offset - 1,
-#endif // AARCH64
     interpreter_frame_mirror_offset                  = interpreter_frame_method_offset - 1,
     interpreter_frame_mdp_offset                     = interpreter_frame_mirror_offset - 1,
     interpreter_frame_cache_offset                   = interpreter_frame_mdp_offset - 1,
@@ -64,7 +52,18 @@
     interpreter_frame_monitor_block_bottom_offset    = interpreter_frame_initial_sp_offset,
 
     // Entry frames
-    entry_frame_call_wrapper_offset                  =  AARCH64_ONLY(2) NOT_AARCH64(0)
+    entry_frame_call_wrapper_offset                  =  0,
+    metadata_words                                   = sender_sp_offset,
+    // size, in words, of metadata at frame bottom, i.e. it is not part of the
+    // caller/callee overlap
+    metadata_words_at_bottom                         = metadata_words,
+    // size, in words, of frame metadata at the frame top, i.e. it is located
+    // between a callee frame and its stack arguments, where it is part
+    // of the caller/callee overlap
+    metadata_words_at_top                            = 0,
+    frame_alignment                                  = 16,
+    // size, in words, of maximum shift in frame position due to alignment
+    align_wiggle                                     =  1
   };
 
   intptr_t ptr_at(int offset) const {
@@ -81,9 +80,9 @@
   // The interpreter and adapters will extend the frame of the caller.
   // Since oopMaps are based on the sp of the caller before extension
   // we need to know that value. However in order to compute the address
-  // of the return address we need the real "raw" sp. Since sparc already
-  // uses sp() to mean "raw" sp and unextended_sp() to mean the caller's
-  // original sp we use that convention.
+  // of the return address we need the real "raw" sp. By convention we
+  // use sp() to mean "raw" sp and unextended_sp() to mean the caller's
+  // original sp.
 
   intptr_t* _unextended_sp;
   void adjust_unextended_sp();
@@ -94,8 +93,8 @@
 
 #ifdef ASSERT
   // Used in frame::sender_for_{interpreter,compiled}_frame
-  static void verify_deopt_original_pc(   CompiledMethod* nm, intptr_t* unextended_sp, bool is_method_handle_return = false);
-  static void verify_deopt_mh_original_pc(CompiledMethod* nm, intptr_t* unextended_sp) {
+  static void verify_deopt_original_pc(nmethod* nm, intptr_t* unextended_sp, bool is_method_handle_return = false);
+  static void verify_deopt_mh_original_pc(nmethod* nm, intptr_t* unextended_sp) {
     verify_deopt_original_pc(nm, unextended_sp, true);
   }
 #endif
@@ -107,11 +106,9 @@
 
   frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc);
 
-#ifndef AARCH64
   frame(intptr_t* sp, intptr_t* fp);
-#endif // !AARCH64
 
-  void init(intptr_t* sp, intptr_t* fp, address pc);
+  void init(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc);
 
   // accessors for the instance variables
   // Note: not necessarily the real 'frame pointer' (see real_fp)
@@ -119,22 +116,18 @@
 
   inline address* sender_pc_addr() const;
 
-#ifdef AARCH64
-  // Used by template based interpreter deoptimization
-  void interpreter_frame_set_stack_top(intptr_t* stack_top);
-  void interpreter_frame_set_extended_sp(intptr_t* sp);
-
-#else
   // expression stack tos if we are nested in a java call
   intptr_t* interpreter_frame_last_sp() const;
 
+  template <typename RegisterMapT>
+  static void update_map_with_saved_link(RegisterMapT* map, intptr_t** link_addr);
+
   // deoptimization support
   void interpreter_frame_set_last_sp(intptr_t* sp);
-#endif // AARCH64
 
   // helper to update a map with callee-saved FP
   static void update_map_with_saved_link(RegisterMap* map, intptr_t** link_addr);
 
   static jint interpreter_frame_expression_stack_direction() { return -1; }
 
-#endif // CPU_ARM_VM_FRAME_ARM_HPP
+#endif // CPU_ARM_FRAME_ARM_HPP

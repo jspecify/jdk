@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,8 @@ import org.xml.sax.SAXNotSupportedException;
  */
 
 public abstract class SAXParserFactory {
+    private static final String DEFAULT_IMPL =
+            "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl";
 
     /**
      * Should Parsers be validating?
@@ -63,6 +65,76 @@ public abstract class SAXParserFactory {
     }
 
     /**
+     * Creates a new NamespaceAware instance of the {@code SAXParserFactory}
+     * builtin system-default implementation. Parsers produced by the factory
+     * instance provides support for XML namespaces by default.
+     *
+     * @implSpec
+     * In addition to creating a factory instance using the same process as
+     * {@link #newDefaultInstance()}, this method must set NamespaceAware to true.
+     *
+     * @return a new instance of the {@code SAXParserFactory} builtin
+     *         system-default implementation.
+     *
+     * @since 13
+     */
+    public static SAXParserFactory newDefaultNSInstance() {
+        return makeNSAware(new SAXParserFactoryImpl());
+    }
+
+    /**
+     * Creates a new NamespaceAware instance of a {@code SAXParserFactory}.
+     * Parsers produced by the factory instance provides support for XML
+     * namespaces by default.
+     *
+     * @implSpec
+     * In addition to creating a factory instance using the same process as
+     * {@link #newInstance()}, this method must set NamespaceAware to true.
+     *
+     * @return a new instance of the {@code SAXParserFactory}
+     *
+     * @throws FactoryConfigurationError in case of {@linkplain
+     *         java.util.ServiceConfigurationError service configuration error}
+     *         or if the implementation is not available or cannot be instantiated.
+     *
+     * @since 13
+     */
+    public static SAXParserFactory newNSInstance() {
+        return makeNSAware(FactoryFinder.find(SAXParserFactory.class, DEFAULT_IMPL));
+    }
+
+    /**
+     * Creates a new NamespaceAware instance of a {@code SAXParserFactory} from
+     * the class name. Parsers produced by the factory instance provides
+     * support for XML namespaces by default.
+     *
+     * @implSpec
+     * In addition to creating a factory instance using the same process as
+     * {@link #newInstance(java.lang.String, java.lang.ClassLoader)}, this method
+     * must set NamespaceAware to true.
+     *
+     * @param factoryClassName a fully qualified factory class name that provides
+     *                         implementation of
+     *                         {@code javax.xml.parsers.SAXParserFactory}.
+     *
+     * @param classLoader the {@code ClassLoader} used to load the factory class.
+     *                    If it is {@code null}, the current {@code Thread}'s
+     *                    context classLoader is used to load the factory class.
+     *
+     * @return a new instance of the {@code SAXParserFactory}
+     *
+     * @throws FactoryConfigurationError if {@code factoryClassName} is {@code null}, or
+     *                                   the factory class cannot be loaded, instantiated.
+     *
+     * @since 13
+     */
+    public static SAXParserFactory newNSInstance(String factoryClassName,
+            ClassLoader classLoader) {
+            return makeNSAware(FactoryFinder.newInstance(
+                    SAXParserFactory.class, factoryClassName, classLoader, false));
+    }
+
+    /**
      * Creates a new instance of the {@code SAXParserFactory} builtin
      * system-default implementation.
      *
@@ -76,57 +148,19 @@ public abstract class SAXParserFactory {
     }
 
     /**
-     * Obtain a new instance of a {@code SAXParserFactory}. This
-     * static method creates a new factory instance
-     * This method uses the following ordered lookup procedure to determine
-     * the {@code SAXParserFactory} implementation class to
-     * load:
-     * <ul>
-     * <li>
-     * Use the {@code javax.xml.parsers.SAXParserFactory} system
-     * property.
-     * </li>
-     * <li>
-     * <p>
-     * Use the configuration file "jaxp.properties". The file is in standard
-     * {@link java.util.Properties} format and typically located in the
-     * {@code conf} directory of the Java installation. It contains the fully qualified
-     * name of the implementation class with the key being the system property
-     * defined above.
-     * <p>
-     * The jaxp.properties file is read only once by the JAXP implementation
-     * and its values are then cached for future use.  If the file does not exist
-     * when the first attempt is made to read from it, no further attempts are
-     * made to check for its existence.  It is not possible to change the value
-     * of any property in jaxp.properties after it has been read for the first time.
-     * </li>
-     * <li>
-     * <p>
-     * Use the service-provider loading facility, defined by the
-     * {@link java.util.ServiceLoader} class, to attempt to locate and load an
-     * implementation of the service using the {@linkplain
-     * java.util.ServiceLoader#load(java.lang.Class) default loading mechanism}:
-     * the service-provider loading facility will use the {@linkplain
-     * java.lang.Thread#getContextClassLoader() current thread's context class loader}
-     * to attempt to load the service. If the context class
-     * loader is null, the {@linkplain
-     * ClassLoader#getSystemClassLoader() system class loader} will be used.
-     * </li>
-     * <li>
-     * <p>
-     * Otherwise, the {@linkplain #newDefaultInstance() system-default}
-     * implementation is returned.
-     * </li>
-     * </ul>
+     * Obtains a new instance of a {@code SAXParserFactory}.
+     * This method uses the
+     * <a href="../../../module-summary.html#LookupMechanism">JAXP Lookup Mechanism</a>
+     * to determine the {@code SAXParserFactory} implementation class to load.
      *
      * <p>
      * Once an application has obtained a reference to a
-     * {@code SAXParserFactory} it can use the factory to
+     * {@code SAXParserFactory}, it can use the factory to
      * configure and obtain parser instances.
      *
      *
      *
-     * <h2>Tip for Trouble-shooting</h2>
+     * <h4>Tip for Trouble-shooting</h4>
      * <p>
      * Setting the {@code jaxp.debug} system property will cause
      * this method to print a lot of debug messages
@@ -151,7 +185,7 @@ public abstract class SAXParserFactory {
                 /* The default property name according to the JAXP spec */
                 SAXParserFactory.class,
                 /* The fallback implementation class name */
-                "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl");
+                DEFAULT_IMPL);
     }
 
     /**
@@ -164,7 +198,7 @@ public abstract class SAXParserFactory {
      * it can use the factory to configure and obtain parser instances.
      *
      *
-     * <h2>Tip for Trouble-shooting</h2>
+     * <h4>Tip for Trouble-shooting</h4>
      * <p>Setting the {@code jaxp.debug} system property will cause
      * this method to print a lot of debug messages
      * to {@code System.err} about what it is doing and where it is looking at.
@@ -193,6 +227,11 @@ public abstract class SAXParserFactory {
             //do not fallback if given classloader can't find the class, throw exception
             return FactoryFinder.newInstance(SAXParserFactory.class,
                     factoryClassName, classLoader, false);
+    }
+
+    private static SAXParserFactory makeNSAware(SAXParserFactory spf) {
+        spf.setNamespaceAware(true);
+        return spf;
     }
 
     /**
@@ -394,7 +433,7 @@ public abstract class SAXParserFactory {
      * Such configuration will cause a {@link SAXException}
      * exception when those properties are set on a {@link SAXParser}.
      *
-     * <h3>Note for implementors</h3>
+     * <h4>Note for implementors</h4>
      * <p>
      * A parser must be able to work with any {@link Schema}
      * implementation. However, parsers and schemas are allowed

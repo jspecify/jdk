@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,13 +42,13 @@ import java.security.SignatureException;
 import java.text.MessageFormat;
 import java.util.EnumSet;
 import java.util.Locale;
+import java.util.Map;
 import javax.crypto.interfaces.DHPublicKey;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.DHPublicKeySpec;
 import sun.security.ssl.DHKeyExchange.DHECredentials;
 import sun.security.ssl.DHKeyExchange.DHEPossession;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
-import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
 import sun.security.ssl.X509Authentication.X509Credentials;
 import sun.security.ssl.X509Authentication.X509Possession;
 import sun.security.util.HexDumpEncoder;
@@ -106,7 +106,7 @@ final class DHServerKeyExchange {
 
             if (dhePossession == null) {
                 // unlikely
-                shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "No DHE credentials negotiated for server key exchange");
             }
             DHPublicKey publicKey = dhePossession.publicKey;
@@ -123,26 +123,25 @@ final class DHServerKeyExchange {
             } else {
                 useExplicitSigAlgorithm =
                         shc.negotiatedProtocol.useTLS12PlusSpec();
-                Signature signer = null;
+                Signature signer;
                 if (useExplicitSigAlgorithm) {
-                    signatureScheme = SignatureScheme.getPreferableAlgorithm(
-                            shc.peerRequestedSignatureSchemes,
-                            x509Possession.popPrivateKey,
-                            shc.negotiatedProtocol);
-                    if (signatureScheme == null) {
+                    Map.Entry<SignatureScheme, Signature> schemeAndSigner =
+                            SignatureScheme.getSignerOfPreferableAlgorithm(
+                                    shc.sslConfig,
+                                    shc.algorithmConstraints,
+                                    shc.peerRequestedSignatureSchemes,
+                                    x509Possession,
+                                    shc.negotiatedProtocol);
+                    if (schemeAndSigner == null) {
                         // Unlikely, the credentials generator should have
                         // selected the preferable signature algorithm properly.
-                        shc.conContext.fatal(Alert.INTERNAL_ERROR,
-                            "No preferred signature algorithm");
-                    }
-                    try {
-                        signer = signatureScheme.getSignature(
-                                x509Possession.popPrivateKey);
-                    } catch (NoSuchAlgorithmException | InvalidKeyException |
-                            InvalidAlgorithmParameterException nsae) {
-                        shc.conContext.fatal(Alert.INTERNAL_ERROR,
-                            "Unsupported signature algorithm: " +
-                            signatureScheme.name, nsae);
+                        throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
+                                "No supported signature algorithm for " +
+                                x509Possession.popPrivateKey.getAlgorithm() +
+                                "  key");
+                    } else {
+                        signatureScheme = schemeAndSigner.getKey();
+                        signer = schemeAndSigner.getValue();
                     }
                 } else {
                     signatureScheme = null;
@@ -151,19 +150,19 @@ final class DHServerKeyExchange {
                                 x509Possession.popPrivateKey.getAlgorithm(),
                                 x509Possession.popPrivateKey);
                     } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-                        shc.conContext.fatal(Alert.INTERNAL_ERROR,
+                        throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Unsupported signature algorithm: " +
                             x509Possession.popPrivateKey.getAlgorithm(), e);
                     }
                 }
 
-                byte[] signature = null;
+                byte[] signature;
                 try {
                     updateSignature(signer, shc.clientHelloRandom.randomBytes,
                             shc.serverHelloRandom.randomBytes);
                     signature = signer.sign();
                 } catch (SignatureException ex) {
-                    shc.conContext.fatal(Alert.INTERNAL_ERROR,
+                    throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Failed to sign dhe parameters: " +
                         x509Possession.popPrivateKey.getAlgorithm(), ex);
                 }
@@ -189,7 +188,7 @@ final class DHServerKeyExchange {
                         new BigInteger(1, p),
                         new BigInteger(1, p)));
             } catch (InvalidKeyException ike) {
-                chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "Invalid DH ServerKeyExchange: invalid parameters", ike);
             }
 
@@ -204,7 +203,7 @@ final class DHServerKeyExchange {
             if (x509Credentials == null) {
                 // anonymous, no authentication, no signature
                 if (m.hasRemaining()) {
-                    chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                         "Invalid DH ServerKeyExchange: unknown extra data");
                 }
 
@@ -221,13 +220,13 @@ final class DHServerKeyExchange {
                 int ssid = Record.getInt16(m);
                 signatureScheme = SignatureScheme.valueOf(ssid);
                 if (signatureScheme == null) {
-                    chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                             "Invalid signature algorithm (" + ssid +
                             ") used in DH ServerKeyExchange handshake message");
                 }
 
                 if (!chc.localSupportedSignAlgs.contains(signatureScheme)) {
-                    chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                             "Unsupported signature algorithm (" +
                             signatureScheme.name +
                             ") used in DH ServerKeyExchange handshake message");
@@ -241,15 +240,13 @@ final class DHServerKeyExchange {
             Signature signer;
             if (useExplicitSigAlgorithm) {
                 try {
-                    signer = signatureScheme.getSignature(
+                    signer = signatureScheme.getVerifier(
                             x509Credentials.popPublicKey);
                 } catch (NoSuchAlgorithmException | InvalidKeyException |
                         InvalidAlgorithmParameterException nsae) {
-                    chc.conContext.fatal(Alert.INTERNAL_ERROR,
+                    throw chc.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Unsupported signature algorithm: " +
                             signatureScheme.name, nsae);
-
-                    return;     // make the compiler happe
                 }
             } else {
                 try {
@@ -257,11 +254,9 @@ final class DHServerKeyExchange {
                             x509Credentials.popPublicKey.getAlgorithm(),
                             x509Credentials.popPublicKey);
                 } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-                    chc.conContext.fatal(Alert.INTERNAL_ERROR,
+                    throw chc.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Unsupported signature algorithm: " +
                             x509Credentials.popPublicKey.getAlgorithm(), e);
-
-                    return;     // make the compiler happe
                 }
             }
 
@@ -271,11 +266,11 @@ final class DHServerKeyExchange {
                         chc.serverHelloRandom.randomBytes);
 
                 if (!signer.verify(paramsSignature)) {
-                    chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                         "Invalid signature on DH ServerKeyExchange message");
                 }
             } catch (SignatureException ex) {
-                chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                         "Cannot verify DH ServerKeyExchange signature", ex);
             }
         }
@@ -318,19 +313,20 @@ final class DHServerKeyExchange {
         public String toString() {
             if (paramsSignature == null) {    // anonymous
                 MessageFormat messageFormat = new MessageFormat(
-                    "\"DH ServerKeyExchange\": '{'\n" +
-                    "  \"parameters\": '{'\n" +
-                    "    \"dh_p\": '{'\n" +
-                    "{0}\n" +
-                    "    '}',\n" +
-                    "    \"dh_g\": '{'\n" +
-                    "{1}\n" +
-                    "    '}',\n" +
-                    "    \"dh_Ys\": '{'\n" +
-                    "{2}\n" +
-                    "    '}',\n" +
-                    "  '}'\n" +
-                    "'}'",
+                        """
+                                "DH ServerKeyExchange": '{'
+                                  "parameters": '{'
+                                    "dh_p": '{'
+                                {0}
+                                    '}',
+                                    "dh_g": '{'
+                                {1}
+                                    '}',
+                                    "dh_Ys": '{'
+                                {2}
+                                    '}',
+                                  '}'
+                                '}'""",
                     Locale.ENGLISH);
 
                 HexDumpEncoder hexEncoder = new HexDumpEncoder();
@@ -346,85 +342,87 @@ final class DHServerKeyExchange {
                 return messageFormat.format(messageFields);
             }
 
+            MessageFormat messageFormat;
+            HexDumpEncoder hexEncoder = new HexDumpEncoder();
+            Object[] messageFields;
             if (useExplicitSigAlgorithm) {
-                MessageFormat messageFormat = new MessageFormat(
-                    "\"DH ServerKeyExchange\": '{'\n" +
-                    "  \"parameters\": '{'\n" +
-                    "    \"dh_p\": '{'\n" +
-                    "{0}\n" +
-                    "    '}',\n" +
-                    "    \"dh_g\": '{'\n" +
-                    "{1}\n" +
-                    "    '}',\n" +
-                    "    \"dh_Ys\": '{'\n" +
-                    "{2}\n" +
-                    "    '}',\n" +
-                    "  '}',\n" +
-                    "  \"digital signature\":  '{'\n" +
-                    "    \"signature algorithm\": \"{3}\"\n" +
-                    "    \"signature\": '{'\n" +
-                    "{4}\n" +
-                    "    '}',\n" +
-                    "  '}'\n" +
-                    "'}'",
-                    Locale.ENGLISH);
+                messageFormat = new MessageFormat(
+                        """
+                                "DH ServerKeyExchange": '{'
+                                  "parameters": '{'
+                                    "dh_p": '{'
+                                {0}
+                                    '}',
+                                    "dh_g": '{'
+                                {1}
+                                    '}',
+                                    "dh_Ys": '{'
+                                {2}
+                                    '}',
+                                  '}',
+                                  "digital signature":  '{'
+                                    "signature algorithm": "{3}"
+                                    "signature": '{'
+                                {4}
+                                    '}',
+                                  '}'
+                                '}'""",
+                        Locale.ENGLISH);
 
-                HexDumpEncoder hexEncoder = new HexDumpEncoder();
-                Object[] messageFields = {
-                    Utilities.indent(
-                            hexEncoder.encodeBuffer(p), "      "),
-                    Utilities.indent(
-                            hexEncoder.encodeBuffer(g), "      "),
-                    Utilities.indent(
-                            hexEncoder.encodeBuffer(y), "      "),
-                    signatureScheme.name,
-                    Utilities.indent(
-                            hexEncoder.encodeBuffer(paramsSignature), "      ")
+                messageFields = new Object[]{
+                        Utilities.indent(
+                                hexEncoder.encodeBuffer(p), "      "),
+                        Utilities.indent(
+                                hexEncoder.encodeBuffer(g), "      "),
+                        Utilities.indent(
+                                hexEncoder.encodeBuffer(y), "      "),
+                        signatureScheme.name,
+                        Utilities.indent(
+                                hexEncoder.encodeBuffer(paramsSignature), "      ")
                 };
 
-                return messageFormat.format(messageFields);
             } else {
-                MessageFormat messageFormat = new MessageFormat(
-                    "\"DH ServerKeyExchange\": '{'\n" +
-                    "  \"parameters\": '{'\n" +
-                    "    \"dh_p\": '{'\n" +
-                    "{0}\n" +
-                    "    '}',\n" +
-                    "    \"dh_g\": '{'\n" +
-                    "{1}\n" +
-                    "    '}',\n" +
-                    "    \"dh_Ys\": '{'\n" +
-                    "{2}\n" +
-                    "    '}',\n" +
-                    "  '}',\n" +
-                    "  \"signature\": '{'\n" +
-                    "{3}\n" +
-                    "  '}'\n" +
-                    "'}'",
-                    Locale.ENGLISH);
+                messageFormat = new MessageFormat(
+                        """
+                                "DH ServerKeyExchange": '{'
+                                  "parameters": '{'
+                                    "dh_p": '{'
+                                {0}
+                                    '}',
+                                    "dh_g": '{'
+                                {1}
+                                    '}',
+                                    "dh_Ys": '{'
+                                {2}
+                                    '}',
+                                  '}',
+                                  "signature": '{'
+                                {3}
+                                  '}'
+                                '}'""",
+                        Locale.ENGLISH);
 
-                HexDumpEncoder hexEncoder = new HexDumpEncoder();
-                Object[] messageFields = {
-                    Utilities.indent(
-                            hexEncoder.encodeBuffer(p), "      "),
-                    Utilities.indent(
-                            hexEncoder.encodeBuffer(g), "      "),
-                    Utilities.indent(
-                            hexEncoder.encodeBuffer(y), "      "),
-                    Utilities.indent(
-                            hexEncoder.encodeBuffer(paramsSignature), "    ")
+                messageFields = new Object[]{
+                        Utilities.indent(
+                                hexEncoder.encodeBuffer(p), "      "),
+                        Utilities.indent(
+                                hexEncoder.encodeBuffer(g), "      "),
+                        Utilities.indent(
+                                hexEncoder.encodeBuffer(y), "      "),
+                        Utilities.indent(
+                                hexEncoder.encodeBuffer(paramsSignature), "    ")
                 };
 
-                return messageFormat.format(messageFields);
             }
+            return messageFormat.format(messageFields);
         }
 
         private static Signature getSignature(String keyAlgorithm,
                 Key key) throws NoSuchAlgorithmException, InvalidKeyException {
-            Signature signer = null;
+            Signature signer;
             switch (keyAlgorithm) {
                 case "DSA":
-                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_DSA);
+                    signer = Signature.getInstance(JsseJce.SIGNATURE_DSA);
                     break;
                 case "RSA":
                     signer = RSASignature.getInstance();
@@ -434,12 +432,10 @@ final class DHServerKeyExchange {
                         "neither an RSA or a DSA key : " + keyAlgorithm);
             }
 
-            if (signer != null) {
-                if (key instanceof PublicKey) {
-                    signer.initVerify((PublicKey)(key));
-                } else {
-                    signer.initSign((PrivateKey)key);
-                }
+            if (key instanceof PublicKey) {
+                signer.initVerify((PublicKey)(key));
+            } else {
+                signer.initSign((PrivateKey)key);
             }
 
             return signer;
@@ -450,7 +446,6 @@ final class DHServerKeyExchange {
          */
         private void updateSignature(Signature sig, byte[] clntNonce,
                 byte[] svrNonce) throws SignatureException {
-            int tmp;
 
             sig.update(clntNonce);
             sig.update(svrNonce);
@@ -528,22 +523,20 @@ final class DHServerKeyExchange {
             // check constraints of EC PublicKey
             DHPublicKey publicKey;
             try {
-                KeyFactory kf = JsseJce.getKeyFactory("DiffieHellman");
+                KeyFactory kf = KeyFactory.getInstance("DiffieHellman");
                 DHPublicKeySpec spec = new DHPublicKeySpec(
                         new BigInteger(1, skem.y),
                         new BigInteger(1, skem.p),
                         new BigInteger(1, skem.g));
                 publicKey = (DHPublicKey)kf.generatePublic(spec);
             } catch (GeneralSecurityException gse) {
-                chc.conContext.fatal(Alert.INSUFFICIENT_SECURITY,
+                throw chc.conContext.fatal(Alert.INSUFFICIENT_SECURITY,
                     "Could not generate DHPublicKey", gse);
-
-                return;     // make the compiler happy
             }
 
             if (!chc.algorithmConstraints.permits(
                     EnumSet.of(CryptoPrimitive.KEY_AGREEMENT), publicKey)) {
-                chc.conContext.fatal(Alert.INSUFFICIENT_SECURITY,
+                throw chc.conContext.fatal(Alert.INSUFFICIENT_SECURITY,
                         "DH ServerKeyExchange does not comply to " +
                         "algorithm constraints");
             }

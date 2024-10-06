@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import java.util.Collections;
  * @summary unit tests for varargs array methods: MethodHandleInfo.varargsArray(int),
  *          MethodHandleInfo.varargsArray(Class,int) & MethodHandleInfo.varargsList(int)
  * @modules java.base/sun.invoke.util
- * @library /lib/testlibrary /java/lang/invoke/common
+ * @library /test/lib /java/lang/invoke/common
  * @compile/module=java.base java/lang/invoke/MethodHandleHelper.java
  * @run main/bootclasspath VarargsArrayTest
  * @run main/bootclasspath/othervm -DVarargsArrayTest.MAX_ARITY=255 -DVarargsArrayTest.START_ARITY=250
@@ -76,10 +76,13 @@ public class VarargsArrayTest {
         }
     }
 
+    private static class CustomClass {}
+
     public static void testVarargsReferenceArray() throws Throwable {
         testTypedVarargsArray(Object[].class);
         testTypedVarargsArray(String[].class);
         testTypedVarargsArray(Number[].class);
+        testTypedVarargsArray(CustomClass[].class);
     }
 
     public static void testVarargsPrimitiveArray() throws Throwable {
@@ -171,6 +174,8 @@ public class VarargsArrayTest {
             if (elem == null) {
                 if (elemType == String.class)
                     arg = "#"+arg;
+                if (elemType  == CustomClass.class)
+                    arg = new CustomClass();
                 arg = elemType.cast(arg);  // just to make sure
             } else {
                 switch (elem) {

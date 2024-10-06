@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,19 +20,42 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 /*
- *
+ * @test
+ * @bug 4052440 8003267 8062588 8210406 8174269 8327434
+ * @summary TimeZoneNameProvider tests
+ * @library providersrc/foobarutils
+ *          providersrc/barprovider
+ * @modules java.base/sun.util.locale.provider
+ *          java.base/sun.util.resources
+ * @build com.foobar.Utils
+ *        com.bar.*
+ * @run main/othervm -Djava.locale.providers=CLDR,SPI TimeZoneNameProviderTest
  */
 
-import java.text.*;
+import java.text.DateFormatSymbols;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.format.TextStyle;
-import java.util.*;
-import sun.util.locale.provider.*;
-import sun.util.resources.*;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.TimeZone;
+import java.util.stream.Stream;
+
+import com.bar.TimeZoneNameProviderImpl;
+
+import sun.util.locale.provider.LocaleProviderAdapter;
+import sun.util.locale.provider.ResourceBundleBasedAdapter;
+import sun.util.resources.OpenListResourceBundle;
 
 public class TimeZoneNameProviderTest extends ProviderTest {
 
-    com.bar.TimeZoneNameProviderImpl tznp = new com.bar.TimeZoneNameProviderImpl();
+    TimeZoneNameProviderImpl tznp = new TimeZoneNameProviderImpl();
 
     public static void main(String[] s) {
         new TimeZoneNameProviderTest();
@@ -47,14 +70,14 @@ public class TimeZoneNameProviderTest extends ProviderTest {
     }
 
     void test1() {
-        Locale[] available = Locale.getAvailableLocales();
-        List<Locale> jreimplloc = Arrays.asList(LocaleProviderAdapter.forJRE().getTimeZoneNameProvider().getAvailableLocales());
+        List<Locale> jreimplloc = Arrays.asList(LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.CLDR).getTimeZoneNameProvider().getAvailableLocales());
         List<Locale> providerLocales = Arrays.asList(tznp.getAvailableLocales());
         String[] ids = TimeZone.getAvailableIDs();
 
-        for (Locale target: available) {
+        // Sampling relevant locales
+        Stream.concat(Stream.of(Locale.ROOT, Locale.US, Locale.JAPAN), providerLocales.stream()).forEach(target -> {
             // pure JRE implementation
-            OpenListResourceBundle rb = ((ResourceBundleBasedAdapter)LocaleProviderAdapter.forJRE()).getLocaleData().getTimeZoneNames(target);
+            OpenListResourceBundle rb = ((ResourceBundleBasedAdapter)LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.CLDR)).getLocaleData().getTimeZoneNames(target);
             boolean jreSupportsTarget = jreimplloc.contains(target);
 
             for (String id: ids) {
@@ -81,7 +104,7 @@ public class TimeZoneNameProviderTest extends ProviderTest {
 
                     // JRE's name
                     String jresname = null;
-                    if (jrearray != null) {
+                    if (jrearray != null && !jrearray[i].isEmpty() && !jrearray[i].equals("\u2205\u2205\u2205")) {
                         jresname = jrearray[i];
                     }
 
@@ -89,13 +112,13 @@ public class TimeZoneNameProviderTest extends ProviderTest {
                         jreSupportsTarget && jresname != null);
                 }
             }
-        }
+        });
     }
 
     final String pattern = "z";
-    final Locale OSAKA = new Locale("ja", "JP", "osaka");
-    final Locale KYOTO = new Locale("ja", "JP", "kyoto");
-    final Locale GENERIC = new Locale("ja", "JP", "generic");
+    final Locale OSAKA = Locale.of("ja", "JP", "osaka");
+    final Locale KYOTO = Locale.of("ja", "JP", "kyoto");
+    final Locale GENERIC = Locale.of("ja", "JP", "generic");
 
     final String[] TIMEZONES = {
         "GMT", "America/Los_Angeles", "SystemV/PST8",

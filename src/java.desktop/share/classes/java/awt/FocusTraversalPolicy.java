@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,10 +52,10 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * policy is used to perform the search operation.
  * <p>
  * Please see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
  * How to Use the Focus Subsystem</a>,
  * a section in <em>The Java Tutorial</em>, and the
- * <a href="../../java/awt/doc-files/FocusSpec.html">Focus Specification</a>
+ * <a href="doc-files/FocusSpec.html">Focus Specification</a>
  * for more information.
  *
  * @author David Mendenhall
@@ -72,6 +72,11 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  */
 @AnnotatedFor({"interning"})
 public abstract @UsesObjectEquals class FocusTraversalPolicy {
+
+    /**
+     * Constructs a {@code FocusTraversalPolicy}.
+     */
+    protected FocusTraversalPolicy() {}
 
     /**
      * Returns the Component that should receive the focus after aComponent.

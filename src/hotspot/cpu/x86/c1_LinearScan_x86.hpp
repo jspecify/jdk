@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_C1_LINEARSCAN_X86_HPP
-#define CPU_X86_VM_C1_LINEARSCAN_X86_HPP
+#ifndef CPU_X86_C1_LINEARSCAN_X86_HPP
+#define CPU_X86_C1_LINEARSCAN_X86_HPP
 
 inline bool LinearScan::is_processed_reg_num(int reg_num) {
 #ifndef _LP64
@@ -78,7 +78,7 @@ inline void LinearScan::pd_add_temps(LIR_Op* op) {
       // assume that slow paths are uncommon but it's not clear that
       // would be a good idea.
       if (UseSSE > 0) {
-#ifndef PRODUCT
+#ifdef ASSERT
         if (TraceLinearScanLevel >= 2) {
           tty->print_cr("killing XMMs for trig");
         }
@@ -101,12 +101,7 @@ inline void LinearScan::pd_add_temps(LIR_Op* op) {
 // Implementation of LinearScanWalker
 
 inline bool LinearScanWalker::pd_init_regs_for_alloc(Interval* cur) {
-  int last_xmm_reg = pd_last_xmm_reg;
-#ifdef _LP64
-  if (UseAVX < 3) {
-    last_xmm_reg = pd_first_xmm_reg + (pd_nof_xmm_regs_frame_map / 2) - 1;
-  }
-#endif
+  int last_xmm_reg = pd_first_xmm_reg + XMMRegister::available_xmm_registers() - 1;
   if (allocator()->gen()->is_vreg_flag_set(cur->reg_num(), LIRGenerator::byte_reg)) {
     assert(cur->type() != T_FLOAT && cur->type() != T_DOUBLE, "cpu regs only");
     _first_reg = pd_first_byte_reg;
@@ -195,4 +190,4 @@ class FpuStackAllocator {
   void allocate();
 };
 
-#endif // CPU_X86_VM_C1_LINEARSCAN_X86_HPP
+#endif // CPU_X86_C1_LINEARSCAN_X86_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,8 @@ import java.util.*;
  * @see Binder
  * @see DebugeeProcess
  */
-abstract public class Debugee extends DebugeeProcess {
+public class Debugee extends DebugeeProcess {
+
     /**
      * Mirror of the debugee VM. This must be initialized by every
      * particular non-abstract class extending Debugee class.
@@ -63,6 +64,13 @@ abstract public class Debugee extends DebugeeProcess {
     /** Create new <code>Debugee</code> object for a given binder. */
     protected Debugee (Binder binder) {
         super(binder);
+        this.binder = binder;
+        this.argumentHandler = (ArgumentHandler)binder.getArgumentHandler();
+    }
+
+    protected Debugee (Process process, Binder binder) {
+        super(binder);
+        this.process = process;
         this.binder = binder;
         this.argumentHandler = (ArgumentHandler)binder.getArgumentHandler();
     }
@@ -238,6 +246,22 @@ abstract public class Debugee extends DebugeeProcess {
             throw new TestBug(
                 "found " + count + " such threads: " + name);
         return threads[index];
+    }
+
+
+    public ThreadReference threadByNameOrThrow(String name) throws JDITestRuntimeException {
+
+        List all = vm.allThreads();
+        ListIterator li = all.listIterator();
+        for (; li.hasNext(); ) {
+            ThreadReference thread = (ThreadReference) li.next();
+            if (thread.name().equals(name))
+                return thread;
+        }
+        if ("Virtual".equals(System.getProperty("test.thread.factory"))) {
+            return null;
+        }
+        throw new JDITestRuntimeException("** Thread IS NOT found ** : " + name);
     }
 
     // --------------------------------------------------- //
@@ -557,6 +581,7 @@ abstract public class Debugee extends DebugeeProcess {
      * exit status code.
      */
     public int endDebugee() {
+        int status = waitFor();
         if (vm != null) {
             try {
                 vm.dispose();
@@ -564,15 +589,15 @@ abstract public class Debugee extends DebugeeProcess {
             }
             vm = null;
         }
-        return waitFor();
+        return status;
     }
 
     /*
      * Print information about all threads in debuggee VM
      */
-    protected void printThreadsInfo(VirtualMachine vm)  {
+    public void printThreadsInfo(VirtualMachine vm) {
         try {
-            log.display("------------ Try to print debuggee threads before killing process ------------");
+            log.display("------------ Print debuggee threads ------------");
             if (vm == null) {
                 log.display("Can't print threads info because 'vm' is null");
                 return;
@@ -606,7 +631,7 @@ abstract public class Debugee extends DebugeeProcess {
                     }
                 }
             }
-            log.display("----------------------------------------------------------------------");
+            log.display("------------------------------------------------");
         } catch (Throwable t) {
             log.complain("");
             t.printStackTrace(log.getOutStream());
@@ -635,13 +660,4 @@ abstract public class Debugee extends DebugeeProcess {
         }
     }
 
-    public boolean isJFR_active() {
-        String opts = argumentHandler.getLaunchOptions();
-        int jfrPos = opts.indexOf("-XX:+FlightRecorder");
-
-        if (jfrPos >= 0)
-            return true;
-        else
-            return false;
-    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_STRINGUTILS_HPP
-#define SHARE_VM_UTILITIES_STRINGUTILS_HPP
+#ifndef SHARE_UTILITIES_STRINGUTILS_HPP
+#define SHARE_UTILITIES_STRINGUTILS_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
+
+#ifdef _WINDOWS
+  // strtok_s is the Windows thread-safe equivalent of POSIX strtok_r
+# define strtok_r strtok_s
+#endif
 
 class StringUtils : AllStatic {
 public:
@@ -40,6 +45,42 @@ public:
 
   // Compute string similarity based on Dice's coefficient
   static double similarity(const char* str1, size_t len1, const char* str2, size_t len2);
+
+  // Find needle in haystack, case insensitive.
+  // Custom implementation of strcasestr, as it is not available on windows.
+  static const char* strstr_nocase(const char* haystack, const char* needle);
+
+  // Check if str matches the star_pattern.
+  // eg. str "_abc____def__" would match pattern "abc*def".
+  // The matching is case insensitive.
+  static bool is_star_match(const char* star_pattern, const char* str);
+
+  class CommaSeparatedStringIterator {
+  private:
+    char* _token;
+    char* _saved_ptr;
+    char* _list;
+
+  public:
+    CommaSeparatedStringIterator(ccstrlist option) {
+      // Immediately make a private copy of option, and
+      // replace spaces and newlines with comma.
+      _list = (char*) canonicalize(option);
+      _saved_ptr = _list;
+      _token = strtok_r(_saved_ptr, ",", &_saved_ptr);
+    }
+
+    ~CommaSeparatedStringIterator();
+
+    const char* operator*() const { return _token; }
+
+    CommaSeparatedStringIterator& operator++() {
+      _token = strtok_r(nullptr, ",", &_saved_ptr);
+      return *this;
+    }
+
+    ccstrlist canonicalize(ccstrlist option_value);
+  };
 };
 
-#endif // SHARE_VM_UTILITIES_STRINGUTILS_HPP
+#endif // SHARE_UTILITIES_STRINGUTILS_HPP

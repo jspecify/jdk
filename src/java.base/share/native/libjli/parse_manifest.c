@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -288,8 +288,8 @@ find_positions(int fd, Byte *eb, jlong* base_offset, jlong* censtart)
     for (cp = &buffer[bytes - ENDHDR]; cp >= &buffer[0]; cp--)
         if (ENDSIG_AT(cp) && (cp + ENDHDR + ENDCOM(cp) == endpos)) {
             (void) memcpy(eb, cp, ENDHDR);
-            free(buffer);
             pos = flen - (endpos - cp);
+            free(buffer);
             return find_positions64(fd, eb, pos, base_offset, censtart);
         }
     free(buffer);
@@ -362,9 +362,11 @@ find_file(int fd, zentry *entry, const char *file_name)
     bp = buffer;
 
     if (find_positions(fd, bp, &base_offset, &censtart) == -1) {
+        free(buffer);
         return -1;
     }
     if (JLI_Lseek(fd, censtart, SEEK_SET) < (jlong) 0) {
+        free(buffer);
         return -1;
     }
 
@@ -581,9 +583,8 @@ JLI_ParseManifest(char *jarfile, manifest_info *info)
     char    *name;
     char    *value;
     int     rc;
-    char    *splashscreen_name = NULL;
 
-    if ((fd = open(jarfile, O_RDONLY
+    if ((fd = JLI_Open(jarfile, O_RDONLY
 #ifdef O_LARGEFILE
         | O_LARGEFILE /* large file mode */
 #endif
@@ -593,10 +594,6 @@ JLI_ParseManifest(char *jarfile, manifest_info *info)
         )) == -1) {
         return (-1);
     }
-    info->manifest_version = NULL;
-    info->main_class = NULL;
-    info->jre_version = NULL;
-    info->jre_restrict_search = 0;
     info->splashscreen_image_file_name = NULL;
     if ((rc = find_file(fd, &entry, manifest_name)) != 0) {
         close(fd);
@@ -609,17 +606,7 @@ JLI_ParseManifest(char *jarfile, manifest_info *info)
     }
     lp = manifest;
     while ((rc = parse_nv_pair(&lp, &name, &value)) > 0) {
-        if (JLI_StrCaseCmp(name, "Manifest-Version") == 0) {
-            info->manifest_version = value;
-        } else if (JLI_StrCaseCmp(name, "Main-Class") == 0) {
-            info->main_class = value;
-        } else if (JLI_StrCaseCmp(name, "JRE-Version") == 0) {
-            /*
-             * Manifest specification overridden by command line option
-             * so we will silently override there with no specification.
-             */
-            info->jre_version = 0;
-        } else if (JLI_StrCaseCmp(name, "Splashscreen-Image") == 0) {
+        if (JLI_StrCaseCmp(name, "Splashscreen-Image") == 0) {
             info->splashscreen_image_file_name = value;
         }
     }
@@ -640,7 +627,7 @@ JLI_JarUnpackFile(const char *jarfile, const char *filename, int *size) {
     zentry  entry;
     void    *data = NULL;
 
-    if ((fd = open(jarfile, O_RDONLY
+    if ((fd = JLI_Open(jarfile, O_RDONLY
 #ifdef O_LARGEFILE
         | O_LARGEFILE /* large file mode */
 #endif
@@ -688,7 +675,7 @@ JLI_ManifestIterate(const char *jarfile, attribute_closure ac, void *user_data)
     char    *value;
     int     rc;
 
-    if ((fd = open(jarfile, O_RDONLY
+    if ((fd = JLI_Open(jarfile, O_RDONLY
 #ifdef O_LARGEFILE
         | O_LARGEFILE /* large file mode */
 #endif

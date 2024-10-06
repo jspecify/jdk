@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,25 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_WEAKHANDLE_INLINE_HPP
-#define SHARE_VM_OOPS_WEAKHANDLE_INLINE_HPP
+#ifndef SHARE_OOPS_WEAKHANDLE_INLINE_HPP
+#define SHARE_OOPS_WEAKHANDLE_INLINE_HPP
 
 #include "oops/weakHandle.hpp"
+
 #include "oops/access.inline.hpp"
 
-template <WeakHandleType T>
-oop WeakHandle<T>::resolve() const {
+inline oop WeakHandle::resolve() const {
   assert(!is_null(), "Must be created");
   return NativeAccess<ON_PHANTOM_OOP_REF>::oop_load(_obj);
 }
 
-template <WeakHandleType T>
-oop WeakHandle<T>::peek() const {
+inline oop WeakHandle::peek() const {
   assert(!is_null(), "Must be created");
   return NativeAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(_obj);
 }
 
-template <WeakHandleType T>
-void WeakHandle<T>::replace(oop with_obj) {
+inline void WeakHandle::replace(oop with_obj) {
   NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(_obj, with_obj);
 }
 
-#endif // SHARE_VM_OOPS_WEAKHANDLE_INLINE_HPP
-
+#endif // SHARE_OOPS_WEAKHANDLE_INLINE_HPP

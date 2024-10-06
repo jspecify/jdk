@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ import java.util.Enumeration;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the {@code java.beans} package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -56,6 +56,11 @@ import java.util.Enumeration;
 public class DefaultListModel<E> extends AbstractListModel<E>
 {
     private Vector<E> delegate = new Vector<E>();
+
+    /**
+     * Constructs a {@code DefaultListModel}.
+     */
+    public DefaultListModel() {}
 
     /**
      * Returns the number of components in this list.
@@ -98,7 +103,7 @@ public class DefaultListModel<E> extends AbstractListModel<E>
      * @param   anArray   the array into which the components get copied
      * @see Vector#copyInto(Object[])
      */
-    public void copyInto(Object anArray[]) {
+    public void copyInto(Object[] anArray) {
         delegate.copyInto(anArray);
     }
 
@@ -271,7 +276,7 @@ public class DefaultListModel<E> extends AbstractListModel<E>
      * Returns the first component of this list.
      * @return     the first component of this list
      * @see Vector#firstElement()
-     * @throws NoSuchElementException if this
+     * @throws java.util.NoSuchElementException if this
      * vector has no components
      */
     public E firstElement() {
@@ -283,7 +288,7 @@ public class DefaultListModel<E> extends AbstractListModel<E>
      *
      * @return  the last component of the list
      * @see Vector#lastElement()
-     * @throws NoSuchElementException if this vector
+     * @throws java.util.NoSuchElementException if this vector
      * has no components
      */
     public E lastElement() {
@@ -340,7 +345,7 @@ public class DefaultListModel<E> extends AbstractListModel<E>
      *
      * @param      element the component to insert
      * @param      index   where to insert the new component
-     * @exception  ArrayIndexOutOfBoundsException if the index was invalid
+     * @throws  ArrayIndexOutOfBoundsException if the index was invalid
      * @see #add(int,Object)
      * @see Vector#insertElementAt(Object,int)
      */
@@ -525,6 +530,8 @@ public class DefaultListModel<E> extends AbstractListModel<E>
      *
      * @param c the collection which contains the elements to add
      * @throws NullPointerException if {@code c} is null
+     *
+     * @since 11
      */
     public void addAll(Collection<? extends E> c) {
         if (c.isEmpty()) {
@@ -547,6 +554,8 @@ public class DefaultListModel<E> extends AbstractListModel<E>
      * @throws ArrayIndexOutOfBoundsException if {@code index} does not
      * fall within the range of number of elements currently held
      * @throws NullPointerException if {@code c} is null
+     *
+     * @since 11
      */
     public void addAll(int index, Collection<? extends E> c) {
         if (index < 0 || index > getSize()) {

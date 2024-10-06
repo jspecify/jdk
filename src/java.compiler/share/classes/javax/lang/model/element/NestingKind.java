@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 package javax.lang.model.element;
 
 /**
- * The <i>nesting kind</i> of a type element.
+ * The <dfn>nesting kind</dfn> of a type element.
  * Type elements come in four varieties:
  * top-level, member, local, and anonymous.
  * <i>Nesting kind</i> is a non-standard term used here to denote this
@@ -76,42 +76,42 @@ package javax.lang.model.element;
  * }
  * </pre></blockquote>
  *
- * @author Joseph D. Darcy
- * @author Scott Seligman
- * @author Peter von der Ah&eacute;
  * @since 1.6
  */
 public enum NestingKind {
     /**
-     * A top-level type, not contained within another type.
+     * A top-level class or interface, not contained within another
+     * class or interface.
      */
     TOP_LEVEL,
 
     /**
-     * A type that is a named member of another type.
-     * @jls 8.5 Member Type Declarations
+     * A class or interface that is a named member of another class or
+     * interface.
+     * @jls 8.5 Member Class and Interface Declarations
      */
     MEMBER,
 
     /**
-     * A named type declared within a construct other than a type.
-     * @jls 14.3 Local Class Declarations
+     * A named class or interface declared within a construct other
+     * than a class or interface.
+     * @jls 14.3 Local Class and Interface Declarations
      */
     LOCAL,
 
     /**
-     * A type without a name.
+     * A class without a name.
      * @jls 15.9.5 Anonymous Class Declarations
      */
     ANONYMOUS;
 
     /**
      * Does this constant correspond to a nested type element?
-     * A <i>nested</i> type element is any that is not top-level.
+     * A <dfn>nested</dfn> type element is any that is not top-level.
      * More specifically, an <i>inner</i> type element is any nested type element that
      * is not {@linkplain Modifier#STATIC static}.
      * @return whether or not the constant is nested
-     * @jls 14.3 Inner Classes and Enclosing Instances
+     * @jls 14.3 Local Class and Interface Declarations
      */
     public boolean isNested() {
         return this != TOP_LEVEL;

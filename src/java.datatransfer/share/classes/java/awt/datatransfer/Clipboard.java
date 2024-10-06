@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,6 @@
 
 package java.awt.datatransfer;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -46,12 +43,12 @@ import sun.datatransfer.DataFlavorUtil;
  *
  * @author Amy Fowler
  * @author Alexander Gerasimov
- * @see java.awt.Toolkit#getSystemClipboard
- * @see java.awt.Toolkit#getSystemSelection
+ * @see java.desktop/java.awt.Toolkit#getSystemClipboard
+ * @see java.desktop/java.awt.Toolkit#getSystemSelection
  * @since 1.1
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class Clipboard {
+@SuppressWarnings("doclint:reference") // cross-module links
+public class Clipboard {
 
     String name;
 
@@ -85,7 +82,7 @@ public @UsesObjectEquals class Clipboard {
      * Creates a clipboard object.
      *
      * @param  name for the clipboard
-     * @see java.awt.Toolkit#getSystemClipboard
+     * @see java.desktop/java.awt.Toolkit#getSystemClipboard
      */
     public Clipboard(String name) {
         this.name = name;
@@ -95,7 +92,7 @@ public @UsesObjectEquals class Clipboard {
      * Returns the name of this clipboard object.
      *
      * @return the name of this clipboard object
-     * @see java.awt.Toolkit#getSystemClipboard
+     * @see java.desktop/java.awt.Toolkit#getSystemClipboard
      */
     public String getName() {
         return name;
@@ -122,7 +119,7 @@ public @UsesObjectEquals class Clipboard {
      *         content
      * @param  owner the object which owns the clipboard content
      * @throws IllegalStateException if the clipboard is currently unavailable
-     * @see java.awt.Toolkit#getSystemClipboard
+     * @see java.desktop/java.awt.Toolkit#getSystemClipboard
      */
     public synchronized void setContents(Transferable contents, ClipboardOwner owner) {
         final ClipboardOwner oldOwner = this.owner;
@@ -149,7 +146,7 @@ public @UsesObjectEquals class Clipboard {
      * @param  requestor the object requesting the clip data (not used)
      * @return the current transferable object on the clipboard
      * @throws IllegalStateException if the clipboard is currently unavailable
-     * @see java.awt.Toolkit#getSystemClipboard
+     * @see java.desktop/java.awt.Toolkit#getSystemClipboard
      */
     public synchronized Transferable getContents(Object requestor) {
         return contents;

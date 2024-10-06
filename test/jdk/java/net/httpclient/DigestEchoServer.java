@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -28,6 +26,8 @@ import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
+
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -43,6 +43,7 @@ import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.StandardSocketOptions;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -53,6 +54,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -65,8 +67,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
+
+import jdk.httpclient.test.lib.common.HttpServerAdapters.AbstractHttpAuthFilter.HttpAuthMode;
 import sun.net.www.HeaderParser;
 import java.net.http.HttpClient.Version;
+import jdk.httpclient.test.lib.common.HttpServerAdapters;
+import jdk.httpclient.test.lib.http2.Http2TestServer;
 
 /**
  * A simple HTTP server that supports Basic or Digest authentication.
@@ -79,9 +85,19 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
 
     public static final boolean DEBUG =
             Boolean.parseBoolean(System.getProperty("test.debug", "false"));
+    public static final boolean NO_LINGER =
+            Boolean.parseBoolean(System.getProperty("test.nolinger", "false"));
+    public static final boolean TUNNEL_REQUIRES_HOST =
+            Boolean.parseBoolean(System.getProperty("test.requiresHost", "false"));
     public enum HttpAuthType {
-        SERVER, PROXY, SERVER307, PROXY305
+        SERVER, PROXY, SERVER307, PROXY305;
         /* add PROXY_AND_SERVER and SERVER_PROXY_NONE */
+        public HttpAuthMode authMode() {
+            return switch (this) {
+                case SERVER, SERVER307 -> HttpAuthMode.SERVER;
+                case PROXY, PROXY305 -> HttpAuthMode.PROXY;
+            };
+        }
     };
     public enum HttpAuthSchemeType { NONE, BASICSERVER, BASIC, DIGEST };
     public static final HttpAuthType DEFAULT_HTTP_AUTH_TYPE = HttpAuthType.SERVER;
@@ -472,19 +488,21 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
         return server;
     }
 
+    static BasicAuthenticator toBasicAuthenticator(HttpTestAuthenticator auth) {
+        final String realm = auth.getRealm();
+        return new BasicAuthenticator(realm) {
+            @Override
+            public boolean checkCredentials(String username, String pwd) {
+                return auth.getUserName().equals(username)
+                        && new String(auth.getPassword(username)).equals(pwd);
+            }
+        };
+    }
 
     static void setContextAuthenticator(HttpTestContext ctxt,
                                         HttpTestAuthenticator auth) {
-        final String realm = auth.getRealm();
-        com.sun.net.httpserver.Authenticator authenticator =
-            new BasicAuthenticator(realm) {
-                @Override
-                public boolean checkCredentials(String username, String pwd) {
-                    return auth.getUserName().equals(username)
-                           && new String(auth.getPassword(username)).equals(pwd);
-                }
-        };
-        ctxt.setAuthenticator(authenticator);
+
+        ctxt.setAuthenticator(toBasicAuthenticator(auth));
     }
 
     public static DigestEchoServer createServer(Version version,
@@ -651,7 +669,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                                  HttpAuthType authType) {
         switch(schemeType) {
             case DIGEST:
-                // DIGEST authentication is handled by the handler.
+                // DIGEST authentication is handled by the filter.
                 ctxt.addFilter(new HttpDigestFilter(key, auth, authType));
                 break;
             case BASIC:
@@ -681,6 +699,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                         throw new InternalError(key + ": Invalid combination scheme="
                              + schemeType + " authType=" + authType);
                 }
+                break;
             case NONE:
                 // No authentication at all.
                 ctxt.addFilter(new HttpNoAuthFilter(key, authType));
@@ -697,85 +716,6 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
         return new Http3xxHandler(key, proxyURL, type, code300);
     }
 
-    // Abstract HTTP filter class.
-    private abstract static class AbstractHttpFilter extends HttpTestFilter {
-
-        final HttpAuthType authType;
-        final String type;
-        public AbstractHttpFilter(HttpAuthType authType, String type) {
-            this.authType = authType;
-            this.type = type;
-        }
-
-        String getLocation() {
-            return "Location";
-        }
-        String getAuthenticate() {
-            return authType == HttpAuthType.PROXY
-                    ? "Proxy-Authenticate" : "WWW-Authenticate";
-        }
-        String getAuthorization() {
-            return authType == HttpAuthType.PROXY
-                    ? "Proxy-Authorization" : "Authorization";
-        }
-        int getUnauthorizedCode() {
-            return authType == HttpAuthType.PROXY
-                    ? HttpURLConnection.HTTP_PROXY_AUTH
-                    : HttpURLConnection.HTTP_UNAUTHORIZED;
-        }
-        String getKeepAlive() {
-            return "keep-alive";
-        }
-        String getConnection() {
-            return authType == HttpAuthType.PROXY
-                    ? "Proxy-Connection" : "Connection";
-        }
-        protected abstract boolean isAuthentified(HttpTestExchange he) throws IOException;
-        protected abstract void requestAuthentication(HttpTestExchange he) throws IOException;
-        protected void accept(HttpTestExchange he, HttpChain chain) throws IOException {
-            chain.doFilter(he);
-        }
-
-        @Override
-        public String description() {
-            return "Filter for " + type;
-        }
-        @Override
-        public void doFilter(HttpTestExchange he, HttpChain chain) throws IOException {
-            try {
-                System.out.println(type + ": Got " + he.getRequestMethod()
-                    + ": " + he.getRequestURI()
-                    + "\n" + DigestEchoServer.toString(he.getRequestHeaders()));
-
-                // Assert only a single value for Expect. Not directly related
-                // to digest authentication, but verifies good client behaviour.
-                List<String> expectValues = he.getRequestHeaders().get("Expect");
-                if (expectValues != null && expectValues.size() > 1) {
-                    throw new IOException("Expect:  " + expectValues);
-                }
-
-                if (!isAuthentified(he)) {
-                    try {
-                        requestAuthentication(he);
-                        he.sendResponseHeaders(getUnauthorizedCode(), -1);
-                        System.out.println(type
-                            + ": Sent back " + getUnauthorizedCode());
-                    } finally {
-                        he.close();
-                    }
-                } else {
-                    accept(he, chain);
-                }
-            } catch (RuntimeException | Error | IOException t) {
-               System.err.println(type
-                    + ": Unexpected exception while handling request: " + t);
-               t.printStackTrace(System.err);
-               he.close();
-               throw t;
-            }
-        }
-
-    }
 
     // WARNING: This is not a full fledged implementation of DIGEST.
     // It does contain bugs and inaccuracy.
@@ -816,11 +756,6 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
 
         // Code stolen from DigestAuthentication:
 
-        private static final char charArray[] = {
-            '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-        };
-
         private static String encode(String src, char[] passwd, MessageDigest md) {
             try {
                 md.update(src.getBytes("ISO-8859-1"));
@@ -835,15 +770,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                 Arrays.fill(passwdBytes, (byte)0x00);
             }
             byte[] digest = md.digest();
-
-            StringBuilder res = new StringBuilder(digest.length * 2);
-            for (int i = 0; i < digest.length; i++) {
-                int hashchar = ((digest[i] >>> 4) & 0xf);
-                res.append(charArray[hashchar]);
-                hashchar = (digest[i] & 0xf);
-                res.append(charArray[hashchar]);
-            }
-            return res.toString();
+            return HexFormat.of().formatHex(digest);
         }
 
         public static String computeDigest(boolean isRequest,
@@ -923,16 +850,16 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
 
     }
 
-    private static class HttpNoAuthFilter extends AbstractHttpFilter {
+    private static class HttpNoAuthFilter extends AbstractHttpAuthFilter {
 
         static String type(String key, HttpAuthType authType) {
-            String type = authType == HttpAuthType.SERVER
+            String type = authType.authMode() == HttpAuthMode.SERVER
                     ? "NoAuth Server Filter" : "NoAuth Proxy Filter";
             return "["+type+"]:"+key;
         }
 
         public HttpNoAuthFilter(String key, HttpAuthType authType) {
-            super(authType, type(key, authType));
+            super(authType.authMode(), type(key, authType));
         }
 
         @Override
@@ -953,73 +880,22 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
     }
 
     // An HTTP Filter that performs Basic authentication
-    private static class HttpBasicFilter extends AbstractHttpFilter {
+    private static class HttpBasicFilter extends HttpBasicAuthFilter {
 
         static String type(String key, HttpAuthType authType) {
-            String type = authType == HttpAuthType.SERVER
+            String type = authType.authMode() == HttpAuthMode.SERVER
                     ? "Basic Server Filter" : "Basic Proxy Filter";
             return "["+type+"]:"+key;
         }
 
-        private final HttpTestAuthenticator auth;
         public HttpBasicFilter(String key, HttpTestAuthenticator auth,
                                HttpAuthType authType) {
-            super(authType, type(key, authType));
-            this.auth = auth;
-        }
-
-        @Override
-        protected void requestAuthentication(HttpTestExchange he)
-            throws IOException
-        {
-            String headerName = getAuthenticate();
-            String headerValue = "Basic realm=\"" + auth.getRealm() + "\"";
-            he.getResponseHeaders().addHeader(headerName, headerValue);
-            System.out.println(type + ": Requesting Basic Authentication, "
-                               + headerName + " : "+ headerValue);
-        }
-
-        @Override
-        protected boolean isAuthentified(HttpTestExchange he) {
-            if (he.getRequestHeaders().containsKey(getAuthorization())) {
-                List<String> authorization =
-                    he.getRequestHeaders().get(getAuthorization());
-                for (String a : authorization) {
-                    System.out.println(type + ": processing " + a);
-                    int sp = a.indexOf(' ');
-                    if (sp < 0) return false;
-                    String scheme = a.substring(0, sp);
-                    if (!"Basic".equalsIgnoreCase(scheme)) {
-                        System.out.println(type + ": Unsupported scheme '"
-                                           + scheme +"'");
-                        return false;
-                    }
-                    if (a.length() <= sp+1) {
-                        System.out.println(type + ": value too short for '"
-                                            + scheme +"'");
-                        return false;
-                    }
-                    a = a.substring(sp+1);
-                    return validate(a);
-                }
-                return false;
-            }
-            return false;
-        }
-
-        boolean validate(String a) {
-            byte[] b = Base64.getDecoder().decode(a);
-            String userpass = new String (b);
-            int colon = userpass.indexOf (':');
-            String uname = userpass.substring (0, colon);
-            String pass = userpass.substring (colon+1);
-            return auth.getUserName().equals(uname) &&
-                   new String(auth.getPassword(uname)).equals(pass);
+            super(toBasicAuthenticator(auth), authType.authMode(), type(key, authType));
         }
 
         @Override
         public String description() {
-            return "Filter for BASIC authentication: " + type;
+            return "Filter for BASIC authentication: " + type();
         }
 
     }
@@ -1028,10 +904,10 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
     // An HTTP Filter that performs Digest authentication
     // WARNING: This is not a full fledged implementation of DIGEST.
     // It does contain bugs and inaccuracy.
-    private static class HttpDigestFilter extends AbstractHttpFilter {
+    private static class HttpDigestFilter extends AbstractHttpAuthFilter {
 
         static String type(String key, HttpAuthType authType) {
-            String type = authType == HttpAuthType.SERVER
+            String type = authType.authMode() == HttpAuthMode.SERVER
                     ? "Digest Server Filter" : "Digest Proxy Filter";
             return "["+type+"]:"+key;
         }
@@ -1043,12 +919,14 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
         private final HttpTestAuthenticator auth;
         private final byte[] nonce;
         private final String ns;
+        private final String type;
         public HttpDigestFilter(String key, HttpTestAuthenticator auth, HttpAuthType authType) {
-            super(authType, type(key, authType));
+            super(authType.authMode(), type(key, authType));
             this.auth = auth;
             nonce = new byte[16];
             new Random(Instant.now().toEpochMilli()).nextBytes(nonce);
             ns = new BigInteger(1, nonce).toString(16);
+            this.type = type();
         }
 
         @Override
@@ -1521,6 +1399,36 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
             }
         }
 
+        boolean badRequest(StringBuilder response, String hostport, List<String> hosts) {
+            String message = null;
+            if (hosts.isEmpty()) {
+                message = "No host header provided\r\n";
+            } else if (hosts.size() > 1) {
+                message = "Multiple host headers provided\r\n";
+                for (String h : hosts) {
+                    message = message + "host: " + h + "\r\n";
+                }
+            } else {
+                String h = hosts.get(0);
+                if (!hostport.equalsIgnoreCase(h)
+                        && !hostport.equalsIgnoreCase(h + ":80")
+                        && !hostport.equalsIgnoreCase(h + ":443")) {
+                    message = "Bad host provided: [" + h
+                            + "] doesnot match [" + hostport + "]\r\n";
+                }
+            }
+            if (message != null) {
+                int length = message.getBytes(StandardCharsets.UTF_8).length;
+                response.append("HTTP/1.1 400 BadRequest\r\n")
+                        .append("Content-Length: " + length)
+                        .append("\r\n\r\n")
+                        .append(message);
+                return true;
+            }
+
+            return false;
+        }
+
         boolean authorize(StringBuilder response, String requestLine, String headers) {
             if (authorization != null) {
                 return authorization.authorize(response, requestLine, headers);
@@ -1535,21 +1443,24 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                 @Override
                 public void run() {
                     try {
+                        int len = 0;
+                        byte[] buf = new byte[16 * 1024];
                         try {
-                            int c;
-                            while ((c = is.read()) != -1) {
-                                os.write(c);
+                            while ((len = is.read(buf)) != -1) {
+                                os.write(buf, 0, len);
                                 os.flush();
                                 // if DEBUG prints a + or a - for each transferred
                                 // character.
-                                if (DEBUG) System.out.print(tag);
+                                if (DEBUG) System.out.print(String.valueOf(tag).repeat(len));
                             }
                             is.close();
+                        } catch (IOException ex) {
+                            if (DEBUG || !stopped && len > -1)
+                                ex.printStackTrace(System.out);
+                            end.completeExceptionally(ex);
                         } finally {
-                            os.close();
+                            try {os.close();} catch (Throwable t) {}
                         }
-                    } catch (IOException ex) {
-                        if (DEBUG) ex.printStackTrace(System.out);
                     } finally {
                         end.complete(null);
                     }
@@ -1599,19 +1510,25 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
         @Override
         public void run() {
             Socket clientConnection = null;
+            Socket targetConnection = null;
             try {
                 while (!stopped) {
                     System.out.println(now() + "Tunnel: Waiting for client");
                     Socket toClose;
+                    targetConnection = clientConnection = null;
                     try {
                         toClose = clientConnection = ss.accept();
+                        if (NO_LINGER) {
+                            // can be useful to trigger "Connection reset by peer"
+                            // errors on the client side.
+                            clientConnection.setOption(StandardSocketOptions.SO_LINGER, 0);
+                        }
                     } catch (IOException io) {
                         if (DEBUG || !stopped) io.printStackTrace(System.out);
                         break;
                     }
                     System.out.println(now() + "Tunnel: Client accepted");
                     StringBuilder headers = new StringBuilder();
-                    Socket targetConnection = null;
                     InputStream  ccis = clientConnection.getInputStream();
                     OutputStream ccos = clientConnection.getOutputStream();
                     Writer w = new OutputStreamWriter(
@@ -1629,6 +1546,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                         assert connect.equalsIgnoreCase("connect");
                         String hostport = tokenizer.nextToken();
                         InetSocketAddress targetAddress;
+                        List<String> hosts = new ArrayList<>();
                         try {
                             URI uri = new URI("https", hostport, "/", null, null);
                             int port = uri.getPort();
@@ -1653,9 +1571,30 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                             System.out.println(now() + "Tunnel: Reading header: "
                                                + (line = readLine(ccis)));
                             headers.append(line).append("\r\n");
+                            int index = line.indexOf(':');
+                            if (index >= 0) {
+                                String key = line.substring(0, index).trim();
+                                if (key.equalsIgnoreCase("host")) {
+                                    hosts.add(line.substring(index+1).trim());
+                                }
+                            }
+                        }
+                        StringBuilder response = new StringBuilder();
+                        if (TUNNEL_REQUIRES_HOST) {
+                            if (badRequest(response, hostport, hosts)) {
+                                System.out.println(now() + "Tunnel: Sending " + response);
+                                // send the 400 response
+                                pw.print(response.toString());
+                                pw.flush();
+                                toClose.close();
+                                continue;
+                            } else {
+                                assert hosts.size() == 1;
+                                System.out.println(now()
+                                        + "Tunnel: Host header verified " + hosts);
+                            }
                         }
 
-                        StringBuilder response = new StringBuilder();
                         final boolean authorize = authorize(response, requestLine, headers.toString());
                         if (!authorize) {
                             System.out.println(now() + "Tunnel: Sending "
@@ -1709,26 +1648,42 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                             end1 = new CompletableFuture<>());
                     Thread t2 = pipe(targetConnection.getInputStream(), ccos, '-',
                             end2 = new CompletableFuture<>());
-                    end = CompletableFuture.allOf(end1, end2);
+                    var end11 = end1.whenComplete((r, t) -> exceptionally(end2, t));
+                    var end22 = end2.whenComplete((r, t) ->  exceptionally(end1, t));
+                    end = CompletableFuture.allOf(end11, end22);
+                    Socket tc = targetConnection;
                     end.whenComplete(
                             (r,t) -> {
                                 try { toClose.close(); } catch (IOException x) { }
+                                try { tc.close(); } catch (IOException x) { }
                                 finally {connectionCFs.remove(end);}
                             });
                     connectionCFs.add(end);
+                    targetConnection = clientConnection = null;
                     t1.start();
                     t2.start();
                 }
             } catch (Throwable ex) {
-                try {
-                    ss.close();
-                } catch (IOException ex1) {
-                    ex.addSuppressed(ex1);
-                }
+                close(clientConnection, ex);
+                close(targetConnection, ex);
+                close(ss, ex);
                 ex.printStackTrace(System.err);
             } finally {
                 System.out.println(now() + "Tunnel: exiting (stopped=" + stopped + ")");
                 connectionCFs.forEach(cf -> cf.complete(null));
+            }
+        }
+
+        void exceptionally(CompletableFuture<?> cf, Throwable t) {
+            if (t != null) cf.completeExceptionally(t);
+        }
+
+        void close(Closeable c, Throwable e) {
+            if (c == null) return;
+            try {
+                c.close();
+            } catch (IOException x) {
+                e.addSuppressed(x);
             }
         }
     }

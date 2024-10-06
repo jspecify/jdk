@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,12 +32,13 @@
 #include "unittest.hpp"
 #include "utilities/ostream.hpp"
 
-LogTestFixture::LogTestFixture() : _configuration_snapshot(NULL), _n_snapshots(0) {
-  // Set up TestLogFileName to include PID, testcase name and test name
-  int ret = jio_snprintf(_filename, sizeof(_filename), "testlog.pid%d.%s.%s.log",
-                         os::current_process_id(),
-                         ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name(),
-                         ::testing::UnitTest::GetInstance()->current_test_info()->name());
+LogTestFixture::LogTestFixture() : _n_snapshots(0), _configuration_snapshot(nullptr) {
+
+  // Set up TestLogFileName to include temp_dir, PID, testcase name and test name.
+  const testing::TestInfo* test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+  int ret = jio_snprintf(_filename, sizeof(_filename), "%s%stestlog.pid%d.%s.%s.log",
+                         os::get_temp_directory(), os::file_separator(), os::current_process_id(),
+                         test_info->test_case_name(), test_info->name());
   EXPECT_GT(ret, 0) << "_filename buffer issue";
   TestLogFileName = _filename;
 
@@ -96,26 +97,27 @@ void LogTestFixture::restore_config() {
 
     char* decorators = str;
 
-    char* options = NULL;
     str = strchr(str, ' ');
-    if (str != NULL) {
+    if (str != nullptr) {
+      // This output has options. However, UL doesn't allow the options of any
+      // output to be changed, so they cannot be modified by the tests,
+      // and also we cannot change them here. So just mark the end of the
+      // decorators.
       *str++ = '\0';
-      options = str;
     }
-
-    set_log_config(name, selection, decorators, options != NULL ? options : "");
+    set_log_config(name, selection, decorators, /* options = */ nullptr);
   }
 }
 
 void LogTestFixture::clear_snapshot() {
-  if (_configuration_snapshot == NULL) {
+  if (_configuration_snapshot == nullptr) {
     return;
   }
-  assert(_n_snapshots > 0, "non-null array should have at least 1 element");
+  ASSERT_GT(_n_snapshots, size_t(0)) << "non-null array should have at least 1 element";
   for (size_t i = 0; i < _n_snapshots; i++) {
     os::free(_configuration_snapshot[i]);
   }
   FREE_C_HEAP_ARRAY(char*, _configuration_snapshot);
-  _configuration_snapshot = NULL;
+  _configuration_snapshot = nullptr;
   _n_snapshots = 0;
 }

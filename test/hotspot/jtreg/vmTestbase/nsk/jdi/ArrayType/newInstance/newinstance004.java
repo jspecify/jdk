@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,7 +73,9 @@ public class newinstance004 {
 
     public static void main (String argv[]) {
         int result = run(argv, System.out);
-        System.exit(result + PASS_BASE);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run (String argv[], PrintStream out) {
@@ -144,8 +146,22 @@ public class newinstance004 {
         log1("      TESTING BEGINS");
 
         for (int i = 0; ; i++) {
-        pipe.println("newcheck");
+            pipe.println("newcheck");
+
+            // There are potentially other non-test Java threads allocating objects and triggering
+            // GC's so we need to suspend the target VM to avoid the objects created in the test
+            // from being accidentally GC'ed. However, we need the target VM temporary resumed
+            // while reading its response. Below we resume the target VM (if required) and suspend
+            // it only after pipe.readln() returns.
+
+            // On the first iteration the target VM is not suspended yet.
+            if (i > 0) {
+                debuggee.resume();
+            }
             line = pipe.readln();
+
+            // Suspending target VM to prevent other non-test Java threads from triggering GCs.
+            debuggee.suspend();
 
             if (line.equals("checkend")) {
                 log2("     : returned string is 'checkend'");
@@ -230,6 +246,7 @@ public class newinstance004 {
     //--------------------------------------------------   test summary section
     //-------------------------------------------------    standard end section
 
+        debuggee.resume();
         pipe.println("quit");
         log2("waiting for the debuggee to finish ...");
         debuggee.waitFor();

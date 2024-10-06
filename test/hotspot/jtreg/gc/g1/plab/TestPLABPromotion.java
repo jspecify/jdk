@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,12 @@
  * @bug 8141278 8141141
  * @summary Test PLAB promotion
  * @requires vm.gc.G1
- * @requires !vm.flightRecorder
+ * @requires vm.flagless
  * @library /test/lib /
  * @modules java.base/jdk.internal.misc
  * @modules java.management
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/timeout=240 gc.g1.plab.TestPLABPromotion
  */
 package gc.g1.plab;
@@ -46,6 +45,7 @@ import gc.g1.plab.lib.LogParser;
 import gc.g1.plab.lib.PLABUtils;
 import gc.g1.plab.lib.PlabInfo;
 
+import jdk.test.lib.Platform;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
@@ -63,17 +63,18 @@ public class TestPLABPromotion {
     private final static String PLAB_DIRECT_ALLOCATED_FIELD_NAME = "direct allocated";
     private final static List<String> FIELDS_TO_EXTRACT = Arrays.asList(PLAB_USED_FIELD_NAME, PLAB_DIRECT_ALLOCATED_FIELD_NAME);
 
+    private static final int HEAP_WORD_SIZE = Platform.is32bit() ? 4 : 8;
+
     private static String output;
 
     // Allowable difference for memory consumption (percentage)
     private final static long MEM_DIFFERENCE_PCT = 5;
-
     private static final int PLAB_SIZE_SMALL = 1024;
     private static final int PLAB_SIZE_MEDIUM = 4096;
     private static final int PLAB_SIZE_HIGH = 65536;
-    private static final int OBJECT_SIZE_SMALL = 10;
-    private static final int OBJECT_SIZE_MEDIUM = 100;
-    private static final int OBJECT_SIZE_HIGH = 1000;
+    private static final int OBJECT_SIZE_SMALL  = 10 * HEAP_WORD_SIZE;
+    private static final int OBJECT_SIZE_MEDIUM = 128 * HEAP_WORD_SIZE;
+    private static final int OBJECT_SIZE_HIGH   = 3072 * HEAP_WORD_SIZE;
     private static final int GC_NUM_SMALL = 1;
     private static final int GC_NUM_MEDIUM = 3;
     private static final int GC_NUM_HIGH = 7;
@@ -95,7 +96,8 @@ public class TestPLABPromotion {
         new TestCase(WASTE_PCT_SMALL, PLAB_SIZE_SMALL, OBJECT_SIZE_HIGH, GC_NUM_MEDIUM, YOUNG_SIZE_LOW, PLAB_FIXED, true, false),
         new TestCase(WASTE_PCT_MEDIUM, PLAB_SIZE_HIGH, OBJECT_SIZE_SMALL, GC_NUM_HIGH, YOUNG_SIZE_HIGH, PLAB_FIXED, true, true),
         new TestCase(WASTE_PCT_MEDIUM, PLAB_SIZE_SMALL, OBJECT_SIZE_MEDIUM, GC_NUM_SMALL, YOUNG_SIZE_LOW, PLAB_FIXED, true, true),
-        new TestCase(WASTE_PCT_MEDIUM, PLAB_SIZE_MEDIUM, OBJECT_SIZE_HIGH, GC_NUM_MEDIUM, YOUNG_SIZE_LOW, PLAB_FIXED, true, true),
+        new TestCase(WASTE_PCT_MEDIUM, PLAB_SIZE_MEDIUM, OBJECT_SIZE_HIGH, GC_NUM_MEDIUM, YOUNG_SIZE_LOW, PLAB_FIXED, true, false),
+        new TestCase(WASTE_PCT_HIGH, PLAB_SIZE_MEDIUM, OBJECT_SIZE_HIGH, GC_NUM_MEDIUM, YOUNG_SIZE_LOW, PLAB_FIXED, true, true),
         new TestCase(WASTE_PCT_HIGH, PLAB_SIZE_SMALL, OBJECT_SIZE_SMALL, GC_NUM_HIGH, YOUNG_SIZE_HIGH, PLAB_FIXED, true, true),
         new TestCase(WASTE_PCT_HIGH, PLAB_SIZE_HIGH, OBJECT_SIZE_MEDIUM, GC_NUM_SMALL, YOUNG_SIZE_LOW, PLAB_FIXED, true, true),
         new TestCase(WASTE_PCT_HIGH, PLAB_SIZE_SMALL, OBJECT_SIZE_HIGH, GC_NUM_MEDIUM, YOUNG_SIZE_HIGH, PLAB_FIXED, true, false),
@@ -105,8 +107,6 @@ public class TestPLABPromotion {
         new TestCase(WASTE_PCT_SMALL, PLAB_SIZE_HIGH, OBJECT_SIZE_SMALL, GC_NUM_HIGH, YOUNG_SIZE_HIGH, PLAB_DYNAMIC, true, true),
         new TestCase(WASTE_PCT_MEDIUM, PLAB_SIZE_MEDIUM, OBJECT_SIZE_SMALL, GC_NUM_SMALL, YOUNG_SIZE_LOW, PLAB_DYNAMIC, true, true),
         new TestCase(WASTE_PCT_SMALL, PLAB_SIZE_MEDIUM, OBJECT_SIZE_HIGH, GC_NUM_HIGH, YOUNG_SIZE_HIGH, PLAB_DYNAMIC, true, false),
-        new TestCase(WASTE_PCT_MEDIUM, PLAB_SIZE_SMALL, OBJECT_SIZE_MEDIUM, GC_NUM_MEDIUM, YOUNG_SIZE_LOW, PLAB_DYNAMIC, true, true),
-        new TestCase(WASTE_PCT_HIGH, PLAB_SIZE_HIGH, OBJECT_SIZE_MEDIUM, GC_NUM_SMALL, YOUNG_SIZE_HIGH, PLAB_DYNAMIC, true, true),
         new TestCase(WASTE_PCT_HIGH, PLAB_SIZE_HIGH, OBJECT_SIZE_SMALL, GC_NUM_HIGH, YOUNG_SIZE_LOW, PLAB_DYNAMIC, true, true)
     };
 
@@ -117,7 +117,7 @@ public class TestPLABPromotion {
             testCase.print(System.out);
             List<String> options = PLABUtils.prepareOptions(testCase.toOptions());
             options.add(AppPLABPromotion.class.getName());
-            OutputAnalyzer out = ProcessTools.executeTestJvm(options.toArray(new String[options.size()]));
+            OutputAnalyzer out = ProcessTools.executeTestJava(options);
             PLABUtils.commonCheck(out);
             output = out.getOutput();
             checkResults(testCase);
@@ -223,7 +223,7 @@ public class TestPLABPromotion {
      * @return true if checkedValue is less than MEM_DIFFERENCE_PCT percent of controlValue
      */
     private static boolean checkRatio(long checkedValue, long controlValue) {
-        return (Math.abs(checkedValue) / controlValue) * 100L < MEM_DIFFERENCE_PCT;
+        return Math.abs(checkedValue * 100.0 / controlValue) < MEM_DIFFERENCE_PCT;
     }
 
     /**
@@ -236,7 +236,7 @@ public class TestPLABPromotion {
      * MEM_DIFFERENCE_PCT percent of controlValue
      */
     private static boolean checkDifferenceRatio(long checkedValue, long controlValue) {
-        return (Math.abs(checkedValue - controlValue) / controlValue) * 100L < MEM_DIFFERENCE_PCT;
+        return Math.abs((checkedValue - controlValue) * 100.0 / controlValue) < MEM_DIFFERENCE_PCT;
     }
 
     /**
@@ -305,6 +305,7 @@ public class TestPLABPromotion {
         public List<String> toOptions() {
             return Arrays.asList("-XX:ParallelGCThreads=" + parGCThreads,
                     "-XX:ParallelGCBufferWastePct=" + wastePct,
+                    "-XX:ParallelGCThreads=1", // Avoid dynamic sizing of threads.
                     "-XX:OldPLABSize=" + plabSize,
                     "-XX:YoungPLABSize=" + plabSize,
                     "-XX:" + (plabIsFixed ? "-" : "+") + "ResizePLAB",

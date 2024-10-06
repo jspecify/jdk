@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,20 +23,21 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/semaphore.hpp"
-#include "runtime/thread.inline.hpp"
 
-uint   SuspendibleThreadSet::_nthreads          = 0;
-uint   SuspendibleThreadSet::_nthreads_stopped  = 0;
-bool   SuspendibleThreadSet::_suspend_all       = false;
-double SuspendibleThreadSet::_suspend_all_start = 0.0;
+uint          SuspendibleThreadSet::_nthreads          = 0;
+uint          SuspendibleThreadSet::_nthreads_stopped  = 0;
+volatile bool SuspendibleThreadSet::_suspend_all       = false;
+double        SuspendibleThreadSet::_suspend_all_start = 0.0;
 
-static Semaphore* _synchronize_wakeup = NULL;
+static Semaphore* _synchronize_wakeup = nullptr;
 
 void SuspendibleThreadSet_init() {
-  assert(_synchronize_wakeup == NULL, "STS already initialized");
+  assert(_synchronize_wakeup == nullptr, "STS already initialized");
   _synchronize_wakeup = new Semaphore();
 }
 
@@ -48,9 +49,9 @@ bool SuspendibleThreadSet::is_synchronized() {
 
 void SuspendibleThreadSet::join() {
   assert(!Thread::current()->is_suspendible_thread(), "Thread already joined");
-  MonitorLockerEx ml(STS_lock, Mutex::_no_safepoint_check_flag);
-  while (_suspend_all) {
-    ml.wait(Mutex::_no_safepoint_check_flag);
+  MonitorLocker ml(STS_lock, Mutex::_no_safepoint_check_flag);
+  while (should_yield()) {
+    ml.wait();
   }
   _nthreads++;
   DEBUG_ONLY(Thread::current()->set_suspendible_thread();)
@@ -58,20 +59,20 @@ void SuspendibleThreadSet::join() {
 
 void SuspendibleThreadSet::leave() {
   assert(Thread::current()->is_suspendible_thread(), "Thread not joined");
-  MonitorLockerEx ml(STS_lock, Mutex::_no_safepoint_check_flag);
+  MonitorLocker ml(STS_lock, Mutex::_no_safepoint_check_flag);
   assert(_nthreads > 0, "Invalid");
   DEBUG_ONLY(Thread::current()->clear_suspendible_thread();)
   _nthreads--;
-  if (_suspend_all && is_synchronized()) {
+  if (should_yield() && is_synchronized()) {
     // This leave completes a request, so inform the requestor.
     _synchronize_wakeup->signal();
   }
 }
 
-void SuspendibleThreadSet::yield() {
+void SuspendibleThreadSet::yield_slow() {
   assert(Thread::current()->is_suspendible_thread(), "Must have joined");
-  MonitorLockerEx ml(STS_lock, Mutex::_no_safepoint_check_flag);
-  if (_suspend_all) {
+  MonitorLocker ml(STS_lock, Mutex::_no_safepoint_check_flag);
+  if (should_yield()) {
     _nthreads_stopped++;
     if (is_synchronized()) {
       if (ConcGCYieldTimeout > 0) {
@@ -81,8 +82,8 @@ void SuspendibleThreadSet::yield() {
       // This yield completes the request, so inform the requestor.
       _synchronize_wakeup->signal();
     }
-    while (_suspend_all) {
-      ml.wait(Mutex::_no_safepoint_check_flag);
+    while (should_yield()) {
+      ml.wait();
     }
     assert(_nthreads_stopped > 0, "Invalid");
     _nthreads_stopped--;
@@ -90,14 +91,13 @@ void SuspendibleThreadSet::yield() {
 }
 
 void SuspendibleThreadSet::synchronize() {
-  assert(Thread::current()->is_VM_thread(), "Must be the VM thread");
   if (ConcGCYieldTimeout > 0) {
     _suspend_all_start = os::elapsedTime();
   }
   {
-    MonitorLockerEx ml(STS_lock, Mutex::_no_safepoint_check_flag);
-    assert(!_suspend_all, "Only one at a time");
-    _suspend_all = true;
+    MonitorLocker ml(STS_lock, Mutex::_no_safepoint_check_flag);
+    assert(!should_yield(), "Only one at a time");
+    Atomic::store(&_suspend_all, true);
     if (is_synchronized()) {
       return;
     }
@@ -118,17 +118,16 @@ void SuspendibleThreadSet::synchronize() {
   _synchronize_wakeup->wait();
 
 #ifdef ASSERT
-  MonitorLockerEx ml(STS_lock, Mutex::_no_safepoint_check_flag);
-  assert(_suspend_all, "STS not synchronizing");
+  MonitorLocker ml(STS_lock, Mutex::_no_safepoint_check_flag);
+  assert(should_yield(), "STS not synchronizing");
   assert(is_synchronized(), "STS not synchronized");
 #endif
 }
 
 void SuspendibleThreadSet::desynchronize() {
-  assert(Thread::current()->is_VM_thread(), "Must be the VM thread");
-  MonitorLockerEx ml(STS_lock, Mutex::_no_safepoint_check_flag);
-  assert(_suspend_all, "STS not synchronizing");
+  MonitorLocker ml(STS_lock, Mutex::_no_safepoint_check_flag);
+  assert(should_yield(), "STS not synchronizing");
   assert(is_synchronized(), "STS not synchronized");
-  _suspend_all = false;
+  Atomic::store(&_suspend_all, false);
   ml.notify_all();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,44 +25,31 @@
  * @test
  * @bug      6758050 8025633 8182765
  * @summary  Test HTML output for nested generic types.
- * @author   bpatel
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestNestedGenerics
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestNestedGenerics extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestNestedGenerics tester = new TestNestedGenerics();
+        var tester = new TestNestedGenerics();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("pkg/NestedGenerics.html", true,
-            "<div class=\"block\">Contains <a " +
-            "href=\"#foo(java.util.Map)\"><code>foo" +
-            "(java.util.Map&lt;A, java.util.Map&lt;A, A&gt;&gt;)</code></a></div>");
-    }
-
-    @Test
-    void test_html4() {
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-sourcepath", testSrc,
-                "pkg");
-        checkExit(Exit.OK);
-
-        checkOutput("pkg/NestedGenerics.html", true,
-            "<div class=\"block\">Contains <a " +
-            "href=\"#foo-java.util.Map-\"><code>foo" +
-            "(java.util.Map&lt;A, java.util.Map&lt;A, A&gt;&gt;)</code></a></div>");
+            """
+                <div class="block">Contains <a href="#foo(java.util.Map)"><code>foo(java.util.Ma\
+                p&lt;A, java.util.Map&lt;A, A&gt;&gt;)</code></a></div>""");
     }
 }

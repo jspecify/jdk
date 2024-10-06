@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* Copyright  (c) 2002 Graz University of Technology. All rights reserved.
@@ -82,11 +82,7 @@ public class CK_MECHANISM {
      *   CK_ULONG ulParameterLen;
      * </PRE>
      */
-    public Object pParameter;
-
-    public CK_MECHANISM() {
-        // empty
-    }
+    public Object pParameter = null;
 
     public CK_MECHANISM(long mechanism) {
         this.mechanism = mechanism;
@@ -95,7 +91,6 @@ public class CK_MECHANISM {
     // We don't have a (long,Object) constructor to force type checking.
     // This makes sure we don't accidentally pass a class that the native
     // code cannot handle.
-
     public CK_MECHANISM(long mechanism, byte[] pParameter) {
         init(mechanism, pParameter);
     }
@@ -112,11 +107,23 @@ public class CK_MECHANISM {
         init(mechanism, params);
     }
 
+    public CK_MECHANISM(long mechanism, CK_TLS12_MASTER_KEY_DERIVE_PARAMS params) {
+        init(mechanism, params);
+    }
+
     public CK_MECHANISM(long mechanism, CK_SSL3_KEY_MAT_PARAMS params) {
         init(mechanism, params);
     }
 
+    public CK_MECHANISM(long mechanism, CK_TLS12_KEY_MAT_PARAMS params) {
+        init(mechanism, params);
+    }
+
     public CK_MECHANISM(long mechanism, CK_TLS_PRF_PARAMS params) {
+        init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism, CK_TLS_MAC_PARAMS params) {
         init(mechanism, params);
     }
 
@@ -130,6 +137,42 @@ public class CK_MECHANISM {
 
     public CK_MECHANISM(long mechanism, CK_AES_CTR_PARAMS params) {
         init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism, CK_GCM_PARAMS params) {
+        init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism, CK_CCM_PARAMS params) {
+        init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism,
+            CK_SALSA20_CHACHA20_POLY1305_PARAMS params) {
+        init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism, CK_PBE_PARAMS params) {
+        init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism, CK_PKCS5_PBKD2_PARAMS params) {
+        init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism, CK_PKCS5_PBKD2_PARAMS2 params) {
+        init(mechanism, params);
+    }
+
+    // For PSS. the parameter may be set multiple times, use the
+    // CK_MECHANISM(long) constructor and setParameter(CK_RSA_PKCS_PSS_PARAMS)
+    // methods instead of creating yet another constructor
+    public void setParameter(CK_RSA_PKCS_PSS_PARAMS params) {
+        assert(params != null);
+        if (this.pParameter != null && this.pParameter.equals(params)) {
+            return;
+        }
+        this.pParameter = params;
     }
 
     private void init(long mechanism, Object pParameter) {
@@ -147,20 +190,20 @@ public class CK_MECHANISM {
 
         sb.append(Constants.INDENT);
         sb.append("mechanism: ");
-        sb.append(mechanism);
+        sb.append(Functions.getMechanismName(mechanism));
         sb.append(Constants.NEWLINE);
 
         sb.append(Constants.INDENT);
-        sb.append("pParameter: ");
+        sb.append("pParameter:");
+        sb.append(Constants.NEWLINE);
         sb.append(pParameter.toString());
         sb.append(Constants.NEWLINE);
 
+        /*
         sb.append(Constants.INDENT);
         sb.append("ulParameterLen: ??");
-        //buffer.append(pParameter.length);
-        //buffer.append(Constants.NEWLINE);
-
+        sb.append(Constants.NEWLINE);
+        */
         return sb.toString() ;
     }
-
 }

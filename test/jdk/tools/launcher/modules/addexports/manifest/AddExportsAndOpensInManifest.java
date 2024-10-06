@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,10 @@
 
 /**
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @modules jdk.compiler
- * @build AddExportsAndOpensInManifest Test2 JarUtils jdk.testlibrary.*
+ * @build AddExportsAndOpensInManifest Test2
+ *        jdk.test.lib.util.JarUtils
  * @compile --add-exports=java.base/jdk.internal.misc=ALL-UNNAMED Test1.java
  * @run testng AddExportsAndOpensInManifest
  * @summary Basic test for Add-Exports and Add-Opens attributes in the
@@ -39,8 +40,9 @@ import java.nio.file.Paths;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.util.JarUtils;
 
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -86,8 +88,7 @@ public class AddExportsAndOpensInManifest {
                 Paths.get("Test1.class"), Paths.get("Test2.class"));
 
         // java -jar test.jar
-        return ProcessTools.executeTestJava("--illegal-access=deny",
-                                            "-jar", jarfile.toString())
+        return ProcessTools.executeTestJava("-jar", jarfile.toString())
                 .outputTo(System.out)
                 .errorTo(System.out);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,8 +55,8 @@ import java.net.URI;
  *   each configuration.
  *
  * <li>
- *   The {@code java.lang.System} property
- *   <i>java.security.auth.login.config</i>
+ *   The system property
+ *   {@systemProperty java.security.auth.login.config}
  *   may also be set to a {@code URL} pointing to another
  *   login configuration file
  *   (which is the case when a user uses the -D switch at runtime).
@@ -78,10 +78,16 @@ import java.net.URI;
  *
  * <p> The configuration syntax supported by this implementation
  * is exactly that syntax specified in the
- * {@code javax.security.auth.login.Configuration} class.
+ * {@code javax.security.auth.login.Configuration} class. In addition, the
+ * security property <i>policy.expandProperties</i> can be used to control
+ * whether system properties in the configuration file are expanded. If not
+ * set, the default value is <i>true</i> which means that properties will
+ * be expanded.
  *
  * @see javax.security.auth.login.LoginContext
  * @see java.security.Security security properties
+ *
+ * @since 1.4
  */
 public class ConfigFile extends Configuration {
 

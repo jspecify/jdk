@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,20 +25,55 @@
 
 package com.apple.laf;
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Insets;
+import java.awt.LayoutManager;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.KeyEvent;
 
-import javax.accessibility.*;
-import javax.swing.*;
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleState;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.ActionMap;
+import javax.swing.ComboBoxEditor;
+import javax.swing.InputMap;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JList;
+import javax.swing.JRootPane;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.ListCellRenderer;
+import javax.swing.ListModel;
+import javax.swing.LookAndFeel;
+import javax.swing.SwingUtilities;
 import javax.swing.border.Border;
-import javax.swing.event.*;
-import javax.swing.plaf.*;
-import javax.swing.plaf.basic.*;
-import com.apple.laf.ClientPropertyApplicator.Property;
-import apple.laf.JRSUIConstants.Size;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.plaf.ActionMapUIResource;
+import javax.swing.plaf.ComboBoxUI;
+import javax.swing.plaf.ComponentUI;
+import javax.swing.plaf.ListUI;
+import javax.swing.plaf.UIResource;
+import javax.swing.plaf.basic.BasicComboBoxEditor;
+import javax.swing.plaf.basic.BasicComboBoxUI;
+import javax.swing.plaf.basic.ComboPopup;
 
+import apple.laf.JRSUIConstants.Size;
 import com.apple.laf.AquaUtilControlSize.Sizeable;
 import com.apple.laf.AquaUtils.RecyclableSingleton;
+import com.apple.laf.ClientPropertyApplicator.Property;
 
 // Inspired by MetalComboBoxUI, which also has a combined text-and-arrow button for noneditables
 public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
@@ -86,6 +121,11 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
 
     protected void uninstallComponents() {
         getApplicator().removeFrom(comboBox);
+        // AquaButtonUI install some listeners to all parents, which means that
+        // we need to uninstall UI here to remove those listeners, because after
+        // we remove them from ComboBox we lost the latest reference to them,
+        // and our standard uninstallUI machinery will not call them.
+        arrowButton.getUI().uninstallUI(arrowButton);
         super.uninstallComponents();
     }
 
@@ -212,9 +252,8 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
                         if (editor instanceof AquaCustomComboTextField) {
                             ((AquaCustomComboTextField)editor).selectAll();
                         }
-                    } else {
-                        action.actionPerformed(e);
                     }
+                    action.actionPerformed(e);
                 }
             });
         }
@@ -284,6 +323,8 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
         actionMap.put("aquaSelectPageDown", highlightPageDownAction);
 
         actionMap.put("aquaHidePopup", hideAction);
+        actionMap.put("aquaOpenPopupOrhighlightLast", openPopupOrHighlightLast);
+        actionMap.put("aquaOpenPopupOrhighlightFirst", openPopupOrHighlightFirst);
 
         SwingUtilities.replaceUIActionMap(comboBox, actionMap);
     }
@@ -307,7 +348,7 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
     }
 
     /**
-     * Hilight _but do not select_ the next item in the list.
+     * Highlight _but do not select_ the next item in the list.
      */
     @SuppressWarnings("serial") // anonymous class
     private Action highlightNextAction = new ComboBoxAction() {
@@ -324,7 +365,7 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
     };
 
     /**
-     * Hilight _but do not select_ the previous item in the list.
+     * Highlight _but do not select_ the previous item in the list.
      */
     @SuppressWarnings("serial") // anonymous class
     private Action highlightPreviousAction = new ComboBoxAction() {
@@ -414,6 +455,31 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
     }
 
     class AquaComboBoxLayoutManager extends BasicComboBoxUI.ComboBoxLayoutManager {
+        protected Rectangle rectangleForCurrentValue() {
+            int width = comboBox.getWidth();
+            int height = comboBox.getBorder() == null ? 22 : comboBox.getHeight();
+            Insets insets = getInsets();
+            int buttonSize = height - (insets.top + insets.bottom);
+            if ( arrowButton != null )  {
+                buttonSize = arrowButton.getWidth();
+            }
+            int midHeight = (comboBox.getHeight() - height - (insets.top + insets.bottom)) / 2 - 1;
+            if (midHeight < 0) {
+                midHeight = 0;
+            }
+
+            if (comboBox.getComponentOrientation().isLeftToRight()) {
+                return new Rectangle(insets.left, insets.top + midHeight,
+                        width - (insets.left + insets.right + buttonSize) + 3,
+                        height - (insets.top + insets.bottom));
+            }
+            else {
+                return new Rectangle(insets.left + buttonSize, insets.top + midHeight,
+                        width - (insets.left + insets.right + buttonSize) + 3,
+                        height - (insets.top + insets.bottom));
+            }
+        }
+
         public void layoutContainer(final Container parent) {
             if (arrowButton != null && !comboBox.isEditable()) {
                 final Insets insets = comboBox.getInsets();
@@ -437,8 +503,6 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
 
             if (editor != null) {
                 final Rectangle editorRect = rectangleForCurrentValue();
-                editorRect.width += 4;
-                editorRect.height += 1;
                 editor.setBounds(editorRect);
             }
         }
@@ -542,6 +606,27 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
         }
     };
 
+    @SuppressWarnings("serial") // anonymous class
+    private final Action openPopupOrHighlightLast = new ComboBoxAction() {
+        @Override
+        void performComboBoxAction(final AquaComboBoxUI ui) {
+            final int size = listBox.getModel().getSize();
+            listBox.setSelectedIndex(size - 1);
+            listBox.ensureIndexIsVisible(size - 1);
+            comboBox.setSelectedIndex(ui.getPopup().getList().getSelectedIndex());
+        }
+    };
+
+    @SuppressWarnings("serial") // anonymous class
+    private final Action openPopupOrHighlightFirst = new ComboBoxAction() {
+        @Override
+        void performComboBoxAction(final AquaComboBoxUI ui) {
+           listBox.setSelectedIndex(0);
+           listBox.ensureIndexIsVisible(0);
+           comboBox.setSelectedIndex(ui.getPopup().getList().getSelectedIndex());
+        }
+    };
+
     public void applySizeFor(final JComponent c, final Size size) {
         if (arrowButton == null) return;
         final Border border = arrowButton.getBorder();
@@ -558,8 +643,7 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
         final boolean editable = comboBox.isEditable();
 
         final Dimension size;
-        if (!editable && arrowButton != null && arrowButton instanceof AquaComboBoxButton) {
-            final AquaComboBoxButton button = (AquaComboBoxButton)arrowButton;
+        if (!editable && arrowButton instanceof final AquaComboBoxButton button) {
             final Insets buttonInsets = button.getInsets();
             //  Insets insets = comboBox.getInsets();
             final Insets insets = new Insets(0, 5, 0, 25);//comboBox.getInsets();
@@ -578,13 +662,6 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
             size.height += margin.top + margin.bottom;
         } else {
             size = super.getMinimumSize(c);
-        }
-
-        final Border border = c.getBorder();
-        if (border != null) {
-            final Insets insets = border.getBorderInsets(c);
-            size.height += insets.top + insets.bottom;
-            size.width += insets.left + insets.right;
         }
 
         cachedMinimumSize.setSize(size.width, size.height);
@@ -650,5 +727,36 @@ public class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
     };
     static ClientPropertyApplicator<JComboBox<?>, AquaComboBoxUI> getApplicator() {
         return APPLICATOR.get();
+    }
+
+    @Override
+    public int getAccessibleChildrenCount(JComponent c) {
+        return 2;
+    }
+
+    @Override
+    public Accessible getAccessibleChild(JComponent c, int i) {
+        // 0 = the popup
+        // 1 = the editor for editable combobox and the arrow button for non-editable combobox
+        switch ( i ) {
+            case 0:
+                if (popup instanceof Accessible accessiblePopup) {
+                    AccessibleContext ac = accessiblePopup.getAccessibleContext();
+                    ac.setAccessibleParent(comboBox);
+                    return accessiblePopup;
+                }
+                break;
+            case 1:
+                if (comboBox.isEditable()
+                        && (editor instanceof Accessible accessibleEditor)) {
+                    AccessibleContext ac = accessibleEditor.getAccessibleContext();
+                    ac.setAccessibleParent(comboBox);
+                    return accessibleEditor;
+                } else if (!comboBox.isEditable()) {
+                    return arrowButton;
+                }
+                break;
+        }
+        return null;
     }
 }

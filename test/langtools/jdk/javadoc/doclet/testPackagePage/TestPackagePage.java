@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,26 +23,27 @@
 
 /*
  * @test
- * @bug 4492643 4689286 8196201
+ * @bug 4492643 4689286 8196201 8184205
  * @summary Test that a package page is properly generated when a .java file
  * passed to Javadoc.  Also test that the proper package links are generated
  * when single or multiple packages are documented.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestPackagePage
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestPackagePage extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestPackagePage tester = new TestPackagePage();
+        var tester = new TestPackagePage();
         tester.runTests();
     }
 
     @Test
-    void testSinglePackage() {
+    public void testSinglePackage() {
         javadoc("-d", "out-1",
                 "-sourcepath", testSrc,
                 testSrc("com/pkg/C.java"));
@@ -53,55 +54,61 @@ public class TestPackagePage extends JavadocTester {
 
         // With just one package, all general pages link to the single package page.
         checkOutput("com/pkg/C.html", true,
-            "<a href=\"package-summary.html\">Package</a>");
+            """
+                <a href="package-summary.html">Package</a>""");
         checkOutput("com/pkg/package-tree.html", true,
-            "<li><a href=\"package-summary.html\">Package</a></li>");
+            """
+                <li><a href="package-summary.html">Package</a></li>""");
         checkOutput("deprecated-list.html", true,
-            "<li><a href=\"com/pkg/package-summary.html\">Package</a></li>");
+            """
+                <li><a href="com/pkg/package-summary.html">Package</a></li>""");
         checkOutput("index-all.html", true,
-            "<li><a href=\"com/pkg/package-summary.html\">Package</a></li>");
+            """
+                <li><a href="com/pkg/package-summary.html">Package</a></li>""");
         checkOutput("help-doc.html", true,
-            "<li><a href=\"com/pkg/package-summary.html\">Package</a></li>");
+            """
+                <li><a href="com/pkg/package-summary.html">Package</a></li>""");
     }
 
-    private static final String[][] TEST1 = {
-    };
-
-
     @Test
-    void testMultiplePackages() {
+    public void testMultiplePackages() {
         javadoc("-d", "out-2",
                 "-sourcepath", testSrc,
                 "com.pkg", "pkg2");
         checkExit(Exit.OK);
 
         //With multiple packages, there is no package link in general pages.
-        checkOutput("deprecated-list.html", true,
+        checkOutput("deprecated-list.html", false,
             "<li>Package</li>");
-        checkOutput("index-all.html", true,
+        checkOutput("index-all.html", false,
             "<li>Package</li>");
-        checkOutput("help-doc.html", true,
+        checkOutput("help-doc.html", false,
             "<li>Package</li>");
         checkOutput("allclasses-index.html", true,
-                "<table class=\"typeSummary\">\n"
-                + "<caption><span>Class Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
-                + "<tr>\n"
-                + "<th class=\"colFirst\" scope=\"col\">Class</th>\n"
-                + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
-                + "</tr>\n");
+                """
+                    <div id="all-classes-table">
+                    <div class="caption"><span>Classes</span></div>
+                    <div class="summary-table two-column-summary">
+                    <div class="table-header col-first">Class</div>
+                    <div class="table-header col-last">Description</div>
+                    """);
         checkOutput("allpackages-index.html", true,
-                "<table class=\"packagesSummary\">\n"
-                + "<caption><span>Package Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
-                + "<tr>\n"
-                + "<th class=\"colFirst\" scope=\"col\">Package</th>\n"
-                + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
-                + "</tr>\n");
+                """
+                    <div class="caption"><span>Package Summary</span></div>
+                    <div class="summary-table two-column-summary">
+                    <div class="table-header col-first">Package</div>
+                    <div class="table-header col-last">Description</div>
+                    """);
         checkOutput("type-search-index.js", true,
-                "{\"l\":\"All Classes\",\"url\":\"allclasses-index.html\"}");
+                """
+                    {"l":"All Classes and Interfaces","u":"allclasses-index.html"}""");
         checkOutput("package-search-index.js", true,
-                "{\"l\":\"All Packages\",\"url\":\"allpackages-index.html\"}");
+                """
+                    {"l":"All Packages","u":"allpackages-index.html"}""");
         checkOutput("index-all.html", true,
-                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
-                + "<a href=\"allpackages-index.html\">All&nbsp;Packages</a>");
+                """
+                    <br><a href="allclasses-index.html">All&nbsp;Classes&nbsp;and&nbsp;Interfaces</a\
+                    ><span class="vertical-separator">|</span><a href="allpackages-index.html">All&n\
+                    bsp;Packages</a>""");
     }
 }

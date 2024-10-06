@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,8 +47,7 @@ package java.util;
  * @author      Mark Davis
  * @since       1.1
  */
-public
-class MissingResourceException extends RuntimeException {
+public class MissingResourceException extends RuntimeException {
 
     /**
      * Constructs a MissingResourceException with the specified information.
@@ -77,7 +76,7 @@ class MissingResourceException extends RuntimeException {
      *        the key for the missing resource.
      * @param cause
      *        the cause (which is saved for later retrieval by the
-     *        {@link Throwable.getCause()} method). (A null value is
+     *        {@link Throwable#getCause()} method). (A null value is
      *        permitted, and indicates that the cause is nonexistent
      *        or unknown.)
      */
@@ -108,6 +107,7 @@ class MissingResourceException extends RuntimeException {
     //============ privates ============
 
     // serialization compatibility with JDK1.1
+    @java.io.Serial
     private static final long serialVersionUID = -4876345176062000401L;
 
     /**

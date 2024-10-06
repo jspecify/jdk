@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import static sun.security.ssl.SSLExtension.CH_EC_POINT_FORMATS;
 import sun.security.ssl.SSLExtension.ExtensionConsumer;
 import sun.security.ssl.SSLExtension.SSLExtensionSpec;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
-import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
+import sun.security.ssl.NamedGroup.NamedGroupSpec;
 
 /**
  * Pack of the "ec_point_formats" extensions [RFC 4492].
@@ -64,11 +64,13 @@ final class ECPointFormatsExtension {
             this.formats = formats;
         }
 
-        private ECPointFormatsSpec(ByteBuffer m) throws IOException {
+        private ECPointFormatsSpec(HandshakeContext hc,
+                ByteBuffer m) throws IOException {
             if (!m.hasRemaining()) {
-                throw new SSLProtocolException(
+                throw hc.conContext.fatal(Alert.DECODE_ERROR,
+                        new SSLProtocolException(
                     "Invalid ec_point_formats extension: " +
-                    "insufficient data");
+                    "insufficient data"));
             }
 
             this.formats = Record.getBytes8(m);
@@ -117,9 +119,9 @@ final class ECPointFormatsExtension {
 
     private static final class ECPointFormatsStringizer implements SSLStringizer {
         @Override
-        public String toString(ByteBuffer buffer) {
+        public String toString(HandshakeContext hc, ByteBuffer buffer) {
             try {
-                return (new ECPointFormatsSpec(buffer)).toString();
+                return (new ECPointFormatsSpec(hc, buffer)).toString();
             } catch (IOException ioe) {
                 // For debug logging only, so please swallow exceptions.
                 return ioe.getMessage();
@@ -127,7 +129,7 @@ final class ECPointFormatsExtension {
         }
     }
 
-    private static enum ECPointFormat {
+    private enum ECPointFormat {
         UNCOMPRESSED                    ((byte)0, "uncompressed"),
         ANSIX962_COMPRESSED_PRIME       ((byte)1, "ansiX962_compressed_prime"),
         FMT_ANSIX962_COMPRESSED_CHAR2   ((byte)2, "ansiX962_compressed_char2");
@@ -135,7 +137,7 @@ final class ECPointFormatsExtension {
         final byte id;
         final String name;
 
-        private ECPointFormat(byte id, String name) {
+        ECPointFormat(byte id, String name) {
             this.id = id;
             this.name = name;
         }
@@ -151,7 +153,7 @@ final class ECPointFormatsExtension {
     }
 
     /**
-     * Network data producer of a "ec_point_formats" extension in
+     * Network data producer of an "ec_point_formats" extension in
      * the ClientHello handshake message.
      */
     private static final
@@ -179,7 +181,7 @@ final class ECPointFormatsExtension {
             // Produce the extension.
             //
             // produce the extension only if EC cipher suite is activated.
-            if (NamedGroupType.NAMED_GROUP_ECDHE.isSupported(
+            if (NamedGroupSpec.NAMED_GROUP_ECDHE.isSupported(
                     chc.activeCipherSuites)) {
                 // We are using uncompressed ECPointFormat only at present.
                 byte[] extData = new byte[] {0x01, 0x00};
@@ -200,7 +202,7 @@ final class ECPointFormatsExtension {
     }
 
     /**
-     * Network data consumer of a "ec_point_formats" extension in
+     * Network data consumer of an "ec_point_formats" extension in
      * the ClientHello handshake message.
      */
     private static final
@@ -227,17 +229,11 @@ final class ECPointFormatsExtension {
             }
 
             // Parse the extension.
-            ECPointFormatsSpec spec;
-            try {
-                spec = new ECPointFormatsSpec(buffer);
-            } catch (IOException ioe) {
-                shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
-                return;     // fatal() always throws, make the compiler happy.
-            }
+            ECPointFormatsSpec spec = new ECPointFormatsSpec(shc, buffer);
 
             // per RFC 4492, uncompressed points must always be supported.
             if (!spec.hasUncompressedFormat()) {
-                shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                throw shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Invalid ec_point_formats extension data: " +
                     "peer does not support uncompressed points");
             }
@@ -251,7 +247,7 @@ final class ECPointFormatsExtension {
     }
 
     /**
-     * Network data consumer of a "ec_point_formats" extension in
+     * Network data consumer of an "ec_point_formats" extension in
      * the ServerHello handshake message.
      */
     private static final
@@ -272,22 +268,16 @@ final class ECPointFormatsExtension {
             ECPointFormatsSpec requestedSpec = (ECPointFormatsSpec)
                     chc.handshakeExtensions.get(CH_EC_POINT_FORMATS);
             if (requestedSpec == null) {
-                chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Unexpected ec_point_formats extension in ServerHello");
             }
 
             // Parse the extension.
-            ECPointFormatsSpec spec;
-            try {
-                spec = new ECPointFormatsSpec(buffer);
-            } catch (IOException ioe) {
-                chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
-                return;     // fatal() always throws, make the compiler happy.
-            }
+            ECPointFormatsSpec spec = new ECPointFormatsSpec(chc, buffer);
 
             // per RFC 4492, uncompressed points must always be supported.
             if (!spec.hasUncompressedFormat()) {
-                chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                         "Invalid ec_point_formats extension data: " +
                         "peer does not support uncompressed points");
             }

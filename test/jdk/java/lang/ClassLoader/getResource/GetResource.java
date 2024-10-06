@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 /*
  * @test
  * @bug 6760902
- * @library /lib/testlibrary
- * @build jdk.testlibrary.ProcessTools
+ * @library /test/lib
+ * @build jdk.test.lib.process.ProcessTools
  * @run testng GetResource
  * @summary Empty path on bootclasspath is not default to current working
  *          directory for both class lookup and resource lookup whereas
@@ -40,12 +40,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import jdk.testlibrary.JDKToolFinder;
-import static jdk.testlibrary.ProcessTools.*;
+import static jdk.test.lib.process.ProcessTools.*;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
@@ -144,26 +142,14 @@ public class GetResource {
     private void runTest(Path dir, List<String> options, String expected)
         throws Throwable
     {
-        String javapath = JDKToolFinder.getJDKTool("java");
-
         List<String> cmdLine = new ArrayList<>();
-        cmdLine.add(javapath);
         options.forEach(cmdLine::add);
 
         cmdLine.add("GetResource");
         cmdLine.add(expected);
-
-        System.out.println("Command line: " + cmdLine);
-        ProcessBuilder pb =
-            new ProcessBuilder(cmdLine.stream().toArray(String[]::new));
-
-        // change working directory
-        pb.directory(dir.toFile());
-
-        // remove CLASSPATH environment variable
-        Map<String,String> env = pb.environment();
-        String value = env.remove("CLASSPATH");
-
+        ProcessBuilder pb = createTestJavaProcessBuilder(cmdLine);
+        pb.directory(dir.toFile()); // change working directory
+        pb.environment().remove("CLASSPATH"); // remove CLASSPATH environment variable
         executeCommand(pb).shouldHaveExitValue(0);
     }
 

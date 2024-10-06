@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,14 +29,14 @@ import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.InputStream;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
 import java.security.Provider;
 import java.security.Security;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
 
 import sun.security.jca.*;
 import sun.security.jca.GetInstance.Instance;
@@ -129,13 +129,13 @@ import sun.security.jca.GetInstance.Instance;
 public @UsesObjectEquals class CertificateFactory {
 
     // The certificate type
-    private String type;
+    private final String type;
 
     // The provider
-    private Provider provider;
+    private final Provider provider;
 
     // The provider implementation
-    private CertificateFactorySpi certFacSpi;
+    private final CertificateFactorySpi certFacSpi;
 
     /**
      * Creates a CertificateFactory object of the given type, and encapsulates
@@ -171,7 +171,7 @@ public @UsesObjectEquals class CertificateFactory {
      * {@code jdk.security.provider.preferred}
      * {@link Security#getProperty(String) Security} property to determine
      * the preferred provider order for the specified algorithm. This
-     * may be different than the order of providers returned by
+     * may be different from the order of providers returned by
      * {@link Security#getProviders() Security.getProviders()}.
      *
      * @param type the name of the requested certificate type.
@@ -351,12 +351,14 @@ public @UsesObjectEquals class CertificateFactory {
      * @return a certificate object initialized with the data
      * from the input stream.
      *
-     * @exception CertificateException on parsing errors.
+     * @throws    CertificateException on parsing errors.
      */
     public final Certificate generateCertificate(InputStream inStream)
         throws CertificateException
     {
-        return certFacSpi.engineGenerateCertificate(inStream);
+        Certificate c = certFacSpi.engineGenerateCertificate(inStream);
+        JCAUtil.tryCommitCertEvent(c);
+        return c;
     }
 
     /**
@@ -389,7 +391,7 @@ public @UsesObjectEquals class CertificateFactory {
      * @param inStream an {@code InputStream} containing the data
      * @return a {@code CertPath} initialized with the data from the
      *   {@code InputStream}
-     * @exception CertificateException if an exception occurs while decoding
+     * @throws    CertificateException if an exception occurs while decoding
      * @since 1.4
      */
     public final CertPath generateCertPath(InputStream inStream)
@@ -411,7 +413,7 @@ public @UsesObjectEquals class CertificateFactory {
      * @param encoding the encoding used for the data
      * @return a {@code CertPath} initialized with the data from the
      *   {@code InputStream}
-     * @exception CertificateException if an exception occurs while decoding or
+     * @throws    CertificateException if an exception occurs while decoding or
      *   the encoding requested is not supported
      * @since 1.4
      */
@@ -432,7 +434,7 @@ public @UsesObjectEquals class CertificateFactory {
      * @param certificates a {@code List} of {@code Certificate}s
      * @return a {@code CertPath} initialized with the supplied list of
      *   certificates
-     * @exception CertificateException if an exception occurs
+     * @throws    CertificateException if an exception occurs
      * @since 1.4
      */
     public final CertPath
@@ -475,7 +477,7 @@ public @UsesObjectEquals class CertificateFactory {
      * java.security.cert.Certificate objects
      * initialized with the data from the input stream.
      *
-     * @exception CertificateException on parsing errors.
+     * @throws    CertificateException on parsing errors.
      */
     public final Collection<? extends Certificate> generateCertificates
             (InputStream inStream) throws CertificateException {
@@ -509,7 +511,7 @@ public @UsesObjectEquals class CertificateFactory {
      * @return a CRL object initialized with the data
      * from the input stream.
      *
-     * @exception CRLException on parsing errors.
+     * @throws    CRLException on parsing errors.
      */
     public final CRL generateCRL(InputStream inStream)
         throws CRLException
@@ -548,7 +550,7 @@ public @UsesObjectEquals class CertificateFactory {
      * java.security.cert.CRL objects initialized with the data from the input
      * stream.
      *
-     * @exception CRLException on parsing errors.
+     * @throws    CRLException on parsing errors.
      */
     public final Collection<? extends CRL> generateCRLs(InputStream inStream)
             throws CRLException {

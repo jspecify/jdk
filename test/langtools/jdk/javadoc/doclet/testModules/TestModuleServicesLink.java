@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,30 @@
 
 /*
  * @test
- * @bug 8185151 8196200
+ * @bug 8185151 8196200 8261976
  * @summary test that navigation summary links are not linked when there are no dependencies
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.javadoc/jdk.javadoc.internal.api
  *          jdk.javadoc/jdk.javadoc.internal.tool
- * @library ../lib /tools/lib
- * @build toolbox.ToolBox toolbox.ModuleBuilder JavadocTester
+ * @library ../../lib /tools/lib
+ * @build toolbox.ToolBox toolbox.ModuleBuilder javadoc.tester.*
  * @run main TestModuleServicesLink
  */
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import toolbox.*;
+import javadoc.tester.JavadocTester;
+import toolbox.ModuleBuilder;
+import toolbox.ToolBox;
 
 public class TestModuleServicesLink extends JavadocTester {
 
     public final ToolBox tb;
     public static void main(String... args) throws Exception {
-        TestModuleServicesLink  tester = new TestModuleServicesLink ();
-        tester.runTests(m -> new Object[] { Paths.get(m.getName()) });
+        var tester = new TestModuleServicesLink ();
+        tester.runTests();
     }
 
     public TestModuleServicesLink () {
@@ -69,10 +71,12 @@ public class TestModuleServicesLink extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("m/module-summary.html", true,
-                "<li><a href=\"#module.description\">Description</a>&nbsp;|&nbsp;</li>\n"
-                + "<li>Modules&nbsp;|&nbsp;</li>\n"
-                + "<li><a href=\"#packages.summary\">Packages</a>&nbsp;|&nbsp;</li>\n"
-                + "<li><a href=\"#services.summary\">Services</a></li>");
+                """
+                    <ol class="toc-list">
+                    <li><a href="#" tabindex="0">Description</a></li>
+                    <li><a href="#packages-summary" tabindex="0">Packages</a></li>
+                    <li><a href="#services-summary" tabindex="0">Services</a></li>
+                    </ol>""");
 
     }
 
@@ -93,10 +97,12 @@ public class TestModuleServicesLink extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("m/module-summary.html", true,
-                "<li><a href=\"#module.description\">Description</a>&nbsp;|&nbsp;</li>\n"
-                + "<li>Modules&nbsp;|&nbsp;</li>\n"
-                + "<li><a href=\"#packages.summary\">Packages</a>&nbsp;|&nbsp;</li>\n"
-                + "<li><a href=\"#services.summary\">Services</a></li>");
+                """
+                    <ol class="toc-list">
+                    <li><a href="#" tabindex="0">Description</a></li>
+                    <li><a href="#packages-summary" tabindex="0">Packages</a></li>
+                    <li><a href="#services-summary" tabindex="0">Services</a></li>
+                    </ol>""");
 
     }
 
@@ -115,10 +121,11 @@ public class TestModuleServicesLink extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("m/module-summary.html", true,
-                "<li>Description&nbsp;|&nbsp;</li>\n"
-                + "<li>Modules&nbsp;|&nbsp;</li>\n"
-                + "<li><a href=\"#packages.summary\">Packages</a>&nbsp;|&nbsp;</li>\n"
-                + "<li>Services</li>");
+                """
+                    <ol class="toc-list">
+                    <li><a href="#" tabindex="0">Description</a></li>
+                    <li><a href="#packages-summary" tabindex="0">Packages</a></li>
+                    </ol>""");
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,13 @@
 
 package jdk.test.lib;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.FilenameFilter;
 import java.io.IOException;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
@@ -32,27 +37,39 @@ import java.net.ServerSocket;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.AclEntry;
+import java.nio.file.attribute.AclEntryType;
+import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.channels.SocketChannel;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static jdk.test.lib.Asserts.assertTrue;
 import jdk.test.lib.process.ProcessTools;
@@ -88,6 +105,11 @@ public final class Utils {
      */
     public static final String TEST_SRC = System.getProperty("test.src", "").trim();
 
+    /**
+     * Returns the value of 'test.root' system property.
+     */
+    public static final String TEST_ROOT = System.getProperty("test.root", "").trim();
+
     /*
      * Returns the value of 'test.jdk' system property
      */
@@ -96,31 +118,76 @@ public final class Utils {
     /*
      * Returns the value of 'compile.jdk' system property
      */
-    public static final String COMPILE_JDK= System.getProperty("compile.jdk", TEST_JDK);
+    public static final String COMPILE_JDK = System.getProperty("compile.jdk", TEST_JDK);
 
     /**
      * Returns the value of 'test.classes' system property
      */
     public static final String TEST_CLASSES = System.getProperty("test.classes", ".");
+
+    /**
+     * Returns the value of 'test.name' system property
+     */
+    public static final String TEST_NAME = System.getProperty("test.name", ".");
+
+    /**
+     * Returns the value of 'test.nativepath' system property
+     */
+    public static final String TEST_NATIVE_PATH = System.getProperty("test.nativepath", ".");
+
     /**
      * Defines property name for seed value.
      */
     public static final String SEED_PROPERTY_NAME = "jdk.test.lib.random.seed";
 
-    /* (non-javadoc)
-     * Random generator with (or without) predefined seed. Depends on
-     * "jdk.test.lib.random.seed" property value.
+    /**
+     * Returns the value of 'file.separator' system property
+     */
+    public static final String FILE_SEPARATOR = System.getProperty("file.separator");
+
+    /**
+     * Random generator with predefined seed.
      */
     private static volatile Random RANDOM_GENERATOR;
 
     /**
+     * Maximum number of attempts to get free socket
+     */
+    private static final int MAX_SOCKET_TRIES = 10;
+
+    /**
      * Contains the seed value used for {@link java.util.Random} creation.
      */
-    public static final long SEED = Long.getLong(SEED_PROPERTY_NAME, new Random().nextLong());
+    public static final long SEED;
+    static {
+       var seed = Long.getLong(SEED_PROPERTY_NAME);
+       if (seed != null) {
+           // use explicitly set seed
+           SEED = seed;
+       } else {
+           var v = Runtime.version();
+           // promotable builds have build number, and it's greater than 0
+           if (v.build().orElse(0) > 0) {
+               // promotable build -> use 1st 8 bytes of md5($version)
+               try {
+                   var md = MessageDigest.getInstance("MD5");
+                   var bytes = v.toString()
+                                .getBytes(StandardCharsets.UTF_8);
+                   bytes = md.digest(bytes);
+                   SEED = ByteBuffer.wrap(bytes).getLong();
+               } catch (NoSuchAlgorithmException e) {
+                   throw new Error(e);
+               }
+           } else {
+               // "personal" build -> use random seed
+               SEED = new Random().nextLong();
+           }
+       }
+    }
     /**
-    * Returns the value of 'test.timeout.factor' system property
-    * converted to {@code double}.
-    */
+     * Returns the value of 'test.timeout.factor' system property
+     * converted to {@code double}.
+     */
     public static final double TIMEOUT_FACTOR;
     static {
         String toFactor = System.getProperty("test.timeout.factor", "1.0");
@@ -128,22 +195,13 @@ public final class Utils {
     }
 
     /**
-    * Returns the value of JTREG default test timeout in milliseconds
-    * converted to {@code long}.
-    */
+     * Returns the value of JTREG default test timeout in milliseconds
+     * converted to {@code long}.
+     */
     public static final long DEFAULT_TEST_TIMEOUT = TimeUnit.SECONDS.toMillis(120);
 
     private Utils() {
         // Private constructor to prevent class instantiation
-    }
-
-    /**
-     * Returns the list of VM options.
-     *
-     * @return List of VM options
-     */
-    public static List<String> getVmOptions() {
-        return Arrays.asList(safeSplitString(VM_OPTIONS));
     }
 
     /**
@@ -176,7 +234,7 @@ public final class Utils {
      * This is the combination of JTReg arguments test.vm.opts and test.java.opts
      * @return The combination of JTReg test java options and user args.
      */
-    public static String[] addTestJavaOpts(String... userArgs) {
+    public static String[] prependTestJavaOpts(String... userArgs) {
         List<String> opts = new ArrayList<String>();
         Collections.addAll(opts, getTestJavaOpts());
         Collections.addAll(opts, userArgs);
@@ -184,15 +242,35 @@ public final class Utils {
     }
 
     /**
+     * Combines given arguments with default JTReg arguments for a jvm running a test.
+     * This is the combination of JTReg arguments test.vm.opts and test.java.opts
+     * @return The combination of JTReg test java options and user args.
+     */
+    public static String[] appendTestJavaOpts(String... userArgs) {
+        List<String> opts = new ArrayList<String>();
+        Collections.addAll(opts, userArgs);
+        Collections.addAll(opts, getTestJavaOpts());
+        return opts.toArray(new String[0]);
+    }
+
+    /**
+     * Combines given arguments with default JTReg arguments for a jvm running a test.
+     * This is the combination of JTReg arguments test.vm.opts and test.java.opts
+     * @return The combination of JTReg test java options and user args.
+     */
+    public static String[] addTestJavaOpts(String... userArgs) {
+        return prependTestJavaOpts(userArgs);
+    }
+
+    private static final Pattern useGcPattern = Pattern.compile(
+            "(?:\\-XX\\:[\\+\\-]Use.+GC)");
+    /**
      * Removes any options specifying which GC to use, for example "-XX:+UseG1GC".
      * Removes any options matching: -XX:(+/-)Use*GC
      * Used when a test need to set its own GC version. Then any
      * GC specified by the framework must first be removed.
      * @return A copy of given opts with all GC options removed.
      */
-    private static final Pattern useGcPattern = Pattern.compile(
-            "(?:\\-XX\\:[\\+\\-]Use.+GC)"
-            + "|(?:\\-Xconcgc)");
     public static List<String> removeGcOpts(List<String> opts) {
         List<String> optsWithoutGC = new ArrayList<String>();
         for (String opt : opts) {
@@ -285,7 +363,41 @@ public final class Utils {
     }
 
     /**
-     * Returns the free port on the local host.
+     * Returns local addresses with symbolic and numeric scopes
+     */
+    public static List<InetAddress> getAddressesWithSymbolicAndNumericScopes() {
+        List<InetAddress> result = new LinkedList<>();
+        try {
+            NetworkConfiguration conf = NetworkConfiguration.probe();
+            conf.ip4Addresses().forEach(result::add);
+            // Java reports link local addresses with symbolic scope,
+            // but on Windows java.net.NetworkInterface generates its own scope names
+            // which are incompatible with native Windows routines.
+            // So on Windows test only addresses with numeric scope.
+            // On other platforms test both symbolic and numeric scopes.
+            conf.ip6Addresses()
+                    // test only IPv6 loopback and link-local addresses (JDK-8224775)
+                    .filter(addr -> addr.isLinkLocalAddress() || addr.isLoopbackAddress())
+                    .forEach(addr6 -> {
+                        try {
+                            result.add(Inet6Address.getByAddress(null, addr6.getAddress(), addr6.getScopeId()));
+                        } catch (UnknownHostException e) {
+                            // cannot happen!
+                            throw new RuntimeException("Unexpected", e);
+                        }
+                        if (!Platform.isWindows()) {
+                            result.add(addr6);
+                        }
+                    });
+        } catch (IOException e) {
+            // cannot happen!
+            throw new RuntimeException("Unexpected", e);
+        }
+        return result;
+    }
+
+    /**
+     * Returns the free port on the loopback address.
      *
      * @return The port number
      * @throws IOException if an I/O error occurs when opening the socket
@@ -295,6 +407,37 @@ public final class Utils {
                 new ServerSocket(0, 5, InetAddress.getLoopbackAddress());) {
             return serverSocket.getLocalPort();
         }
+    }
+
+    /**
+     * Returns the free unreserved port on the local host.
+     *
+     * @param reservedPorts reserved ports
+     * @return The port number or -1 if failed to find a free port
+     */
+    public static int findUnreservedFreePort(int... reservedPorts) {
+        int numTries = 0;
+        while (numTries++ < MAX_SOCKET_TRIES) {
+            int port = -1;
+            try {
+                port = getFreePort();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if (port > 0 && !isReserved(port, reservedPorts)) {
+                return port;
+            }
+        }
+        return -1;
+    }
+
+    private static boolean isReserved(int port, int[] reservedPorts) {
+        for (int p : reservedPorts) {
+            if (p == port) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -311,63 +454,6 @@ public final class Utils {
                 "Cannot get hostname");
 
         return hostName;
-    }
-
-    /**
-     * Uses "jcmd -l" to search for a jvm pid. This function will wait
-     * forever (until jtreg timeout) for the pid to be found.
-     * @param key Regular expression to search for
-     * @return The found pid.
-     */
-    public static int waitForJvmPid(String key) throws Throwable {
-        final long iterationSleepMillis = 250;
-        System.out.println("waitForJvmPid: Waiting for key '" + key + "'");
-        System.out.flush();
-        while (true) {
-            int pid = tryFindJvmPid(key);
-            if (pid >= 0) {
-                return pid;
-            }
-            Thread.sleep(iterationSleepMillis);
-        }
-    }
-
-    /**
-     * Searches for a jvm pid in the output from "jcmd -l".
-     *
-     * Example output from jcmd is:
-     * 12498 sun.tools.jcmd.JCmd -l
-     * 12254 /tmp/jdk8/tl/jdk/JTwork/classes/com/sun/tools/attach/Application.jar
-     *
-     * @param key A regular expression to search for.
-     * @return The found pid, or -1 if not found.
-     * @throws Exception If multiple matching jvms are found.
-     */
-    public static int tryFindJvmPid(String key) throws Throwable {
-        OutputAnalyzer output = null;
-        try {
-            JDKToolLauncher jcmdLauncher = JDKToolLauncher.create("jcmd");
-            jcmdLauncher.addToolArg("-l");
-            output = ProcessTools.executeProcess(jcmdLauncher.getCommand());
-            output.shouldHaveExitValue(0);
-
-            // Search for a line starting with numbers (pid), follwed by the key.
-            Pattern pattern = Pattern.compile("([0-9]+)\\s.*(" + key + ").*\\r?\\n");
-            Matcher matcher = pattern.matcher(output.getStdout());
-
-            int pid = -1;
-            if (matcher.find()) {
-                pid = Integer.parseInt(matcher.group(1));
-                System.out.println("findJvmPid.pid: " + pid);
-                if (matcher.find()) {
-                    throw new Exception("Found multiple JVM pids for key: " + key);
-                }
-            }
-            return pid;
-        } catch (Throwable t) {
-            System.out.println(String.format("Utils.findJvmPid(%s) failed: %s", key, t));
-            throw t;
-        }
     }
 
     /**
@@ -395,24 +481,17 @@ public final class Utils {
         return new String(Files.readAllBytes(filePath));
     }
 
-    private static final char[] hexArray = new char[]{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-
     /**
      * Returns hex view of byte array
      *
      * @param bytes byte array to process
      * @return space separated hexadecimal string representation of bytes
+     * @deprecated replaced by {@link java.util.HexFormat#ofDelimiter(String)
+     * HexFormat.ofDelimiter(" ").format (byte[], char)}.
      */
+     @Deprecated
      public static String toHexString(byte[] bytes) {
-         char[] hexView = new char[bytes.length * 3 - 1];
-         for (int i = 0; i < bytes.length - 1; i++) {
-             hexView[i * 3] = hexArray[(bytes[i] >> 4) & 0x0F];
-             hexView[i * 3 + 1] = hexArray[bytes[i] & 0x0F];
-             hexView[i * 3 + 2] = ' ';
-         }
-         hexView[hexView.length - 2] = hexArray[(bytes[bytes.length - 1] >> 4) & 0x0F];
-         hexView[hexView.length - 1] = hexArray[bytes[bytes.length - 1] & 0x0F];
-         return new String(hexView);
+         return HexFormat.ofDelimiter(" ").withUpperCase().formatHex(bytes);
      }
 
      /**
@@ -422,20 +501,18 @@ public final class Utils {
       * @return byte array
       */
      public static byte[] toByteArray(String hex) {
-         int length = hex.length();
-         byte[] bytes = new byte[length / 2];
-         for (int i = 0; i < length; i += 2) {
-             bytes[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
-                     + Character.digit(hex.charAt(i + 1), 16));
-         }
-         return bytes;
+         return HexFormat.of().parseHex(hex);
      }
 
     /**
      * Returns {@link java.util.Random} generator initialized with particular seed.
-     * The seed could be provided via system property {@link Utils#SEED_PROPERTY_NAME}
-     * In case no seed is provided, the method uses a random number.
+     * The seed could be provided via system property {@link Utils#SEED_PROPERTY_NAME}.
+     * In case no seed is provided and the build under test is "promotable"
+     * (its build number ({@code $BUILD} in {@link Runtime.Version}) is greater than 0,
+     * the seed based on string representation of {@link Runtime#version()} is used.
+     * Otherwise, the seed is randomly generated.
      * The used seed printed to stdout.
+     * The printing is not in the synchronized block so as to prevent carrier threads starvation.
      * @return {@link java.util.Random} generator with particular seed.
      */
     public static Random getRandomInstance() {
@@ -443,10 +520,12 @@ public final class Utils {
             synchronized (Utils.class) {
                 if (RANDOM_GENERATOR == null) {
                     RANDOM_GENERATOR = new Random(SEED);
-                    System.out.printf("For random generator using seed: %d%n", SEED);
-                    System.out.printf("To re-run test with same seed value please add \"-D%s=%d\" to command line.%n", SEED_PROPERTY_NAME, SEED);
+                } else {
+                    return RANDOM_GENERATOR;
                 }
             }
+            System.out.printf("For random generator using seed: %d%n", SEED);
+            System.out.printf("To re-run test with same seed value please add \"-D%s=%d\" to command line.%n", SEED_PROPERTY_NAME, SEED);
         }
         return RANDOM_GENERATOR;
     }
@@ -493,7 +572,7 @@ public final class Utils {
     /**
      * Wait for condition to be true
      *
-     * @param condition, a condition to wait for
+     * @param condition a condition to wait for
      */
     public static final void waitForCondition(BooleanSupplier condition) {
         waitForCondition(condition, -1L, 100L);
@@ -502,7 +581,7 @@ public final class Utils {
     /**
      * Wait until timeout for condition to be true
      *
-     * @param condition, a condition to wait for
+     * @param condition a condition to wait for
      * @param timeout a time in milliseconds to wait for condition to be true
      * specifying -1 will wait forever
      * @return condition value, to determine if wait was successful
@@ -515,7 +594,7 @@ public final class Utils {
     /**
      * Wait until timeout for condition to be true for specified time
      *
-     * @param condition, a condition to wait for
+     * @param condition a condition to wait for
      * @param timeout a time in milliseconds to wait for condition to be true,
      * specifying -1 will wait forever
      * @param sleepTime a time to sleep value in milliseconds
@@ -548,13 +627,13 @@ public final class Utils {
      * Filters out an exception that may be thrown by the given
      * test according to the given filter.
      *
-     * @param test - method that is invoked and checked for exception.
-     * @param filter - function that checks if the thrown exception matches
-     *                 criteria given in the filter's implementation.
-     * @return - exception that matches the filter if it has been thrown or
-     *           {@code null} otherwise.
-     * @throws Throwable - if test has thrown an exception that does not
-     *                     match the filter.
+     * @param test method that is invoked and checked for exception.
+     * @param filter function that checks if the thrown exception matches
+     *               criteria given in the filter's implementation.
+     * @return exception that matches the filter if it has been thrown or
+     *         {@code null} otherwise.
+     * @throws Throwable if test has thrown an exception that does not
+     *                   match the filter.
      */
     public static Throwable filterException(ThrowingRunnable test,
             Function<Throwable, Boolean> filter) throws Throwable {
@@ -612,7 +691,7 @@ public final class Utils {
      * @param runnable what we run
      * @param expectedException expected exception
      */
-    public static void runAndCheckException(Runnable runnable, Class<? extends Throwable> expectedException) {
+    public static void runAndCheckException(ThrowingRunnable runnable, Class<? extends Throwable> expectedException) {
         runAndCheckException(runnable, t -> {
             if (t == null) {
                 if (expectedException != null) {
@@ -635,13 +714,14 @@ public final class Utils {
      * @param runnable what we run
      * @param checkException a consumer which checks that we got expected exception and raises a new exception otherwise
      */
-    public static void runAndCheckException(Runnable runnable, Consumer<Throwable> checkException) {
+    public static void runAndCheckException(ThrowingRunnable runnable, Consumer<Throwable> checkException) {
+        Throwable throwable = null;
         try {
             runnable.run();
-            checkException.accept(null);
         } catch (Throwable t) {
-            checkException.accept(t);
+            throwable = t;
         }
+        checkException.accept(throwable);
     }
 
     /**
@@ -701,19 +781,6 @@ public final class Utils {
         NULL_VALUES.put(double.class, 0.0d);
     }
 
-    /**
-     * Returns mandatory property value
-     * @param propName is a name of property to request
-     * @return a String with requested property value
-     */
-    public static String getMandatoryProperty(String propName) {
-        Objects.requireNonNull(propName, "Requested null property");
-        String prop = System.getProperty(propName);
-        Objects.requireNonNull(prop,
-                String.format("A mandatory property '%s' isn't set", propName));
-        return prop;
-    }
-
     /*
      * Run uname with specified arguments.
      */
@@ -724,88 +791,263 @@ public final class Utils {
         return ProcessTools.executeCommand(cmds);
     }
 
-    /*
-     * Returns the system distro.
-     */
-    public static String distro() {
-        try {
-            return uname("-v").asLines().get(0);
-        } catch (Throwable t) {
-            throw new RuntimeException("Failed to determine distro.", t);
-        }
-    }
-
-    // This method is intended to be called from a jtreg test.
-    // It will identify the name of the test by means of stack walking.
-    // It can handle both jtreg tests and a testng tests wrapped inside jtreg tests.
-    // For jtreg tests the name of the test will be searched by stack-walking
-    // until the method main() is found; the class containing that method is the
-    // main test class and will be returned as the name of the test.
-    // Special handling is used for testng tests.
-    public static String getTestName() {
-        String result = null;
-        // If we are using testng, then we should be able to load the "Test" annotation.
-        Class testClassAnnotation;
-
-        try {
-            testClassAnnotation = Class.forName("org.testng.annotations.Test");
-        } catch (ClassNotFoundException e) {
-            testClassAnnotation = null;
-        }
-
-        StackTraceElement[] elms = (new Throwable()).getStackTrace();
-        for (StackTraceElement n: elms) {
-            String className = n.getClassName();
-
-            // If this is a "main" method, then use its class name, but only
-            // if we are not using testng.
-            if (testClassAnnotation == null && "main".equals(n.getMethodName())) {
-                result = className;
-                break;
-            }
-
-            // If this is a testng test, the test will have no "main" method. We can
-            // detect a testng test class by looking for the org.testng.annotations.Test
-            // annotation. If present, then use the name of this class.
-            if (testClassAnnotation != null) {
-                try {
-                    Class c = Class.forName(className);
-                    if (c.isAnnotationPresent(testClassAnnotation)) {
-                        result = className;
-                        break;
-                    }
-                } catch (ClassNotFoundException e) {
-                    throw new RuntimeException("Unexpected exception: " + e, e);
-                }
-            }
-        }
-
-        if (result == null) {
-            throw new RuntimeException("Couldn't find main test class in stack trace");
-        }
-
-        return result;
-    }
-
     /**
      * Creates an empty file in "user.dir" if the property set.
      * <p>
-     * This method is meant as a replacement for {@code Files#createTempFile(String, String, FileAttribute...)}
+     * This method is meant as a replacement for {@link Files#createTempFile(String, String, FileAttribute...)}
      * that doesn't leave files behind in /tmp directory of the test machine
      * <p>
      * If the property "user.dir" is not set, "." will be used.
      *
-     * @param prefix
-     * @param suffix
-     * @param attrs
+     * @param prefix the prefix string to be used in generating the file's name;
+     *               may be null
+     * @param suffix the suffix string to be used in generating the file's name;
+     *               may be null, in which case ".tmp" is used
+     * @param attrs an optional list of file attributes to set atomically when creating the file
      * @return the path to the newly created file that did not exist before this
      *         method was invoked
-     * @throws IOException
+     * @throws IOException if an I/O error occurs or dir does not exist
      *
-     * @see {@link Files#createTempFile(String, String, FileAttribute...)}
+     * @see Files#createTempFile(String, String, FileAttribute...)
      */
     public static Path createTempFile(String prefix, String suffix, FileAttribute<?>... attrs) throws IOException {
         Path dir = Paths.get(System.getProperty("user.dir", "."));
-        return Files.createTempFile(dir, prefix, suffix);
+        return Files.createTempFile(dir, prefix, suffix, attrs);
+    }
+
+    /**
+     * Creates an empty directory in "user.dir" or "."
+     * <p>
+     * This method is meant as a replacement for {@link Files#createTempDirectory(Path, String, FileAttribute...)}
+     * that doesn't leave files behind in /tmp directory of the test machine
+     * <p>
+     * If the property "user.dir" is not set, "." will be used.
+     *
+     * @param prefix the prefix string to be used in generating the directory's name; may be null
+     * @param attrs an optional list of file attributes to set atomically when creating the directory
+     * @return the path to the newly created directory
+     * @throws IOException if an I/O error occurs or dir does not exist
+     *
+     * @see Files#createTempDirectory(Path, String, FileAttribute...)
+     */
+    public static Path createTempDirectory(String prefix, FileAttribute<?>... attrs) throws IOException {
+        Path dir = Paths.get(System.getProperty("user.dir", "."));
+        return Files.createTempDirectory(dir, prefix, attrs);
+    }
+
+    /**
+     * Converts slashes in a pathname to backslashes
+     * if slashes is not the file separator.
+     */
+    public static String convertPath(String path) {
+        // No need to do the conversion if file separator is '/'
+        if (FILE_SEPARATOR.length() == 1 && FILE_SEPARATOR.charAt(0) == '/') {
+            return path;
+        }
+
+        char[] cs = path.toCharArray();
+        for (int i = 0; i < cs.length; i++) {
+            if (cs[i] == '/') {
+                cs[i] = '\\';
+            }
+        }
+        String newPath = new String(cs);
+        return newPath;
+    }
+
+    /**
+     * Return file directories that satisfy the specified filter.
+     *
+     * @param searchDirectory the base directory to search
+     * @param filter          a filename filter
+     * @return                file directories
+     */
+    public static List<Path> findFiles(Path searchDirectory,
+            FilenameFilter filter) {
+        return Arrays.stream(searchDirectory.toFile().listFiles(filter))
+                .map(f -> f.toPath())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Copy files to the target path.
+     *
+     * @param source         the paths to the files to copy
+     * @param target         the path to the target files
+     * @param filenameMapper mapper function applied to filenames
+     * @param options        options specifying how the copy should be done
+     * @return               the paths to the target files
+     * @throws IOException   if error occurs
+     */
+    public static List<Path> copyFiles(List<Path> source, Path target,
+            Function<String, String> filenameMapper,
+            CopyOption... options) throws IOException {
+        List<Path> result = new ArrayList<>();
+
+        if (!target.toFile().exists()) {
+            Files.createDirectory(target);
+        }
+
+        for (Path file : source) {
+            if (!file.toFile().exists()) {
+                continue;
+            }
+
+            String baseName = file.getFileName().toString();
+
+            Path targetFile = target.resolve(filenameMapper.apply(baseName));
+            Files.copy(file, targetFile, options);
+            result.add(targetFile);
+        }
+        return result;
+    }
+
+    /**
+     * Copy files to the target path.
+     *
+     * @param source         the paths to the files to copy
+     * @param target         the path to the target files
+     * @param options        options specifying how the copy should be done
+     * @return               the paths to the target files
+     * @throws IOException   if error occurs
+     */
+    public static List<Path> copyFiles(List<Path> source, Path target,
+            CopyOption... options) throws IOException {
+        return copyFiles(source, target, (s) -> s, options);
+    }
+
+    /**
+     * Replace file string by applying the given mapper function.
+     *
+     * @param source        the file to read
+     * @param contentMapper the mapper function applied to file's content
+     * @throws IOException  if an I/O error occurs
+     */
+    public static void replaceFileString(Path source,
+            Function<String, String> contentMapper) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        String lineSep = System.getProperty("line.separator");
+
+        try (BufferedReader reader =
+                new BufferedReader(new FileReader(source.toFile()))) {
+
+            String line;
+
+            // read all and replace all at once??
+            while ((line = reader.readLine()) != null) {
+                sb.append(contentMapper.apply(line))
+                        .append(lineSep);
+            }
+        }
+
+        try (FileWriter writer = new FileWriter(source.toFile())) {
+            writer.write(sb.toString());
+        }
+    }
+
+    /**
+     * Replace files' string by applying the given mapper function.
+     *
+     * @param source        the file to read
+     * @param contentMapper the mapper function applied to files' content
+     * @throws IOException  if an I/O error occurs
+     */
+    public static void replaceFilesString(List<Path> source,
+            Function<String, String> contentMapper) throws IOException {
+        for (Path file : source) {
+            replaceFileString(file, contentMapper);
+        }
+    }
+
+    /**
+     * Grant file user access or full access to everyone.
+     *
+     * @param file   file to grant access
+     * @param userOnly true for user access, otherwise full access to everyone
+     * @throws IOException if error occurs
+     */
+    public static void grantFileAccess(Path file, boolean userOnly)
+            throws IOException {
+        Set<String> attr = file.getFileSystem().supportedFileAttributeViews();
+        if (attr.contains("posix")) {
+            String perms = userOnly ? "rwx------" : "rwxrwxrwx";
+            Files.setPosixFilePermissions(file, PosixFilePermissions.fromString(perms));
+        } else if (attr.contains("acl")) {
+            AclFileAttributeView view =
+                    Files.getFileAttributeView(file, AclFileAttributeView.class);
+            List<AclEntry> acl = new ArrayList<>();
+            for (AclEntry thisEntry : view.getAcl()) {
+                if (userOnly) {
+                    if (thisEntry.principal().getName()
+                            .equals(view.getOwner().getName())) {
+                        acl.add(allowAccess(thisEntry));
+                    } else if (thisEntry.type() == AclEntryType.ALLOW) {
+                        acl.add(revokeAccess(thisEntry));
+                    } else {
+                        acl.add(thisEntry);
+                    }
+                } else {
+                    if (thisEntry.type() != AclEntryType.ALLOW) {
+                        acl.add(allowAccess(thisEntry));
+                    } else {
+                        acl.add(thisEntry);
+                    }
+                }
+            }
+            view.setAcl(acl);
+        } else {
+            throw new RuntimeException("Unsupported file attributes: " + attr);
+        }
+    }
+
+    /**
+     * Return an ACL entry that revokes owner access.
+     *
+     * @param acl   original ACL entry to build from
+     * @return      an ACL entry that revokes all access
+     */
+    public static AclEntry revokeAccess(AclEntry acl) {
+        return buildAclEntry(acl, AclEntryType.DENY);
+    }
+
+    /**
+     * Return an ACL entry that allow owner access.
+     * @param acl   original ACL entry to build from
+     * @return      an ACL entry that allows all access
+     */
+    public static AclEntry allowAccess(AclEntry acl) {
+        return buildAclEntry(acl, AclEntryType.ALLOW);
+    }
+
+    /**
+     * Build an ACL entry with a given ACL entry type.
+     *
+     * @param acl   original ACL entry to build from
+     * @return      an ACL entry with a given ACL entry type
+     */
+    public static AclEntry buildAclEntry(AclEntry acl, AclEntryType type) {
+        return AclEntry.newBuilder(acl)
+                .setType(type)
+                .build();
+    }
+
+    /**
+     * Grant file user access.
+     *
+     * @param file   file to grant access
+     * @throws IOException if error occurs
+     */
+    public static void userAccess(Path file) throws IOException {
+        grantFileAccess(file, true);
+    }
+
+    /**
+     * Grant file full access to everyone.
+     *
+     * @param file   file to grant access
+     * @throws IOException if error occurs
+     */
+    public static void fullAccess(Path file) throws IOException {
+        grantFileAccess(file, false);
     }
 }

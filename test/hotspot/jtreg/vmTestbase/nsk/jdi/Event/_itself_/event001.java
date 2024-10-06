@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.io.*;
 
+import jdk.test.lib.Utils;
 import nsk.share.*;
 import nsk.share.jpda.*;
 import nsk.share.jdi.*;
@@ -86,7 +87,10 @@ public class event001 {
     private Object gotEvent = new Object();
 
     public static void main (String argv[]) {
-        System.exit(run(argv,System.out) + JCK_STATUS_BASE);
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run(String argv[], PrintStream out) {
@@ -234,7 +238,7 @@ public class event001 {
 
 // wait for a requested event
         try {
-            gotEvent.wait(argHandler.getWaitTime()*60000);
+            gotEvent.wait(Utils.adjustTimeout(argHandler.getWaitTime()*1000));
         } catch (InterruptedException e) {
             log.complain("TEST FAILURE: waiting for a requested AccessWatchpointEvent #"
                 + i + ": caught " + e);

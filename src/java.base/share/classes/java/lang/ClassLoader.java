@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,36 +42,34 @@ import java.security.CodeSource;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
-import java.util.ArrayDeque;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Hashtable;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
-import java.util.Vector;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import jdk.internal.loader.BuiltinClassLoader;
-import jdk.internal.perf.PerfCounter;
 import jdk.internal.loader.BootLoader;
+import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.loader.ClassLoaders;
+import jdk.internal.loader.NativeLibrary;
+import jdk.internal.loader.NativeLibraries;
+import jdk.internal.perf.PerfCounter;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
-import jdk.internal.ref.CleanerFactory;
 import jdk.internal.reflect.CallerSensitive;
+import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.Reflection;
+import jdk.internal.util.StaticProperty;
 import sun.reflect.misc.ReflectUtil;
 import sun.security.util.SecurityConstants;
 
@@ -129,7 +128,7 @@ import sun.security.util.SecurityConstants;
  * duration of the class loading process (see {@link #loadClass
  * loadClass} methods).
  *
- * <h3> <a id="builtinLoaders">Run-time Built-in Class Loaders</a></h3>
+ * <h2> <a id="builtinLoaders">Run-time Built-in Class Loaders</a></h2>
  *
  * The Java run-time has the following built-in class loaders:
  *
@@ -138,11 +137,12 @@ import sun.security.util.SecurityConstants;
  *     It is the virtual machine's built-in class loader, typically represented
  *     as {@code null}, and does not have a parent.</li>
  * <li><p>{@linkplain #getPlatformClassLoader() Platform class loader}.
- *     All <em>platform classes</em> are visible to the platform class loader
- *     that can be used as the parent of a {@code ClassLoader} instance.
- *     Platform classes include Java SE platform APIs, their implementation
- *     classes and JDK-specific run-time classes that are defined by the
- *     platform class loader or its ancestors.
+ *     The platform class loader is responsible for loading the
+ *     <em>platform classes</em>.  Platform classes include Java SE platform APIs,
+ *     their implementation classes and JDK-specific run-time classes that are
+ *     defined by the platform class loader or its ancestors.
+ *     The platform class loader can be used as the parent of a {@code ClassLoader}
+ *     instance.
  *     <p> To allow for upgrading/overriding of modules defined to the platform
  *     class loader, and where upgraded modules read modules defined to class
  *     loaders other than the platform class loader and its ancestors, then
@@ -156,8 +156,9 @@ import sun.security.util.SecurityConstants;
  *     from the platform class loader.
  *     The system class loader is typically used to define classes on the
  *     application class path, module path, and JDK-specific tools.
- *     The platform class loader is a parent or an ancestor of the system class
- *     loader that all platform classes are visible to it.</li>
+ *     The platform class loader is the parent or an ancestor of the system class
+ *     loader, so the system class loader can load platform classes by delegating
+ *     to its parent.</li>
  * </ul>
  *
  * <p> Normally, the Java virtual machine loads classes from the local file
@@ -210,7 +211,7 @@ import sun.security.util.SecurityConstants;
  *
  * <p> Any class name provided as a {@code String} parameter to methods in
  * {@code ClassLoader} must be a binary name as defined by
- * <cite>The Java&trade; Language Specification</cite>.
+ * <cite>The Java Language Specification</cite>.
  *
  * <p> Examples of valid class names include:
  * <blockquote><pre>
@@ -223,14 +224,12 @@ import sun.security.util.SecurityConstants;
  * <p> Any package name provided as a {@code String} parameter to methods in
  * {@code ClassLoader} must be either the empty string (denoting an unnamed package)
  * or a fully qualified name as defined by
- * <cite>The Java&trade; Language Specification</cite>.
+ * <cite>The Java Language Specification</cite>.
  *
- * @jls 6.7  Fully Qualified Names
+ * @jls 6.7 Fully Qualified Names and Canonical Names
  * @jls 13.1 The Form of a Binary
  * @see      #resolveClass(Class)
  * @since 1.0
- * @revised 9
- * @spec JPMS
  */
 @NullMarked
 public abstract  class ClassLoader {
@@ -306,14 +305,14 @@ public abstract  class ClassLoader {
     private final @Nullable ConcurrentHashMap<String, Object> parallelLockMap;
 
     // Maps packages to certs
-    private final Map <String, Certificate[]> package2certs;
+    private final ConcurrentHashMap<String, Certificate[]> package2certs;
 
     // Shared among all packages with unsigned classes
     private static final Certificate[] nocerts = new Certificate[0];
 
     // The classes loaded by this class loader. The only purpose of this table
     // is to keep the classes from being GC'ed until the loader is GC'ed.
-    private final Vector<Class<?>> classes = new Vector<>();
+    private final ArrayList<Class<?>> classes = new ArrayList<>();
 
     // The "default" domain. Set as the default ProtectionDomain on newly
     // created classes.
@@ -323,7 +322,9 @@ public abstract  class ClassLoader {
 
     // Invoked by the VM to record every loaded class with this loader.
     void addClass(Class<?> c) {
-        classes.addElement(c);
+        synchronized (classes) {
+            classes.add(c);
+        }
     }
 
     // The packages defined in this class loader.  Each package name is
@@ -368,6 +369,7 @@ public abstract  class ClassLoader {
             throw new IllegalArgumentException("name must be non-empty or null");
         }
 
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkCreateClassLoader();
@@ -381,14 +383,13 @@ public abstract  class ClassLoader {
         this.unnamedModule = new Module(this);
         if (ParallelLoaders.isRegistered(this.getClass())) {
             parallelLockMap = new ConcurrentHashMap<>();
-            package2certs = new ConcurrentHashMap<>();
             assertionLock = new Object();
         } else {
             // no finer-grained lock; lock on the classloader instance
             parallelLockMap = null;
-            package2certs = new Hashtable<>();
             assertionLock = this;
         }
+        this.package2certs = new ConcurrentHashMap<>();
         this.nameAndId = nameAndId(this);
     }
 
@@ -407,6 +408,11 @@ public abstract  class ClassLoader {
             nid = nid + " @" + id;
         }
         return nid;
+    }
+
+    // Returns nameAndId string for exception message printing
+    String nameAndId() {
+        return nameAndId;
     }
 
     /**
@@ -428,8 +434,8 @@ public abstract  class ClassLoader {
      *         method doesn't allow creation of a new class loader.
      *
      * @since  9
-     * @spec JPMS
      */
+    @SuppressWarnings("this-escape")
     protected ClassLoader(@Nullable String name, @Nullable ClassLoader parent) {
         this(checkCreateClassLoader(name), name, parent);
     }
@@ -449,13 +455,14 @@ public abstract  class ClassLoader {
      * @param  parent
      *         The parent class loader
      *
-     * @throws  SecurityException
-     *          If a security manager exists and its
-     *          {@code checkCreateClassLoader} method doesn't allow creation
-     *          of a new class loader.
+     * @throws SecurityException
+     *         If a security manager exists and its
+     *         {@code checkCreateClassLoader} method doesn't allow creation
+     *         of a new class loader.
      *
      * @since  1.2
      */
+    @SuppressWarnings("this-escape")
     protected ClassLoader(@Nullable ClassLoader parent) {
         this(checkCreateClassLoader(), null, parent);
     }
@@ -475,6 +482,7 @@ public abstract  class ClassLoader {
      *          {@code checkCreateClassLoader} method doesn't allow creation
      *          of a new class loader.
      */
+    @SuppressWarnings("this-escape")
     protected ClassLoader() {
         this(checkCreateClassLoader(), null, getSystemClassLoader());
     }
@@ -491,14 +499,13 @@ public abstract  class ClassLoader {
      * this class loader is not named.
      *
      * @since 9
-     * @spec JPMS
      */
     public @Nullable String getName() {
         return name;
     }
 
     // package-private used by StackTraceElement to avoid
-    // calling the overrideable getName method
+    // calling the overridable getName method
     final String name() {
         return name;
     }
@@ -513,8 +520,8 @@ public abstract  class ClassLoader {
      * to invoking {@link #loadClass(String, boolean) loadClass(name,
      * false)}.
      *
-     * @param  name
-     *         The <a href="#binary-name">binary name</a> of the class
+     * @param   name
+     *          The <a href="#binary-name">binary name</a> of the class
      *
      * @return  The resulting {@code Class} object
      *
@@ -555,11 +562,11 @@ public abstract  class ClassLoader {
      * {@link #getClassLoadingLock getClassLoadingLock} method
      * during the entire class loading process.
      *
-     * @param  name
-     *         The <a href="#binary-name">binary name</a> of the class
+     * @param   name
+     *          The <a href="#binary-name">binary name</a> of the class
      *
-     * @param  resolve
-     *         If {@code true} then resolve the class
+     * @param   resolve
+     *          If {@code true} then resolve the class
      *
      * @return  The resulting {@code Class} object
      *
@@ -646,11 +653,20 @@ public abstract  class ClassLoader {
 
     /**
      * Returns the lock object for class loading operations.
-     * For backward compatibility, the default implementation of this method
-     * behaves as follows. If this ClassLoader object is registered as
-     * parallel capable, the method returns a dedicated object associated
-     * with the specified class name. Otherwise, the method returns this
-     * ClassLoader object.
+     *
+     * @implSpec
+     * If this {@code ClassLoader} object is registered as parallel capable,
+     * this method returns a dedicated object associated with the specified
+     * class name. Otherwise, this method returns this {@code ClassLoader} object.
+     *
+     * @apiNote
+     * This method allows parallel capable class loaders to implement
+     * finer-grained locking schemes such that multiple threads may load classes
+     * concurrently without deadlocks.  For non-parallel-capable class loaders,
+     * the {@code ClassLoader} object is synchronized on during the class loading
+     * operations.  Class loaders with non-hierarchical delegation should be
+     * {@linkplain #registerAsParallelCapable() registered as parallel capable}
+     * to prevent deadlocks.
      *
      * @param  className
      *         The name of the to-be-loaded class
@@ -658,7 +674,7 @@ public abstract  class ClassLoader {
      * @return the lock for class loading operations
      *
      * @throws NullPointerException
-     *         If registered as parallel capable and {@code className} is null
+     *         If registered as parallel capable and {@code className} is {@code null}
      *
      * @see #loadClass(String, boolean)
      *
@@ -677,6 +693,7 @@ public abstract  class ClassLoader {
     }
 
     // Invoked by the VM after loading class with this loader.
+    @SuppressWarnings("removal")
     private void checkPackageAccess(Class<?> cls, ProtectionDomain pd) {
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -708,8 +725,8 @@ public abstract  class ClassLoader {
      *
      * @implSpec The default implementation throws {@code ClassNotFoundException}.
      *
-     * @param  name
-     *         The <a href="#binary-name">binary name</a> of the class
+     * @param   name
+     *          The <a href="#binary-name">binary name</a> of the class
      *
      * @return  The resulting {@code Class} object
      *
@@ -739,7 +756,6 @@ public abstract  class ClassLoader {
      *         The module name; or {@code null} to find the class in the
      *         {@linkplain #getUnnamedModule() unnamed module} for this
      *         class loader
-
      * @param  name
      *         The <a href="#binary-name">binary name</a> of the class
      *
@@ -747,7 +763,6 @@ public abstract  class ClassLoader {
      *         if the class could not be found.
      *
      * @since 9
-     * @spec JPMS
      */
     protected Class<?> findClass(String moduleName, String name) {
         if (moduleName == null) {
@@ -769,7 +784,7 @@ public abstract  class ClassLoader {
      *         The bytes that make up the class data.  The bytes in positions
      *         {@code off} through {@code off+len-1} should have the format
      *         of a valid class file as defined by
-     *         <cite>The Java&trade; Virtual Machine Specification</cite>.
+     *         <cite>The Java Virtual Machine Specification</cite>.
      *
      * @param  off
      *         The start offset in {@code b} of the class data
@@ -843,7 +858,7 @@ public abstract  class ClassLoader {
      *         The bytes that make up the class data.  The bytes in positions
      *         {@code off} through {@code off+len-1} should have the format
      *         of a valid class file as defined by
-     *         <cite>The Java&trade; Virtual Machine Specification</cite>.
+     *         <cite>The Java Virtual Machine Specification</cite>.
      *
      * @param  off
      *         The start offset in {@code b} of the class data
@@ -873,8 +888,6 @@ public abstract  class ClassLoader {
      * @see  java.security.SecureClassLoader
      *
      * @since  1.1
-     * @revised 9
-     * @spec JPMS
      */
     protected final Class<?> defineClass(@Nullable  String name, byte[] b, int off, int len)
         throws ClassFormatError
@@ -977,7 +990,7 @@ public abstract  class ClassLoader {
      *         The bytes that make up the class data. The bytes in positions
      *         {@code off} through {@code off+len-1} should have the format
      *         of a valid class file as defined by
-     *         <cite>The Java&trade; Virtual Machine Specification</cite>.
+     *         <cite>The Java Virtual Machine Specification</cite>.
      *
      * @param  off
      *         The start offset in {@code b} of the class data
@@ -1008,9 +1021,6 @@ public abstract  class ClassLoader {
      *          certificates than this class, or if {@code name} begins with
      *          "{@code java.}" and this class loader is not the platform
      *          class loader or its ancestor.
-     *
-     * @revised 9
-     * @spec JPMS
      */
     protected final Class<?> defineClass(@Nullable  String name, byte[] b, int off, int len,
                                          @Nullable ProtectionDomain protectionDomain)
@@ -1061,7 +1071,7 @@ public abstract  class ClassLoader {
      *         The bytes that make up the class data. The bytes from positions
      *         {@code b.position()} through {@code b.position() + b.limit() -1
      *         } should have the format of a valid class file as defined by
-     *         <cite>The Java&trade; Virtual Machine Specification</cite>.
+     *         <cite>The Java Virtual Machine Specification</cite>.
      *
      * @param  protectionDomain
      *         The {@code ProtectionDomain} of the class, or {@code null}.
@@ -1085,8 +1095,6 @@ public abstract  class ClassLoader {
      * @see      #defineClass(String, byte[], int, int, ProtectionDomain)
      *
      * @since  1.5
-     * @revised 9
-     * @spec JPMS
      */
     protected final Class<?> defineClass(@Nullable  String name, java.nio.ByteBuffer b,
                                          @Nullable ProtectionDomain protectionDomain)
@@ -1122,9 +1130,32 @@ public abstract  class ClassLoader {
                                         int off, int len, ProtectionDomain pd,
                                         String source);
 
+    /**
+     * Defines a class of the given flags via Lookup.defineClass.
+     *
+     * @param loader the defining loader
+     * @param lookup nest host of the Class to be defined
+     * @param name the binary name or {@code null} if not findable
+     * @param b class bytes
+     * @param off the start offset in {@code b} of the class bytes
+     * @param len the length of the class bytes
+     * @param pd protection domain
+     * @param initialize initialize the class
+     * @param flags flags
+     * @param classData class data
+     */
+    static native Class<?> defineClass0(ClassLoader loader,
+                                        Class<?> lookup,
+                                        String name,
+                                        byte[] b, int off, int len,
+                                        ProtectionDomain pd,
+                                        boolean initialize,
+                                        int flags,
+                                        Object classData);
+
     // true if the name is null or has the potential to be a valid binary name
-    private boolean checkName(@Nullable String name) {
-        if ((name == null) || (name.length() == 0))
+    private static boolean checkName(String name) {
+        if ((name == null) || (name.isEmpty()))
             return true;
         if ((name.indexOf('/') != -1) || (name.charAt(0) == '['))
             return false;
@@ -1139,18 +1170,8 @@ public abstract  class ClassLoader {
         if (cs != null) {
             certs = cs.getCertificates();
         }
-        Certificate[] pcerts = null;
-        if (parallelLockMap == null) {
-            synchronized (this) {
-                pcerts = package2certs.get(pname);
-                if (pcerts == null) {
-                    package2certs.put(pname, (certs == null? nocerts:certs));
-                }
-            }
-        } else {
-            pcerts = ((ConcurrentHashMap<String, Certificate[]>)package2certs).
-                putIfAbsent(pname, (certs == null? nocerts:certs));
-        }
+        certs = certs == null ? nocerts : certs;
+        Certificate[] pcerts = package2certs.putIfAbsent(pname, certs);
         if (pcerts != null && !compareCerts(pcerts, certs)) {
             throw new SecurityException("class \"" + name
                 + "\"'s signer information does not match signer information"
@@ -1162,13 +1183,10 @@ public abstract  class ClassLoader {
      * check to make sure the certs for the new class (certs) are the same as
      * the certs for the first class inserted in the package (pcerts)
      */
-    private boolean compareCerts(Certificate[] pcerts,
-                                 Certificate @Nullable [] certs)
-    {
-        // certs can be null, indicating no certs.
-        if ((certs == null) || (certs.length == 0)) {
+    private boolean compareCerts(Certificate[] pcerts, Certificate[] certs) {
+        // empty array fast-path
+        if (certs.length == 0)
             return pcerts.length == 0;
-        }
 
         // the length must be the same at this point
         if (certs.length != pcerts.length)
@@ -1208,7 +1226,7 @@ public abstract  class ClassLoader {
      * used by a class loader to link a class.  If the class {@code c} has
      * already been linked, then this method simply returns. Otherwise, the
      * class is linked as described in the "Execution" chapter of
-     * <cite>The Java&trade; Language Specification</cite>.
+     * <cite>The Java Language Specification</cite>.
      *
      * @param  c
      *         The class to link
@@ -1256,14 +1274,14 @@ public abstract  class ClassLoader {
      * Returns a class loaded by the bootstrap class loader;
      * or return null if not found.
      */
-    @Nullable Class<?> findBootstrapClassOrNull(String name) {
+    static Class<?> findBootstrapClassOrNull(String name) {
         if (!checkName(name)) return null;
 
         return findBootstrapClass(name);
     }
 
     // return null if not found
-    private native @Nullable Class<?> findBootstrapClass(String name);
+    private static native Class<?> findBootstrapClass(String name);
 
     /**
      * Returns the class with the given <a href="#binary-name">binary name</a> if this
@@ -1339,7 +1357,6 @@ public abstract  class ClassLoader {
      *
      * @see java.lang.module.ModuleReader#find(String)
      * @since 9
-     * @spec JPMS
      */
     protected URL findResource(String moduleName, String name) throws IOException {
         if (moduleName == null) {
@@ -1390,8 +1407,6 @@ public abstract  class ClassLoader {
      * @throws  NullPointerException If {@code name} is {@code null}
      *
      * @since  1.1
-     * @revised 9
-     * @spec JPMS
      */
     public @Nullable URL getResource(String name) {
         Objects.requireNonNull(name);
@@ -1456,8 +1471,6 @@ public abstract  class ClassLoader {
      * @throws  NullPointerException If {@code name} is {@code null}
      *
      * @since  1.2
-     * @revised 9
-     * @spec JPMS
      */
     public Enumeration<URL> getResources(String name) throws IOException {
         Objects.requireNonNull(name);
@@ -1555,8 +1568,6 @@ public abstract  class ClassLoader {
      *          denied by the security manager.
      *
      * @since  1.2
-     * @revised 9
-     * @spec JPMS
      */
     protected @Nullable URL findResource(String name) {
         return null;
@@ -1591,8 +1602,6 @@ public abstract  class ClassLoader {
      *          If I/O errors occur
      *
      * @since  1.2
-     * @revised 9
-     * @spec JPMS
      */
     protected Enumeration<URL> findResources(String name) throws IOException {
         return Collections.emptyEnumeration();
@@ -1610,9 +1619,16 @@ public abstract  class ClassLoader {
      * </ol>
      * <p>Note that once a class loader is registered as parallel capable, there
      * is no way to change it back.</p>
+     * <p>
+     * In cases where this method is called from a context where the caller is
+     * not a subclass of {@code ClassLoader} or there is no caller frame on the
+     * stack (e.g. when called directly from a JNI attached thread),
+     * {@code IllegalCallerException} is thrown.
+     * </p>
      *
      * @return  {@code true} if the caller is successfully registered as
      *          parallel capable and {@code false} if otherwise.
+     * @throws IllegalCallerException if the caller is not a subclass of {@code ClassLoader}
      *
      * @see #isRegisteredAsParallelCapable()
      *
@@ -1620,9 +1636,16 @@ public abstract  class ClassLoader {
      */
     @CallerSensitive
     protected static boolean registerAsParallelCapable() {
-        Class<? extends ClassLoader> callerClass =
-            Reflection.getCallerClass().asSubclass(ClassLoader.class);
-        return ParallelLoaders.register(callerClass);
+        return registerAsParallelCapable(Reflection.getCallerClass());
+    }
+
+    // Caller-sensitive adapter method for reflective invocation
+    @CallerSensitiveAdapter
+    private static boolean registerAsParallelCapable(Class<?> caller) {
+        if ((caller == null) || !ClassLoader.class.isAssignableFrom(caller)) {
+            throw new IllegalCallerException(caller + " not a subclass of ClassLoader");
+        }
+        return ParallelLoaders.register(caller.asSubclass(ClassLoader.class));
     }
 
     /**
@@ -1663,8 +1686,6 @@ public abstract  class ClassLoader {
      *          denied by the security manager.
      *
      * @since  1.1
-     * @revised 9
-     * @spec JPMS
      */
     public static @Nullable URL getSystemResource(String name) {
         return getSystemClassLoader().getResource(name);
@@ -1700,8 +1721,6 @@ public abstract  class ClassLoader {
      *          If I/O errors occur
      *
      * @since  1.2
-     * @revised 9
-     * @spec JPMS
      */
     public static Enumeration<URL> getSystemResources(String name)
         throws IOException
@@ -1733,8 +1752,6 @@ public abstract  class ClassLoader {
      * @throws  NullPointerException If {@code name} is {@code null}
      *
      * @since  1.1
-     * @revised 9
-     * @spec JPMS
      */
     public @Nullable InputStream getResourceAsStream(String name) {
         Objects.requireNonNull(name);
@@ -1767,8 +1784,6 @@ public abstract  class ClassLoader {
      *          denied by the security manager.
      *
      * @since  1.1
-     * @revised 9
-     * @spec JPMS
      */
     public static @Nullable InputStream getSystemResourceAsStream(String name) {
         URL url = getSystemResource(name);
@@ -1802,6 +1817,7 @@ public abstract  class ClassLoader {
     public final @Nullable ClassLoader getParent() {
         if (parent == null)
             return null;
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             // Check access to the parent class loader
@@ -1819,7 +1835,6 @@ public abstract  class ClassLoader {
      *
      * @see Module#isNamed()
      * @since 9
-     * @spec JPMS
      */
     public final Module getUnnamedModule() {
         return unnamedModule;
@@ -1843,10 +1858,10 @@ public abstract  class ClassLoader {
      *          {@link RuntimePermission}{@code ("getClassLoader")}
      *
      * @since 9
-     * @spec JPMS
      */
     @CallerSensitive
     public static ClassLoader getPlatformClassLoader() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         ClassLoader loader = getBuiltinPlatformClassLoader();
         if (sm != null) {
@@ -1869,12 +1884,12 @@ public abstract  class ClassLoader {
      * <p> The default system class loader is an implementation-dependent
      * instance of this class.
      *
-     * <p> If the system property "{@code java.system.class.loader}" is defined
-     * when this method is first invoked then the value of that property is
-     * taken to be the name of a class that will be returned as the system
-     * class loader.  The class is loaded using the default system class loader
-     * and must define a public constructor that takes a single parameter of
-     * type {@code ClassLoader} which is used as the delegation parent.  An
+     * <p> If the system property "{@systemProperty java.system.class.loader}"
+     * is defined when this method is first invoked then the value of that
+     * property is taken to be the name of a class that will be returned as the
+     * system class loader. The class is loaded using the default system class
+     * loader and must define a public constructor that takes a single parameter
+     * of type {@code ClassLoader} which is used as the delegation parent. An
      * instance is then created using this constructor with the default system
      * class loader as the parameter.  The resulting class loader is defined
      * to be the system class loader. During construction, the class loader
@@ -1898,6 +1913,16 @@ public abstract  class ClassLoader {
      * otherwise, if unnamed, it will set the class path to the current
      * working directory.
      *
+     * <p> JAR files on the class path may contain a {@code Class-Path} manifest
+     * attribute to specify dependent JAR files to be included in the class path.
+     * {@code Class-Path} entries must meet certain conditions for validity (see
+     * the <a href="{@docRoot}/../specs/jar/jar.html#class-path-attribute">
+     * JAR File Specification</a> for details).  Invalid {@code Class-Path}
+     * entries are ignored.  For debugging purposes, ignored entries can be
+     * printed to the console if the
+     * {@systemProperty jdk.net.URLClassPath.showIgnoredClassPathEntries} system
+     * property is set to {@code true}.
+     *
      * @return  The system {@code ClassLoader}
      *
      * @throws  SecurityException
@@ -1918,10 +1943,6 @@ public abstract  class ClassLoader {
      *          exception is thrown by that constructor when it is invoked. The
      *          underlying cause of the error can be retrieved via the
      *          {@link Throwable#getCause()} method.
-     *
-     * @revised  1.4
-     * @revised 9
-     * @spec JPMS
      */
     @CallerSensitive
     public static ClassLoader getSystemClassLoader() {
@@ -1937,6 +1958,7 @@ public abstract  class ClassLoader {
             default:
                 // system fully initialized
                 assert VM.isBooted() && scl != null;
+                @SuppressWarnings("removal")
                 SecurityManager sm = System.getSecurityManager();
                 if (sm != null) {
                     checkClassLoaderPermission(scl, Reflection.getCallerClass());
@@ -2045,6 +2067,7 @@ public abstract  class ClassLoader {
      * is not the same as or an ancestor of the given cl argument.
      */
     static void checkClassLoaderPermission(ClassLoader cl, Class<?> caller) {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             // caller can be null if the VM is requesting it
@@ -2186,10 +2209,8 @@ public abstract  class ClassLoader {
      *
      *
      * @since  1.2
-     * @revised 9
-     * @spec JPMS
      *
-     * @jvms 5.3 Run-time package
+     * @jvms 5.3 Creation and Loading
      * @see <a href="{@docRoot}/../specs/jar/jar.html#package-sealing">
      *      The JAR File Specification: Package Sealing</a>
      */
@@ -2223,10 +2244,9 @@ public abstract  class ClassLoader {
      * @throws  NullPointerException
      *          if {@code name} is {@code null}.
      *
-     * @jvms 5.3 Run-time package
+     * @jvms 5.3 Creation and Loading
      *
      * @since  9
-     * @spec JPMS
      */
     public final Package getDefinedPackage(String name) {
         Objects.requireNonNull(name, "name cannot be null");
@@ -2247,13 +2267,12 @@ public abstract  class ClassLoader {
      *          for consistency with the existing {@link #getPackages} method.
      *
      * @return The array of {@code Package} objects that have been defined by
-     *         this class loader; or an zero length array if no package has been
+     *         this class loader; or a zero length array if no package has been
      *         defined by this class loader.
      *
-     * @jvms 5.3 Run-time package
+     * @jvms 5.3 Creation and Loading
      *
      * @since  9
-     * @spec JPMS
      */
     public final Package[] getDefinedPackages() {
         return packages().toArray(Package[]::new);
@@ -2298,8 +2317,6 @@ public abstract  class ClassLoader {
      * @see ClassLoader#getDefinedPackage(String)
      *
      * @since  1.2
-     * @revised 9
-     * @spec JPMS
      */
     @Deprecated(since="9")
     protected @Nullable Package getPackage(String name) {
@@ -2334,8 +2351,6 @@ public abstract  class ClassLoader {
      * @see ClassLoader#getDefinedPackages()
      *
      * @since  1.2
-     * @revised 9
-     * @spec JPMS
      */
     
     @SuppressWarnings({"nullness:return.type.incompatible"})
@@ -2385,376 +2400,82 @@ public abstract  class ClassLoader {
         return null;
     }
 
-    /**
-     * The inner class NativeLibrary denotes a loaded native library instance.
-     * Every classloader contains a vector of loaded native libraries in the
-     * private field {@code nativeLibraries}.  The native libraries loaded
-     * into the system are entered into the {@code systemNativeLibraries}
-     * vector.
-     *
-     * <p> Every native library requires a particular version of JNI. This is
-     * denoted by the private {@code jniVersion} field.  This field is set by
-     * the VM when it loads the library, and used by the VM to pass the correct
-     * version of JNI to the native methods.  </p>
-     *
-     * @see      ClassLoader
-     * @since    1.2
-     */
-    static class NativeLibrary {
-        // the class from which the library is loaded, also indicates
-        // the loader this native library belongs.
-        final Class<?> fromClass;
-        // the canonicalized name of the native library.
-        // or static library name
-        final String name;
-        // Indicates if the native library is linked into the VM
-        final boolean isBuiltin;
-
-        // opaque handle to native library, used in native code.
-        long handle;
-        // the version of JNI environment the native library requires.
-        int jniVersion;
-
-        native boolean load0(String name, boolean isBuiltin);
-
-        native long findEntry(String name);
-
-        NativeLibrary(Class<?> fromClass, String name, boolean isBuiltin) {
-            this.name = name;
-            this.fromClass = fromClass;
-            this.isBuiltin = isBuiltin;
-        }
-
-        /*
-         * Loads the native library and registers for cleanup when its
-         * associated class loader is unloaded
-         */
-        boolean load() {
-            if (handle != 0) {
-                throw new InternalError("Native library " + name + " has been loaded");
-            }
-
-            if (!load0(name, isBuiltin)) return false;
-
-            // register the class loader for cleanup when unloaded
-            // built class loaders are never unloaded
-            ClassLoader loader = fromClass.getClassLoader();
-            if (loader != null &&
-                loader != getBuiltinPlatformClassLoader() &&
-                loader != getBuiltinAppClassLoader()) {
-                CleanerFactory.cleaner().register(loader,
-                        new Unloader(name, handle, isBuiltin));
-            }
-            return true;
-        }
-
-        static boolean loadLibrary(Class<?> fromClass, String name, boolean isBuiltin) {
-            ClassLoader loader =
-                fromClass == null ? null : fromClass.getClassLoader();
-
-            synchronized (loadedLibraryNames) {
-                Map<String, NativeLibrary> libs =
-                    loader != null ? loader.nativeLibraries() : systemNativeLibraries();
-                if (libs.containsKey(name)) {
-                    return true;
-                }
-
-                if (loadedLibraryNames.contains(name)) {
-                    throw new UnsatisfiedLinkError("Native Library " + name +
-                        " already loaded in another classloader");
-                }
-
-                /*
-                 * When a library is being loaded, JNI_OnLoad function can cause
-                 * another loadLibrary invocation that should succeed.
-                 *
-                 * We use a static stack to hold the list of libraries we are
-                 * loading because this can happen only when called by the
-                 * same thread because Runtime.load and Runtime.loadLibrary
-                 * are synchronous.
-                 *
-                 * If there is a pending load operation for the library, we
-                 * immediately return success; otherwise, we raise
-                 * UnsatisfiedLinkError.
-                 */
-                for (NativeLibrary lib : nativeLibraryContext) {
-                    if (name.equals(lib.name)) {
-                        if (loader == lib.fromClass.getClassLoader()) {
-                            return true;
-                        } else {
-                            throw new UnsatisfiedLinkError("Native Library " +
-                                name + " is being loaded in another classloader");
-                        }
-                    }
-                }
-                NativeLibrary lib = new NativeLibrary(fromClass, name, isBuiltin);
-                // load the native library
-                nativeLibraryContext.push(lib);
-                try {
-                    if (!lib.load()) return false;
-                } finally {
-                    nativeLibraryContext.pop();
-                }
-                // register the loaded native library
-                loadedLibraryNames.add(name);
-                libs.put(name, lib);
-            }
-            return true;
-        }
-
-        // Invoked in the VM to determine the context class in JNI_OnLoad
-        // and JNI_OnUnload
-        static Class<?> getFromClass() {
-            return nativeLibraryContext.peek().fromClass;
-        }
-
-        // native libraries being loaded
-        static Deque<NativeLibrary> nativeLibraryContext = new ArrayDeque<>(8);
-
-        /*
-         * The run() method will be invoked when this class loader becomes
-         * phantom reachable to unload the native library.
-         */
-        static class Unloader implements Runnable {
-            // This represents the context when a native library is unloaded
-            // and getFromClass() will return null,
-            static final NativeLibrary UNLOADER =
-                new NativeLibrary(null, "dummy", false);
-            final String name;
-            final long handle;
-            final boolean isBuiltin;
-
-            Unloader(String name, long handle, boolean isBuiltin) {
-                if (handle == 0) {
-                    throw new IllegalArgumentException(
-                        "Invalid handle for native library " + name);
-                }
-
-                this.name = name;
-                this.handle = handle;
-                this.isBuiltin = isBuiltin;
-            }
-
-            @Override
-            public void run() {
-                synchronized (loadedLibraryNames) {
-                    /* remove the native library name */
-                    loadedLibraryNames.remove(name);
-                    nativeLibraryContext.push(UNLOADER);
-                    try {
-                        unload(name, isBuiltin, handle);
-                    } finally {
-                        nativeLibraryContext.pop();
-                    }
-
-                }
-            }
-        }
-
-        // JNI FindClass expects the caller class if invoked from JNI_OnLoad
-        // and JNI_OnUnload is NativeLibrary class
-        static native void unload(String name, boolean isBuiltin, long handle);
-    }
-
-    // The paths searched for libraries
-    private static String usr_paths @Nullable [];
-    private static String sys_paths @Nullable [];
-
-    private static String[] initializePath(String propName) {
-        String ldPath = System.getProperty(propName, "");
-        int ldLen = ldPath.length();
-        char ps = File.pathSeparatorChar;
-        int psCount = 0;
-
-        if (ClassLoaderHelper.allowsQuotedPathElements &&
-            ldPath.indexOf('\"') >= 0) {
-            // First, remove quotes put around quoted parts of paths.
-            // Second, use a quotation mark as a new path separator.
-            // This will preserve any quoted old path separators.
-            char[] buf = new char[ldLen];
-            int bufLen = 0;
-            for (int i = 0; i < ldLen; ++i) {
-                char ch = ldPath.charAt(i);
-                if (ch == '\"') {
-                    while (++i < ldLen &&
-                        (ch = ldPath.charAt(i)) != '\"') {
-                        buf[bufLen++] = ch;
-                    }
-                } else {
-                    if (ch == ps) {
-                        psCount++;
-                        ch = '\"';
-                    }
-                    buf[bufLen++] = ch;
-                }
-            }
-            ldPath = new String(buf, 0, bufLen);
-            ldLen = bufLen;
-            ps = '\"';
-        } else {
-            for (int i = ldPath.indexOf(ps); i >= 0;
-                 i = ldPath.indexOf(ps, i + 1)) {
-                psCount++;
-            }
-        }
-
-        String[] paths = new String[psCount + 1];
-        int pathStart = 0;
-        for (int j = 0; j < psCount; ++j) {
-            int pathEnd = ldPath.indexOf(ps, pathStart);
-            paths[j] = (pathStart < pathEnd) ?
-                ldPath.substring(pathStart, pathEnd) : ".";
-            pathStart = pathEnd + 1;
-        }
-        paths[psCount] = (pathStart < ldLen) ?
-            ldPath.substring(pathStart, ldLen) : ".";
-        return paths;
-    }
+    private final NativeLibraries libraries = NativeLibraries.newInstance(this);
 
     // Invoked in the java.lang.Runtime class to implement load and loadLibrary.
-    
-    @SuppressWarnings({"nullness:dereference.of.nullable"})
-    static void loadLibrary(Class<?> fromClass, String name,
-                            boolean isAbsolute) {
-        ClassLoader loader =
-            (fromClass == null) ? null : fromClass.getClassLoader();
-        if (sys_paths == null) {
-            usr_paths = initializePath("java.library.path");
-            sys_paths = initializePath("sun.boot.library.path");
+    static NativeLibrary loadLibrary(Class<?> fromClass, File file) {
+        ClassLoader loader = (fromClass == null) ? null : fromClass.getClassLoader();
+        NativeLibraries libs = loader != null ? loader.libraries : BootLoader.getNativeLibraries();
+        NativeLibrary nl = libs.loadLibrary(fromClass, file);
+        if (nl != null) {
+            return nl;
         }
-        if (isAbsolute) {
-            if (loadLibrary0(fromClass, new File(name))) {
-                return;
+        throw new UnsatisfiedLinkError("Can't load library: " + file);
+    }
+    static NativeLibrary loadLibrary(Class<?> fromClass, String name) {
+        ClassLoader loader = (fromClass == null) ? null : fromClass.getClassLoader();
+        if (loader == null) {
+            NativeLibrary nl = BootLoader.getNativeLibraries().loadLibrary(fromClass, name);
+            if (nl != null) {
+                return nl;
             }
-            throw new UnsatisfiedLinkError("Can't load library: " + name);
+            throw new UnsatisfiedLinkError("no " + name +
+                    " in system library path: " + StaticProperty.sunBootLibraryPath());
         }
-        if (loader != null) {
-            String libfilename = loader.findLibrary(name);
-            if (libfilename != null) {
-                File libfile = new File(libfilename);
-                if (!libfile.isAbsolute()) {
-                    throw new UnsatisfiedLinkError(
+
+        NativeLibraries libs = loader.libraries;
+        // First load from the file returned from ClassLoader::findLibrary, if found.
+        String libfilename = loader.findLibrary(name);
+        if (libfilename != null) {
+            File libfile = new File(libfilename);
+            if (!libfile.isAbsolute()) {
+                throw new UnsatisfiedLinkError(
                         "ClassLoader.findLibrary failed to return an absolute path: " + libfilename);
-                }
-                if (loadLibrary0(fromClass, libfile)) {
-                    return;
-                }
-                throw new UnsatisfiedLinkError("Can't load " + libfilename);
             }
+            NativeLibrary nl = libs.loadLibrary(fromClass, libfile);
+            if (nl != null) {
+                return nl;
+            }
+            throw new UnsatisfiedLinkError("Can't load " + libfilename);
         }
-        for (String sys_path : sys_paths) {
-            File libfile = new File(sys_path, System.mapLibraryName(name));
-            if (loadLibrary0(fromClass, libfile)) {
-                return;
-            }
-            libfile = ClassLoaderHelper.mapAlternativeName(libfile);
-            if (libfile != null && loadLibrary0(fromClass, libfile)) {
-                return;
-            }
+        // Then load from system library path and java library path
+        NativeLibrary nl = libs.loadLibrary(fromClass, name);
+        if (nl != null) {
+            return nl;
         }
-        if (loader != null) {
-            for (String usr_path : usr_paths) {
-                File libfile = new File(usr_path, System.mapLibraryName(name));
-                if (loadLibrary0(fromClass, libfile)) {
-                    return;
-                }
-                libfile = ClassLoaderHelper.mapAlternativeName(libfile);
-                if (libfile != null && loadLibrary0(fromClass, libfile)) {
-                    return;
-                }
-            }
-        }
+
         // Oops, it failed
         throw new UnsatisfiedLinkError("no " + name +
-            " in java.library.path: " + Arrays.toString(usr_paths));
+                " in java.library.path: " + StaticProperty.javaLibraryPath());
     }
 
-    private static native String findBuiltinLib(String name);
-
-    private static boolean loadLibrary0(Class<?> fromClass, final File file) {
-        // Check to see if we're attempting to access a static library
-        String name = findBuiltinLib(file.getName());
-        boolean isBuiltin = (name != null);
-        if (!isBuiltin) {
-            name = AccessController.doPrivileged(
-                new PrivilegedAction<>() {
-                    public String run() {
-                        try {
-                            return file.exists() ? file.getCanonicalPath() : null;
-                        } catch (IOException e) {
-                            return null;
-                        }
-                    }
-                });
-            if (name == null) {
-                return false;
-            }
-        }
-        return NativeLibrary.loadLibrary(fromClass, name, isBuiltin);
-    }
-
-    /*
+    /**
      * Invoked in the VM class linking code.
+     * @param loader the class loader used to look up the native library symbol
+     * @param clazz the class in which the native method is declared
+     * @param entryName the native method's mangled name (this is the name used for the native lookup)
+     * @param javaName the native method's declared name
      */
-    private static long findNative(@Nullable ClassLoader loader, String entryName) {
-        Map<String, NativeLibrary> libs =
-            loader != null ? loader.nativeLibraries() : systemNativeLibraries();
-        if (libs.isEmpty())
-            return 0;
-
-        // the native libraries map may be updated in another thread
-        // when a native library is being loaded.  No symbol will be
-        // searched from it yet.
-        for (NativeLibrary lib : libs.values()) {
-            long entry = lib.findEntry(entryName);
-            if (entry != 0) return entry;
+    static long findNative(ClassLoader loader, Class<?> clazz, String entryName, String javaName) {
+        NativeLibraries nativeLibraries = nativeLibrariesFor(loader);
+        long addr = nativeLibraries.find(entryName);
+        if (addr != 0 && loader != null) {
+            Reflection.ensureNativeAccess(clazz, clazz, javaName, true);
         }
-        return 0;
-    }
-
-    // All native library names we've loaded.
-    // This also serves as the lock to obtain nativeLibraries
-    // and write to nativeLibraryContext.
-    private static final Set<String> loadedLibraryNames = new HashSet<>();
-
-    // Native libraries belonging to system classes.
-    private static volatile Map<String, NativeLibrary> systemNativeLibraries;
-
-    // Native libraries associated with the class loader.
-    private volatile Map<String, NativeLibrary> nativeLibraries;
-
-    /*
-     * Returns the native libraries map associated with bootstrap class loader
-     * This method will create the map at the first time when called.
-     */
-    private static Map<String, NativeLibrary> systemNativeLibraries() {
-        Map<String, NativeLibrary> libs = systemNativeLibraries;
-        if (libs == null) {
-            synchronized (loadedLibraryNames) {
-                libs = systemNativeLibraries;
-                if (libs == null) {
-                    libs = systemNativeLibraries = new ConcurrentHashMap<>();
-                }
-            }
-        }
-        return libs;
+        return addr;
     }
 
     /*
-     * Returns the native libraries map associated with this class loader
-     * This method will create the map at the first time when called.
+     * This is also called by SymbolLookup::loaderLookup. In that case, we need
+     * to avoid a restricted check, as that check has already been performed when
+     * obtaining the lookup.
      */
-    private Map<String, NativeLibrary> nativeLibraries() {
-        Map<String, NativeLibrary> libs = nativeLibraries;
-        if (libs == null) {
-            synchronized (loadedLibraryNames) {
-                libs = nativeLibraries;
-                if (libs == null) {
-                    libs = nativeLibraries = new ConcurrentHashMap<>();
-                }
-            }
+    static NativeLibraries nativeLibrariesFor(ClassLoader loader) {
+        if (loader == null) {
+            return BootLoader.getNativeLibraries();
+        } else {
+            return loader.libraries;
         }
-        return libs;
     }
 
     // -- Assertion management --
@@ -2830,8 +2551,8 @@ public abstract  class ClassLoader {
      *         The name of the package whose package default assertion status
      *         is to be set. A {@code null} value indicates the unnamed
      *         package that is "current"
-     *         (see section 7.4.2 of
-     *         <cite>The Java&trade; Language Specification</cite>.)
+     *         (see section {@jls 7.4.2} of
+     *         <cite>The Java Language Specification</cite>.)
      *
      * @param  enabled
      *         {@code true} if classes loaded by this classloader and
@@ -3014,7 +2735,20 @@ public abstract  class ClassLoader {
         Class<?> k = ClassLoader.class;
         long offset;
         offset = unsafe.objectFieldOffset(k, name);
-        return unsafe.compareAndSetObject(this, offset, null, obj);
+        return unsafe.compareAndSetReference(this, offset, null, obj);
+    }
+
+    /**
+     * Called by the VM, during -Xshare:dump
+     */
+    private void resetArchivedStates() {
+        if (parallelLockMap != null) {
+            parallelLockMap.clear();
+        }
+        packages.clear();
+        package2certs.clear();
+        classes.clear();
+        classLoaderValueMap = null;
     }
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,7 @@ class ByteCodeGenerator extends TestsGenerator {
     private static final String DEFAULT_SUFFIX = "bytecode_tests";
 
     ByteCodeGenerator() {
-        super(DEFAULT_SUFFIX);
+        super(DEFAULT_SUFFIX, s -> new String[0], "-Xcomp");
     }
 
     ByteCodeGenerator(String suffix, Function<String, String[]> preRunActions, String jtDriverOptions) {
@@ -47,16 +47,17 @@ class ByteCodeGenerator extends TestsGenerator {
     }
 
     @Override
-    public void accept(IRNode mainClass, IRNode privateClasses) {
-        generateClassFiles(mainClass, privateClasses);
-        generateSeparateJtregHeader(mainClass);
+    public void accept(IRTreeGenerator.Test test) {
+        IRNode mainClass = test.mainClass();
+        generateClassFiles(mainClass, test.privateClasses());
+        generateSeparateJtregHeader(test.seed(), mainClass);
         compilePrinter();
         generateGoldenOut(mainClass.getName());
     }
 
-    private void generateSeparateJtregHeader(IRNode mainClass) {
+    private void generateSeparateJtregHeader(long seed, IRNode mainClass) {
         String mainClassName = mainClass.getName();
-        writeFile(generatorDir, mainClassName + ".java", getJtregHeader(mainClassName));
+        writeFile(generatorDir, mainClassName + ".java", getJtregHeader(mainClassName, seed));
     }
 
     private void generateClassFiles(IRNode mainClass, IRNode privateClasses) {
@@ -92,6 +93,19 @@ class ByteCodeGenerator extends TestsGenerator {
             Files.write(generatorDir.resolve(fileName), bytecode);
         } catch (IOException ex) {
             ex.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        ProductionParams.initializeFromCmdline(args);
+        IRTreeGenerator.initializeWithProductionParams();
+
+        ByteCodeGenerator generator = new ByteCodeGenerator();
+
+        for (String mainClass : ProductionParams.mainClassNames.value()) {
+            var test = IRTreeGenerator.generateIRTree(mainClass);
+            generator.generateClassFiles(test.mainClass(), test.privateClasses());
+            generator.generateSeparateJtregHeader(test.seed(), test.mainClass());
         }
     }
 }

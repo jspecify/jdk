@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,33 +25,20 @@
 
 package sun.launcher;
 
-/*
- *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.
- *  If you write code that depends on this, you do so at your own
- *  risk.  This code and its internal interfaces are subject to change
- *  or deletion without notice.</b>
- *
- */
-
-/**
- * A utility package for the java(1), javaw(1) launchers.
- * The following are helper methods that the native launcher uses
- * to perform checks etc. using JNI, see src/share/bin/java.c
- */
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.module.Configuration;
 import java.lang.module.ModuleDescriptor;
-import java.lang.module.ModuleDescriptor.Requires;
 import java.lang.module.ModuleDescriptor.Exports;
 import java.lang.module.ModuleDescriptor.Opens;
 import java.lang.module.ModuleDescriptor.Provides;
+import java.lang.module.ModuleDescriptor.Requires;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
 import java.lang.module.ResolvedModule;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -62,33 +49,43 @@ import java.nio.charset.Charset;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.text.Normalizer;
 import java.text.MessageFormat;
+import java.text.Normalizer;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import jdk.internal.misc.MethodFinder;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.module.ModuleBootstrap;
 import jdk.internal.module.Modules;
 import jdk.internal.platform.Container;
 import jdk.internal.platform.Metrics;
+import jdk.internal.util.OperatingSystem;
+import sun.util.calendar.ZoneInfoFile;
 
-
+/**
+ * A utility package for the java(1), javaw(1) launchers.
+ * The following are helper methods that the native launcher uses
+ * to perform checks etc. using JNI, see src/share/bin/java.c
+ */
 public final class LauncherHelper {
 
     // No instantiation
@@ -105,6 +102,7 @@ public final class LauncherHelper {
     private static final String MAIN_CLASS = "Main-Class";
     private static final String ADD_EXPORTS = "Add-Exports";
     private static final String ADD_OPENS = "Add-Opens";
+    private static final String ENABLE_NATIVE_ACCESS = "Enable-Native-Access";
 
     private static StringBuilder outBuf = new StringBuilder();
 
@@ -119,6 +117,7 @@ public final class LauncherHelper {
 
     private static final String defaultBundleName =
             "sun.launcher.resources.launcher";
+
     private static class ResourceBundleHolder {
         private static final ResourceBundle RB =
                 ResourceBundle.getBundle(defaultBundleName);
@@ -126,11 +125,19 @@ public final class LauncherHelper {
     private static PrintStream ostream;
     private static Class<?> appClass; // application class, for GUI/reporting purposes
 
+    enum Option { DEFAULT, ALL, LOCALE, PROPERTIES, SECURITY,
+        SECURITY_ALL, SECURITY_PROPERTIES, SECURITY_PROVIDERS,
+        SECURITY_TLS, SYSTEM, VM };
+
     /*
-     * A method called by the launcher to print out the standard settings,
-     * by default -XshowSettings is equivalent to -XshowSettings:all,
-     * Specific information may be gotten by using suboptions with possible
-     * values vm, properties and locale.
+     * A method called by the launcher to print out the standard settings.
+     * -XshowSettings prints details of all supported components in non-verbose
+     * mode. -XshowSettings:all prints all settings in verbose mode.
+     * Specific settings information may be obtained by using suboptions.
+     *
+     * Suboption values include "all", "locale", "properties", "security",
+     * "system" (Linux only) and "vm". A error message is printed for an
+     * unknown suboption value and the VM launch aborts.
      *
      * printToStderr: choose between stdout and stderr
      *
@@ -153,39 +160,68 @@ public final class LauncherHelper {
             long initialHeapSize, long maxHeapSize, long stackSize) {
 
         initOutput(printToStderr);
-        String opts[] = optionFlag.split(":");
-        String optStr = (opts.length > 1 && opts[1] != null)
-                ? opts[1].trim()
-                : "all";
-        switch (optStr) {
-            case "vm":
-                printVmSettings(initialHeapSize, maxHeapSize, stackSize);
-                break;
-            case "properties":
-                printProperties();
-                break;
-            case "locale":
-                printLocale();
-                break;
-            case "system":
-                if (System.getProperty("os.name").contains("Linux")) {
-                    printSystemMetrics();
-                    break;
-                }
-            default:
-                printVmSettings(initialHeapSize, maxHeapSize, stackSize);
-                printProperties();
-                printLocale();
-                if (System.getProperty("os.name").contains("Linux")) {
-                    printSystemMetrics();
-                }
-                break;
+        Option component = validateOption(optionFlag);
+        switch (component) {
+            case ALL -> printAllSettings(initialHeapSize, maxHeapSize, stackSize, true);
+            case LOCALE -> printLocale(true);
+            case PROPERTIES -> printProperties();
+            case SECURITY,
+                 SECURITY_ALL,
+                 SECURITY_PROPERTIES,
+                 SECURITY_PROVIDERS,
+                 SECURITY_TLS -> SecuritySettings.printSecuritySettings(component, ostream, true);
+            case SYSTEM -> printSystemMetrics();
+            case VM -> printVmSettings(initialHeapSize, maxHeapSize, stackSize);
+            case DEFAULT -> printAllSettings(initialHeapSize, maxHeapSize, stackSize, false);
         }
     }
 
     /*
-     * prints the main vm settings subopt/section
+     * Validate that the -XshowSettings value is allowed
+     * If a valid option is parsed, return enum corresponding
+     * to that option. Abort if a bad option is parsed.
      */
+    private static Option validateOption(String optionFlag) {
+        if (optionFlag.equals("-XshowSettings")) {
+            return Option.DEFAULT;
+        }
+
+        if (optionFlag.equals("-XshowSetings:")) {
+            abort(null, "java.launcher.bad.option", ":");
+        }
+
+        Map<String, Option> validOpts = Arrays.stream(Option.values())
+                .filter(o -> !o.equals(Option.DEFAULT)) // non-valid option
+                .collect(Collectors.toMap(o -> o.name()
+                        .toLowerCase(Locale.ROOT)
+                        .replace("_", ":"), Function.identity()));
+
+        String optStr = optionFlag.substring("-XshowSettings:".length());
+        Option component = validOpts.get(optStr);
+        if (component == null) {
+            abort(null, "java.launcher.bad.option", optStr);
+        }
+        return component;
+    }
+
+    /*
+     * Print settings for all supported components.
+     * verbose value used to determine if verbose information
+     * should be printed for components that support printing
+     * in verbose or non-verbose mode.
+     */
+    private static void printAllSettings(long initialHeapSize, long maxHeapSize,
+                                         long stackSize, boolean verbose) {
+        printVmSettings(initialHeapSize, maxHeapSize, stackSize);
+        printProperties();
+        printLocale(verbose);
+        SecuritySettings.printSecuritySettings(
+                    Option.SECURITY_ALL, ostream, verbose);
+        if (OperatingSystem.isLinux()) {
+            printSystemMetrics();
+        }
+    }
+
     private static void printVmSettings(
             long initialHeapSize, long maxHeapSize,
             long stackSize) {
@@ -217,11 +253,8 @@ public final class LauncherHelper {
     private static void printProperties() {
         Properties p = System.getProperties();
         ostream.println(PROP_SETTINGS);
-        List<String> sortedPropertyKeys = new ArrayList<>();
-        sortedPropertyKeys.addAll(p.stringPropertyNames());
-        Collections.sort(sortedPropertyKeys);
-        for (String x : sortedPropertyKeys) {
-            printPropertyValue(x, p.getProperty(x));
+        for (String key : p.stringPropertyNames().stream().sorted().toList()) {
+            printPropertyValue(key, p.getProperty(key));
         }
         ostream.println();
     }
@@ -242,7 +275,7 @@ public final class LauncherHelper {
                         ostream.print("\\n ");
                         break;
                     default:
-                        // print any bizzare line separators in hex, but really
+                        // print any bizarre line separators in hex, but really
                         // shouldn't happen.
                         ostream.printf("0x%02X", b & 0xff);
                         break;
@@ -270,16 +303,26 @@ public final class LauncherHelper {
     /*
      * prints the locale subopt/section
      */
-    private static void printLocale() {
+    private static void printLocale(boolean verbose) {
         Locale locale = Locale.getDefault();
-        ostream.println(LOCALE_SETTINGS);
+        if (verbose) {
+            ostream.println(LOCALE_SETTINGS);
+        } else {
+            ostream.println("Locale settings summary:");
+            ostream.println(INDENT + "Use \"-XshowSettings:locale\" " +
+                    "option for verbose locale settings options");
+        }
         ostream.println(INDENT + "default locale = " +
                 locale.getDisplayName());
         ostream.println(INDENT + "default display locale = " +
                 Locale.getDefault(Category.DISPLAY).getDisplayName());
         ostream.println(INDENT + "default format locale = " +
                 Locale.getDefault(Category.FORMAT).getDisplayName());
-        printLocales();
+        ostream.println(INDENT + "tzdata version = " +
+                ZoneInfoFile.getVersion());
+        if (verbose) {
+            printLocales();
+        }
         ostream.println();
     }
 
@@ -311,9 +354,10 @@ public final class LauncherHelper {
                 ostream.print(INDENT + INDENT);
             }
         }
+        ostream.println();
     }
 
-    public static void printSystemMetrics() {
+    private static void printSystemMetrics() {
         Metrics c = Container.metrics();
 
         ostream.println("Operating System Metrics:");
@@ -323,89 +367,123 @@ public final class LauncherHelper {
             return;
         }
 
+        final long longRetvalNotSupported = -2;
+
         ostream.println(INDENT + "Provider: " + c.getProvider());
+        if (!c.isContainerized()) {
+            ostream.println(INDENT + "System not containerized.");
+            return;
+        }
         ostream.println(INDENT + "Effective CPU Count: " + c.getEffectiveCpuCount());
-        ostream.println(INDENT + "CPU Period: " + c.getCpuPeriod() +
-               (c.getCpuPeriod() == -1 ? "" : "us"));
-        ostream.println(INDENT + "CPU Quota: " + c.getCpuQuota() +
-               (c.getCpuQuota() == -1 ? "" : "us"));
-        ostream.println(INDENT + "CPU Shares: " + c.getCpuShares());
+        ostream.println(formatCpuVal(c.getCpuPeriod(), INDENT + "CPU Period: ", longRetvalNotSupported));
+        ostream.println(formatCpuVal(c.getCpuQuota(), INDENT + "CPU Quota: ", longRetvalNotSupported));
+        ostream.println(formatCpuVal(c.getCpuShares(), INDENT + "CPU Shares: ", longRetvalNotSupported));
 
         int cpus[] = c.getCpuSetCpus();
-        ostream.println(INDENT + "List of Processors, "
-                + cpus.length + " total: ");
+        if (cpus != null) {
+            ostream.println(INDENT + "List of Processors, "
+                    + cpus.length + " total: ");
 
-        ostream.print(INDENT);
-        for (int i = 0; i < cpus.length; i++) {
-            ostream.print(cpus[i] + " ");
-        }
-        if (cpus.length > 0) {
-            ostream.println("");
+            ostream.print(INDENT);
+            for (int i = 0; i < cpus.length; i++) {
+                ostream.print(cpus[i] + " ");
+            }
+            if (cpus.length > 0) {
+                ostream.println("");
+            }
+        } else {
+            ostream.println(INDENT + "List of Processors: N/A");
         }
 
         cpus = c.getEffectiveCpuSetCpus();
-        ostream.println(INDENT + "List of Effective Processors, "
-                + cpus.length + " total: ");
+        if (cpus != null) {
+            ostream.println(INDENT + "List of Effective Processors, "
+                    + cpus.length + " total: ");
 
-        ostream.print(INDENT);
-        for (int i = 0; i < cpus.length; i++) {
-            ostream.print(cpus[i] + " ");
-        }
-        if (cpus.length > 0) {
-            ostream.println("");
+            ostream.print(INDENT);
+            for (int i = 0; i < cpus.length; i++) {
+                ostream.print(cpus[i] + " ");
+            }
+            if (cpus.length > 0) {
+                ostream.println("");
+            }
+        } else {
+            ostream.println(INDENT + "List of Effective Processors: N/A");
         }
 
         int mems[] = c.getCpuSetMems();
-        ostream.println(INDENT + "List of Memory Nodes, "
-                + mems.length + " total: ");
+        if (mems != null) {
+            ostream.println(INDENT + "List of Memory Nodes, "
+                    + mems.length + " total: ");
 
-        ostream.print(INDENT);
-        for (int i = 0; i < mems.length; i++) {
-            ostream.print(mems[i] + " ");
-        }
-        if (mems.length > 0) {
-            ostream.println("");
+            ostream.print(INDENT);
+            for (int i = 0; i < mems.length; i++) {
+                ostream.print(mems[i] + " ");
+            }
+            if (mems.length > 0) {
+                ostream.println("");
+            }
+        } else {
+            ostream.println(INDENT + "List of Memory Nodes: N/A");
         }
 
         mems = c.getEffectiveCpuSetMems();
-        ostream.println(INDENT + "List of Available Memory Nodes, "
-                + mems.length + " total: ");
+        if (mems != null) {
+            ostream.println(INDENT + "List of Available Memory Nodes, "
+                    + mems.length + " total: ");
 
-        ostream.print(INDENT);
-        for (int i = 0; i < mems.length; i++) {
-            ostream.print(mems[i] + " ");
+            ostream.print(INDENT);
+            for (int i = 0; i < mems.length; i++) {
+                ostream.print(mems[i] + " ");
+            }
+            if (mems.length > 0) {
+                ostream.println("");
+            }
+        } else {
+            ostream.println(INDENT + "List of Available Memory Nodes: N/A");
         }
-        if (mems.length > 0) {
-            ostream.println("");
-        }
-
-        ostream.println(INDENT + "CPUSet Memory Pressure Enabled: "
-                + c.isCpuSetMemoryPressureEnabled());
 
         long limit = c.getMemoryLimit();
-        ostream.println(INDENT + "Memory Limit: " +
-                ((limit >= 0) ? SizePrefix.scaleValue(limit) : "Unlimited"));
+        ostream.println(formatLimitString(limit, INDENT + "Memory Limit: ", longRetvalNotSupported));
 
         limit = c.getMemorySoftLimit();
-        ostream.println(INDENT + "Memory Soft Limit: " +
-                ((limit >= 0) ? SizePrefix.scaleValue(limit) : "Unlimited"));
+        ostream.println(formatLimitString(limit, INDENT + "Memory Soft Limit: ", longRetvalNotSupported));
 
         limit = c.getMemoryAndSwapLimit();
-        ostream.println(INDENT + "Memory & Swap Limit: " +
-                ((limit >= 0) ? SizePrefix.scaleValue(limit) : "Unlimited"));
+        ostream.println(formatLimitString(limit, INDENT + "Memory & Swap Limit: ", longRetvalNotSupported));
 
-        limit = c.getKernelMemoryLimit();
-        ostream.println(INDENT + "Kernel Memory Limit: " +
-                ((limit >= 0) ? SizePrefix.scaleValue(limit) : "Unlimited"));
-
-        limit = c.getTcpMemoryLimit();
-        ostream.println(INDENT + "TCP Memory Limit: " +
-                ((limit >= 0) ? SizePrefix.scaleValue(limit) : "Unlimited"));
-
-        ostream.println(INDENT + "Out Of Memory Killer Enabled: "
-                + c.isMemoryOOMKillEnabled());
-
+        limit = c.getPidsMax();
+        ostream.println(formatLimitString(limit, INDENT + "Maximum Processes Limit: ",
+                                          longRetvalNotSupported, false));
         ostream.println("");
+    }
+
+    private static String formatLimitString(long limit, String prefix, long unavailable) {
+        return formatLimitString(limit, prefix, unavailable, true);
+    }
+
+    private static String formatLimitString(long limit, String prefix, long unavailable, boolean scale) {
+        if (limit >= 0) {
+            if (scale) {
+                return prefix + SizePrefix.scaleValue(limit);
+            } else {
+                return prefix + limit;
+            }
+        } else if (limit == unavailable) {
+            return prefix + "N/A";
+        } else {
+            return prefix + "Unlimited";
+        }
+    }
+
+    private static String formatCpuVal(long cpuVal, String prefix, long unavailable) {
+        if (cpuVal >= 0) {
+            return prefix + cpuVal + "us";
+        } else if (cpuVal == unavailable) {
+            return prefix + "N/A";
+        } else {
+            return prefix + cpuVal;
+        }
     }
 
     private enum SizePrefix {
@@ -475,7 +553,7 @@ public final class LauncherHelper {
     }
 
     /**
-     * Appends the vm synoym message to the header, already created.
+     * Appends the vm synonym message to the header, already created.
      * initHelpSystem must be called before using this method.
      */
     static void appendVmSynonymMessage(String vm1, String vm2) {
@@ -502,7 +580,7 @@ public final class LauncherHelper {
         initOutput(printToStderr);
         ostream.println(getLocalizedMessage("java.launcher.X.usage",
                 File.pathSeparator));
-        if (System.getProperty("os.name").contains("OS X")) {
+        if (OperatingSystem.isMacOS()) {
             ostream.println(getLocalizedMessage("java.launcher.X.macosx.usage",
                         File.pathSeparator));
         }
@@ -516,66 +594,69 @@ public final class LauncherHelper {
         ostream = ps;
     }
 
-    static String getMainClassFromJar(String jarname) {
-        String mainValue;
-        try (JarFile jarFile = new JarFile(jarname)) {
-            Manifest manifest = jarFile.getManifest();
-            if (manifest == null) {
-                abort(null, "java.launcher.jar.error2", jarname);
-            }
-            Attributes mainAttrs = manifest.getMainAttributes();
-            if (mainAttrs == null) {
-                abort(null, "java.launcher.jar.error3", jarname);
-            }
-
-            // Main-Class
-            mainValue = mainAttrs.getValue(MAIN_CLASS);
-            if (mainValue == null) {
-                abort(null, "java.launcher.jar.error3", jarname);
-            }
-
-            // Launcher-Agent-Class (only check for this when Main-Class present)
-            String agentClass = mainAttrs.getValue(LAUNCHER_AGENT_CLASS);
-            if (agentClass != null) {
-                ModuleLayer.boot().findModule("java.instrument").ifPresent(m -> {
-                    try {
-                        String cn = "sun.instrument.InstrumentationImpl";
-                        Class<?> clazz = Class.forName(cn, false, null);
-                        Method loadAgent = clazz.getMethod("loadAgent", String.class);
-                        loadAgent.invoke(null, jarname);
-                    } catch (Throwable e) {
-                        if (e instanceof InvocationTargetException) e = e.getCause();
-                        abort(e, "java.launcher.jar.error4", jarname);
-                    }
-                });
-            }
-
-            // Add-Exports and Add-Opens
-            String exports = mainAttrs.getValue(ADD_EXPORTS);
-            if (exports != null) {
-                addExportsOrOpens(exports, false);
-            }
-            String opens = mainAttrs.getValue(ADD_OPENS);
-            if (opens != null) {
-                addExportsOrOpens(opens, true);
-            }
-
-            /*
-             * Hand off to FXHelper if it detects a JavaFX application
-             * This must be done after ensuring a Main-Class entry
-             * exists to enforce compliance with the jar specification
-             */
-            if (mainAttrs.containsKey(
-                    new Attributes.Name(JAVAFX_APPLICATION_MARKER))) {
-                FXHelper.setFXLaunchParameters(jarname, LM_JAR);
-                return FXHelper.class.getName();
-            }
-
-            return mainValue.trim();
-        } catch (IOException ioe) {
-            abort(ioe, "java.launcher.jar.error1", jarname);
+    private static String getMainClassFromJar(JarFile jarFile) throws IOException {
+        String jarname = jarFile.getName();
+        Manifest manifest = jarFile.getManifest();
+        if (manifest == null) {
+            abort(null, "java.launcher.jar.error2", jarname);
         }
-        return null;
+
+        Attributes mainAttrs = manifest.getMainAttributes();
+        if (mainAttrs == null) {
+            abort(null, "java.launcher.jar.error3", jarname);
+        }
+
+        // Main-Class
+        String mainValue = mainAttrs.getValue(MAIN_CLASS);
+        if (mainValue == null) {
+            abort(null, "java.launcher.jar.error3", jarname);
+        }
+
+        // Launcher-Agent-Class (only check for this when Main-Class present)
+        String agentClass = mainAttrs.getValue(LAUNCHER_AGENT_CLASS);
+        if (agentClass != null) {
+            ModuleLayer.boot().findModule("java.instrument").ifPresent(m -> {
+                try {
+                    String cn = "sun.instrument.InstrumentationImpl";
+                    Class<?> clazz = Class.forName(cn, false, null);
+                    Method loadAgent = clazz.getMethod("loadAgent", String.class);
+                    loadAgent.invoke(null, jarname);
+                } catch (Throwable e) {
+                    if (e instanceof InvocationTargetException) e = e.getCause();
+                    abort(e, "java.launcher.jar.error4", jarname);
+                }
+            });
+        }
+
+        // Add-Exports and Add-Opens
+        String exports = mainAttrs.getValue(ADD_EXPORTS);
+        if (exports != null) {
+            addExportsOrOpens(exports, false);
+        }
+        String opens = mainAttrs.getValue(ADD_OPENS);
+        if (opens != null) {
+            addExportsOrOpens(opens, true);
+        }
+        String enableNativeAccess = mainAttrs.getValue(ENABLE_NATIVE_ACCESS);
+        if (enableNativeAccess != null) {
+            if (!enableNativeAccess.equals("ALL-UNNAMED")) {
+                abort(null, "java.launcher.jar.error.illegal.ena.value", enableNativeAccess);
+            }
+            Modules.addEnableNativeAccessToAllUnnamed();
+        }
+
+        /*
+         * Hand off to FXHelper if it detects a JavaFX application
+         * This must be done after ensuring a Main-Class entry
+         * exists to enforce compliance with the jar specification
+         */
+        if (mainAttrs.containsKey(
+                new Attributes.Name(JAVAFX_APPLICATION_MARKER))) {
+            FXHelper.setFXLaunchParameters(jarname, LM_JAR);
+            return FXHelper.class.getName();
+        }
+
+        return mainValue.trim();
     }
 
     /**
@@ -628,7 +709,7 @@ public final class LauncherHelper {
     /**
      * This method:
      * 1. Loads the main class from the module or class path
-     * 2. Checks the public static void main method.
+     * 2. Checks for a valid main method.
      * 3. If the main class extends FX Application then call on FXHelper to
      * perform the launch.
      *
@@ -672,7 +753,7 @@ public final class LauncherHelper {
             mainClass = FXHelper.class;
         }
 
-        validateMainClass(mainClass);
+        validateMainMethod(mainClass);
         return mainClass;
     }
 
@@ -696,7 +777,7 @@ public final class LauncherHelper {
         // main module is in the boot layer
         ModuleLayer layer = ModuleLayer.boot();
         Optional<Module> om = layer.findModule(mainModule);
-        if (!om.isPresent()) {
+        if (om.isEmpty()) {
             // should not happen
             throw new InternalError("Module " + mainModule + " not in boot Layer");
         }
@@ -705,7 +786,7 @@ public final class LauncherHelper {
         // get main class
         if (mainClass == null) {
             Optional<String> omc = m.getDescriptor().mainClass();
-            if (!omc.isPresent()) {
+            if (omc.isEmpty()) {
                 abort(null, "java.launcher.module.error1", mainModule);
             }
             mainClass = omc.get();
@@ -715,7 +796,7 @@ public final class LauncherHelper {
         Class<?> c = null;
         try {
             c = Class.forName(m, mainClass);
-            if (c == null && System.getProperty("os.name", "").contains("OS X")
+            if (c == null && OperatingSystem.isMacOS()
                     && Normalizer.isNormalized(mainClass, Normalizer.Form.NFD)) {
 
                 String cn = Normalizer.normalize(mainClass, Normalizer.Form.NFC);
@@ -738,13 +819,23 @@ public final class LauncherHelper {
      */
     private static Class<?> loadMainClass(int mode, String what) {
         // get the class name
-        String cn;
+        String cn = null;
+        // In LM_JAR mode, keep the underlying file open to retain it in
+        // the JarFile/ZipFile cache. This will avoid needing to re-parse
+        // the central directory when the file is opened on the class path,
+        // triggered by Class.forName below.
+        JarFile jarFile = null;
         switch (mode) {
             case LM_CLASS:
                 cn = what;
                 break;
             case LM_JAR:
-                cn = getMainClassFromJar(what);
+                try {
+                    jarFile = new JarFile(what);
+                    cn = getMainClassFromJar(jarFile);
+                } catch (IOException ioe) {
+                    abort(ioe, "java.launcher.jar.error1", what);
+                }
                 break;
             default:
                 // should never happen
@@ -759,7 +850,7 @@ public final class LauncherHelper {
             try {
                 mainClass = Class.forName(cn, false, scl);
             } catch (NoClassDefFoundError | ClassNotFoundException cnfe) {
-                if (System.getProperty("os.name", "").contains("OS X")
+                if (OperatingSystem.isMacOS()
                         && Normalizer.isNormalized(cn, Normalizer.Form.NFD)) {
                     try {
                         // On Mac OS X since all names with diacritical marks are
@@ -778,8 +869,16 @@ public final class LauncherHelper {
                 }
             }
         } catch (LinkageError le) {
-            abort(le, "java.launcher.cls.error6", cn,
+            abort(le, "java.launcher.cls.error4", cn,
                     le.getClass().getName() + ": " + le.getLocalizedMessage());
+        } finally {
+            if (jarFile != null) {
+                try {
+                    jarFile.close();
+                } catch (IOException ioe) {
+                    abort(ioe, "java.launcher.jar.error5", what);
+                }
+            }
         }
         return mainClass;
     }
@@ -809,39 +908,57 @@ public final class LauncherHelper {
         return false;
     }
 
-    // Check the existence and signature of main and abort if incorrect
-    static void validateMainClass(Class<?> mainClass) {
+    private static boolean isStaticMain = false;
+    private static boolean noArgMain = false;
+
+    // Check the existence and signature of main and abort if incorrect.
+    private static void validateMainMethod(Class<?> mainClass) {
         Method mainMethod = null;
         try {
-            mainMethod = mainClass.getMethod("main", String[].class);
-        } catch (NoSuchMethodException nsme) {
-            // invalid main or not FX application, abort with an error
-            abort(null, "java.launcher.cls.error4", mainClass.getName(),
-                  JAVAFX_APPLICATION_CLASS_NAME);
+            mainMethod = MethodFinder.findMainMethod(mainClass);
+
+            if (mainMethod == null) {
+                // invalid main or not FX application, abort with an error
+                abort(null, "java.launcher.cls.error2", mainClass.getName(),
+                      JAVAFX_APPLICATION_CLASS_NAME);
+            }
         } catch (Throwable e) {
             if (mainClass.getModule().isNamed()) {
-                abort(e, "java.launcher.module.error5",
-                      mainClass.getName(), mainClass.getModule(),
+                abort(e, "java.launcher.module.error3",
+                      mainClass.getName(), mainClass.getModule().getName(),
                       e.getClass().getName(), e.getLocalizedMessage());
             } else {
-                abort(e, "java.launcher.cls.error7", mainClass.getName(),
+                abort(e, "java.launcher.cls.error5", mainClass.getName(),
                       e.getClass().getName(), e.getLocalizedMessage());
             }
         }
 
-        /*
-         * getMethod (above) will choose the correct method, based
-         * on its name and parameter type, however, we still have to
-         * ensure that the method is static and returns a void.
-         */
-        int mod = mainMethod.getModifiers();
-        if (!Modifier.isStatic(mod)) {
-            abort(null, "java.launcher.cls.error2", "static",
-                  mainMethod.getDeclaringClass().getName());
+        int mods = mainMethod.getModifiers();
+        isStaticMain = Modifier.isStatic(mods);
+        boolean isPublic = Modifier.isPublic(mods);
+        noArgMain = mainMethod.getParameterCount() == 0;
+
+        if (!PreviewFeatures.isEnabled()) {
+            if (!isStaticMain || !isPublic || noArgMain) {
+                  abort(null, "java.launcher.cls.error2", mainClass.getName(),
+                       JAVAFX_APPLICATION_CLASS_NAME);
+            }
+            return;
         }
-        if (mainMethod.getReturnType() != java.lang.Void.TYPE) {
-            abort(null, "java.launcher.cls.error3",
-                  mainMethod.getDeclaringClass().getName());
+
+        if (!isStaticMain) {
+            String className = mainMethod.getDeclaringClass().getName();
+            if (mainClass.isMemberClass() && !Modifier.isStatic(mainClass.getModifiers())) {
+                abort(null, "java.launcher.cls.error7", className);
+            }
+            try {
+                Constructor<?> constructor = mainClass.getDeclaredConstructor();
+                if (Modifier.isPrivate(constructor.getModifiers())) {
+                    abort(null, "java.launcher.cls.error6", className);
+                }
+            } catch (Throwable ex) {
+                abort(null, "java.launcher.cls.error6", className);
+            }
         }
     }
 
@@ -993,14 +1110,14 @@ public final class LauncherHelper {
 
             // find the module with the FX launcher
             Optional<Module> om = ModuleLayer.boot().findModule(JAVAFX_GRAPHICS_MODULE_NAME);
-            if (!om.isPresent()) {
-                abort(null, "java.launcher.cls.error5");
+            if (om.isEmpty()) {
+                abort(null, "java.launcher.cls.error3");
             }
 
             // load the FX launcher class
             fxLauncherClass = Class.forName(om.get(), JAVAFX_LAUNCHER_CLASS_NAME);
             if (fxLauncherClass == null) {
-                abort(null, "java.launcher.cls.error5");
+                abort(null, "java.launcher.cls.error3");
             }
 
             try {
@@ -1021,7 +1138,7 @@ public final class LauncherHelper {
                     abort(null, "java.launcher.javafx.error1");
                 }
             } catch (NoSuchMethodException ex) {
-                abort(ex, "java.launcher.cls.error5", ex);
+                abort(ex, "java.launcher.cls.error3", ex);
             }
 
             fxLaunchName = what;
@@ -1195,7 +1312,7 @@ public final class LauncherHelper {
     }
 
     private static <T> Stream<String> toStringStream(Set<T> s) {
-        return s.stream().map(e -> e.toString().toLowerCase());
+        return s.stream().map(e -> e.toString().toLowerCase(Locale.ROOT));
     }
 
     private static boolean isJrt(ModuleReference mref) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 /**
  * Contains classes related to developing <em>beans</em> -- components based on
- * the JavaBeans&trade; architecture. A few of the classes are used by beans
+ * the JavaBeans architecture. A few of the classes are used by beans
  * while they run in an application. For example, the event classes are used by
  * beans that fire property and vetoable change events (see
  * {@link java.beans.PropertyChangeEvent}). However, most of the classes in this
@@ -102,11 +102,13 @@
  * <h2>Related Documentation</h2>
  * For overview, architecture, and tutorial documentation, please see:
  * <ul>
- *     <li><a href="http://docs.oracle.com/javase/tutorial/javabeans/">
+ *     <li><a href="https://docs.oracle.com/javase/tutorial/javabeans/">
  *         JavaBeans</a>, a trail in <em>The Java Tutorial</em>.</li>
  *     <li><a href="http://www.oracle.com/technetwork/java/persistence2-141443.html">
  *         Long-Term Persistence</a>, an article in
  *         <em>The Swing Connection</em>.</li>
  * </ul>
+ *
+ * @since 1.1
  */
 package java.beans;

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -68,18 +66,17 @@ public class GCHelper {
     public static final String event_phases_level_3 = EventNames.GCPhasePauseLevel3;
 
     public static final String gcG1New = "G1New";
-    public static final String gcParNew = "ParNew";
     public static final String gcDefNew = "DefNew";
     public static final String gcParallelScavenge = "ParallelScavenge";
     public static final String gcG1Old = "G1Old";
     public static final String gcG1Full = "G1Full";
-    public static final String gcConcurrentMarkSweep = "ConcurrentMarkSweep";
     public static final String gcSerialOld = "SerialOld";
     public static final String gcPSMarkSweep = "PSMarkSweep";
     public static final String gcParallelOld = "ParallelOld";
     public static final String pauseLevelEvent = "GCPhasePauseLevel";
 
     private static final List<String> g1HeapRegionTypes;
+    private static final List<String> shenandoahHeapRegionStates;
     private static PrintStream defaultErrorLog = null;
 
     public static int getGcId(RecordedEvent event) {
@@ -173,26 +170,22 @@ public class GCHelper {
         beanCollectorTypes.put("G1 Young Generation", true);
         beanCollectorTypes.put("Copy", true);
         beanCollectorTypes.put("PS Scavenge", true);
-        beanCollectorTypes.put("ParNew", true);
 
         // old GarbageCollectionMXBeans.
         beanCollectorTypes.put("G1 Old Generation", false);
-        beanCollectorTypes.put("ConcurrentMarkSweep", false);
+        beanCollectorTypes.put("G1 Concurrent GC", false);
         beanCollectorTypes.put("PS MarkSweep", false);
         beanCollectorTypes.put("MarkSweepCompact", false);
 
         // List of expected collector overrides. "A.B" means that collector A may use collector B.
         collectorOverrides.add("G1Old.G1Full");
-        collectorOverrides.add("ConcurrentMarkSweep.SerialOld");
         collectorOverrides.add("SerialOld.PSMarkSweep");
 
         requiredEvents.put(gcG1New, new String[] {event_heap_summary, event_young_garbage_collection});
-        requiredEvents.put(gcParNew, new String[] {event_heap_summary, event_heap_metaspace_summary, event_phases_pause, event_phases_level_1, event_young_garbage_collection});
         requiredEvents.put(gcDefNew, new String[] {event_heap_summary, event_heap_metaspace_summary, event_phases_pause, event_phases_level_1, event_young_garbage_collection});
         requiredEvents.put(gcParallelScavenge, new String[] {event_heap_summary, event_heap_ps_summary, event_heap_metaspace_summary, event_reference_statistics, event_phases_pause, event_phases_level_1, event_young_garbage_collection});
         requiredEvents.put(gcG1Old, new String[] {event_heap_summary, event_old_garbage_collection});
         requiredEvents.put(gcG1Full, new String[] {event_heap_summary, event_heap_metaspace_summary, event_phases_pause, event_phases_level_1, event_old_garbage_collection});
-        requiredEvents.put(gcConcurrentMarkSweep, new String[] {event_phases_pause, event_phases_level_1, event_old_garbage_collection});
         requiredEvents.put(gcSerialOld, new String[] {event_heap_summary, event_heap_metaspace_summary, event_phases_pause, event_phases_level_1, event_old_garbage_collection});
         requiredEvents.put(gcParallelOld, new String[] {event_heap_summary, event_heap_ps_summary, event_heap_metaspace_summary, event_reference_statistics, event_phases_pause, event_phases_level_1, event_old_garbage_collection, event_parold_garbage_collection});
 
@@ -202,11 +195,25 @@ public class GCHelper {
                                                            "Survivor",
                                                            "Starts Humongous",
                                                            "Continues Humongous",
-                                                           "Old",
-                                                           "Archive"
+                                                           "Old"
                                                          };
 
         g1HeapRegionTypes = Collections.unmodifiableList(Arrays.asList(g1HeapRegionTypeLiterals));
+
+        String[] shenandoahHeapRegionStateLiterals = new String[] {
+                                                                    "Empty Uncommitted",
+                                                                    "Empty Committed",
+                                                                    "Regular",
+                                                                    "Humongous Start",
+                                                                    "Humongous Continuation",
+                                                                    "Humongous Start, Pinned",
+                                                                    "Collection Set",
+                                                                    "Pinned",
+                                                                    "Collection Set, Pinned",
+                                                                    "Trash"
+        };
+
+        shenandoahHeapRegionStates = Collections.unmodifiableList(Arrays.asList(shenandoahHeapRegionStateLiterals));
     }
 
     /**
@@ -324,7 +331,7 @@ public class GCHelper {
                         // No existing batch. Create new.
                         currBatch = new GcBatch();
                         batches.add(currBatch);
-                        openGcIds.push(new Integer(gcId));
+                        openGcIds.push(Integer.valueOf(gcId));
                     }
                 }
                 boolean isEndEvent = currBatch.addEvent(event);
@@ -441,6 +448,13 @@ public class GCHelper {
 
     public static boolean isValidG1HeapRegionType(final String type) {
         return g1HeapRegionTypes.contains(type);
+    }
+
+    public static boolean assertIsValidShenandoahHeapRegionState(final String state) {
+        if (!shenandoahHeapRegionStates.contains(state)) {
+            throw new AssertionError("Unknown state '" + state + "', valid heap region states are " + shenandoahHeapRegionStates);
+        }
+        return true;
     }
 
     /**

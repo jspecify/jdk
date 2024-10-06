@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_LEAKPROFILER_CHAINS_BFSCLOSURE_HPP
-#define SHARE_VM_JFR_LEAKPROFILER_CHAINS_BFSCLOSURE_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_CHAINS_BFSCLOSURE_HPP
+#define SHARE_JFR_LEAKPROFILER_CHAINS_BFSCLOSURE_HPP
 
+#include "jfr/leakprofiler/chains/jfrbitset.hpp"
+#include "jfr/leakprofiler/utilities/unifiedOopRef.hpp"
 #include "memory/iterator.hpp"
-#include "oops/oop.hpp"
 
-class BitSet;
 class Edge;
 class EdgeStore;
 class EdgeQueue;
@@ -38,7 +38,7 @@ class BFSClosure : public BasicOopIterateClosure {
  private:
   EdgeQueue* _edge_queue;
   EdgeStore* _edge_store;
-  BitSet* _mark_bits;
+  JFRBitSet* _mark_bits;
   const Edge* _current_parent;
   mutable size_t _current_frontier_level;
   mutable size_t _next_frontier_idx;
@@ -52,22 +52,25 @@ class BFSClosure : public BasicOopIterateClosure {
   bool is_complete() const;
   void step_frontier() const;
 
-  void closure_impl(const oop* reference, const oop pointee);
-  void add_chain(const oop* reference, const oop pointee);
+  void closure_impl(UnifiedOopRef reference, const oop pointee);
+  void add_chain(UnifiedOopRef reference, const oop pointee);
   void dfs_fallback();
 
   void iterate(const Edge* parent);
-  void process(const oop* reference, const oop pointee);
+  void process(UnifiedOopRef reference, const oop pointee);
 
   void process_root_set();
   void process_queue();
 
  public:
-  BFSClosure(EdgeQueue* edge_queue, EdgeStore* edge_store, BitSet* mark_bits);
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS_EXCEPT_REFERENT; }
+
+  BFSClosure(EdgeQueue* edge_queue, EdgeStore* edge_store, JFRBitSet* mark_bits);
   void process();
+  void do_root(UnifiedOopRef ref);
 
   virtual void do_oop(oop* ref);
   virtual void do_oop(narrowOop* ref);
 };
 
-#endif // SHARE_VM_JFR_LEAKPROFILER_CHAINS_BFSCLOSURE_HPP
+#endif // SHARE_JFR_LEAKPROFILER_CHAINS_BFSCLOSURE_HPP

@@ -72,10 +72,18 @@ import java.util.function.LongConsumer;
 public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @Nullable Object> extends Iterator<T> {
 
     /**
-     * Performs the given action for each remaining element, in the order
-     * elements occur when iterating, until all elements have been processed
-     * or the action throws an exception.  Errors or runtime exceptions
-     * thrown by the action are relayed to the caller.
+     * Performs the given action for each remaining element until all elements
+     * have been processed or the action throws an exception.  Actions are
+     * performed in the order of iteration, if that order is specified.
+     * Exceptions thrown by the action are relayed to the caller.
+     * <p>
+     * The behavior of an iterator is unspecified if the action modifies the
+     * source of elements in any way (even by calling the {@link #remove remove}
+     * method or other mutator methods of {@code Iterator} subtypes),
+     * unless an overriding class has specified a concurrent modification policy.
+     * <p>
+     * Subsequent behavior of an iterator is unspecified if the action throws an
+     * exception.
      *
      * @param action The action to be performed for each element
      * @throws NullPointerException if the specified action is null
@@ -87,6 +95,7 @@ public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @N
      * An Iterator specialized for {@code int} values.
      * @since 1.8
      */
+    @SuppressWarnings("overloads")
     public static interface OfInt extends PrimitiveIterator<Integer, IntConsumer> {
 
         /**
@@ -98,20 +107,13 @@ public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @N
         int nextInt();
 
         /**
-         * Performs the given action for each remaining element until all elements
-         * have been processed or the action throws an exception.  Actions are
-         * performed in the order of iteration, if that order is specified.
-         * Exceptions thrown by the action are relayed to the caller.
-         *
+         * {@inheritDoc}
          * @implSpec
          * <p>The default implementation behaves as if:
          * <pre>{@code
          *     while (hasNext())
          *         action.accept(nextInt());
          * }</pre>
-         *
-         * @param action The action to be performed for each element
-         * @throws NullPointerException if the specified action is null
          */
         @Override
         default void forEachRemaining(IntConsumer action) {
@@ -162,6 +164,7 @@ public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @N
      * An Iterator specialized for {@code long} values.
      * @since 1.8
      */
+    @SuppressWarnings("overloads")
     public static interface OfLong extends PrimitiveIterator<Long, LongConsumer> {
 
         /**
@@ -173,20 +176,13 @@ public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @N
         long nextLong();
 
         /**
-         * Performs the given action for each remaining element until all elements
-         * have been processed or the action throws an exception.  Actions are
-         * performed in the order of iteration, if that order is specified.
-         * Exceptions thrown by the action are relayed to the caller.
-         *
+         * {@inheritDoc}
          * @implSpec
          * <p>The default implementation behaves as if:
          * <pre>{@code
          *     while (hasNext())
          *         action.accept(nextLong());
          * }</pre>
-         *
-         * @param action The action to be performed for each element
-         * @throws NullPointerException if the specified action is null
          */
         @Override
         default void forEachRemaining(LongConsumer action) {
@@ -236,6 +232,7 @@ public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @N
      * An Iterator specialized for {@code double} values.
      * @since 1.8
      */
+    @SuppressWarnings("overloads")
     public static interface OfDouble extends PrimitiveIterator<Double, DoubleConsumer> {
 
         /**
@@ -247,20 +244,13 @@ public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @N
         double nextDouble();
 
         /**
-         * Performs the given action for each remaining element until all elements
-         * have been processed or the action throws an exception.  Actions are
-         * performed in the order of iteration, if that order is specified.
-         * Exceptions thrown by the action are relayed to the caller.
-         *
+         * {@inheritDoc}
          * @implSpec
          * <p>The default implementation behaves as if:
          * <pre>{@code
          *     while (hasNext())
          *         action.accept(nextDouble());
          * }</pre>
-         *
-         * @param action The action to be performed for each element
-         * @throws NullPointerException if the specified action is null
          */
         @Override
         default void forEachRemaining(DoubleConsumer action) {

@@ -28,6 +28,7 @@ package jdk.internal.jshell.tool;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.function.Consumer;
+import jdk.internal.org.jline.utils.NonBlockingInputStream;
 
 public final class StopDetectingInputStream extends InputStream {
     public static final int INITIAL_SIZE = 128;
@@ -63,7 +64,19 @@ public final class StopDetectingInputStream extends InputStream {
                     if (currentState == State.CLOSED) {
                         break;
                     }
-                    if ((read = input.read()) == (-1)) {
+                    if (input instanceof NonBlockingInputStream) {
+                        //workaround: NonBlockingPumpReader.read(), which should
+                        //block until input is available, returns immediatelly,
+                        //which causes busy-waiting for input, consuming
+                        //unnecessary CPU resources. Using a timeout to avoid
+                        //blocking read:
+                        do {
+                            read = ((NonBlockingInputStream) input).read(1000L);
+                        } while (read == NonBlockingInputStream.READ_EXPIRED);
+                    } else {
+                        read = input.read();
+                    }
+                    if (read == (-1)) {
                         break;
                     }
                     if (read == 3 && getState() == State.BUFFER) {
@@ -107,13 +120,26 @@ public final class StopDetectingInputStream extends InputStream {
         }
     }
 
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        if (len == 0) {
+            return 0;
+        }
+        int r = read();
+        if (r != (-1)) {
+            b[off] = (byte) r;
+            return 1;
+        }
+        return 0;
+    }
+
     public synchronized void shutdown() {
         state = State.CLOSED;
         notifyAll();
     }
 
     public synchronized void write(int b) {
-        if (state != State.BUFFER) {
+        if (state == State.READ) {
             state = State.WAIT;
         }
         int newEnd = (end + 1) % buffer.length;

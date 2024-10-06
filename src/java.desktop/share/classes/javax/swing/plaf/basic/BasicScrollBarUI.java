@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,47 @@
 package javax.swing.plaf.basic;
 
 
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Insets;
+import java.awt.LayoutManager;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionListener;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+
+import javax.swing.BoundedRangeModel;
+import javax.swing.InputMap;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JFrame;
+import javax.swing.JList;
+import javax.swing.JScrollBar;
+import javax.swing.JScrollPane;
+import javax.swing.JViewport;
+import javax.swing.LookAndFeel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.UIManager;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.plaf.ComponentUI;
+import javax.swing.plaf.ScrollBarUI;
+import javax.swing.plaf.UIResource;
+
 import sun.swing.DefaultLookup;
 import sun.swing.UIAction;
-
-import java.awt.*;
-import java.awt.event.*;
-
-import java.beans.*;
-
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.plaf.*;
 
 import static sun.swing.SwingUtilities2.drawHLine;
 import static sun.swing.SwingUtilities2.drawRect;
@@ -163,6 +193,11 @@ public class BasicScrollBarUI
      */
     protected int decrGap;
 
+    /**
+     * Constructs a {@code BasicScrollBarUI}.
+     */
+    public BasicScrollBarUI() {}
+
     static void loadActionMap(LazyActionMap map) {
         map.put(new Actions(Actions.POSITIVE_UNIT_INCREMENT));
         map.put(new Actions(Actions.POSITIVE_BLOCK_INCREMENT));
@@ -270,7 +305,7 @@ public class BasicScrollBarUI
             } else if ("small".equals(scaleKey)){
                 scrollBarWidth *= 0.857;
                 incrGap *= 0.857;
-                decrGap *= 0.714;
+                decrGap *= 0.857;
             } else if ("mini".equals(scaleKey)){
                 scrollBarWidth *= 0.714;
                 incrGap *= 0.714;
@@ -749,7 +784,7 @@ public class BasicScrollBarUI
     }
 
     /**
-     * Laysouts a  vertical scroll bar.
+     * Lays out a vertical scroll bar.
      * @param sb the scroll bar
      */
     protected void layoutVScrollbar(JScrollBar sb)
@@ -851,7 +886,7 @@ public class BasicScrollBarUI
     }
 
     /**
-     * Laysouts a  vertical scroll bar.
+     * Lays out a horizontal scroll bar.
      * @param sb the scroll bar
      */
     protected void layoutHScrollbar(JScrollBar sb)
@@ -1171,6 +1206,11 @@ public class BasicScrollBarUI
      * A listener to listen for model changes.
      */
     protected class ModelListener implements ChangeListener {
+        /**
+         * Constructs a {@code ModelListener}.
+         */
+        protected ModelListener() {}
+
         public void stateChanged(ChangeEvent e) {
             if (!useCachedValue) {
                 scrollBarValue = scrollbar.getValue();
@@ -1194,6 +1234,11 @@ public class BasicScrollBarUI
         /** Current mouse y position */
         protected transient int currentMouseY;
         private transient int direction = +1;
+
+        /**
+         * Constructs a {@code TrackListener}.
+         */
+        protected TrackListener() {}
 
         /** {@inheritDoc} */
         public void mouseReleased(MouseEvent e)
@@ -1237,7 +1282,7 @@ public class BasicScrollBarUI
                 return;
 
             if (!scrollbar.hasFocus() && scrollbar.isRequestFocusEnabled()) {
-                scrollbar.requestFocus();
+                scrollbar.requestFocus(FocusEvent.Cause.MOUSE_EVENT);
             }
 
             useCachedValue = true;
@@ -1493,6 +1538,11 @@ public class BasicScrollBarUI
         // (keyfocus on scrollbars causes action without mousePress
         boolean handledEvent;
 
+        /**
+         * Constructs an {@code ArrowButtonListener}.
+         */
+        protected ArrowButtonListener() {}
+
         public void mousePressed(MouseEvent e)          {
             if(!scrollbar.isEnabled()) { return; }
             // not an unmodified left mouse button
@@ -1509,7 +1559,7 @@ public class BasicScrollBarUI
 
             handledEvent = true;
             if (!scrollbar.hasFocus() && scrollbar.isRequestFocusEnabled()) {
-                scrollbar.requestFocus();
+                scrollbar.requestFocus(FocusEvent.Cause.MOUSE_EVENT);
             }
         }
 
@@ -1559,6 +1609,25 @@ public class BasicScrollBarUI
 
         /** {@inheritDoc} */
         public void actionPerformed(ActionEvent e) {
+            // If frame is disabled and timer is started in mousePressed
+            // and mouseReleased is not called, then timer will not be stopped
+            // Stop the timer if frame is disabled
+            Component parent = scrollbar.getParent();
+            do {
+                if (parent instanceof JFrame par) {
+                    if (!par.isEnabled()) {
+                        ((Timer)e.getSource()).stop();
+                        buttonListener.handledEvent = false;
+                        scrollbar.setValueIsAdjusting(false);
+                        return;
+                    }
+                    break;
+                } else {
+                    if (parent != null) {
+                        parent = parent.getParent();
+                    }
+                }
+            } while (parent != null);
             if(useBlockIncrement)       {
                 scrollByBlock(direction);
                 // Stop scrolling if the thumb catches up with the mouse
@@ -1645,6 +1714,11 @@ public class BasicScrollBarUI
     /** Property change handler */
     public class PropertyChangeHandler implements PropertyChangeListener
     {
+        /**
+         * Constructs a {@code PropertyChangeHandler}.
+         */
+        public PropertyChangeHandler() {}
+
         // NOTE: This class exists only for backward compatibility. All
         // its functionality has been moved into Handler. If you need to add
         // new functionality add it to the Handler, but make sure this

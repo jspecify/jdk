@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,7 +61,7 @@ public class HeapMonitor {
     int sum = 0;
     List<Frame> frames = new ArrayList<Frame>();
     allocate(frames);
-    frames.add(new Frame("allocate", "()Ljava/util/List;", "HeapMonitor.java", 62));
+    frames.add(new Frame("allocate", "()Ljava/util/List;", "HeapMonitor.java", 63));
     return frames;
   }
 
@@ -69,8 +70,8 @@ public class HeapMonitor {
     for (int j = 0; j < allocationIterations; j++) {
       sum += actuallyAllocate();
     }
-    frames.add(new Frame("actuallyAllocate", "()I", "HeapMonitor.java", 97));
-    frames.add(new Frame("allocate", "(Ljava/util/List;)V", "HeapMonitor.java", 70));
+    frames.add(new Frame("actuallyAllocate", "()I", "HeapMonitor.java", 98));
+    frames.add(new Frame("allocate", "(Ljava/util/List;)V", "HeapMonitor.java", 71));
   }
 
   public static List<Frame> repeatAllocate(int max) {
@@ -78,7 +79,7 @@ public class HeapMonitor {
     for (int i = 0; i < max; i++) {
       frames = allocate();
     }
-    frames.add(new Frame("repeatAllocate", "(I)Ljava/util/List;", "HeapMonitor.java", 79));
+    frames.add(new Frame("repeatAllocate", "(I)Ljava/util/List;", "HeapMonitor.java", 80));
     return frames;
   }
 
@@ -102,43 +103,41 @@ public class HeapMonitor {
     return sum;
   }
 
-  private static double averageOneElementSize;
-  private static native double getAverageSize();
+  private static long oneElementSize;
+  private static native long getSize(Frame[] frames, boolean checkLines);
+  private static long getSize(Frame[] frames) {
+    return getSize(frames, getCheckLines());
+  }
 
-  // Calculate the size of a 1-element array in order to assess average sampling interval
-  // via the HeapMonitorStatIntervalTest. This is needed because various GCs could add
-  // extra memory to arrays.
+  // Calculate the size of a 1-element array in order to assess sampling interval
+  // via the HeapMonitorStatIntervalTest.
   // This is done by allocating a 1-element array and then looking in the heap monitoring
-  // samples for the average size of objects collected.
-  public static void calculateAverageOneElementSize() {
+  // samples for the size of an object collected.
+  public static void calculateOneElementSize() {
     enableSamplingEvents();
-    // Assume a size of 24 for the average size.
-    averageOneElementSize = 24;
 
-    // Call allocateSize once, this allocates the internal array for the iterations.
-    int totalSize = 10 * 1024 * 1024;
-    allocateSize(totalSize);
-
-    // Reset the storage and now really track the size of the elements.
-    resetEventStorage();
-    allocateSize(totalSize);
+    List<Frame> frameList = allocate();
     disableSamplingEvents();
 
-    // Get the actual average size.
-    averageOneElementSize = getAverageSize();
-    if (averageOneElementSize == 0) {
-      throw new RuntimeException("Could not calculate the average size of a 1-element array.");
+    frameList.add(new Frame("calculateOneElementSize", "()V", "HeapMonitor.java", 119));
+    Frame[] frames = frameList.toArray(new Frame[0]);
+
+    // Get the actual size.
+    oneElementSize = getSize(frames);
+    System.out.println("Element size is: " + oneElementSize);
+
+    if (oneElementSize == 0) {
+      throw new RuntimeException("Could get the size of a 1-element array.");
     }
   }
 
   public static int allocateSize(int totalSize) {
-    if (averageOneElementSize == 0) {
-      throw new RuntimeException("Average size of a 1-element array was not calculated.");
+    if (oneElementSize == 0) {
+      throw new RuntimeException("Size of a 1-element array was not calculated.");
     }
 
     int sum = 0;
-
-    int iterations = (int) (totalSize / averageOneElementSize);
+    int iterations = (int) (totalSize / oneElementSize);
 
     if (arrays == null || arrays.length < iterations) {
       arrays = new int[iterations][];
@@ -165,7 +164,15 @@ public class HeapMonitor {
     enableSamplingEvents();
     setSamplingInterval(0);
 
-    // Loop around an allocation loop and wait until the tlabs have settled.
+    // Trigger GC then loop around an allocation loop and wait until Object Sampling
+    // is enabled for every later allocation. It takes two steps:
+    // 1. Consume current TLAB, whose size can vary with heap/GC configuration
+    // 2. Consume initial ThreadHeapSampler::_bytes_until_sample, which is around 512KB
+    //
+    // Step1 trigger GC to consume current TLAB
+    System.gc();
+    // Step2 loop allocation consumes "bytes until sample", each iteration allocates
+    // about 1600KB, so 10 iterations will definitly consume initial "bytes until sample"
     final int maxTries = 10;
     int[][][] result = new int[maxTries][][];
     for (int i = 0; i < maxTries; i++) {
@@ -187,6 +194,46 @@ public class HeapMonitor {
     throw new RuntimeException("Could not set the sampler");
   }
 
+  public static Frame[] allocateAndCheckFrames(boolean shouldFindFrames,
+      boolean enableSampling) {
+    if (!eventStorageIsEmpty()) {
+      throw new RuntimeException("Statistics should be null to begin with.");
+    }
+
+    // Put sampling rate to 100k to ensure samples are collected.
+    setSamplingInterval(100 * 1024);
+
+    if (enableSampling) {
+      enableSamplingEvents();
+    }
+    // Use System.gc() to consume TLAB and trigger sampling as described above in sampleEverything
+    System.gc();
+    List<Frame> frameList = allocate();
+    frameList.add(new Frame("allocateAndCheckFrames", "(ZZ)[LMyPackage/Frame;", "HeapMonitor.java",
+          211));
+    Frame[] frames = frameList.toArray(new Frame[0]);
+
+    boolean foundLive = obtainedEvents(frames);
+    boolean foundGarbage = garbageContains(frames);
+    if (shouldFindFrames) {
+      if (!foundLive && !foundGarbage) {
+        throw new RuntimeException("No expected events were found: "
+            + foundLive + ", " + foundGarbage);
+      }
+    } else {
+      if (foundLive || foundGarbage) {
+        throw new RuntimeException("Were not expecting events, but found some: "
+            + foundLive + ", " + foundGarbage);
+      }
+    }
+
+    return frames;
+  }
+
+  public static Frame[] allocateAndCheckFrames() {
+    return allocateAndCheckFrames(true, true);
+  }
+
   public native static int sampledEvents();
   public native static boolean obtainedEvents(Frame[] frames, boolean checkLines);
   public native static boolean garbageContains(Frame[] frames, boolean checkLines);
@@ -205,10 +252,9 @@ public class HeapMonitor {
 
       VMOption enableJVMCI = bean.getVMOption("EnableJVMCI");
       VMOption useJVMCICompiler = bean.getVMOption("UseJVMCICompiler");
-      String compiler = System.getProperty("jvmci.Compiler");
 
       checkLines = !(enableJVMCI.getValue().equals("true")
-          && useJVMCICompiler.getValue().equals("true") && compiler.equals("graal"));
+          && useJVMCICompiler.getValue().equals("true"));
     } catch (Exception e) {
       // NOP.
     }
@@ -225,8 +271,13 @@ public class HeapMonitor {
   }
 
   public static boolean statsHaveExpectedNumberSamples(int expected, int acceptedErrorPercentage) {
-    double actual = getEventStorageElementCount();
-    double diffPercentage = Math.abs(actual - expected) / expected;
+    double actual = sampledEvents();
+    double diffPercentage = 100 * Math.abs(actual - expected) / expected;
+
+    if (diffPercentage >= acceptedErrorPercentage) {
+      System.err.println("Unexpected high difference percentage: " + diffPercentage
+          + " due to the count being " + actual + " instead of " + expected);
+    }
     return diffPercentage < acceptedErrorPercentage;
   }
 

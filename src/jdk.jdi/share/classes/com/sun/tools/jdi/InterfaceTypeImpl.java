@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,11 +36,11 @@ import com.sun.jdi.Method;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.VirtualMachine;
 
-final public class InterfaceTypeImpl extends InvokableTypeImpl
+public final class InterfaceTypeImpl extends InvokableTypeImpl
                                      implements InterfaceType {
 
     private static class IResult implements InvocationResult {
-        final private JDWP.InterfaceType.InvokeMethod rslt;
+        private final JDWP.InterfaceType.InvokeMethod rslt;
 
         public IResult(JDWP.InterfaceType.InvokeMethod rslt) {
             this.rslt = rslt;
@@ -77,27 +77,27 @@ final public class InterfaceTypeImpl extends InvokableTypeImpl
 
     public List<InterfaceType> subinterfaces() {
         List<InterfaceType> subs = new ArrayList<InterfaceType>();
-        for (ReferenceType refType : vm.allClasses()) {
+        vm.forEachClass(refType -> {
             if (refType instanceof InterfaceType) {
                 InterfaceType interfaze = (InterfaceType)refType;
                 if (interfaze.isPrepared() && interfaze.superinterfaces().contains(this)) {
                     subs.add(interfaze);
                 }
             }
-        }
+        });
         return subs;
     }
 
     public List<ClassType> implementors() {
         List<ClassType> implementors = new ArrayList<ClassType>();
-        for (ReferenceType refType : vm.allClasses()) {
+        vm.forEachClass(refType -> {
             if (refType instanceof ClassType) {
                 ClassType clazz = (ClassType)refType;
                 if (clazz.isPrepared() && clazz.interfaces().contains(this)) {
                     implementors.add(clazz);
                 }
             }
-        }
+        });
         return implementors;
     }
 

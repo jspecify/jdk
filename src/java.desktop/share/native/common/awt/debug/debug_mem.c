@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,10 @@
 
 #if defined(DEBUG)
 
-#include "debug_util.h"
+#include <stdlib.h>
+#include <string.h>
 
-/* Use THIS_FILE when it is available. */
-#ifndef THIS_FILE
-    #define THIS_FILE __FILE__
-#endif
+#include "debug_util.h"
 
 #define DMEM_MIN(a,b)   (a) < (b) ? (a) : (b)
 #define DMEM_MAX(a,b)   (a) > (b) ? (a) : (b)
@@ -73,10 +71,10 @@ typedef struct MemoryListLink {
 /**************************************************
  * Global Data structures
  */
-static DMemState                DMemGlobalState;
-extern const DMemState *        DMemStatePtr = &DMemGlobalState;
-static MemoryListLink           MemoryList = {NULL,NULL,FALSE};
-static dmutex_t                 DMemMutex = NULL;
+static DMemState         DMemGlobalState;
+const  DMemState *       DMemStatePtr = &DMemGlobalState;
+static MemoryListLink    MemoryList = {NULL,NULL,FALSE};
+static dmutex_t          DMemMutex = NULL;
 
 /**************************************************/
 
@@ -223,6 +221,7 @@ void * DMem_AllocateBlock(size_t size, const char * filename, int linenumber) {
     /* add block to list of allocated memory */
     header->listEnter = DMem_TrackBlock(header);
     if ( header->listEnter == NULL ) {
+        DMem_ClientFree(header);
         goto Exit;
     }
 
@@ -275,15 +274,15 @@ Exit:
 }
 
 static void DMem_DumpHeader(MemoryBlockHeader * header) {
-    char        report[FILENAME_MAX+MAX_DECIMAL_DIGITS*3+1];
-    static const char * reportFormat =
+    char        report[FILENAME_MAX+MAX_DECIMAL_DIGITS*3+42];
+    static const char * const reportFormat =
         "file:  %s, line %d\n"
-        "size:  %d bytes\n"
+        "size:  %zd bytes\n"
         "order: %d\n"
         "-------";
 
     DMem_VerifyHeader(header);
-    sprintf(report, reportFormat, header->filename, header->linenumber, header->size, header->order);
+    snprintf(report, sizeof(report), reportFormat, header->filename, header->linenumber, header->size, header->order);
     DTRACE_PRINTLN(report);
 }
 
@@ -296,7 +295,7 @@ void DMem_ReportLeaks() {
     DMutex_Enter(DMemMutex);
 
     /* Force memory leaks to be output regardless of trace settings */
-    DTrace_EnableFile(THIS_FILE, TRUE);
+    DTrace_EnableFile(__FILE__, TRUE);
     DTRACE_PRINTLN("--------------------------");
     DTRACE_PRINTLN("Debug Memory Manager Leaks");
     DTRACE_PRINTLN("--------------------------");

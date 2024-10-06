@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,7 @@ import java.security.cert.*;
 import javax.naming.CommunicationException;
 import javax.naming.ldap.InitialLdapContext;
 import javax.naming.ldap.LdapContext;
+import javax.naming.ldap.LdapName;
 import javax.security.auth.x500.X500Principal;
 
 import com.sun.jndi.ldap.LdapReferralException;
@@ -62,8 +63,6 @@ final class LDAPCertStoreImpl {
 
     private static final Debug debug = Debug.getInstance("certpath");
 
-    private final static boolean DEBUG = false;
-
     /**
      * LDAP attribute identifiers.
      */
@@ -72,22 +71,21 @@ final class LDAPCertStoreImpl {
     private static final String CROSS_CERT = "crossCertificatePair;binary";
     private static final String CRL = "certificateRevocationList;binary";
     private static final String ARL = "authorityRevocationList;binary";
-    private static final String DELTA_CRL = "deltaRevocationList;binary";
 
     // Constants for various empty values
-    private final static String[] STRING0 = new String[0];
+    private static final String[] STRING0 = new String[0];
 
-    private final static byte[][] BB0 = new byte[0][];
+    private static final byte[][] BB0 = new byte[0][];
 
-    private final static Attributes EMPTY_ATTRIBUTES = new BasicAttributes();
+    private static final Attributes EMPTY_ATTRIBUTES = new BasicAttributes();
 
     // cache related constants
-    private final static int DEFAULT_CACHE_SIZE = 750;
-    private final static int DEFAULT_CACHE_LIFETIME = 30;
+    private static final int DEFAULT_CACHE_SIZE = 750;
+    private static final int DEFAULT_CACHE_LIFETIME = 30;
 
-    private final static int LIFETIME;
+    private static final int LIFETIME;
 
-    private final static String PROP_LIFETIME =
+    private static final String PROP_LIFETIME =
                             "sun.security.certpath.ldap.cache.lifetime";
 
     /*
@@ -95,10 +93,11 @@ final class LDAPCertStoreImpl {
      * JNDI application resource files lookup to prevent recursion issues
      * when validating signed JARs with LDAP URLs in certificates.
      */
-    private final static String PROP_DISABLE_APP_RESOURCE_FILES =
+    private static final String PROP_DISABLE_APP_RESOURCE_FILES =
         "sun.security.certpath.ldap.disable.app.resource.files";
 
     static {
+        @SuppressWarnings("removal")
         String s = AccessController.doPrivileged(
             (PrivilegedAction<String>) () -> System.getProperty(PROP_LIFETIME));
         if (s != null) {
@@ -113,6 +112,7 @@ final class LDAPCertStoreImpl {
      * their binary stored form.
      */
     private CertificateFactory cf;
+
     /**
      * The JNDI directory context.
      */
@@ -172,6 +172,7 @@ final class LDAPCertStoreImpl {
         env.put(Context.PROVIDER_URL, url);
 
         // If property is set to true, disable application resource file lookup.
+        @SuppressWarnings("removal")
         boolean disableAppResourceFiles = AccessController.doPrivileged(
             (PrivilegedAction<Boolean>) () -> Boolean.getBoolean(PROP_DISABLE_APP_RESOURCE_FILES));
         if (disableAppResourceFiles) {
@@ -218,16 +219,23 @@ final class LDAPCertStoreImpl {
      */
     private class LDAPRequest {
 
-        private final String name;
+        private final LdapName name;
         private Map<String, byte[][]> valueMap;
         private final List<String> requestedAttributes;
 
         LDAPRequest(String name) throws CertStoreException {
-            this.name = checkName(name);
+            try {
+                // Convert DN to an LdapName so that it is not treated as a
+                // composite name by JNDI. In JNDI, using a string name is
+                // equivalent to calling new CompositeName(stringName).
+                this.name = new LdapName(name);
+            } catch (InvalidNameException ine) {
+                throw new CertStoreException("Invalid name: " + name, ine);
+            }
             requestedAttributes = new ArrayList<>(5);
         }
 
-        private String checkName(String name) throws CertStoreException {
+        private static String checkName(String name) throws CertStoreException {
             if (name == null) {
                 throw new CertStoreException("Name absent");
             }
@@ -238,10 +246,6 @@ final class LDAPCertStoreImpl {
             } catch (InvalidNameException ine) {
                 throw new CertStoreException("Invalid name: " + name, ine);
             }
-            return name;
-        }
-
-        String getName() {
             return name;
         }
 
@@ -260,9 +264,9 @@ final class LDAPCertStoreImpl {
          * @throws NamingException      if a naming exception occurs
          */
         byte[][] getValues(String attrId) throws NamingException {
-            if (DEBUG && ((cacheHits + cacheMisses) % 50 == 0)) {
-                System.out.println("Cache hits: " + cacheHits + "; misses: "
-                        + cacheMisses);
+            if (debug != null && Debug.isVerbose() && ((cacheHits + cacheMisses) % 50 == 0)) {
+                debug.println("LDAPRequest Cache hits: " + cacheHits +
+                    "; misses: " + cacheMisses);
             }
             String cacheKey = name + "|" + attrId;
             byte[][] values = valueCache.get(cacheKey);
@@ -294,11 +298,11 @@ final class LDAPCertStoreImpl {
             if (valueMap != null) {
                 return valueMap;
             }
-            if (DEBUG) {
-                System.out.println("Request: " + name + ":" + requestedAttributes);
+            if (debug != null && Debug.isVerbose()) {
+                debug.println("LDAPRequest: " + name + ":" + requestedAttributes);
                 requests++;
                 if (requests % 5 == 0) {
-                    System.out.println("LDAP requests: " + requests);
+                    debug.println("LDAP requests: " + requests);
                 }
             }
             valueMap = new HashMap<>(8);
@@ -325,6 +329,9 @@ final class LDAPCertStoreImpl {
                         if (newDn != null && newDn.charAt(0) == '/') {
                             newDn = newDn.substring(1);
                         }
+                        // In JNDI, it is not possible to use an LdapName for
+                        // the referral DN, so we must validate the syntax of
+                        // the string DN.
                         checkName(newDn);
                     } catch (Exception e) {
                         throw new NamingException("Cannot follow referral to "
@@ -375,7 +382,7 @@ final class LDAPCertStoreImpl {
          * or does not contain any values, a zero length byte array is
          * returned. NOTE that it is assumed that all values are byte arrays.
          */
-        private byte[][] getAttributeValues(Attribute attr)
+        private static byte[][] getAttributeValues(Attribute attr)
                 throws NamingException {
             byte[][] values;
             if (attr == null) {
@@ -568,10 +575,11 @@ final class LDAPCertStoreImpl {
         (X509CertSelector xsel, String ldapDN) throws CertStoreException {
 
         if (ldapDN == null) {
-            ldapDN = xsel.getSubjectAsString();
+            X500Principal subject = xsel.getSubject();
+            ldapDN = subject == null ? null : subject.getName();
         }
         int basicConstraints = xsel.getBasicConstraints();
-        String issuer = xsel.getIssuerAsString();
+        X500Principal issuer = xsel.getIssuer();
         HashSet<X509Certificate> certs = new HashSet<>();
         if (debug != null) {
             debug.println("LDAPCertStore.engineGetCertificates() basicConstraints: "
@@ -640,7 +648,7 @@ final class LDAPCertStoreImpl {
                 + "getMatchingCrossCerts...");
         }
         if ((issuer != null) && (basicConstraints > -2)) {
-            LDAPRequest request = new LDAPRequest(issuer);
+            LDAPRequest request = new LDAPRequest(issuer.getName());
             request.addRequestedAttribute(CROSS_CERT);
             request.addRequestedAttribute(CA_CERT);
             request.addRequestedAttribute(ARL);
@@ -771,9 +779,13 @@ final class LDAPCertStoreImpl {
                 } catch (IllegalArgumentException e) {
                     continue;
                 }
-            } else {
+            } else if (nameObject instanceof String) {
                 issuerName = (String)nameObject;
+            } else {
+                throw new CertStoreException(
+                    "unrecognized issuerName: must be String or byte[]");
             }
+
             // If all we want is CA certs, try to get the (probably shorter) ARL
             Collection<X509CRL> entryCRLs = Collections.emptySet();
             if (certChecking == null || certChecking.getBasicConstraints() != -1) {

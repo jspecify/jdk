@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,14 +24,21 @@
 /**
  * @test
  * @bug 6870935
+ * @library /test/lib
  * @modules java.base/sun.net.www
- * @run main/othervm -Dhttp.nonProxyHosts="" -Dhttp.auth.digest.validateProxy=true B6870935
+ * @run main/othervm -Dhttp.auth.digest.reEnabledAlgorithms=MD5
+ *                   -Dhttp.nonProxyHosts="" -Dhttp.auth.digest.validateProxy=true B6870935
+ * @run main/othervm -Dhttp.auth.digest.reEnabledAlgorithms=MD5
+ *                   -Djava.net.preferIPv6Addresses=true
+ *                   -Dhttp.nonProxyHosts="" -Dhttp.auth.digest.validateProxy=true B6870935
  */
 
 import java.io.*;
 import java.util.*;
 import java.net.*;
 import java.security.*;
+
+import jdk.test.lib.net.HttpHeaderParser;
 import sun.net.www.*;
 
 /* This is one simple test of the RFC2617 digest authentication behavior
@@ -80,21 +87,25 @@ public class B6870935 {
 
         public void run () {
             try {
+                System.out.println("Server started");
                 Socket s1 = s.accept ();
                 is = s1.getInputStream ();
                 os = s1.getOutputStream ();
                 is.read ();
                 os.write (reply1.getBytes());
+                System.out.println("First response sent");
                 Thread.sleep (2000);
                 s1.close ();
+                System.out.println("First connection closed");
 
                 s1 = s.accept ();
                 is = s1.getInputStream ();
                 os = s1.getOutputStream ();
-                is.read ();
+                // is.read ();
                 // need to get the cnonce out of the response
-                MessageHeader header = new MessageHeader (is);
-                String raw = header.findValue ("Proxy-Authorization");
+                HttpHeaderParser header = new HttpHeaderParser (is);
+                String raw = header.getHeaderValue("Proxy-Authorization") != null ?
+                        header.getHeaderValue("Proxy-Authorization").get(0) : null;
                 HeaderParser parser = new HeaderParser (raw);
                 String cnonce = parser.findValue ("cnonce");
                 String cnstring = parser.findValue ("nc");
@@ -115,12 +126,16 @@ public class B6870935 {
                         cnstring, passwd, username
                 ) +"\r\n";
                 os.write (reply.getBytes());
+                System.out.println("Second response sent");
                 Thread.sleep (2000);
                 s1.close ();
+                System.out.println("Second connection closed");
             }
             catch (Exception e) {
                 System.out.println (e);
                 e.printStackTrace();
+            } finally {
+                System.out.println("Server finished");
             }
         }
 
@@ -177,11 +192,6 @@ public class B6870935 {
             return finalHash;
         }
 
-        private final static char charArray[] = {
-            '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-        };
-
         private String encode(String src, char[] passwd, MessageDigest md) {
             md.update(src.getBytes());
             if (passwd != null) {
@@ -192,15 +202,7 @@ public class B6870935 {
                 Arrays.fill(passwdBytes, (byte)0x00);
             }
             byte[] digest = md.digest();
-
-            StringBuffer res = new StringBuffer(digest.length * 2);
-            for (int i = 0; i < digest.length; i++) {
-                int hashchar = ((digest[i] >>> 4) & 0xf);
-                res.append(charArray[hashchar]);
-                hashchar = (digest[i] & 0xf);
-                res.append(charArray[hashchar]);
-            }
-            return res.toString();
+            return HexFormat.of().formatHex(digest);
         }
     }
 
@@ -225,8 +227,17 @@ public class B6870935 {
         DigestServer server;
         ServerSocket sock;
 
+        InetAddress address = InetAddress.getLoopbackAddress();
+        InetAddress resolved = InetAddress.getByName(address.getHostName());
+        System.out.println("Lookup: "
+                            + address + " -> \"" + address.getHostName() + "\" -> "
+                            + resolved);
+        String proxyHost = address.equals(resolved)
+            ? address.getHostName()
+            : address.getHostAddress();
         try {
-            sock = new ServerSocket (0);
+            sock = new ServerSocket();
+            sock.bind(new InetSocketAddress(address, 0));
             port = sock.getLocalPort ();
         }
         catch (Exception e) {
@@ -238,12 +249,12 @@ public class B6870935 {
         server.start ();
 
         try  {
-
             Authenticator.setDefault (new MyAuthenticator ());
-            SocketAddress addr = new InetSocketAddress ("127.0.0.1", port);
+            SocketAddress addr = InetSocketAddress.createUnresolved(proxyHost, port);
             Proxy proxy = new Proxy (Proxy.Type.HTTP, addr);
             String s = "http://www.ibm.com";
             URL url = new URL(s);
+            System.out.println("opening connection through proxy: " + addr);
             java.net.URLConnection conURL =  url.openConnection(proxy);
 
             InputStream in = conURL.getInputStream();
@@ -255,6 +266,9 @@ public class B6870935 {
         catch(IOException e) {
             e.printStackTrace();
             error = true;
+            sock.close();
+        } finally {
+            server.join();
         }
         if (error) {
             throw new RuntimeException ("Error in test");

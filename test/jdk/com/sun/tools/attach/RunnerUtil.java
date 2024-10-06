@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,9 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.Arrays;
 
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.Utils;
-import jdk.testlibrary.ProcessThread;
+import jdk.test.lib.thread.ProcessThread;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.Utils;
 
 /*
  * Utility functions for test runners.
@@ -53,7 +53,7 @@ public class RunnerUtil {
             "-Dattach.test=true", "-classpath", classpath, "Application"
         });
         String[] args = Utils.addTestJavaOpts(myArgs);
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(args);
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(args);
         ProcessThread pt = new ProcessThread("runApplication", (line) -> line.equals(Application.READY_MSG), pb);
         pt.start();
         return pt;

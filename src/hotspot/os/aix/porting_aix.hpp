@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
+ * Copyright (c) 2012, 2023 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_AIX_VM_PORTING_AIX_HPP
-#define OS_AIX_VM_PORTING_AIX_HPP
+#ifndef OS_AIX_PORTING_AIX_HPP
+#define OS_AIX_PORTING_AIX_HPP
 
 #include <stddef.h>
 
@@ -33,7 +33,7 @@
 // its content is part of the os class.
 
 // Aix' own version of dladdr().
-// This function tries to mimick dladdr(3) on Linux
+// This function tries to mimic dladdr(3) on Linux
 // (see http://linux.die.net/man/3/dladdr)
 // dladdr(3) is not POSIX but a GNU extension, and is not available on AIX.
 //
@@ -83,6 +83,14 @@ class AixSymbols {
     char* p_name, size_t namelen     // [out] module name
   );
 
+  // Given a program counter, returns the name of the module (library and module) the pc points to
+  // and the base address of the module the pc points to
+  static bool get_module_name_and_base (
+    address pc,                      // [in] program counter
+    char* p_name, size_t namelen,    // [out] module name
+    address* p_base                  // [out] base address of library
+  );
+
 };
 
 class AixNativeCallstack {
@@ -107,5 +115,6 @@ class AixMisc {
 
 };
 
-#endif // OS_AIX_VM_PORTING_AIX_HPP
+void* Aix_dlopen(const char* filename, int Flags, int *eno, const char** error_report);
 
+#endif // OS_AIX_PORTING_AIX_HPP

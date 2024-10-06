@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,10 +33,8 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
- * @build nsk.jdb.pop_exception.pop_exception001.pop_exception001
- *        nsk.jdb.pop_exception.pop_exception001.pop_exception001a
- * @run main/othervm PropertyResolvingWrapper
+ * @build nsk.jdb.pop_exception.pop_exception001.pop_exception001a
+ * @run driver
  *      nsk.jdb.pop_exception.pop_exception001.pop_exception001
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
@@ -65,14 +63,10 @@ public class pop_exception001 extends JdbTest {
     static final String LAST_BREAK      = DEBUGGEE_CLASS + ".lastBreak";
 
     public static void main (String argv[]) {
-        System.exit(run(argv, System.out) + JCK_STATUS_BASE);
-    }
-
-    public static int run(String argv[], PrintStream out) {
         debuggeeClass =  DEBUGGEE_CLASS;
         firstBreak = FIRST_BREAK;
         lastBreak = LAST_BREAK;
-        return new pop_exception001().runTest(argv, out);
+        new pop_exception001().runTest(argv);
     }
 
 

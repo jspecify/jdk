@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,8 +57,8 @@ import java.security.AllPermission;
  * @build CustomLoggerTest AccessSystemLogger
  * @run driver AccessSystemLogger
  * @run main/othervm -Xbootclasspath/a:boot CustomLoggerTest NOSECURITY
- * @run main/othervm -Xbootclasspath/a:boot CustomLoggerTest NOPERMISSIONS
- * @run main/othervm -Xbootclasspath/a:boot CustomLoggerTest WITHPERMISSIONS
+ * @run main/othervm -Xbootclasspath/a:boot -Djava.security.manager=allow CustomLoggerTest NOPERMISSIONS
+ * @run main/othervm -Xbootclasspath/a:boot -Djava.security.manager=allow CustomLoggerTest WITHPERMISSIONS
  * @author danielfuchs
  */
 public class CustomLoggerTest {
@@ -370,7 +370,7 @@ public class CustomLoggerTest {
             throw new RuntimeException("sys logger in appplication map");
         }
         if (provider.system.contains(sysLogger1)) {
-            // sysLogger should be a a LazyLoggerWrapper
+            // sysLogger should be a LazyLoggerWrapper
             throw new RuntimeException("sys logger is in system map (should be wrapped)");
         }
 
@@ -704,6 +704,8 @@ public class CustomLoggerTest {
 
     public static class SimplePolicy extends Policy {
 
+        static final Policy DEFAULT_POLICY = Policy.getPolicy();
+
         static final RuntimePermission LOGGERFINDER_PERMISSION =
                 new RuntimePermission("loggerFinder");
         final Permissions permissions;
@@ -736,7 +738,7 @@ public class CustomLoggerTest {
 
         @Override
         public boolean implies(ProtectionDomain domain, Permission permission) {
-            return permissions().implies(permission);
+            return permissions().implies(permission) || DEFAULT_POLICY.implies(domain, permission);
         }
 
         @Override

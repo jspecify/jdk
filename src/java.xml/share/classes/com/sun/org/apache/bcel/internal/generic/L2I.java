@@ -23,9 +23,10 @@ package com.sun.org.apache.bcel.internal.generic;
 
 /**
  * L2I - Convert long to int
- * <PRE>Stack: ..., value.word1, value.word2 -&gt; ..., result</PRE>
  *
- * @version $Id: L2I.java 1747278 2016-06-07 17:28:43Z britter $
+ * <PRE>
+ * Stack: ..., value.word1, value.word2 -&gt; ..., result
+ * </PRE>
  */
 public class L2I extends ConversionInstruction {
 
@@ -33,17 +34,14 @@ public class L2I extends ConversionInstruction {
         super(com.sun.org.apache.bcel.internal.Const.L2I);
     }
 
-
     /**
-     * Call corresponding visitor method(s). The order is:
-     * Call visitor methods of implemented interfaces first, then
-     * call methods according to the class hierarchy in descending order,
-     * i.e., the most specific visitXXX() call comes last.
+     * Call corresponding visitor method(s). The order is: Call visitor methods of implemented interfaces first, then call
+     * methods according to the class hierarchy in descending order, i.e., the most specific visitXXX() call comes last.
      *
      * @param v Visitor object
      */
     @Override
-    public void accept( final Visitor v ) {
+    public void accept(final Visitor v) {
         v.visitTypedInstruction(this);
         v.visitStackProducer(this);
         v.visitStackConsumer(this);

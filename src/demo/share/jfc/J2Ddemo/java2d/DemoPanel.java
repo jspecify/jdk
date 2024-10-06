@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -64,7 +64,7 @@ public class DemoPanel extends JPanel {
         try {
             if (obj instanceof String) {
                 className = (String) obj;
-                obj = Class.forName(className).newInstance();
+                obj = Class.forName(className).getDeclaredConstructor().newInstance();
             }
             if (obj instanceof Component) {
                 add((Component) obj);
@@ -74,8 +74,8 @@ public class DemoPanel extends JPanel {
             }
             if (obj instanceof CustomControlsContext) {
                 ccc = (CustomControlsContext) obj;
-                Component cmps[] = ccc.getControls();
-                String cons[] = ccc.getConstraints();
+                Component[] cmps = ccc.getControls();
+                String[] cons = ccc.getConstraints();
                 for (int i = 0; i < cmps.length; i++) {
                     add(cmps[i], cons[i]);
                 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,25 +25,26 @@
  * @test
  * @bug      4934778 4777599 6553182 8146427 8146475 8175055 8185371
  * @summary  Make sure that --help, -helpfile and -nohelp options work correctly.
- * @author   jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester TestHelpOption
+ * @build    javadoc.tester.* TestHelpOption
  * @run main TestHelpOption
  */
 
 import java.util.*;
 import java.util.stream.*;
 
+import javadoc.tester.JavadocTester;
+
 public class TestHelpOption extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestHelpOption tester = new TestHelpOption();
+        var tester = new TestHelpOption();
         tester.runTests();
     }
 
     @Test
-    void testLineLengths() {
+    public void testLineLengths() {
         javadoc("-d", "out1",
                 "-sourcepath", testSrc,
                 "-X",
@@ -63,7 +64,7 @@ public class TestHelpOption extends JavadocTester {
     }
 
     @Test
-    void testWithOption() {
+    public void testWithOption() {
         javadoc("-d", "out1",
                 "-sourcepath", testSrc,
                 "--help",
@@ -74,7 +75,7 @@ public class TestHelpOption extends JavadocTester {
     }
 
     @Test
-    void testWithoutOption() {
+    public void testWithoutOption() {
         javadoc("-d", "out2",
                 "-sourcepath", testSrc,
                 testSrc("Sample.java"));
@@ -82,30 +83,32 @@ public class TestHelpOption extends JavadocTester {
     }
 
     @Test
-    void testNohelpOption() {
+    public void testNohelpOption() {
         javadoc("-d", "out3",
                 "-sourcepath", testSrc,
                 "-nohelp",
                 testSrc("Sample.java"));
-        checkOutput("Sample.html", false, "<li><a href=\"../help-doc.html\">Help</a></li>");
+        checkOutput("Sample.html", false, """
+            <li><a href="../help-doc.html#class">Help</a></li>""");
         checkExit(Exit.OK);
     }
 
     @Test
-    void testHelpfileOption() {
+    public void testHelpfileOption() {
         javadoc("-d", "out4",
                 "-sourcepath", testSrc,
                 "-helpfile", testSrc("test-help.html"),
                 testSrc("Sample.java"));
         checkExit(Exit.OK);
         checkOutput("Sample.html", true,
-                "<li><a href=\"test-help.html\">Help</a></li>");
+                """
+                    <li><a href="test-help.html#class">Help</a></li>""");
         checkOutput("test-help.html", true,
                 "Help, help.");
     }
 
     @Test
-    void testHelpfileReuseOption() {
+    public void testHelpfileReuseOption() {
         javadoc("-d", "out5",
                 "-sourcepath", testSrc,
                 "-helpfile", testSrc("test-help.html"),
@@ -115,7 +118,7 @@ public class TestHelpOption extends JavadocTester {
     }
 
     @Test
-    void testHelpfileNohelpConflict() {
+    public void testHelpfileNohelpConflict() {
         javadoc("-d", "out6",
                 "-sourcepath", testSrc,
                 "-helpfile", testSrc("test-help.html"),
@@ -162,8 +165,8 @@ public class TestHelpOption extends JavadocTester {
                 "-keywords ",
                 "-stylesheetfile ",
                 "--add-stylesheet ",
+                "--add-script",
                 "-docencoding ",
-                "-html4 ",
                 "-html5 ",
                 "-top ",
                 "-author ",
@@ -173,6 +176,7 @@ public class TestHelpOption extends JavadocTester {
                 "-sourcetab ");
 
         checkFileAndOutput("Sample.html", !withOption,
-                "<li><a href=\"help-doc.html\">Help</a></li>");
+                """
+                    <li><a href="help-doc.html">Help</a></li>""");
     }
 }

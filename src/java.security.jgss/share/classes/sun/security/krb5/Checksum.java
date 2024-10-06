@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,140 +73,71 @@ public class Checksum {
     // draft-brezak-win2k-krb-rc4-hmac-04.txt
     public static final int CKSUMTYPE_HMAC_MD5_ARCFOUR = -138;
 
-    static int CKSUMTYPE_DEFAULT;
-    static int SAFECKSUMTYPE_DEFAULT;
-
-    private static boolean DEBUG = Krb5.DEBUG;
-    static {
-        initStatic();
-    }
-
-    public static void initStatic() {
-        String temp = null;
-        Config cfg = null;
-        try {
-            cfg = Config.getInstance();
-            temp = cfg.get("libdefaults", "default_checksum");
-            if (temp != null)
-                {
-                    CKSUMTYPE_DEFAULT = Config.getType(temp);
-                } else {
-                    /*
-                     * If the default checksum is not
-                     * specified in the configuration we
-                     * set it to RSA_MD5. We follow the MIT and
-                     * SEAM implementation.
-                     */
-                    CKSUMTYPE_DEFAULT = CKSUMTYPE_RSA_MD5;
-                }
-        } catch (Exception exc) {
-            if (DEBUG) {
-                System.out.println("Exception in getting default checksum "+
-                                   "value from the configuration " +
-                                   "Setting default checksum to be RSA-MD5");
-                exc.printStackTrace();
-            }
-            CKSUMTYPE_DEFAULT = CKSUMTYPE_RSA_MD5;
-        }
-
-
-        try {
-            temp = cfg.get("libdefaults", "safe_checksum_type");
-            if (temp != null)
-                {
-                    SAFECKSUMTYPE_DEFAULT = Config.getType(temp);
-                } else {
-                    SAFECKSUMTYPE_DEFAULT = CKSUMTYPE_RSA_MD5_DES;
-                }
-        } catch (Exception exc) {
-            if (DEBUG) {
-                System.out.println("Exception in getting safe default " +
-                                   "checksum value " +
-                                   "from the configuration Setting  " +
-                                   "safe default checksum to be RSA-MD5");
-                exc.printStackTrace();
-            }
-            SAFECKSUMTYPE_DEFAULT = CKSUMTYPE_RSA_MD5_DES;
-        }
-    }
-
     /**
      * Constructs a new Checksum using the raw data and type.
+     *
+     * This constructor is only used by Authenticator Checksum
+     * {@link sun.security.jgss.krb5.InitialToken.OverloadedChecksum}
+     * where the checksum type must be 0x8003
+     * (see https://tools.ietf.org/html/rfc4121#section-4.1.1)
+     * and checksum field/value is used to convey service flags,
+     * channel bindings, and optional delegation information.
+     * This special type does NOT have a {@link CksumType} and has its
+     * own calculating and verification rules. It does has the same
+     * ASN.1 encoding though.
+     *
      * @param data the byte array of checksum.
      * @param new_cksumType the type of checksum.
-     *
      */
-         // used in InitialToken
     public Checksum(byte[] data, int new_cksumType) {
         cksumType = new_cksumType;
         checksum = data;
     }
 
     /**
-     * Constructs a new Checksum by calculating the checksum over the data
-     * using specified checksum type.
-     * @param new_cksumType the type of checksum.
-     * @param data the data that needs to be performed a checksum calculation on.
+     * Constructs a new Checksum by calculating over the data using
+     * the specified checksum type. If the checksum is unkeyed, key
+     * and usage are ignored.
+     *
+     * @param new_cksumType the type of checksum. If set to -1, the
+     *      {@linkplain EType#checksumType() mandatory checksum type}
+     *      for the encryption type of {@code key} will be used
+     * @param data the data that needs to be performed a checksum calculation on
+     * @param key the key used by a keyed checksum
+     * @param usage the usage used by a keyed checksum
      */
-    public Checksum(int new_cksumType, byte[] data)
-        throws KdcErrException, KrbCryptoException {
-
-        cksumType = new_cksumType;
-        CksumType cksumEngine = CksumType.getInstance(cksumType);
-        if (!cksumEngine.isSafe()) {
-            checksum = cksumEngine.calculateChecksum(data, data.length);
-        } else {
-            throw new KdcErrException(Krb5.KRB_AP_ERR_INAPP_CKSUM);
-        }
-    }
-
-    /**
-     * Constructs a new Checksum by calculating the keyed checksum
-     * over the data using specified checksum type.
-     * @param new_cksumType the type of checksum.
-     * @param data the data that needs to be performed a checksum calculation on.
-     */
-         // KrbSafe, KrbTgsReq
     public Checksum(int new_cksumType, byte[] data,
-                        EncryptionKey key, int usage)
-        throws KdcErrException, KrbApErrException, KrbCryptoException {
-        cksumType = new_cksumType;
-        CksumType cksumEngine = CksumType.getInstance(cksumType);
-        if (!cksumEngine.isSafe())
-            throw new KrbApErrException(Krb5.KRB_AP_ERR_INAPP_CKSUM);
-        checksum =
-            cksumEngine.calculateKeyedChecksum(data,
-                data.length,
-                key.getBytes(),
-                usage);
+                    EncryptionKey key, int usage)
+            throws KdcErrException, KrbApErrException, KrbCryptoException {
+        if (new_cksumType == -1) {
+            cksumType = EType.getInstance(key.getEType()).checksumType();
+        } else {
+            cksumType = new_cksumType;
+        }
+        checksum = CksumType.getInstance(cksumType).calculateChecksum(
+                    data, data.length, key.getBytes(), usage);
     }
 
     /**
-     * Verifies the keyed checksum over the data passed in.
+     * Verifies the checksum over the data passed in. The checksum might
+     * be a keyed or not.
+     *
+     * ===============  ATTENTION! Use with care  ==================
+     * According to https://tools.ietf.org/html/rfc3961#section-6.1,
+     * An unkeyed checksum should only be used "in limited circumstances
+     * where the lack of a key does not provide a window for an attack,
+     * preferably as part of an encrypted message".
      */
-    public boolean verifyKeyedChecksum(byte[] data, EncryptionKey key,
-                                        int usage)
-        throws KdcErrException, KrbApErrException, KrbCryptoException {
-        CksumType cksumEngine = CksumType.getInstance(cksumType);
-        if (!cksumEngine.isSafe())
-            throw new KrbApErrException(Krb5.KRB_AP_ERR_INAPP_CKSUM);
-        return cksumEngine.verifyKeyedChecksum(data,
-                                               data.length,
-                                               key.getBytes(),
-                                               checksum,
-            usage);
+    public boolean verifyAnyChecksum(byte[] data, EncryptionKey key, int usage)
+            throws KdcErrException, KrbCryptoException {
+        return CksumType.getInstance(cksumType).verifyChecksum(
+                data, data.length, key.getBytes(), checksum, usage);
     }
-
-    /*
-    public Checksum(byte[] data) throws KdcErrException, KrbCryptoException {
-        this(Checksum.CKSUMTYPE_DEFAULT, data);
-    }
-    */
 
     boolean isEqual(Checksum cksum) throws KdcErrException {
-        if (cksumType != cksum.cksumType)
+        if (cksumType != cksum.cksumType) {
             return false;
-        CksumType cksumEngine = CksumType.getInstance(cksumType);
+        }
         return CksumType.isChecksumEqual(checksum, cksum.checksum);
     }
 
@@ -218,7 +149,7 @@ public class Checksum {
      * @exception IOException if an I/O error occurs while reading encoded data.
      *
      */
-    private Checksum(DerValue encoding) throws Asn1Exception, IOException {
+    public Checksum(DerValue encoding) throws Asn1Exception, IOException {
         DerValue der;
         if (encoding.getTag() != DerValue.tag_Sequence) {
             throw new Asn1Exception(Krb5.ASN1_BAD_ID);
@@ -254,7 +185,7 @@ public class Checksum {
      * specification available at
      * <a href="http://www.ietf.org/rfc/rfc4120.txt">
      * http://www.ietf.org/rfc/rfc4120.txt</a>.
-     * @return byte array of enocded Checksum.
+     * @return byte array of encoded Checksum.
      * @exception Asn1Exception if an error occurs while decoding an
      * ASN1 encoded data.
      * @exception IOException if an I/O error occurs while reading

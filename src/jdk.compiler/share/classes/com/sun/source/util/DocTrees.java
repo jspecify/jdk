@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,12 +32,16 @@ import java.util.List;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.PackageElement;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements.DocCommentKind;
 import javax.tools.Diagnostic;
 import javax.tools.FileObject;
 import javax.tools.JavaCompiler.CompilationTask;
 
 import com.sun.source.doctree.DocCommentTree;
 import com.sun.source.doctree.DocTree;
+import com.sun.source.doctree.EntityTree;
+import com.sun.source.tree.CompilationUnitTree;
 
 /**
  * Provides access to syntax trees for doc comments.
@@ -45,6 +49,11 @@ import com.sun.source.doctree.DocTree;
  * @since 1.8
  */
 public abstract class DocTrees extends Trees {
+    /**
+     * Constructor for subclasses to call.
+     */
+    public DocTrees() {}
+
     /**
      * Returns a DocTrees object for a given CompilationTask.
      * @param task the compilation task for which to get the Trees object
@@ -78,8 +87,23 @@ public abstract class DocTrees extends Trees {
     public abstract BreakIterator getBreakIterator();
 
     /**
+     * {@return the style of the documentation comment associated with a tree node}
+     *
+     * @param path the path for the tree node
+     *
+     * @see Trees#getPath(Element)
+     * @since 23
+     */
+    public abstract DocCommentKind getDocCommentKind(TreePath path);
+
+    /**
      * Returns the doc comment tree, if any, for the Tree node identified by a given TreePath.
      * Returns {@code null} if no doc comment was found.
+     *
+     * @implNote The default implementation of this method returns the same
+     * {@code DocCommentTree} instance for repeated invocations
+     * with the same argument.
+     *
      * @param path the path for the tree node
      * @return the doc comment tree
      */
@@ -88,6 +112,11 @@ public abstract class DocTrees extends Trees {
     /**
      * Returns the doc comment tree of the given element.
      * Returns {@code null} if no doc comment was found.
+     *
+     * @implNote The default implementation of this method returns the same
+     * {@code DocCommentTree} instance for repeated invocations
+     * with the same argument.
+     *
      * @param e an element whose documentation is required
      * @return the doc comment tree
      *
@@ -96,39 +125,59 @@ public abstract class DocTrees extends Trees {
     public abstract DocCommentTree getDocCommentTree(Element e);
 
     /**
-     * Returns the doc comment tree of the given file. The file must be
-     * an HTML file, in which case the doc comment tree represents the
-     * entire contents of the file.
-     * Returns {@code null} if no doc comment was found.
+     * Returns the doc comment tree of the given file, which must
+     * be of one of the supported file types.
+     *
+     * <p>The supported file types are:
+     * <ul>
+     * <li>HTML files, identified by a file name ending in {@code .html},
+     * <li>Markdown files, identified by a file name ending in {@code .md}.
+     * </ul>
      * Future releases may support additional file types.
+     *
+     * @implNote The default implementation of this method returns a
+     * new {@code DocCommentTree} instance for each invocation.
      *
      * @param fileObject the content container
      * @return the doc comment tree
+     * @throws IllegalArgumentException if the file type is not supported
+     *
      * @since 9
      */
     public abstract DocCommentTree getDocCommentTree(FileObject fileObject);
 
     /**
-     * Returns the doc comment tree of the given file whose path is
-     * specified relative to the given element. The file must be an HTML
-     * file, in which case the doc comment tree represents the contents
-     * of the &lt;body&gt; tag, and any enclosing tags are ignored.
-     * Returns {@code null} if no doc comment was found.
+     * Returns the doc comment tree of the given file, which must
+     * be of one of the supported file types, and whose path is
+     * specified relative to the given element.
+     *
+     * <p>The supported file types are:
+     * <ul>
+     * <li>HTML files, identified by a file name ending in {@code .html},
+     * <li>Markdown files, identified by a file name ending in {@code .md}.
+     * </ul>
      * Future releases may support additional file types.
+     *
+     * @implNote The default implementation of this method returns a
+     * new {@code DocCommentTree} instance for each invocation.
      *
      * @param e an element whose path is used as a reference
      * @param relativePath the relative path from the Element
      * @return the doc comment tree
-     * @throws java.io.IOException if an exception occurs
+     * @throws IOException if an exception occurs
+     * @throws IllegalArgumentException if the file type is not supported
      *
      * @since 9
      */
     public abstract DocCommentTree getDocCommentTree(Element e, String relativePath) throws IOException;
 
     /**
-     * Returns a doc tree path containing the doc comment tree of the given file.
-     * The file must be an HTML file, in which case the doc comment tree represents
-     * the contents of the {@code <body>} tag, and any enclosing tags are ignored.
+     * Returns a doc tree path containing the doc comment tree of the given file,
+     * which must be of one of the supported file types.
+     *
+     * Supported file types are HTML files and Markdown files.
+     * Future releases may support additional file types.
+     *
      * Any references to source code elements contained in {@code @see} and
      * {@code {@link}} tags in the doc comment tree will be evaluated in the
      * context of the given package element.
@@ -138,7 +187,7 @@ public abstract class DocTrees extends Trees {
      * @param packageElement a package element to associate with the given file object
      * representing a legacy package.html, null otherwise
      * @return a doc tree path containing the doc comment parsed from the given file
-     * @throws IllegalArgumentException if the fileObject is not an HTML file
+     * @throws IllegalArgumentException if the file type is not supported
      *
      * @since 9
      */
@@ -151,6 +200,21 @@ public abstract class DocTrees extends Trees {
      * @return the element
      */
     public abstract Element getElement(DocTreePath path);
+
+    /**
+     * Returns the language model type referred to by the leaf node of the given
+     * {@link DocTreePath}, or {@code null} if unknown. This method usually
+     * returns the same value as {@code getElement(path).asType()} for a
+     * {@code path} argument for which {@link #getElement(DocTreePath)} returns
+     * a non-null value, but may return a type that includes additional
+     * information, such as a parameterized generic type instead of a raw type.
+     *
+     * @param path the path for the tree node
+     * @return the referenced type, or null
+     *
+     * @since 15
+     */
+    public abstract TypeMirror getType(DocTreePath path);
 
     /**
      * Returns the list of {@link DocTree} representing the first sentence of
@@ -172,7 +236,7 @@ public abstract class DocTrees extends Trees {
 
     /**
      * Prints a message of the specified kind at the location of the
-     * tree within the provided compilation unit
+     * tree within the provided compilation unit.
      *
      * @param kind the kind of message
      * @param msg  the message, or an empty string if none
@@ -181,19 +245,17 @@ public abstract class DocTrees extends Trees {
      * @param root the compilation unit that contains tree
      */
     public abstract void printMessage(Diagnostic.Kind kind, CharSequence msg,
-            com.sun.source.doctree.DocTree t,
-            com.sun.source.doctree.DocCommentTree c,
-            com.sun.source.tree.CompilationUnitTree root);
+            DocTree t, DocCommentTree c, CompilationUnitTree root);
 
     /**
      * Sets the break iterator to compute the first sentence of
      * documentation comments.
-     * @param breakiterator a break iterator or {@code null} to specify the default
+     * @param breakIterator a break iterator or {@code null} to specify the default
      *                      sentence breaker
      *
      * @since 9
      */
-    public abstract void setBreakIterator(BreakIterator breakiterator);
+    public abstract void setBreakIterator(BreakIterator breakIterator);
 
     /**
      * Returns a utility object for creating {@code DocTree} objects.
@@ -202,4 +264,20 @@ public abstract class DocTrees extends Trees {
      * @since 9
      */
     public abstract DocTreeFactory getDocTreeFactory();
+
+    /**
+     * Returns a string containing the characters for the entity in a given entity tree,
+     * or {@code null} if the tree does not represent a valid series of characters.
+     *
+     * <p>The interpretation of entities is based on section
+     * <a href="https://www.w3.org/TR/html52/syntax.html#character-references">8.1.4. Character references</a>
+     * in the HTML 5.2 specification.</p>
+     *
+     * @param tree the tree containing the entity
+     * @return a string containing the characters
+     * @spec https://www.w3.org/TR/html52 HTML Standard
+     *
+     * @since 16
+     */
+    public abstract String getCharacters(EntityTree tree);
 }

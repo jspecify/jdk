@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,8 +56,6 @@ import java.io.*;
  *    4.newclass04 - adding <final> modifiers to 3 methods                <br>
  *    5.newclass05 - adding <synchronized> modifiers to public method     <br>
  *    6.newclass06 - adding <synchronized> modifiers to 3 methods         <br>
- *    7.newclass07 - adding <strictfp> modifiers to public method         <br>
- *    8.newclass08 - adding <strictfp> modifiers to 3 methods             <br>
  * The test checks two different cases for suspended debugee and not
  * suspended one.
  * When <code>canRedefineClasses()</code> is <code>false</code>, the test is
@@ -80,8 +78,6 @@ public class redefineclasses008 {
             {"newclass04","adding <final> modifiers to 3 methods"},
             {"newclass05","adding <synchronized> modifiers to public method"},
             {"newclass06","adding <synchronized> modifiers to 3 methods"},
-            {"newclass07","adding <strictfp> modifiers to public method"},
-            {"newclass08","adding <strictfp> modifiers to 3 methods"}
     };
 
     private final static String newClassFile = File.separator
@@ -110,7 +106,10 @@ public class redefineclasses008 {
     }
 
     public static void main(String argv[]) {
-        System.exit(Consts.JCK_STATUS_BASE + run(argv, System.out));
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run(String argv[], PrintStream out) {

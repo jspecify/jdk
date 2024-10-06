@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,32 +23,31 @@
  */
 
 // no precompiled headers
-#include "jvm.h"
 #include "asm/macroAssembler.hpp"
-#include "classfile/classLoader.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
-#include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jvm.h"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
-#include "os_share_bsd.hpp"
+#include "os_bsd.hpp"
+#include "os_posix.hpp"
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/osThread.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
+#include "signals_posix.hpp"
 #include "utilities/align.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
@@ -64,7 +63,6 @@
 # include <stdio.h>
 # include <unistd.h>
 # include <sys/resource.h>
-# include <pthread.h>
 # include <sys/stat.h>
 # include <sys/time.h>
 # include <sys/utsname.h>
@@ -80,7 +78,7 @@
 # include <pthread_np.h>
 #endif
 
-// needed by current_stack_region() workaround for Mavericks
+// needed by current_stack_base_and_size() workaround for Mavericks
 #if defined(__APPLE__)
 # include <errno.h>
 # include <sys/types.h>
@@ -279,13 +277,9 @@
 
 address os::current_stack_pointer() {
 #if defined(__clang__) || defined(__llvm__)
-  register void *esp;
+  void *esp;
   __asm__("mov %%" SPELL_REG_SP ", %0":"=r"(esp));
   return (address) esp;
-#elif defined(SPARC_WORKS)
-  register void *esp;
-  __asm__("mov %%" SPELL_REG_SP ", %0":"=r"(esp));
-  return (address) ((char*)esp + sizeof(long)*2);
 #else
   register void *esp __asm__ (SPELL_REG_SP);
   return (address) esp;
@@ -300,15 +294,11 @@ char* os::non_memory_address_word() {
   return (char*) -1;
 }
 
-void os::initialize_thread(Thread* thr) {
-// Nothing to do.
-}
-
-address os::Bsd::ucontext_get_pc(const ucontext_t * uc) {
+address os::Posix::ucontext_get_pc(const ucontext_t * uc) {
   return (address)uc->context_pc;
 }
 
-void os::Bsd::ucontext_set_pc(ucontext_t * uc, address pc) {
+void os::Posix::ucontext_set_pc(ucontext_t * uc, address pc) {
   uc->context_pc = (intptr_t)pc ;
 }
 
@@ -320,37 +310,20 @@ intptr_t* os::Bsd::ucontext_get_fp(const ucontext_t * uc) {
   return (intptr_t*)uc->context_fp;
 }
 
-// For Forte Analyzer AsyncGetCallTrace profiling support - thread
-// is currently interrupted by SIGPROF.
-// os::Solaris::fetch_frame_from_ucontext() tries to skip nested signal
-// frames. Currently we don't do that on Bsd, so it's the same as
-// os::fetch_frame_from_context().
-// This method is also used for stack overflow signal handling.
-ExtendedPC os::Bsd::fetch_frame_from_ucontext(Thread* thread,
-  const ucontext_t* uc, intptr_t** ret_sp, intptr_t** ret_fp) {
-
-  assert(thread != NULL, "just checking");
-  assert(ret_sp != NULL, "just checking");
-  assert(ret_fp != NULL, "just checking");
-
-  return os::fetch_frame_from_context(uc, ret_sp, ret_fp);
-}
-
-ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
+address os::fetch_frame_from_context(const void* ucVoid,
                     intptr_t** ret_sp, intptr_t** ret_fp) {
 
-  ExtendedPC  epc;
+  address  epc;
   const ucontext_t* uc = (const ucontext_t*)ucVoid;
 
-  if (uc != NULL) {
-    epc = ExtendedPC(os::Bsd::ucontext_get_pc(uc));
+  if (uc != nullptr) {
+    epc = os::Posix::ucontext_get_pc(uc);
     if (ret_sp) *ret_sp = os::Bsd::ucontext_get_sp(uc);
     if (ret_fp) *ret_fp = os::Bsd::ucontext_get_fp(uc);
   } else {
-    // construct empty ExtendedPC for return value checking
-    epc = ExtendedPC(NULL);
-    if (ret_sp) *ret_sp = (intptr_t *)NULL;
-    if (ret_fp) *ret_fp = (intptr_t *)NULL;
+    epc = nullptr;
+    if (ret_sp) *ret_sp = (intptr_t *)nullptr;
+    if (ret_fp) *ret_fp = (intptr_t *)nullptr;
   }
 
   return epc;
@@ -359,52 +332,16 @@ ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
 frame os::fetch_frame_from_context(const void* ucVoid) {
   intptr_t* sp;
   intptr_t* fp;
-  ExtendedPC epc = fetch_frame_from_context(ucVoid, &sp, &fp);
-  return frame(sp, fp, epc.pc());
+  address epc = fetch_frame_from_context(ucVoid, &sp, &fp);
+  return frame(sp, fp, epc);
 }
 
-frame os::fetch_frame_from_ucontext(Thread* thread, void* ucVoid) {
-  intptr_t* sp;
-  intptr_t* fp;
-  ExtendedPC epc = os::Bsd::fetch_frame_from_ucontext(thread, (ucontext_t*)ucVoid, &sp, &fp);
-  return frame(sp, fp, epc.pc());
-}
-
-bool os::Bsd::get_frame_at_stack_banging_point(JavaThread* thread, ucontext_t* uc, frame* fr) {
-  address pc = (address) os::Bsd::ucontext_get_pc(uc);
-  if (Interpreter::contains(pc)) {
-    // interpreter performs stack banging after the fixed frame header has
-    // been generated while the compilers perform it before. To maintain
-    // semantic consistency between interpreted and compiled frames, the
-    // method returns the Java sender of the current frame.
-    *fr = os::fetch_frame_from_ucontext(thread, uc);
-    if (!fr->is_first_java_frame()) {
-      // get_frame_at_stack_banging_point() is only called when we
-      // have well defined stacks so java_sender() calls do not need
-      // to assert safe_for_sender() first.
-      *fr = fr->java_sender();
-    }
-  } else {
-    // more complex code with compiled code
-    assert(!Interpreter::contains(pc), "Interpreted methods should have been handled above");
-    CodeBlob* cb = CodeCache::find_blob(pc);
-    if (cb == NULL || !cb->is_nmethod() || cb->is_frame_complete_at(pc)) {
-      // Not sure where the pc points to, fallback to default
-      // stack overflow handling
-      return false;
-    } else {
-      *fr = os::fetch_frame_from_ucontext(thread, uc);
-      // in compiled code, the stack banging is performed just after the return pc
-      // has been pushed on the stack
-      *fr = frame(fr->sp() + 1, fr->fp(), (address)*(fr->sp()));
-      if (!fr->is_java_frame()) {
-        // See java_sender() comment above.
-        *fr = fr->java_sender();
-      }
-    }
-  }
-  assert(fr->is_java_frame(), "Safety check");
-  return true;
+frame os::fetch_compiled_frame_from_context(const void* ucVoid) {
+  const ucontext_t* uc = (const ucontext_t*)ucVoid;
+  frame fr = os::fetch_frame_from_context(uc);
+  // in compiled code, the stack banging is performed just after the return pc
+  // has been pushed on the stack
+  return frame(fr.sp() + 1, fr.fp(), (address)*(fr.sp()));
 }
 
 // By default, gcc always save frame pointer (%ebp/%rbp) on stack. It may get
@@ -413,9 +350,9 @@ frame os::get_sender_for_C_frame(frame* fr) {
   return frame(fr->sender_sp(), fr->link(), fr->sender_pc());
 }
 
-intptr_t* _get_previous_fp() {
-#if defined(SPARC_WORKS) || defined(__clang__) || defined(__llvm__)
-  register intptr_t **ebp;
+static intptr_t* _get_previous_fp() {
+#if defined(__clang__) || defined(__llvm__)
+  intptr_t **ebp;
   __asm__("mov %%" SPELL_REG_FP ", %0":"=r"(ebp));
 #else
   register intptr_t **ebp __asm__ (SPELL_REG_FP);
@@ -445,120 +382,31 @@ frame os::current_frame() {
   }
 }
 
-// Utility functions
-
 // From IA32 System Programming Guide
 enum {
   trap_page_fault = 0xE
 };
 
-extern "C" JNIEXPORT int
-JVM_handle_bsd_signal(int sig,
-                        siginfo_t* info,
-                        void* ucVoid,
-                        int abort_if_unrecognized) {
-  ucontext_t* uc = (ucontext_t*) ucVoid;
-
-  Thread* t = Thread::current_or_null_safe();
-
-  // Must do this before SignalHandlerMark, if crash protection installed we will longjmp away
-  // (no destructors can be run)
-  os::ThreadCrashProtection::check_crash_protection(sig, t);
-
-  SignalHandlerMark shm(t);
-
-  // Note: it's not uncommon that JNI code uses signal/sigset to install
-  // then restore certain signal handler (e.g. to temporarily block SIGPIPE,
-  // or have a SIGILL handler when detecting CPU type). When that happens,
-  // JVM_handle_bsd_signal() might be invoked with junk info/ucVoid. To
-  // avoid unnecessary crash when libjsig is not preloaded, try handle signals
-  // that do not require siginfo/ucontext first.
-
-  if (sig == SIGPIPE || sig == SIGXFSZ) {
-    // allow chained handler to go first
-    if (os::Bsd::chained_handler(sig, info, ucVoid)) {
-      return true;
-    } else {
-      // Ignoring SIGPIPE/SIGXFSZ - see bugs 4229104 or 6499219
-      return true;
-    }
-  }
-
-  JavaThread* thread = NULL;
-  VMThread* vmthread = NULL;
-  if (os::Bsd::signal_handlers_are_installed) {
-    if (t != NULL ){
-      if(t->is_Java_thread()) {
-        thread = (JavaThread*)t;
-      }
-      else if(t->is_VM_thread()){
-        vmthread = (VMThread *)t;
-      }
-    }
-  }
-/*
-  NOTE: does not seem to work on bsd.
-  if (info == NULL || info->si_code <= 0 || info->si_code == SI_NOINFO) {
-    // can't decode this kind of signal
-    info = NULL;
-  } else {
-    assert(sig == info->si_signo, "bad siginfo");
-  }
-*/
+bool PosixSignals::pd_hotspot_signal_handler(int sig, siginfo_t* info,
+                                             ucontext_t* uc, JavaThread* thread) {
   // decide if this trap can be handled by a stub
-  address stub = NULL;
+  address stub = nullptr;
 
-  address pc          = NULL;
+  address pc          = nullptr;
 
   //%note os_trap_1
-  if (info != NULL && uc != NULL && thread != NULL) {
-    pc = (address) os::Bsd::ucontext_get_pc(uc);
-
-    if (StubRoutines::is_safefetch_fault(pc)) {
-      os::Bsd::ucontext_set_pc(uc, StubRoutines::continuation_for_safefetch_fault(pc));
-      return 1;
-    }
+  if (info != nullptr && uc != nullptr && thread != nullptr) {
+    pc = (address) os::Posix::ucontext_get_pc(uc);
 
     // Handle ALL stack overflow variations here
     if (sig == SIGSEGV || sig == SIGBUS) {
       address addr = (address) info->si_addr;
 
       // check if fault address is within thread stack
-      if (thread->on_local_stack(addr)) {
+      if (thread->is_in_full_stack(addr)) {
         // stack overflow
-        if (thread->in_stack_yellow_reserved_zone(addr)) {
-          if (thread->thread_state() == _thread_in_Java) {
-            if (thread->in_stack_reserved_zone(addr)) {
-              frame fr;
-              if (os::Bsd::get_frame_at_stack_banging_point(thread, uc, &fr)) {
-                assert(fr.is_java_frame(), "Must be a Java frame");
-                frame activation = SharedRuntime::look_for_reserved_stack_annotated_method(thread, fr);
-                if (activation.sp() != NULL) {
-                  thread->disable_stack_reserved_zone();
-                  if (activation.is_interpreted_frame()) {
-                    thread->set_reserved_stack_activation((address)(
-                      activation.fp() + frame::interpreter_frame_initial_sp_offset));
-                  } else {
-                    thread->set_reserved_stack_activation((address)activation.unextended_sp());
-                  }
-                  return 1;
-                }
-              }
-            }
-            // Throw a stack overflow exception.  Guard pages will be reenabled
-            // while unwinding the stack.
-            thread->disable_stack_yellow_reserved_zone();
-            stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::STACK_OVERFLOW);
-          } else {
-            // Thread was in the vm or native code.  Return and try to finish.
-            thread->disable_stack_yellow_reserved_zone();
-            return 1;
-          }
-        } else if (thread->in_stack_red_zone(addr)) {
-          // Fatal red zone violation.  Disable the guard pages and fall through
-          // to handle_unexpected_exception way down below.
-          thread->disable_stack_red_zone();
-          tty->print_raw_cr("An irrecoverable stack overflow has occurred.");
+        if (os::Posix::handle_stack_overflow(thread, addr, pc, uc, &stub)) {
+          return true; // continue
         }
       }
     }
@@ -568,41 +416,54 @@ JVM_handle_bsd_signal(int sig,
       stub = VM_Version::cpuinfo_cont_addr();
     }
 
+#if !defined(PRODUCT) && defined(_LP64)
+    if ((sig == SIGSEGV || sig == SIGBUS) && VM_Version::is_cpuinfo_segv_addr_apx(pc)) {
+      // Verify that OS save/restore APX registers.
+      stub = VM_Version::cpuinfo_cont_addr_apx();
+      VM_Version::clear_apx_test_state();
+    }
+#endif
+
     // We test if stub is already set (by the stack overflow code
     // above) so it is not overwritten by the code that follows. This
     // check is not required on other platforms, because on other
     // platforms we check for SIGSEGV only or SIGBUS only, where here
     // we have to check for both SIGSEGV and SIGBUS.
-    if (thread->thread_state() == _thread_in_Java && stub == NULL) {
+    if (thread->thread_state() == _thread_in_Java && stub == nullptr) {
       // Java thread running in Java code => find exception handler if any
       // a fault inside compiled code, the interpreter, or a stub
 
-      if ((sig == SIGSEGV || sig == SIGBUS) && os::is_poll_address((address)info->si_addr)) {
+      if ((sig == SIGSEGV || sig == SIGBUS) && SafepointMechanism::is_poll_address((address)info->si_addr)) {
         stub = SharedRuntime::get_poll_stub(pc);
 #if defined(__APPLE__)
       // 32-bit Darwin reports a SIGBUS for nearly all memory access exceptions.
       // 64-bit Darwin may also use a SIGBUS (seen with compressed oops).
-      // Catching SIGBUS here prevents the implicit SIGBUS NULL check below from
-      // being called, so only do so if the implicit NULL check is not necessary.
-      } else if (sig == SIGBUS && MacroAssembler::needs_explicit_null_check((intptr_t)info->si_addr)) {
+      // Catching SIGBUS here prevents the implicit SIGBUS null check below from
+      // being called, so only do so if the implicit null check is not necessary.
+      } else if (sig == SIGBUS && !MacroAssembler::uses_implicit_null_check(info->si_addr)) {
 #else
       } else if (sig == SIGBUS /* && info->si_code == BUS_OBJERR */) {
 #endif
         // BugId 4454115: A read from a MappedByteBuffer can fault
         // here if the underlying file has been truncated.
         // Do not crash the VM in such a case.
-        CodeBlob* cb = CodeCache::find_blob_unsafe(pc);
-        CompiledMethod* nm = (cb != NULL) ? cb->as_compiled_method_or_null() : NULL;
-        if (nm != NULL && nm->has_unsafe_access()) {
+        CodeBlob* cb = CodeCache::find_blob(pc);
+        nmethod* nm = (cb != nullptr) ? cb->as_nmethod_or_null() : nullptr;
+        bool is_unsafe_memory_access = thread->doing_unsafe_access() && UnsafeMemoryAccess::contains_pc(pc);
+        if ((nm != nullptr && nm->has_unsafe_access()) || is_unsafe_memory_access) {
           address next_pc = Assembler::locate_next_instruction(pc);
+          if (is_unsafe_memory_access) {
+            next_pc = UnsafeMemoryAccess::page_error_continue_pc(pc);
+          }
           stub = SharedRuntime::handle_unsafe_access(thread, next_pc);
         }
-      }
-      else
-
+      } else
 #ifdef AMD64
-      if (sig == SIGFPE  &&
-          (info->si_code == FPE_INTDIV || info->si_code == FPE_FLTDIV)) {
+      if (sig == SIGFPE &&
+          (info->si_code == FPE_INTDIV || info->si_code == FPE_FLTDIV
+           // Workaround for macOS ARM incorrectly reporting FPE_FLTINV for "div by 0"
+           // instead of the expected FPE_FLTDIV when running x86_64 binary under Rosetta emulation
+           MACOS_ONLY(|| (VM_Version::is_cpu_emulated() && info->si_code == FPE_FLTINV)))) {
         stub =
           SharedRuntime::
           continuation_for_implicit_exception(thread,
@@ -637,7 +498,7 @@ JVM_handle_bsd_signal(int sig,
         int op = pc[0];
         if (op == 0xDB) {
           // FIST
-          // TODO: The encoding of D2I in i486.ad can cause an exception
+          // TODO: The encoding of D2I in x86_32.ad can cause an exception
           // prior to the fist instruction if there was an invalid operation
           // pending. We want to dismiss that exception. From the win_32
           // side it also seems that if it really was the fist causing
@@ -659,14 +520,18 @@ JVM_handle_bsd_signal(int sig,
         }
 #endif // AMD64
       } else if ((sig == SIGSEGV || sig == SIGBUS) &&
-               !MacroAssembler::needs_explicit_null_check((intptr_t)info->si_addr)) {
+                 MacroAssembler::uses_implicit_null_check(info->si_addr)) {
           // Determination of interpreter/vtable stub/compiled code null exception
           stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
       }
-    } else if (thread->thread_state() == _thread_in_vm &&
+    } else if ((thread->thread_state() == _thread_in_vm ||
+                thread->thread_state() == _thread_in_native) &&
                sig == SIGBUS && /* info->si_code == BUS_OBJERR && */
                thread->doing_unsafe_access()) {
         address next_pc = Assembler::locate_next_instruction(pc);
+        if (UnsafeMemoryAccess::contains_pc(pc)) {
+          next_pc = UnsafeMemoryAccess::page_error_continue_pc(pc);
+        }
         stub = SharedRuntime::handle_unsafe_access(thread, next_pc);
     }
 
@@ -677,17 +542,6 @@ JVM_handle_bsd_signal(int sig,
       if (addr != (address)-1) {
         stub = addr;
       }
-    }
-
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    if ((sig == SIGSEGV || sig == SIGBUS) &&
-        os::is_memory_serialize_page(thread, (address) info->si_addr)) {
-      // Block current thread until the memory serialize page permission restored.
-      os::block_on_serialize_page_trap();
-      return true;
     }
   }
 
@@ -703,11 +557,12 @@ JVM_handle_bsd_signal(int sig,
   // the si_code for this condition may change in the future.
   // Furthermore, a false-positive should be harmless.
   if (UnguardOnExecutionViolation > 0 &&
+      stub == nullptr &&
       (sig == SIGSEGV || sig == SIGBUS) &&
       uc->context_trapno == trap_page_fault) {
-    int page_size = os::vm_page_size();
+    size_t page_size = os::vm_page_size();
     address addr = (address) info->si_addr;
-    address pc = os::Bsd::ucontext_get_pc(uc);
+    address pc = os::Posix::ucontext_get_pc(uc);
     // Make sure the pc and the faulting address are sane.
     //
     // If an instruction spans a page boundary, and the page containing
@@ -765,37 +620,14 @@ JVM_handle_bsd_signal(int sig,
   }
 #endif // !AMD64
 
-  if (stub != NULL) {
+  if (stub != nullptr) {
     // save all thread context in case we need to restore it
-    if (thread != NULL) thread->set_saved_exception_pc(pc);
+    if (thread != nullptr) thread->set_saved_exception_pc(pc);
 
-    os::Bsd::ucontext_set_pc(uc, stub);
+    os::Posix::ucontext_set_pc(uc, stub);
     return true;
   }
 
-  // signal-chaining
-  if (os::Bsd::chained_handler(sig, info, ucVoid)) {
-     return true;
-  }
-
-  if (!abort_if_unrecognized) {
-    // caller wants another chance, so give it to him
-    return false;
-  }
-
-  if (pc == NULL && uc != NULL) {
-    pc = os::Bsd::ucontext_get_pc(uc);
-  }
-
-  // unmask current signal
-  sigset_t newset;
-  sigemptyset(&newset);
-  sigaddset(&newset, sig);
-  sigprocmask(SIG_UNBLOCK, &newset, NULL);
-
-  VMError::report_and_die(t, sig, pc, info, ucVoid);
-
-  ShouldNotReachHere();
   return false;
 }
 
@@ -809,31 +641,16 @@ void os::Bsd::init_thread_fpu_state(void) {
 #endif // !AMD64
 }
 
-
-// Check that the bsd kernel version is 2.4 or higher since earlier
-// versions do not support SSE without patches.
-bool os::supports_sse() {
-  return true;
-}
-
-bool os::is_allocatable(size_t bytes) {
-#ifdef AMD64
-  // unused on amd64?
-  return true;
-#else
-
-  if (bytes < 2 * G) {
-    return true;
+juint os::cpu_microcode_revision() {
+  juint result = 0;
+  char data[8];
+  size_t sz = sizeof(data);
+  int ret = sysctlbyname("machdep.cpu.microcode_version", data, &sz, nullptr, 0);
+  if (ret == 0) {
+    if (sz == 4) result = *((juint*)data);
+    if (sz == 8) result = *((juint*)data + 1); // upper 32-bits
   }
-
-  char* addr = reserve_memory(bytes, NULL);
-
-  if (addr != NULL) {
-    release_memory(addr, bytes);
-  }
-
-  return addr != NULL;
-#endif // AMD64
+  return result;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -841,12 +658,12 @@ bool os::is_allocatable(size_t bytes) {
 
 // Minimum usable stack sizes required to get to user code. Space for
 // HotSpot guard pages is added later.
-size_t os::Posix::_compiler_thread_min_stack_allowed = 48 * K;
-size_t os::Posix::_java_thread_min_stack_allowed = 48 * K;
+size_t os::_compiler_thread_min_stack_allowed = 48 * K;
+size_t os::_java_thread_min_stack_allowed = 48 * K;
 #ifdef _LP64
-size_t os::Posix::_vm_internal_thread_min_stack_allowed = 64 * K;
+size_t os::_vm_internal_thread_min_stack_allowed = 64 * K;
 #else
-size_t os::Posix::_vm_internal_thread_min_stack_allowed = (48 DEBUG_ONLY(+ 4)) * K;
+size_t os::_vm_internal_thread_min_stack_allowed = (48 DEBUG_ONLY(+ 4)) * K;
 #endif // _LP64
 
 #ifndef AMD64
@@ -878,7 +695,7 @@ size_t os::Posix::default_stack_size(os::ThreadType thr_type) {
 //    |                        |\
 //    |  HotSpot Guard Pages   | - red, yellow and reserved pages
 //    |                        |/
-//    +------------------------+ JavaThread::stack_reserved_zone_base()
+//    +------------------------+ StackOverflow::stack_reserved_zone_base()
 //    |                        |\
 //    |      Normal Stack      | -
 //    |                        |/
@@ -897,13 +714,15 @@ size_t os::Posix::default_stack_size(os::ThreadType thr_type) {
 //    |                        |/
 // P2 +------------------------+ Thread::stack_base()
 //
-// ** P1 (aka bottom) and size ( P2 = P1 - size) are the address and stack size returned from
-//    pthread_attr_getstack()
+// ** P1 (aka bottom) and size are the address and stack size
+//    returned from pthread_attr_getstack().
+// ** P2 (aka stack top or base) = P1 + size
 
-static void current_stack_region(address * bottom, size_t * size) {
+void os::current_stack_base_and_size(address* base, size_t* size) {
+  address bottom;
 #ifdef __APPLE__
   pthread_t self = pthread_self();
-  void *stacktop = pthread_get_stackaddr_np(self);
+  *base = (address) pthread_get_stackaddr_np(self);
   *size = pthread_get_stacksize_np(self);
   // workaround for OS X 10.9.0 (Mavericks)
   // pthread_get_stacksize_np returns 128 pages even though the actual size is 2048 pages
@@ -917,7 +736,7 @@ static void current_stack_region(address * bottom, size_t * size) {
     if ((*size) < (DEFAULT_MAIN_THREAD_STACK_PAGES * (size_t)getpagesize())) {
       char kern_osrelease[256];
       size_t kern_osrelease_size = sizeof(kern_osrelease);
-      int ret = sysctlbyname("kern.osrelease", kern_osrelease, &kern_osrelease_size, NULL, 0);
+      int ret = sysctlbyname("kern.osrelease", kern_osrelease, &kern_osrelease_size, nullptr, 0);
       if (ret == 0) {
         // get the major number, atoi will ignore the minor amd micro portions of the version string
         if (atoi(kern_osrelease) >= OS_X_10_9_0_KERNEL_MAJOR_VERSION) {
@@ -926,7 +745,7 @@ static void current_stack_region(address * bottom, size_t * size) {
       }
     }
   }
-  *bottom = (address) stacktop - *size;
+  bottom = *base - *size;
 #elif defined(__OpenBSD__)
   stack_t ss;
   int rslt = pthread_stackseg_np(pthread_self(), &ss);
@@ -934,8 +753,9 @@ static void current_stack_region(address * bottom, size_t * size) {
   if (rslt != 0)
     fatal("pthread_stackseg_np failed with error = %d", rslt);
 
-  *bottom = (address)((char *)ss.ss_sp - ss.ss_size);
-  *size   = ss.ss_size;
+  *base = (address) ss.ss_sp;
+  *size = ss.ss_size;
+  bottom = *base - *size;
 #else
   pthread_attr_t attr;
 
@@ -950,39 +770,27 @@ static void current_stack_region(address * bottom, size_t * size) {
   if (rslt != 0)
     fatal("pthread_attr_get_np failed with error = %d", rslt);
 
-  if (pthread_attr_getstackaddr(&attr, (void **)bottom) != 0 ||
-    pthread_attr_getstacksize(&attr, size) != 0) {
+  if (pthread_attr_getstackaddr(&attr, (void **)&bottom) != 0 ||
+      pthread_attr_getstacksize(&attr, size) != 0) {
     fatal("Can not locate current stack attributes!");
   }
 
+  *base = bottom + *size;
+
   pthread_attr_destroy(&attr);
 #endif
-  assert(os::current_stack_pointer() >= *bottom &&
-         os::current_stack_pointer() < *bottom + *size, "just checking");
-}
-
-address os::current_stack_base() {
-  address bottom;
-  size_t size;
-  current_stack_region(&bottom, &size);
-  return (bottom + size);
-}
-
-size_t os::current_stack_size() {
-  // stack size includes normal stack and HotSpot guard pages
-  address bottom;
-  size_t size;
-  current_stack_region(&bottom, &size);
-  return size;
+  assert(os::current_stack_pointer() >= bottom &&
+         os::current_stack_pointer() < *base, "just checking");
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // helper functions for fatal error handler
 
 void os::print_context(outputStream *st, const void *context) {
-  if (context == NULL) return;
+  if (context == nullptr) return;
 
   const ucontext_t *uc = (const ucontext_t*)context;
+
   st->print_cr("Registers:");
 #ifdef AMD64
   st->print(  "RAX=" INTPTR_FORMAT, (intptr_t)uc->context_rax);
@@ -1026,63 +834,70 @@ void os::print_context(outputStream *st, const void *context) {
 #endif // AMD64
   st->cr();
   st->cr();
+}
 
-  intptr_t *sp = (intptr_t *)os::Bsd::ucontext_get_sp(uc);
-  st->print_cr("Top of Stack: (sp=" INTPTR_FORMAT ")", (intptr_t)sp);
-  print_hex_dump(st, (address)sp, (address)(sp + 8*sizeof(intptr_t)), sizeof(intptr_t));
+void os::print_tos_pc(outputStream *st, const void *context) {
+  if (context == nullptr) return;
+
+  const ucontext_t* uc = (const ucontext_t*)context;
+
+  address sp = (address)os::Bsd::ucontext_get_sp(uc);
+  print_tos(st, sp);
   st->cr();
 
   // Note: it may be unsafe to inspect memory near pc. For example, pc may
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
-  address pc = os::Bsd::ucontext_get_pc(uc);
-  st->print_cr("Instructions: (pc=" INTPTR_FORMAT ")", (intptr_t)pc);
-  print_hex_dump(st, pc - 32, pc + 32, sizeof(char));
+  address pc = os::Posix::ucontext_get_pc(uc);
+  print_instructions(st, pc);
+  st->cr();
 }
 
-void os::print_register_info(outputStream *st, const void *context) {
-  if (context == NULL) return;
+void os::print_register_info(outputStream *st, const void *context, int& continuation) {
+  const int register_count = AMD64_ONLY(16) NOT_AMD64(8);
+  int n = continuation;
+  assert(n >= 0 && n <= register_count, "Invalid continuation value");
+  if (context == nullptr || n == register_count) {
+    return;
+  }
 
   const ucontext_t *uc = (const ucontext_t*)context;
-
-  st->print_cr("Register to memory mapping:");
-  st->cr();
-
-  // this is horrendously verbose but the layout of the registers in the
-  // context does not match how we defined our abstract Register set, so
-  // we can't just iterate through the gregs area
-
-  // this is only for the "general purpose" registers
-
+  while (n < register_count) {
+    // Update continuation with next index before printing location
+    continuation = n + 1;
+# define CASE_PRINT_REG(n, str, id) case n: st->print(str); print_location(st, uc->context_##id);
+  switch (n) {
 #ifdef AMD64
-  st->print("RAX="); print_location(st, uc->context_rax);
-  st->print("RBX="); print_location(st, uc->context_rbx);
-  st->print("RCX="); print_location(st, uc->context_rcx);
-  st->print("RDX="); print_location(st, uc->context_rdx);
-  st->print("RSP="); print_location(st, uc->context_rsp);
-  st->print("RBP="); print_location(st, uc->context_rbp);
-  st->print("RSI="); print_location(st, uc->context_rsi);
-  st->print("RDI="); print_location(st, uc->context_rdi);
-  st->print("R8 ="); print_location(st, uc->context_r8);
-  st->print("R9 ="); print_location(st, uc->context_r9);
-  st->print("R10="); print_location(st, uc->context_r10);
-  st->print("R11="); print_location(st, uc->context_r11);
-  st->print("R12="); print_location(st, uc->context_r12);
-  st->print("R13="); print_location(st, uc->context_r13);
-  st->print("R14="); print_location(st, uc->context_r14);
-  st->print("R15="); print_location(st, uc->context_r15);
+    CASE_PRINT_REG( 0, "RAX=", rax); break;
+    CASE_PRINT_REG( 1, "RBX=", rbx); break;
+    CASE_PRINT_REG( 2, "RCX=", rcx); break;
+    CASE_PRINT_REG( 3, "RDX=", rdx); break;
+    CASE_PRINT_REG( 4, "RSP=", rsp); break;
+    CASE_PRINT_REG( 5, "RBP=", rbp); break;
+    CASE_PRINT_REG( 6, "RSI=", rsi); break;
+    CASE_PRINT_REG( 7, "RDI=", rdi); break;
+    CASE_PRINT_REG( 8, "R8 =", r8); break;
+    CASE_PRINT_REG( 9, "R9 =", r9); break;
+    CASE_PRINT_REG(10, "R10=", r10); break;
+    CASE_PRINT_REG(11, "R11=", r11); break;
+    CASE_PRINT_REG(12, "R12=", r12); break;
+    CASE_PRINT_REG(13, "R13=", r13); break;
+    CASE_PRINT_REG(14, "R14=", r14); break;
+    CASE_PRINT_REG(15, "R15=", r15); break;
 #else
-  st->print("EAX="); print_location(st, uc->context_eax);
-  st->print("EBX="); print_location(st, uc->context_ebx);
-  st->print("ECX="); print_location(st, uc->context_ecx);
-  st->print("EDX="); print_location(st, uc->context_edx);
-  st->print("ESP="); print_location(st, uc->context_esp);
-  st->print("EBP="); print_location(st, uc->context_ebp);
-  st->print("ESI="); print_location(st, uc->context_esi);
-  st->print("EDI="); print_location(st, uc->context_edi);
+    CASE_PRINT_REG(0, "EAX=", eax); break;
+    CASE_PRINT_REG(1, "EBX=", ebx); break;
+    CASE_PRINT_REG(2, "ECX=", ecx); break;
+    CASE_PRINT_REG(3, "EDX=", edx); break;
+    CASE_PRINT_REG(4, "ESP=", esp); break;
+    CASE_PRINT_REG(5, "EBP=", ebp); break;
+    CASE_PRINT_REG(6, "ESI=", esi); break;
+    CASE_PRINT_REG(7, "EDI=", edi); break;
 #endif // AMD64
-
-  st->cr();
+    }
+# undef CASE_PRINT_REG
+    ++n;
+  }
 }
 
 void os::setup_fpu() {

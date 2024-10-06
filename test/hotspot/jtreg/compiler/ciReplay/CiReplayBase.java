@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,17 @@
 package compiler.ciReplay;
 
 import compiler.whitebox.CompilerWhiteBoxTest;
-import java.io.IOException;
-import java.io.File;
+import jdk.test.lib.Asserts;
+import jdk.test.lib.Platform;
+import jdk.test.lib.Utils;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.util.CoreUtils;
+
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -36,13 +43,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import jdk.test.lib.Platform;
-import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.Asserts;
-import jdk.test.lib.Utils;
 
 public abstract class CiReplayBase {
     public static final String REPLAY_FILE_NAME = "test_replay.txt";
@@ -65,17 +65,49 @@ public abstract class CiReplayBase {
         "-XX:MetaspaceSize=4m", "-XX:MaxMetaspaceSize=16m", "-XX:InitialCodeCacheSize=512k",
         "-XX:ReservedCodeCacheSize=4m", "-XX:ThreadStackSize=512", "-XX:VMThreadStackSize=512",
         "-XX:CompilerThreadStackSize=512", "-XX:ParallelGCThreads=1", "-XX:CICompilerCount=2",
-        "-Xcomp", "-XX:CICrashAt=1", "-XX:+DumpReplayDataOnError", "-XX:-TransmitErrorReport",
-        "-XX:+PreferInterpreterNativeStubs", "-XX:+PrintCompilation", REPLAY_FILE_OPTION};
+        "-XX:-BackgroundCompilation", "-XX:CompileCommand=inline,java.io.PrintStream::*",
+        "-XX:+IgnoreUnrecognizedVMOptions", "-XX:TypeProfileLevel=222", // extra profile data as a stress test
+        "-XX:+CICountNative", "-XX:CICrashAt=1", "-XX:+DumpReplayDataOnError",
+        REPLAY_FILE_OPTION};
     private static final String[] REPLAY_OPTIONS = new String[]{DISABLE_COREDUMP_ON_CRASH,
-        "-XX:+ReplayCompiles", REPLAY_FILE_OPTION};
+        "-XX:+IgnoreUnrecognizedVMOptions", "-XX:TypeProfileLevel=222",
+        "-XX:+ReplayCompiles"};
     protected final Optional<Boolean> runServer;
+    private static int dummy;
+
+    static interface Lambda {
+        int value();
+    }
+
+    public static class TestMain {
+        private static final String emptyString;
+
+        static {
+          emptyString = "";
+        }
+
+        public static void main(String[] args) {
+            // explicitly trigger native compilation
+            Lambda start = () -> 0;
+
+            for (int i = start.value(); i < 20_000; i++) {
+                test(i);
+            }
+        }
+
+        static void test(int i) {
+            i += ((Lambda)(() -> 0)).value();
+            if ((i % 1000) == 0) {
+                System.out.println("Hello World!");
+            }
+        }
+    }
 
     static {
         try {
-            CLIENT_VM_AVAILABLE = ProcessTools.executeTestJvm(CLIENT_VM_OPTION, VERSION_OPTION)
+            CLIENT_VM_AVAILABLE = ProcessTools.executeTestJava(CLIENT_VM_OPTION, VERSION_OPTION)
                     .getOutput().contains("Client");
-            SERVER_VM_AVAILABLE = ProcessTools.executeTestJvm(SERVER_VM_OPTION, VERSION_OPTION)
+            SERVER_VM_AVAILABLE = ProcessTools.executeTestJava(SERVER_VM_OPTION, VERSION_OPTION)
                     .getOutput().contains("Server");
         } catch(Throwable t) {
             throw new Error("Initialization failed: " + t, t);
@@ -95,7 +127,7 @@ public abstract class CiReplayBase {
 
     public void runTest(boolean needCoreDump, String... args) {
         cleanup();
-        if (generateReplay(needCoreDump)) {
+        if (generateReplay(needCoreDump, args)) {
             testAction();
             cleanup();
         } else {
@@ -105,7 +137,7 @@ public abstract class CiReplayBase {
 
     public abstract void testAction();
 
-    private static void remove(String item) {
+    public static void remove(String item) {
         File toDelete = new File(item);
         toDelete.delete();
         if (Platform.isWindows()) {
@@ -119,12 +151,16 @@ public abstract class CiReplayBase {
                 .forEach(File::delete);
     }
 
-    public static void cleanup() {
+    public void cleanup() {
         removeFromCurrentDirectoryStartingWith("core");
         removeFromCurrentDirectoryStartingWith("replay");
         removeFromCurrentDirectoryStartingWith(HS_ERR_NAME);
         remove(TEST_CORE_FILE_NAME);
         remove(REPLAY_FILE_NAME);
+    }
+
+    public String getReplayFileName() {
+        return REPLAY_FILE_NAME;
     }
 
     public boolean generateReplay(boolean needCoreDump, String... vmopts) {
@@ -135,13 +171,17 @@ public abstract class CiReplayBase {
             options.addAll(Arrays.asList(REPLAY_GENERATION_OPTIONS));
             options.addAll(Arrays.asList(vmopts));
             options.add(needCoreDump ? ENABLE_COREDUMP_ON_CRASH : DISABLE_COREDUMP_ON_CRASH);
-            options.add(VERSION_OPTION);
             if (needCoreDump) {
-                crashOut = ProcessTools.executeProcess(getTestJavaCommandlineWithPrefix(
-                        RUN_SHELL_NO_LIMIT, options.toArray(new String[0])));
+                // CiReplayBase$TestMain needs to be quoted because of shell eval
+                options.add("-XX:CompileOnly='" + getTestClass() + "::" + getTestMethod() + "'");
+                options.add("'" + getTestClass() + "'");
+                crashOut = ProcessTools.executeProcess(
+                        CoreUtils.addCoreUlimitCommand(
+                                ProcessTools.createTestJavaProcessBuilder(options.toArray(new String[0]))));
             } else {
-                crashOut = ProcessTools.executeProcess(ProcessTools.createJavaProcessBuilder(true,
-                        options.toArray(new String[0])));
+                options.add("-XX:CompileOnly=" + getTestClass() + "::" + getTestMethod());
+                options.add(getTestClass());
+                crashOut = ProcessTools.executeProcess(ProcessTools.createTestJavaProcessBuilder(options));
             }
             crashOutputString = crashOut.getOutput();
             Asserts.assertNotEquals(crashOut.getExitValue(), 0, "Crash JVM exits gracefully");
@@ -152,18 +192,8 @@ public abstract class CiReplayBase {
             throw new Error("Can't create replay: " + t, t);
         }
         if (needCoreDump) {
-            String coreFileLocation = getCoreFileLocation(crashOutputString);
-            if (coreFileLocation == null) {
-                if (Platform.isOSX()) {
-                    File coresDir = new File("/cores");
-                    if (!coresDir.isDirectory() || !coresDir.canWrite()) {
-                        return false;
-                    }
-                }
-                throw new Error("Couldn't find core file location in: '" + crashOutputString + "'");
-            }
             try {
-                Asserts.assertGT(new File(coreFileLocation).length(), 0L, "Unexpected core size");
+                String coreFileLocation = CoreUtils.getCoreFileLocation(crashOutputString, crashOut.pid());
                 Files.move(Paths.get(coreFileLocation), Paths.get(TEST_CORE_FILE_NAME));
             } catch (IOException ioe) {
                 throw new Error("Can't move core file: " + ioe, ioe);
@@ -171,6 +201,14 @@ public abstract class CiReplayBase {
         }
         removeFromCurrentDirectoryStartingWith(HS_ERR_NAME);
         return true;
+    }
+
+    public String getTestClass() {
+        return TestMain.class.getName();
+    }
+
+    public String getTestMethod() {
+        return "test";
     }
 
     public void commonTests() {
@@ -184,8 +222,9 @@ public abstract class CiReplayBase {
         try {
             List<String> allAdditionalOpts = new ArrayList<>();
             allAdditionalOpts.addAll(Arrays.asList(REPLAY_OPTIONS));
+            allAdditionalOpts.add("-XX:ReplayDataFile=" + getReplayFileName());
             allAdditionalOpts.addAll(Arrays.asList(additionalVmOpts));
-            OutputAnalyzer oa = ProcessTools.executeProcess(getTestJavaCommandlineWithPrefix(
+            OutputAnalyzer oa = ProcessTools.executeProcess(getTestJvmCommandlineWithPrefix(
                     RUN_SHELL_ZERO_LIMIT, allAdditionalOpts.toArray(new String[0])));
             return oa.getExitValue();
         } catch (Throwable t) {
@@ -212,13 +251,17 @@ public abstract class CiReplayBase {
     }
 
     public int getCompLevelFromReplay() {
-        try(BufferedReader br = new BufferedReader(new FileReader(REPLAY_FILE_NAME))) {
+        return getCompLevelFromReplay(REPLAY_FILE_NAME);
+    }
+
+    public int getCompLevelFromReplay(String replayFile) {
+        try (BufferedReader br = new BufferedReader(new FileReader(replayFile))) {
             return br.lines()
-                    .filter(s -> s.startsWith("compile "))
-                    .map(s -> s.split("\\s+")[5])
-                    .map(Integer::parseInt)
-                    .findAny()
-                    .get();
+                     .filter(s -> s.startsWith("compile "))
+                     .map(s -> s.split("\\s+")[5])
+                     .map(Integer::parseInt)
+                     .findAny()
+                     .orElseThrow();
         } catch (IOException ioe) {
             throw new Error("Failed to read replay data: " + ioe, ioe);
         }
@@ -243,55 +286,50 @@ public abstract class CiReplayBase {
         }
     }
 
-    // lets search few possible locations using process output and return existing location
-    private String getCoreFileLocation(String crashOutputString) {
-        Asserts.assertTrue(crashOutputString.contains(LOCATIONS_STRING),
-                "Output doesn't contain the location of core file, see crash.out");
-        String stringWithLocation = Arrays.stream(crashOutputString.split("\\r?\\n"))
-                .filter(str -> str.contains(LOCATIONS_STRING))
-                .findFirst()
-                .get();
-        stringWithLocation = stringWithLocation.substring(stringWithLocation
-                .indexOf(LOCATIONS_STRING) + LOCATIONS_STRING.length());
-        String coreWithPid;
-        if (stringWithLocation.contains("or ") && !Platform.isWindows()) {
-            Matcher m = Pattern.compile("or.* ([^ ]+[^\\)])\\)?").matcher(stringWithLocation);
-            if (!m.find()) {
-                throw new Error("Couldn't find path to core inside location string");
-            }
-            coreWithPid = m.group(1);
-        } else {
-            coreWithPid = stringWithLocation.trim();
-        }
-        if (new File(coreWithPid).exists()) {
-            return coreWithPid;
-        }
-        String justCore = Paths.get("core").toString();
-        if (new File(justCore).exists()) {
-            return justCore;
-        }
-        Path coreWithPidPath = Paths.get(coreWithPid);
-        String justFile = coreWithPidPath.getFileName().toString();
-        if (new File(justFile).exists()) {
-            return justFile;
-        }
-        Path parent = coreWithPidPath.getParent();
-        if (parent != null) {
-            String coreWithoutPid = parent.resolve("core").toString();
-            if (new File(coreWithoutPid).exists()) {
-                return coreWithoutPid;
-            }
-        }
-        return null;
-    }
-
-    private String[] getTestJavaCommandlineWithPrefix(String prefix, String... args) {
+    private String[] getTestJvmCommandlineWithPrefix(String prefix, String... args) {
         try {
-            String cmd = ProcessTools.getCommandLine(ProcessTools.createJavaProcessBuilder(true, args));
+            String cmd = ProcessTools.getCommandLine(ProcessTools.createTestJavaProcessBuilder(args));
             return new String[]{"sh", "-c", prefix
-                    + (Platform.isWindows() ? cmd.replace('\\', '/').replace(";", "\\;") : cmd)};
+                + (Platform.isWindows() ? cmd.replace('\\', '/').replace(";", "\\;").replace("|", "\\|") : cmd)};
         } catch(Throwable t) {
             throw new Error("Can't create process builder: " + t, t);
+        }
+    }
+
+    protected void removeVersionFromReplayFile() {
+        setNewVersionLineInReplayFile(null);
+    }
+
+    protected void setNewVersionInReplayFile(int newVersionNumber) {
+        setNewVersionLineInReplayFile("version " + newVersionNumber);
+    }
+
+    private void setNewVersionLineInReplayFile(String firstLineString) {
+        List<String> newLines = new ArrayList<>();
+        Path replayFilePath = Paths.get(getReplayFileName());
+        try (var br = Files.newBufferedReader(replayFilePath)) {
+            String line;
+            boolean firstLine = true;
+            while ((line = br.readLine()) != null) {
+                if (firstLine) {
+                    firstLine = false;
+                    Asserts.assertTrue(line.startsWith("version"), "version number must exist in a proper replay file");
+                    if (firstLineString != null) {
+                        newLines.add(firstLineString);
+                    }
+                    // Else: Remove first line by skipping it.
+                } else {
+                    newLines.add(line);
+                }
+            }
+            Asserts.assertFalse(firstLine, replayFilePath + " should not be empty");
+        } catch (IOException e) {
+            throw new Error("Failed to read replay data: " + e, e);
+        }
+        try {
+            Files.write(replayFilePath, newLines, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            throw new Error("Failed to write replay data: " + e, e);
         }
     }
 }

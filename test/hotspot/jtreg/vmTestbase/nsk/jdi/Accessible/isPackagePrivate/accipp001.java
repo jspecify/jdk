@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,13 +80,12 @@ public class accipp001 extends Log {
         {debugeeName+"$P", "package private"}
     };
 
-    /**
-     * Re-call to <code>run(args,out)</code>, and exit with
-     * either status 95 or 97 (JCK-like exit status).
-     */
-    public static void main (String args[]) {
-        int exitCode = run(args,System.out);
-        System.exit(exitCode + 95);
+
+    public static void main (String argv[]) {
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     /**
@@ -109,24 +108,8 @@ public class accipp001 extends Log {
         logHandler      = new Log(out, argsHandler);
         Binder binder   = new Binder(argsHandler, logHandler);
 
-
-        if (argsHandler.verbose()) {
-            debugee = binder.bindToDebugee(debugeeName + " -vbs");
-        } else {
-            debugee = binder.bindToDebugee(debugeeName);
-        }
-
-        IOPipe pipe     = new IOPipe(debugee);
-
-
-        debugee.redirectStderr(out);
-        debugee.resume();
-
-        String line = pipe.readln();
-        if (!line.equals("ready")) {
-            logHandler.complain("# Cannot recognize debugee's signal: " + line);
-            return 2;
-        };
+        debugee = Debugee.prepareDebugee(argsHandler, logHandler,
+                debugeeName + (argsHandler.verbose() ? " -vbs" : ""));
 
 //        ReferenceType classes[] = debugee.classes();
 //        for (int i=0; i<classes.length; i++) {
@@ -165,10 +148,8 @@ public class accipp001 extends Log {
             return 2;
         };
 
-        pipe.println("quit");
-        debugee.waitFor();
-
-        int status = debugee.getStatus();
+        debugee.sendSignal("quit");
+        int status = debugee.endDebugee();
         if (status != 95) {
             logHandler.complain("Debugee's exit status=" + status);
             return 2;

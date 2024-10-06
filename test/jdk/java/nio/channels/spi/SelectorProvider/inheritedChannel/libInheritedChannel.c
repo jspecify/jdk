@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -35,6 +36,8 @@
 #include <ctype.h>
 
 #include "jni.h"
+
+#define CHECK(X) if ((X) == 0) {printf("JNI init error line %d\n", __LINE__); _exit(1);}
 
 /*
  * Throws the exception of the given class name and detail message
@@ -77,7 +80,6 @@ static char* getString8859_1Chars(JNIEnv *env, jstring jstr) {
     (*env)->ReleaseStringCritical(env, jstr, str);
     return result;
 }
-
 
 /*
  * Class:     Launcher
@@ -128,11 +130,7 @@ JNIEXPORT void JNICALL Java_Launcher_launch0
      * Launch the program. As this isn't a complete inetd or Runtime.exec
      * implementation we don't have a reaper to pick up child exit status.
      */
-#ifdef __solaris__
-    pid = fork1();
-#else
     pid = fork();
-#endif
     if (pid != 0) {
         if (pid < 0) {
             ThrowException(env, "java/io/IOException", "fork failed");
@@ -142,19 +140,18 @@ JNIEXPORT void JNICALL Java_Launcher_launch0
 
     /*
      * We need to close all file descriptors except for serviceFd. To
-     * get the list of open file descriptos we read through /proc/self/fd
+     * get the list of open file descriptors we read through /proc/self/fd (/dev/fd)
      * but to open this requires a file descriptor. We could use a specific
      * file descriptor and fdopendir but Linux doesn't seem to support
      * fdopendir. Instead we use opendir and make an assumption on the
      * file descriptor that is used (by opening & closing a file).
      */
-    thisFd = open("/dev/null", O_RDONLY);
+    thisFd = open("/dev/fd", O_RDONLY);
     if (thisFd < 0) {
         _exit(-1);
     }
-    close(thisFd);
 
-    if ((dp = opendir("/proc/self/fd")) == NULL) {
+    if ((dp = fdopendir(thisFd)) == NULL) {
         _exit(-1);
     }
 

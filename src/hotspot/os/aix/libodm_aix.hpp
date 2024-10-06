@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2015, 2015, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2015, 2015 SAP SE. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,13 @@
 
 // Encapsulates the libodm library and provides more convenient interfaces.
 
-#ifndef OS_AIX_VM_LIBODM_AIX_HPP
-#define OS_AIX_VM_LIBODM_AIX_HPP
+#ifndef OS_AIX_LIBODM_AIX_HPP
+#define OS_AIX_LIBODM_AIX_HPP
 
 #include <odmi.h>
 
-
 // The purpose of this code is to dynamically load the libodm library
 // instead of statically linking against it. The library is AIX-specific.
-// It only exists on AIX, not on PASE. In order to share binaries
-// between AIX and PASE, we can't directly link against it.
 
 typedef int          (*fun_odm_initialize )(void);
 typedef char*        (*fun_odm_set_path   )(char*);
@@ -53,7 +50,7 @@ class dynamicOdm {
  public:
   dynamicOdm();
   ~dynamicOdm();
-  bool odm_loaded() {return _libhandle != NULL; }
+  bool odm_loaded() {return _libhandle != nullptr; }
 };
 
 
@@ -68,13 +65,15 @@ class odmWrapper : private dynamicOdm {
 
  public:
   // Make sure everything gets initialized and cleaned up properly.
-  explicit odmWrapper(char* odm_class_name, char* odm_path = NULL) : _odm_class((CLASS_SYMBOL)-1),
-                                                                     _data(NULL), _initialized(false) {
+  explicit odmWrapper(const char* odm_class_name, const char* odm_path = nullptr) : _odm_class((CLASS_SYMBOL)-1),
+                                                                     _data(nullptr), _initialized(false) {
     if (!odm_loaded()) { return; }
     _initialized = ((*_odm_initialize)() != -1);
     if (_initialized) {
-      if (odm_path) { (*_odm_set_path)(odm_path); }
-      _odm_class = (*_odm_mount_class)(odm_class_name);
+      // should we free what odm_set_path returns, man page suggests it
+      // see https://www.ibm.com/support/knowledgecenter/en/ssw_aix_71/o_bostechref/odm_set_path.html
+      if (odm_path) { (*_odm_set_path)((char*)odm_path); }
+      _odm_class = (*_odm_mount_class)((char*)odm_class_name);
     }
   }
   ~odmWrapper() {
@@ -83,12 +82,12 @@ class odmWrapper : private dynamicOdm {
 
   CLASS_SYMBOL odm_class() { return _odm_class; }
   bool has_class() { return odm_class() != (CLASS_SYMBOL)-1; }
-  int class_offset(char *field, bool is_aix_5);
+  int class_offset(const char *field, bool is_aix_5);
   char* data() { return _data; }
 
-  char* retrieve_obj(char* name = NULL) {
+  char* retrieve_obj(const char* name = nullptr) {
     clean_data();
-    char *cnp = (char*)(void*)(*_odm_get_obj)(odm_class(), name, NULL, (name == NULL) ? ODM_NEXT : ODM_FIRST);
+    char *cnp = (char*)(void*)(*_odm_get_obj)(odm_class(), (char*) name, nullptr, (name == nullptr) ? ODM_NEXT : ODM_FIRST);
     if (cnp != (char*)-1) { _data = cnp; }
     return data();
   }
@@ -103,4 +102,4 @@ class odmWrapper : private dynamicOdm {
   static void determine_os_kernel_version(uint32_t* p_ver);
 };
 
-#endif // OS_AIX_VM_LIBODM_AIX_HPP
+#endif // OS_AIX_LIBODM_AIX_HPP

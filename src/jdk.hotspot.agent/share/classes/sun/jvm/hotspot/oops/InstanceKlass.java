@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,12 +27,14 @@ package sun.jvm.hotspot.oops;
 import java.io.*;
 import java.util.*;
 import sun.jvm.hotspot.classfile.ClassLoaderData;
+import sun.jvm.hotspot.code.CompressedReadStream;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.memory.*;
-import sun.jvm.hotspot.memory.Dictionary;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 // An InstanceKlass is the VM level representation of a Java class.
 
@@ -45,17 +47,12 @@ public class InstanceKlass extends Klass {
       });
   }
 
-  // field offset constants
-  private static int ACCESS_FLAGS_OFFSET;
-  private static int NAME_INDEX_OFFSET;
-  private static int SIGNATURE_INDEX_OFFSET;
-  private static int INITVAL_INDEX_OFFSET;
-  private static int LOW_OFFSET;
-  private static int HIGH_OFFSET;
-  private static int FIELD_SLOTS;
-  private static short FIELDINFO_TAG_SIZE;
-  private static short FIELDINFO_TAG_MASK;
-  private static short FIELDINFO_TAG_OFFSET;
+  // internal field flags constants
+  static int FIELD_FLAG_IS_INITIALIZED;
+  static int FIELD_FLAG_IS_INJECTED;
+  static int FIELD_FLAG_IS_GENERIC;
+  static int FIELD_FLAG_IS_STABLE;
+  static int FIELD_FLAG_IS_CONTENDED;
 
   // ClassState constants
   private static int CLASS_STATE_ALLOCATED;
@@ -65,62 +62,40 @@ public class InstanceKlass extends Klass {
   private static int CLASS_STATE_FULLY_INITIALIZED;
   private static int CLASS_STATE_INITIALIZATION_ERROR;
 
-  // _misc_flags constants
-  private static int MISC_REWRITTEN;
-  private static int MISC_HAS_NONSTATIC_FIELDS;
-  private static int MISC_SHOULD_VERIFY_CLASS;
-  private static int MISC_IS_ANONYMOUS;
-  private static int MISC_IS_CONTENDED;
-  private static int MISC_HAS_NONSTATIC_CONCRETE_METHODS;
-  private static int MISC_DECLARES_NONSTATIC_CONCRETE_METHODS;
-  private static int MISC_HAS_BEEN_REDEFINED;
-  private static int MISC_HAS_PASSED_FINGERPRINT_CHECK;
-  private static int MISC_IS_SCRATCH_CLASS;
-  private static int MISC_IS_SHARED_BOOT_CLASS;
-  private static int MISC_IS_SHARED_PLATFORM_CLASS;
-  private static int MISC_IS_SHARED_APP_CLASS;
 
   private static synchronized void initialize(TypeDataBase db) throws WrongTypeException {
     Type type            = db.lookupType("InstanceKlass");
+    annotations          = type.getAddressField("_annotations");
     arrayKlasses         = new MetadataField(type.getAddressField("_array_klasses"), 0);
     methods              = type.getAddressField("_methods");
     defaultMethods       = type.getAddressField("_default_methods");
     methodOrdering       = type.getAddressField("_method_ordering");
     localInterfaces      = type.getAddressField("_local_interfaces");
     transitiveInterfaces = type.getAddressField("_transitive_interfaces");
-    fields               = type.getAddressField("_fields");
-    javaFieldsCount      = new CIntField(type.getCIntegerField("_java_fields_count"), 0);
+    fieldinfoStream      = type.getAddressField("_fieldinfo_stream");
     constants            = new MetadataField(type.getAddressField("_constants"), 0);
     sourceDebugExtension = type.getAddressField("_source_debug_extension");
     innerClasses         = type.getAddressField("_inner_classes");
-    sourceFileNameIndex  = new CIntField(type.getCIntegerField("_source_file_name_index"), 0);
+    nestMembers          = type.getAddressField("_nest_members");
     nonstaticFieldSize   = new CIntField(type.getCIntegerField("_nonstatic_field_size"), 0);
     staticFieldSize      = new CIntField(type.getCIntegerField("_static_field_size"), 0);
     staticOopFieldCount  = new CIntField(type.getCIntegerField("_static_oop_field_count"), 0);
     nonstaticOopMapSize  = new CIntField(type.getCIntegerField("_nonstatic_oop_map_size"), 0);
-    isMarkedDependent    = new CIntField(type.getCIntegerField("_is_marked_dependent"), 0);
     initState            = new CIntField(type.getCIntegerField("_init_state"), 0);
     itableLen            = new CIntField(type.getCIntegerField("_itable_len"), 0);
+    nestHostIndex        = new CIntField(type.getCIntegerField("_nest_host_index"), 0);
     if (VM.getVM().isJvmtiSupported()) {
       breakpoints        = type.getAddressField("_breakpoints");
     }
-    genericSignatureIndex = new CIntField(type.getCIntegerField("_generic_signature_index"), 0);
-    miscFlags            = new CIntField(type.getCIntegerField("_misc_flags"), 0);
-    majorVersion         = new CIntField(type.getCIntegerField("_major_version"), 0);
-    minorVersion         = new CIntField(type.getCIntegerField("_minor_version"), 0);
     headerSize           = type.getSize();
 
-    // read field offset constants
-    ACCESS_FLAGS_OFFSET            = db.lookupIntConstant("FieldInfo::access_flags_offset").intValue();
-    NAME_INDEX_OFFSET              = db.lookupIntConstant("FieldInfo::name_index_offset").intValue();
-    SIGNATURE_INDEX_OFFSET         = db.lookupIntConstant("FieldInfo::signature_index_offset").intValue();
-    INITVAL_INDEX_OFFSET           = db.lookupIntConstant("FieldInfo::initval_index_offset").intValue();
-    LOW_OFFSET                     = db.lookupIntConstant("FieldInfo::low_packed_offset").intValue();
-    HIGH_OFFSET                    = db.lookupIntConstant("FieldInfo::high_packed_offset").intValue();
-    FIELD_SLOTS                    = db.lookupIntConstant("FieldInfo::field_slots").intValue();
-    FIELDINFO_TAG_SIZE             = db.lookupIntConstant("FIELDINFO_TAG_SIZE").shortValue();
-    FIELDINFO_TAG_MASK             = db.lookupIntConstant("FIELDINFO_TAG_MASK").shortValue();
-    FIELDINFO_TAG_OFFSET           = db.lookupIntConstant("FIELDINFO_TAG_OFFSET").shortValue();
+    // read internal field flags constants
+    FIELD_FLAG_IS_INITIALIZED      = db.lookupIntConstant("FieldInfo::FieldFlags::_ff_initialized");
+    FIELD_FLAG_IS_INJECTED         = db.lookupIntConstant("FieldInfo::FieldFlags::_ff_injected");
+    FIELD_FLAG_IS_GENERIC          = db.lookupIntConstant("FieldInfo::FieldFlags::_ff_generic");
+    FIELD_FLAG_IS_STABLE           = db.lookupIntConstant("FieldInfo::FieldFlags::_ff_stable");
+    FIELD_FLAG_IS_CONTENDED        = db.lookupIntConstant("FieldInfo::FieldFlags::_ff_contended");
+
 
     // read ClassState constants
     CLASS_STATE_ALLOCATED = db.lookupIntConstant("InstanceKlass::allocated").intValue();
@@ -129,24 +104,24 @@ public class InstanceKlass extends Klass {
     CLASS_STATE_BEING_INITIALIZED = db.lookupIntConstant("InstanceKlass::being_initialized").intValue();
     CLASS_STATE_FULLY_INITIALIZED = db.lookupIntConstant("InstanceKlass::fully_initialized").intValue();
     CLASS_STATE_INITIALIZATION_ERROR = db.lookupIntConstant("InstanceKlass::initialization_error").intValue();
-
-    MISC_REWRITTEN                    = db.lookupIntConstant("InstanceKlass::_misc_rewritten").intValue();
-    MISC_HAS_NONSTATIC_FIELDS         = db.lookupIntConstant("InstanceKlass::_misc_has_nonstatic_fields").intValue();
-    MISC_SHOULD_VERIFY_CLASS          = db.lookupIntConstant("InstanceKlass::_misc_should_verify_class").intValue();
-    MISC_IS_ANONYMOUS                 = db.lookupIntConstant("InstanceKlass::_misc_is_anonymous").intValue();
-    MISC_IS_CONTENDED                 = db.lookupIntConstant("InstanceKlass::_misc_is_contended").intValue();
-    MISC_HAS_NONSTATIC_CONCRETE_METHODS      = db.lookupIntConstant("InstanceKlass::_misc_has_nonstatic_concrete_methods").intValue();
-    MISC_DECLARES_NONSTATIC_CONCRETE_METHODS = db.lookupIntConstant("InstanceKlass::_misc_declares_nonstatic_concrete_methods").intValue();
-    MISC_HAS_BEEN_REDEFINED           = db.lookupIntConstant("InstanceKlass::_misc_has_been_redefined").intValue();
-    MISC_HAS_PASSED_FINGERPRINT_CHECK = db.lookupIntConstant("InstanceKlass::_misc_has_passed_fingerprint_check").intValue();
-    MISC_IS_SCRATCH_CLASS             = db.lookupIntConstant("InstanceKlass::_misc_is_scratch_class").intValue();
-    MISC_IS_SHARED_BOOT_CLASS         = db.lookupIntConstant("InstanceKlass::_misc_is_shared_boot_class").intValue();
-    MISC_IS_SHARED_PLATFORM_CLASS     = db.lookupIntConstant("InstanceKlass::_misc_is_shared_platform_class").intValue();
-    MISC_IS_SHARED_APP_CLASS          = db.lookupIntConstant("InstanceKlass::_misc_is_shared_app_class").intValue();
+    // We need a new fieldsCache each time we attach.
+    fieldsCache = new WeakHashMap<Address, Field[]>();
   }
 
   public InstanceKlass(Address addr) {
     super(addr);
+
+    // If the class hasn't yet reached the "loaded" init state, then don't go any further
+    // or we'll run into problems trying to look at fields that are not yet setup.
+    // Attempted lookups of this InstanceKlass via ClassLoaderDataGraph, ClassLoaderData,
+    // and Dictionary will all refuse to return it. The main purpose of allowing this
+    // InstanceKlass to initialize is so ClassLoaderData.getKlasses() will succeed, allowing
+    // ClassLoaderData.classesDo() to iterate over all Klasses (skipping those that are
+    // not yet fully loaded).
+    if (!isLoaded()) {
+        return;
+    }
+
     if (getJavaFieldsCount() != getAllFieldsCount()) {
       // Exercise the injected field logic
       for (int i = getJavaFieldsCount(); i < getAllFieldsCount(); i++) {
@@ -156,30 +131,26 @@ public class InstanceKlass extends Klass {
     }
   }
 
+  private static AddressField  annotations;
   private static MetadataField arrayKlasses;
   private static AddressField  methods;
   private static AddressField  defaultMethods;
   private static AddressField  methodOrdering;
   private static AddressField  localInterfaces;
   private static AddressField  transitiveInterfaces;
-  private static AddressField fields;
-  private static CIntField javaFieldsCount;
+  private static AddressField  fieldinfoStream;
   private static MetadataField constants;
   private static AddressField  sourceDebugExtension;
   private static AddressField  innerClasses;
-  private static CIntField sourceFileNameIndex;
+  private static AddressField  nestMembers;
   private static CIntField nonstaticFieldSize;
   private static CIntField staticFieldSize;
   private static CIntField staticOopFieldCount;
   private static CIntField nonstaticOopMapSize;
-  private static CIntField isMarkedDependent;
   private static CIntField initState;
   private static CIntField itableLen;
+  private static CIntField nestHostIndex;
   private static AddressField breakpoints;
-  private static CIntField genericSignatureIndex;
-  private static CIntField miscFlags;
-  private static CIntField majorVersion;
-  private static CIntField minorVersion;
 
   // type safe enum for ClassState from instanceKlass.hpp
   public static class ClassState {
@@ -281,136 +252,76 @@ public class InstanceKlass extends Klass {
     if (isInterface()) {
       size += wordLength;
     }
-    if (isAnonymous()) {
-      size += wordLength;
-    }
-    if (hasStoredFingerprint()) {
-      size += 8; // uint64_t
-    }
     return alignSize(size);
-  }
-
-  private int getMiscFlags() {
-    return (int) miscFlags.getValue(this);
-  }
-
-  public boolean isAnonymous() {
-    return (getMiscFlags() & MISC_IS_ANONYMOUS) != 0;
-  }
-
-  public static boolean shouldStoreFingerprint() {
-    VM vm = VM.getVM();
-    if (vm.getCommandLineBooleanFlag("EnableJVMCI") && !vm.getCommandLineBooleanFlag("UseJVMCICompiler")) {
-      return true;
-    }
-    if (vm.getCommandLineBooleanFlag("DumpSharedSpaces")) {
-      return true;
-    }
-    return false;
-  }
-
-  public boolean hasStoredFingerprint() {
-    return shouldStoreFingerprint() || isShared();
-  }
-
-  public boolean isShared() {
-    VM vm = VM.getVM();
-    if (vm.isSharingEnabled()) {
-      // This is not the same implementation as the C++ function MetaspaceObj::is_shared()
-      //     bool MetaspaceObj::is_shared() const {
-      //       return MetaspaceShared::is_in_shared_space(this);
-      //     }
-      // However, MetaspaceShared::is_in_shared_space is complicated and hard to emulate in
-      // Java code, so let's do this by looking up from the shared dictionary. Of course,
-      // this works for shared InstanceKlass only and does not work for other types of
-      // MetaspaceObj in the CDS shared archive.
-      Dictionary sharedDictionary = vm.getSystemDictionary().sharedDictionary();
-      if (sharedDictionary != null) {
-        if (sharedDictionary.contains(this)) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 
   public static long getHeaderSize() { return headerSize; }
 
-  public short getFieldAccessFlags(int index) {
-    return getFields().at(index * FIELD_SLOTS + ACCESS_FLAGS_OFFSET);
+  // Each InstanceKlass mirror instance will cache the Field[] array after it is decoded,
+  // but since there can be multiple InstanceKlass mirror instances per hotspot InstanceKlass,
+  // we also have a global cache that uses the Address of the hotspot InstanceKlass as the key.
+  private Field[] fields;
+  private static Map<Address, Field[]> fieldsCache;
+
+  Field getField(int index) {
+    synchronized (this) {
+      fields = fieldsCache.get(this.getAddress());
+      if (fields == null) {
+        fields = Field.getFields(this);
+        fieldsCache.put(this.getAddress(), fields);
+      } else {
+      }
+    }
+    return fields[index];
   }
 
-  public short getFieldNameIndex(int index) {
+  public short getFieldAccessFlags(int index) {
+    return (short)getField(index).getAccessFlags();
+  }
+
+  public int getFieldNameIndex(int index) {
     if (index >= getJavaFieldsCount()) throw new IndexOutOfBoundsException("not a Java field;");
-    return getFields().at(index * FIELD_SLOTS + NAME_INDEX_OFFSET);
+    return getField(index).getNameIndex();
   }
 
   public Symbol getFieldName(int index) {
-    int nameIndex = getFields().at(index * FIELD_SLOTS + NAME_INDEX_OFFSET);
-    if (index < getJavaFieldsCount()) {
-      return getConstants().getSymbolAt(nameIndex);
+    // Cannot use getFieldNameIndex() because this method is also used for injected fields
+    return getField(index).getName();
+  }
+
+  public Symbol getSymbolFromIndex(int cpIndex, boolean injected) {
+    if (injected) {
+      return vmSymbols.symbolAt(cpIndex);
     } else {
-      return vmSymbols.symbolAt(nameIndex);
+      return getConstants().getSymbolAt(cpIndex);
     }
   }
 
-  public short getFieldSignatureIndex(int index) {
+  public int getFieldSignatureIndex(int index) {
     if (index >= getJavaFieldsCount()) throw new IndexOutOfBoundsException("not a Java field;");
-    return getFields().at(index * FIELD_SLOTS + SIGNATURE_INDEX_OFFSET);
+    return getField(index).getSignatureIndex();
   }
 
   public Symbol getFieldSignature(int index) {
-    int signatureIndex = getFields().at(index * FIELD_SLOTS + SIGNATURE_INDEX_OFFSET);
-    if (index < getJavaFieldsCount()) {
-      return getConstants().getSymbolAt(signatureIndex);
-    } else {
-      return vmSymbols.symbolAt(signatureIndex);
-    }
+    // Cannot use getFieldSignatureIndex() because this method is also use for injected fields
+    return getField(index).getSignature();
   }
 
-  public short getFieldGenericSignatureIndex(int index) {
-    // int len = getFields().length();
-    int allFieldsCount = getAllFieldsCount();
-    int generic_signature_slot = allFieldsCount * FIELD_SLOTS;
-    for (int i = 0; i < allFieldsCount; i++) {
-      short flags = getFieldAccessFlags(i);
-      AccessFlags access = new AccessFlags(flags);
-      if (i == index) {
-        if (access.fieldHasGenericSignature()) {
-           return getFields().at(generic_signature_slot);
-        } else {
-          return 0;
-        }
-      } else {
-        if (access.fieldHasGenericSignature()) {
-          generic_signature_slot ++;
-        }
-      }
-    }
-    return 0;
+  public int getFieldGenericSignatureIndex(int index) {
+    return getField(index).getGenericSignatureIndex();
   }
 
   public Symbol getFieldGenericSignature(int index) {
-    short genericSignatureIndex = getFieldGenericSignatureIndex(index);
-    if (genericSignatureIndex != 0)  {
-      return getConstants().getSymbolAt(genericSignatureIndex);
-    }
-    return null;
+    return getField(index).getGenericSignature();
   }
 
-  public short getFieldInitialValueIndex(int index) {
+  public int getFieldInitialValueIndex(int index) {
     if (index >= getJavaFieldsCount()) throw new IndexOutOfBoundsException("not a Java field;");
-    return getFields().at(index * FIELD_SLOTS + INITVAL_INDEX_OFFSET);
+    return getField(index).getInitialValueIndex();
   }
 
   public int getFieldOffset(int index) {
-    U2Array fields = getFields();
-    short lo = fields.at(index * FIELD_SLOTS + LOW_OFFSET);
-    short hi = fields.at(index * FIELD_SLOTS + HIGH_OFFSET);
-    if ((lo & FIELDINFO_TAG_MASK) == FIELDINFO_TAG_OFFSET) {
-      return VM.getVM().buildIntFromShorts(lo, hi) >> FIELDINFO_TAG_SIZE;
-    }
-    throw new RuntimeException("should not reach here");
+    return (int)getField(index).getOffset();
   }
 
   // Accessors for declared fields
@@ -430,40 +341,42 @@ public class InstanceKlass extends Klass {
     }
   }
 
-  public KlassArray   getLocalInterfaces()      { return new KlassArray(localInterfaces.getValue(getAddress())); }
-  public KlassArray   getTransitiveInterfaces() { return new KlassArray(transitiveInterfaces.getValue(getAddress())); }
-  public int       getJavaFieldsCount()     { return                (int) javaFieldsCount.getValue(this); }
-  public int       getAllFieldsCount()      {
-    int len = getFields().length();
-    int allFieldsCount = 0;
-    for (; allFieldsCount*FIELD_SLOTS < len; allFieldsCount++) {
-      short flags = getFieldAccessFlags(allFieldsCount);
-      AccessFlags access = new AccessFlags(flags);
-      if (access.fieldHasGenericSignature()) {
-        len --;
-      }
+  private int javaFieldsCount = -1;
+  private int allFieldsCount = -1;
+
+  private void initFieldCounts() {
+    CompressedReadStream crs = new CompressedReadStream(getFieldInfoStream().getDataStart());
+    javaFieldsCount = crs.readInt(); // read num_java_fields
+    allFieldsCount = javaFieldsCount + crs.readInt(); // read num_injected_fields;
+  }
+
+  public int getJavaFieldsCount() {
+    if (javaFieldsCount == -1) {
+      initFieldCounts();
+    }
+    return javaFieldsCount;
+  }
+
+  public int getAllFieldsCount() {
+    if (allFieldsCount == -1) {
+      initFieldCounts();
     }
     return allFieldsCount;
   }
+
+  public KlassArray   getLocalInterfaces()      { return new KlassArray(localInterfaces.getValue(getAddress())); }
+  public KlassArray   getTransitiveInterfaces() { return new KlassArray(transitiveInterfaces.getValue(getAddress())); }
   public ConstantPool getConstants()        { return (ConstantPool) constants.getValue(this); }
-  public Symbol    getSourceFileName()      { return                getConstants().getSymbolAt(sourceFileNameIndex.getValue(this)); }
+  public Symbol    getSourceFileName()      { return                getConstants().getSourceFileName(); }
   public String    getSourceDebugExtension(){ return                CStringUtilities.getString(sourceDebugExtension.getValue(getAddress())); }
   public long      getNonstaticFieldSize()  { return                nonstaticFieldSize.getValue(this); }
   public long      getStaticOopFieldCount() { return                staticOopFieldCount.getValue(this); }
   public long      getNonstaticOopMapSize() { return                nonstaticOopMapSize.getValue(this); }
-  public boolean   getIsMarkedDependent()   { return                isMarkedDependent.getValue(this) != 0; }
   public long      getItableLen()           { return                itableLen.getValue(this); }
-  public long      majorVersion()           { return                majorVersion.getValue(this); }
-  public long      minorVersion()           { return                minorVersion.getValue(this); }
-  public Symbol    getGenericSignature()    {
-    long index = genericSignatureIndex.getValue(this);
-    if (index != 0) {
-      return getConstants().getSymbolAt(index);
-    } else {
-      return null;
-    }
-  }
-
+  public short     getNestHostIndex()       { return                (short) nestHostIndex.getValue(this); }
+  public long      majorVersion()           { return                getConstants().majorVersion(); }
+  public long      minorVersion()           { return                getConstants().minorVersion(); }
+  public Symbol    getGenericSignature()    { return                getConstants().getGenericSignature(); }
   // "size helper" == instance size in words
   public long getSizeHelper() {
     int lh = getLayoutHelper();
@@ -471,6 +384,10 @@ public class InstanceKlass extends Klass {
       Assert.that(lh > 0, "layout helper initialized for instance class");
     }
     return lh / VM.getVM().getAddressSize();
+  }
+  public Annotations  getAnnotations() {
+    Address addr = annotations.getValue(getAddress());
+    return VMObjectFactory.newObject(Annotations.class, addr);
   }
 
   // same as enum InnerClassAttributeOffset in VM code.
@@ -522,7 +439,7 @@ public class InstanceKlass extends Klass {
     long access = getAccessFlags();
     // But check if it happens to be member class.
     U2Array innerClassList = getInnerClasses();
-    int length = (innerClassList == null)? 0 : (int) innerClassList.length();
+    int length = (innerClassList == null)? 0 : innerClassList.length();
     if (length > 0) {
        if (Assert.ASSERTS_ENABLED) {
           Assert.that(length % InnerClassAttributeOffset.innerClassNextOffset == 0 ||
@@ -571,7 +488,7 @@ public class InstanceKlass extends Klass {
 
   private boolean isInInnerClasses(Symbol sym, boolean includeLocals) {
     U2Array innerClassList = getInnerClasses();
-    int length = ( innerClassList == null)? 0 : (int) innerClassList.length();
+    int length = ( innerClassList == null)? 0 : innerClassList.length();
     if (length > 0) {
        if (Assert.ASSERTS_ENABLED) {
          Assert.that(length % InnerClassAttributeOffset.innerClassNextOffset == 0 ||
@@ -656,7 +573,6 @@ public class InstanceKlass extends Klass {
       visitor.doCInt(staticFieldSize, true);
       visitor.doCInt(staticOopFieldCount, true);
       visitor.doCInt(nonstaticOopMapSize, true);
-      visitor.doCInt(isMarkedDependent, true);
       visitor.doCInt(initState, true);
       visitor.doCInt(itableLen, true);
     }
@@ -701,16 +617,15 @@ public class InstanceKlass extends Klass {
   }
 
   public Field[] getStaticFields() {
-    U2Array fields = getFields();
     int length = getJavaFieldsCount();
-    ArrayList result = new ArrayList();
+    ArrayList<Field> result = new ArrayList<>();
     for (int index = 0; index < length; index++) {
       Field f = newField(index);
       if (f.isStatic()) {
         result.add(f);
       }
     }
-    return (Field[])result.toArray(new Field[result.size()]);
+    return result.toArray(new Field[result.size()]);
   }
 
   public void iterateNonStaticFields(OopVisitor visitor, Oop obj) {
@@ -729,12 +644,12 @@ public class InstanceKlass extends Klass {
   }
 
   /** Field access by name. */
-  public Field findLocalField(Symbol name, Symbol sig) {
+  public Field findLocalField(String name, String sig) {
     int length = getJavaFieldsCount();
     for (int i = 0; i < length; i++) {
       Symbol f_name = getFieldName(i);
       Symbol f_sig  = getFieldSignature(i);
-      if (name.equals(f_name) && sig.equals(f_sig)) {
+      if (f_name.equals(name) && f_sig.equals(sig)) {
         return newField(i);
       }
     }
@@ -743,14 +658,14 @@ public class InstanceKlass extends Klass {
   }
 
   /** Find field in direct superinterfaces. */
-  public Field findInterfaceField(Symbol name, Symbol sig) {
+  public Field findInterfaceField(String name, String sig) {
     KlassArray interfaces = getLocalInterfaces();
     int n = interfaces.length();
     for (int i = 0; i < n; i++) {
       InstanceKlass intf1 = (InstanceKlass) interfaces.getAt(i);
       if (Assert.ASSERTS_ENABLED) {
         Assert.that(intf1.isInterface(), "just checking type");
-      }
+     }
       // search for field in current interface
       Field f = intf1.findLocalField(name, sig);
       if (f != null) {
@@ -769,7 +684,7 @@ public class InstanceKlass extends Klass {
 
   /** Find field according to JVM spec 5.4.3.2, returns the klass in
       which the field is defined. */
-  public Field findField(Symbol name, Symbol sig) {
+  public Field findField(String name, String sig) {
     // search order according to newest JVM spec (5.4.3.2, p.167).
     // 1) search for field in current klass
     Field f = findLocalField(name, sig);
@@ -785,18 +700,6 @@ public class InstanceKlass extends Klass {
 
     // 4) otherwise field lookup fails
     return null;
-  }
-
-  /** Find field according to JVM spec 5.4.3.2, returns the klass in
-      which the field is defined (convenience routine) */
-  public Field findField(String name, String sig) {
-    SymbolTable symbols = VM.getVM().getSymbolTable();
-    Symbol nameSym = symbols.probe(name);
-    Symbol sigSym  = symbols.probe(sig);
-    if (nameSym == null || sigSym == null) {
-      return null;
-    }
-    return findField(nameSym, sigSym);
   }
 
   /** Find field according to JVM spec 5.4.3.2, returns the klass in
@@ -817,11 +720,11 @@ public class InstanceKlass extends Klass {
         Inherited fields are not included.
         Return an empty list if there are no fields declared in this class.
         Only designed for use in a debugging system. */
-    public List getImmediateFields() {
+    public List<Field> getImmediateFields() {
         // A list of Fields for each field declared in this class/interface,
         // not including inherited fields.
         int length = getJavaFieldsCount();
-        List immediateFields = new ArrayList(length);
+        List<Field> immediateFields = new ArrayList<>(length);
         for (int index = 0; index < length; index++) {
             immediateFields.add(getFieldByIndex(index));
         }
@@ -835,10 +738,10 @@ public class InstanceKlass extends Klass {
         the same name.
         Return an empty list if there are no fields.
         Only designed for use in a debugging system. */
-    public List getAllFields() {
+    public List<Field> getAllFields() {
         // Contains a Field for each field in this class, including immediate
         // fields and inherited fields.
-        List  allFields = getImmediateFields();
+        List<Field> allFields = getImmediateFields();
 
         // transitiveInterfaces contains all interfaces implemented
         // by this class and its superclass chain with no duplicates.
@@ -871,13 +774,13 @@ public class InstanceKlass extends Klass {
         Return an empty list if there are none, or if this isn't a class/
         interface.
     */
-    public List getImmediateMethods() {
+    public List<Method> getImmediateMethods() {
       // Contains a Method for each method declared in this class/interface
       // not including inherited methods.
 
       MethodArray methods = getMethods();
       int length = methods.length();
-      Object[] tmp = new Object[length];
+      Method[] tmp = new Method[length];
 
       IntArray methodOrdering = getMethodOrdering();
       if (methodOrdering.length() != length) {
@@ -898,13 +801,13 @@ public class InstanceKlass extends Klass {
     /** Return a List containing an SA InstanceKlass for each
         interface named in this class's 'implements' clause.
     */
-    public List getDirectImplementedInterfaces() {
+    public List<Klass> getDirectImplementedInterfaces() {
         // Contains an InstanceKlass for each interface in this classes
         // 'implements' clause.
 
         KlassArray interfaces = getLocalInterfaces();
         int length = interfaces.length();
-        List directImplementedInterfaces = new ArrayList(length);
+        List<Klass> directImplementedInterfaces = new ArrayList<>(length);
 
         for (int index = 0; index < length; index ++) {
             directImplementedInterfaces.add(interfaces.getAt(index));
@@ -932,20 +835,8 @@ public class InstanceKlass extends Klass {
      return "L" + super.signature() + ";";
   }
 
-  /** Convenience routine taking Strings; lookup is done in
-      SymbolTable. */
-  public Method findMethod(String name, String sig) {
-    SymbolTable syms = VM.getVM().getSymbolTable();
-    Symbol nameSym = syms.probe(name);
-    Symbol sigSym  = syms.probe(sig);
-    if (nameSym == null || sigSym == null) {
-      return null;
-    }
-    return findMethod(nameSym, sigSym);
-  }
-
   /** Find method in vtable. */
-  public Method findMethod(Symbol name, Symbol sig) {
+  public Method findMethod(String name, String sig) {
     return findMethod(getMethods(), name, sig);
   }
 
@@ -955,24 +846,64 @@ public class InstanceKlass extends Klass {
       return null;
     }
     Address addr = getAddress().getAddressAt(breakpoints.getOffset());
-    return (BreakpointInfo) VMObjectFactory.newObject(BreakpointInfo.class, addr);
+    return VMObjectFactory.newObject(BreakpointInfo.class, addr);
   }
 
   public IntArray  getMethodOrdering() {
     Address addr = getAddress().getAddressAt(methodOrdering.getOffset());
-    return (IntArray) VMObjectFactory.newObject(IntArray.class, addr);
+    return VMObjectFactory.newObject(IntArray.class, addr);
   }
 
-  public U2Array getFields() {
-    Address addr = getAddress().getAddressAt(fields.getOffset());
-    return (U2Array) VMObjectFactory.newObject(U2Array.class, addr);
+  public U1Array getFieldInfoStream() {
+    Address addr = getAddress().getAddressAt(fieldinfoStream.getOffset());
+    return VMObjectFactory.newObject(U1Array.class, addr);
   }
 
   public U2Array getInnerClasses() {
     Address addr = getAddress().getAddressAt(innerClasses.getOffset());
-    return (U2Array) VMObjectFactory.newObject(U2Array.class, addr);
+    return VMObjectFactory.newObject(U2Array.class, addr);
   }
 
+  public U1Array getClassAnnotations() {
+    Annotations annotations = getAnnotations();
+    if (annotations != null) {
+      return annotations.getClassAnnotations();
+    } else {
+      return null;
+    }
+  }
+
+  public U1Array getClassTypeAnnotations() {
+    Annotations annotations = getAnnotations();
+    if (annotations != null) {
+      return annotations.getClassTypeAnnotations();
+    } else {
+      return null;
+    }
+  }
+
+  public U1Array getFieldAnnotations(int fieldIndex) {
+    Annotations annotations = getAnnotations();
+    if (annotations != null) {
+      return annotations.getFieldAnnotations(fieldIndex);
+    } else {
+      return null;
+    }
+  }
+
+  public U1Array getFieldTypeAnnotations(int fieldIndex) {
+    Annotations annotations = getAnnotations();
+    if (annotations != null) {
+      return annotations.getFieldTypeAnnotations(fieldIndex);
+    } else {
+      return null;
+    }
+  }
+
+  public U2Array getNestMembers() {
+    Address addr = getAddress().getAddressAt(nestMembers.getOffset());
+    return VMObjectFactory.newObject(U2Array.class, addr);
+  }
 
   //----------------------------------------------------------------------
   // Internals only below this point
@@ -1055,57 +986,17 @@ public class InstanceKlass extends Klass {
     throw new RuntimeException("Illegal field type at index " + index);
   }
 
-  private static Method findMethod(MethodArray methods, Symbol name, Symbol signature) {
-    int len = methods.length();
-    // methods are sorted, so do binary search
-    int l = 0;
-    int h = len - 1;
-    while (l <= h) {
-      int mid = (l + h) >> 1;
-      Method m = methods.at(mid);
-      long res = m.getName().fastCompare(name);
-      if (res == 0) {
-        // found matching name; do linear search to find matching signature
-        // first, quick check for common case
-        if (m.getSignature().equals(signature)) return m;
-        // search downwards through overloaded methods
-        int i;
-        for (i = mid - 1; i >= l; i--) {
-          Method m1 = methods.at(i);
-          if (!m1.getName().equals(name)) break;
-          if (m1.getSignature().equals(signature)) return m1;
-        }
-        // search upwards
-        for (i = mid + 1; i <= h; i++) {
-          Method m1 = methods.at(i);
-          if (!m1.getName().equals(name)) break;
-          if (m1.getSignature().equals(signature)) return m1;
-        }
-        // not found
-        if (Assert.ASSERTS_ENABLED) {
-          int index = linearSearch(methods, name, signature);
-          if (index != -1) {
-            throw new DebuggerException("binary search bug: should have found entry " + index);
-          }
-        }
-        return null;
-      } else if (res < 0) {
-        l = mid + 1;
-      } else {
-        h = mid - 1;
-      }
+  private static Method findMethod(MethodArray methods, String name, String signature) {
+    int index = linearSearch(methods, name, signature);
+    if (index != -1) {
+      return methods.at(index);
+    } else {
+      return null;
     }
-    if (Assert.ASSERTS_ENABLED) {
-      int index = linearSearch(methods, name, signature);
-      if (index != -1) {
-        throw new DebuggerException("binary search bug: should have found entry " + index);
-      }
-    }
-    return null;
   }
 
-  private static int linearSearch(MethodArray methods, Symbol name, Symbol signature) {
-    int len = (int) methods.length();
+  private static int linearSearch(MethodArray methods, String name, String signature) {
+    int len = methods.length();
     for (int index = 0; index < len; index++) {
       Method m = methods.at(index);
       if (m.getSignature().equals(signature) && m.getName().equals(name)) {
@@ -1127,7 +1018,7 @@ public class InstanceKlass extends Klass {
         sub = sub.getNextSiblingKlass();
     }
 
-    final int length = (int) cp.getLength();
+    final int length = cp.getLength();
     out.print("ciInstanceKlass " + getName().asString() + " " + (isLinked() ? 1 : 0) + " " + (isInitialized() ? 1 : 0) + " " + length);
     for (int index = 1; index < length; index++) {
       out.print(" " + cp.getTags().at(index));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,50 +24,48 @@
 // Aix commits on touch, so this test won't work.
 /*
  * @test
- * @key regression
  * @bug 8012015
  * @requires !(os.family == "aix")
+ * @requires vm.flagless
  * @summary Make sure reserved (but uncommitted) memory is not accessible
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main ReserveMemory
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run driver ReserveMemory
  */
 
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.Platform;
 
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 public class ReserveMemory {
   public static void main(String args[]) throws Exception {
     if (args.length > 0) {
+      // expected to crash
       WhiteBox.getWhiteBox().readReservedMemory();
-
-      throw new Exception("Read of reserved/uncommitted memory unexpectedly succeeded, expected crash!");
-    }
-
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-          "-Xbootclasspath/a:.",
-          "-XX:+UnlockDiagnosticVMOptions",
-          "-XX:+WhiteBoxAPI",
-          "-XX:-TransmitErrorReport",
-          "-XX:-CreateCoredumpOnCrash",
-          "-Xmx128m",
-          "ReserveMemory",
-          "test");
-
-    OutputAnalyzer output = new OutputAnalyzer(pb.start());
-    if (Platform.isWindows()) {
-      output.shouldContain("EXCEPTION_ACCESS_VIOLATION");
-    } else if (Platform.isOSX()) {
-      output.shouldContain("SIGBUS");
     } else {
-      output.shouldContain("SIGSEGV");
+      ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
+            "-Xbootclasspath/a:.",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+WhiteBoxAPI",
+            "-XX:-CreateCoredumpOnCrash",
+            "-Xmx128m",
+            "ReserveMemory",
+            "test");
+
+      OutputAnalyzer output = new OutputAnalyzer(pb.start());
+      output.shouldNotHaveExitValue(0);
+      if (Platform.isWindows()) {
+        output.shouldContain("EXCEPTION_ACCESS_VIOLATION");
+      } else if (Platform.isOSX()) {
+        output.shouldContain("SIGBUS");
+      } else {
+        output.shouldContain("SIGSEGV");
+      }
     }
   }
 }

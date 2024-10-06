@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_GCWHEN_HPP
-#define SHARE_VM_GC_SHARED_GCWHEN_HPP
+#ifndef SHARE_GC_SHARED_GCWHEN_HPP
+#define SHARE_GC_SHARED_GCWHEN_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "utilities/debug.hpp"
 
 class GCWhen : AllStatic {
@@ -40,9 +40,9 @@ class GCWhen : AllStatic {
     switch (when) {
     case BeforeGC: return "Before GC";
     case AfterGC:  return "After GC";
-    default: ShouldNotReachHere(); return NULL;
+    default: ShouldNotReachHere(); return nullptr;
     }
   }
 };
 
-#endif // SHARE_VM_GC_SHARED_GCWHEN_HPP
+#endif // SHARE_GC_SHARED_GCWHEN_HPP

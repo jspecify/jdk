@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,82 +22,119 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP
-#define SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP
 
-#include "memory/allocation.hpp"
+#include "jfr/utilities/jfrSignal.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
+#include "memory/allStatic.hpp"
+#include "runtime/atomic.hpp"
 
-#define USED_BIT 1
-#define METHOD_USED_BIT (USED_BIT << 2)
-#define EPOCH_1_SHIFT 0
-#define EPOCH_2_SHIFT 1
-#define LEAKP_SHIFT 8
+#define BIT                                  1
+#define METHOD_BIT                           (BIT << 2)
+#define EPOCH_0_SHIFT                        0
+#define EPOCH_1_SHIFT                        1
+#define EPOCH_0_BIT                          (BIT << EPOCH_0_SHIFT)
+#define EPOCH_1_BIT                          (BIT << EPOCH_1_SHIFT)
+#define EPOCH_0_METHOD_BIT                   (METHOD_BIT << EPOCH_0_SHIFT)
+#define EPOCH_1_METHOD_BIT                   (METHOD_BIT << EPOCH_1_SHIFT)
+#define METHOD_AND_CLASS_BITS                (METHOD_BIT | BIT)
+#define EPOCH_0_METHOD_AND_CLASS_BITS        (METHOD_AND_CLASS_BITS << EPOCH_0_SHIFT)
+#define EPOCH_1_METHOD_AND_CLASS_BITS        (METHOD_AND_CLASS_BITS << EPOCH_1_SHIFT)
 
-#define USED_EPOCH_1_BIT (USED_BIT << EPOCH_1_SHIFT)
-#define USED_EPOCH_2_BIT (USED_BIT << EPOCH_2_SHIFT)
-#define LEAKP_USED_EPOCH_1_BIT (USED_EPOCH_1_BIT << LEAKP_SHIFT)
-#define LEAKP_USED_EPOCH_2_BIT (USED_EPOCH_2_BIT << LEAKP_SHIFT)
-#define METHOD_USED_EPOCH_1_BIT (METHOD_USED_BIT << EPOCH_1_SHIFT)
-#define METHOD_USED_EPOCH_2_BIT (METHOD_USED_BIT << EPOCH_2_SHIFT)
-#define METHOD_AND_CLASS_IN_USE_BITS (METHOD_USED_BIT | USED_BIT)
-#define METHOD_AND_CLASS_IN_USE_EPOCH_1_BITS (METHOD_AND_CLASS_IN_USE_BITS << EPOCH_1_SHIFT)
-#define METHOD_AND_CLASS_IN_USE_EPOCH_2_BITS (METHOD_AND_CLASS_IN_USE_BITS << EPOCH_2_SHIFT)
-
+ // Epoch alternation on each rotation allow for concurrent tagging.
+ // The epoch shift happens only during a safepoint.
+ //
+ // _synchronizing is a transition state, the purpose of which is to
+ // have JavaThreads that run _thread_in_native (i.e. Compiler threads)
+ // respect the current epoch shift in-progress during the safepoint.
+ //
+ // _changed_tag_state == true signals an incremental modification to artifact tagging
+ // (klasses, methods, CLDs, etc), purpose of which is to trigger collection of artifacts.
+ //
 class JfrTraceIdEpoch : AllStatic {
   friend class JfrCheckpointManager;
  private:
+  static u2 _generation;
+  static JfrSignal _tag_state;
   static bool _epoch_state;
-  static void shift_epoch();
+  static bool _synchronizing;
+
+  static void begin_epoch_shift();
+  static void end_epoch_shift();
 
  public:
   static bool epoch() {
     return _epoch_state;
   }
 
-  static jlong epoch_address() {
-    return (jlong)&_epoch_state;
+  static address epoch_address() {
+    return (address)&_epoch_state;
+  }
+
+  static address epoch_generation_address() {
+    return (address)&_generation;
   }
 
   static u1 current() {
     return _epoch_state ? (u1)1 : (u1)0;
   }
 
+  static u2 epoch_generation() {
+    return _generation;
+  }
+
+  static bool is_current_epoch_generation(u2 generation) {
+    return _generation == generation;
+  }
+
   static u1 previous() {
     return _epoch_state ? (u1)0 : (u1)1;
   }
 
-  static traceid in_use_this_epoch_bit() {
-    return _epoch_state ? USED_EPOCH_2_BIT : USED_EPOCH_1_BIT;
+  static bool is_synchronizing() {
+    return Atomic::load_acquire(&_synchronizing);
   }
 
-  static traceid in_use_prev_epoch_bit() {
-    return _epoch_state ? USED_EPOCH_1_BIT : USED_EPOCH_2_BIT;
+  static uint8_t this_epoch_bit() {
+    return _epoch_state ? EPOCH_1_BIT : EPOCH_0_BIT;
   }
 
-  static traceid leakp_in_use_this_epoch_bit() {
-    return _epoch_state ? LEAKP_USED_EPOCH_2_BIT : LEAKP_USED_EPOCH_1_BIT;
+  static uint8_t previous_epoch_bit() {
+    return _epoch_state ? EPOCH_0_BIT : EPOCH_1_BIT;
   }
 
-  static traceid leakp_in_use_prev_epoch_bit() {
-    return _epoch_state ? LEAKP_USED_EPOCH_1_BIT : LEAKP_USED_EPOCH_2_BIT;
+  static uint8_t this_epoch_method_bit() {
+    return _epoch_state ? EPOCH_1_METHOD_BIT : EPOCH_0_METHOD_BIT;
   }
 
-  static traceid method_in_use_this_epoch_bit() {
-    return _epoch_state ? METHOD_USED_EPOCH_2_BIT : METHOD_USED_EPOCH_1_BIT;
+  static uint8_t previous_epoch_method_bit() {
+    return _epoch_state ? EPOCH_0_METHOD_BIT : EPOCH_1_METHOD_BIT;
   }
 
-  static traceid method_in_use_prev_epoch_bit() {
-    return _epoch_state ? METHOD_USED_EPOCH_1_BIT : METHOD_USED_EPOCH_2_BIT;
+  static uint8_t this_epoch_method_and_class_bits() {
+    return _epoch_state ? EPOCH_1_METHOD_AND_CLASS_BITS : EPOCH_0_METHOD_AND_CLASS_BITS;
   }
 
-  static traceid method_and_class_in_use_this_epoch_bits() {
-    return _epoch_state ? METHOD_AND_CLASS_IN_USE_EPOCH_2_BITS : METHOD_AND_CLASS_IN_USE_EPOCH_1_BITS;
+  static uint8_t previous_epoch_method_and_class_bits() {
+    return _epoch_state ? EPOCH_0_METHOD_AND_CLASS_BITS : EPOCH_1_METHOD_AND_CLASS_BITS;
   }
 
-  static traceid method_and_class_in_use_prev_epoch_bits() {
-    return _epoch_state ? METHOD_AND_CLASS_IN_USE_EPOCH_1_BITS :  METHOD_AND_CLASS_IN_USE_EPOCH_2_BITS;
+  static bool has_changed_tag_state() {
+    return _tag_state.is_signaled_with_reset();
+  }
+
+  static bool has_changed_tag_state_no_reset() {
+    return _tag_state.is_signaled();
+  }
+
+  static void set_changed_tag_state() {
+    _tag_state.signal();
+  }
+
+  static address signal_address() {
+    return _tag_state.signaled_address();
   }
 };
 
-#endif // SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP

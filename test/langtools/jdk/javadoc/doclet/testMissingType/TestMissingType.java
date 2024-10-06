@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,23 @@
  * @test
  * @bug      8173804
  * @summary  make sure doclet can handle missing types
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestMissingType
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestMissingType extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestMissingType tester = new TestMissingType();
+        var tester = new TestMissingType();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-use",
                 "-sourcepath", testSrc,

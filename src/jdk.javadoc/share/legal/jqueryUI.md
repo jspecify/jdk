@@ -1,4 +1,4 @@
-## jQuery UI v1.11.4
+## jQuery UI v1.13.2
 
 ### jQuery UI License
 ```

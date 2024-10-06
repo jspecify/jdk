@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,6 @@
 
 #include "precompiled.hpp"
 #include "memory/allocation.hpp"
-#include "metaprogramming/isSame.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
 #include "unittest.hpp"
 #include "utilities/debug.hpp"
@@ -95,6 +94,51 @@ TEST(PrimitiveConversionsTest, round_trip_int) {
   EXPECT_EQ(ufive, PrimitiveConversions::cast<uint>(PrimitiveConversions::cast<UI>(ufive)));
 }
 
+TEST(PrimitiveConversionsTest, round_trip_int_constexpr) {
+  constexpr int  sfive = 5;
+  constexpr int  mfive = -5;
+  constexpr uint ufive = 5u;
+
+  typedef PrimitiveConversionsTestSupport::Signed<int>::type SI;
+  typedef PrimitiveConversionsTestSupport::Unsigned<int>::type UI;
+
+  {
+    constexpr SI i = PrimitiveConversions::cast<SI>(sfive);
+    constexpr int r = PrimitiveConversions::cast<int>(i);
+    EXPECT_EQ(sfive, r);
+  }
+
+  {
+    constexpr UI i = PrimitiveConversions::cast<UI>(sfive);
+    constexpr int r = PrimitiveConversions::cast<int>(i);
+    EXPECT_EQ(sfive, r);
+  }
+
+  {
+    constexpr SI i = PrimitiveConversions::cast<SI>(mfive);
+    constexpr int r = PrimitiveConversions::cast<int>(i);
+    EXPECT_EQ(mfive, r);
+  }
+
+  {
+    constexpr UI i = PrimitiveConversions::cast<UI>(mfive);
+    constexpr int r = PrimitiveConversions::cast<int>(i);
+    EXPECT_EQ(mfive, r);
+  }
+
+  {
+    constexpr SI i = PrimitiveConversions::cast<SI>(ufive);
+    constexpr uint r = PrimitiveConversions::cast<uint>(i);
+    EXPECT_EQ(ufive, r);
+  }
+
+  {
+    constexpr UI i = PrimitiveConversions::cast<UI>(ufive);
+    constexpr uint r = PrimitiveConversions::cast<uint>(i);
+    EXPECT_EQ(ufive, r);
+  }
+}
+
 TEST(PrimitiveConversionsTest, round_trip_float) {
   float  ffive = 5.0f;
   double dfive = 5.0;
@@ -126,3 +170,20 @@ TEST(PrimitiveConversionsTest, round_trip_ptr) {
   EXPECT_EQ(cpfive, PrimitiveConversions::cast<const int*>(PrimitiveConversions::cast<SIP>(cpfive)));
   EXPECT_EQ(cpfive, PrimitiveConversions::cast<const int*>(PrimitiveConversions::cast<UIP>(cpfive)));
 }
+
+TEST(PrimitiveConversionsTranslateTest, unscoped_enum) {
+  enum TestEnum : int { A, B, C };
+
+  EXPECT_TRUE(PrimitiveConversions::Translate<TestEnum>::value);
+  EXPECT_EQ(PrimitiveConversions::Translate<TestEnum>::decay(B), 1);
+  EXPECT_EQ(PrimitiveConversions::Translate<TestEnum>::recover(1), B);
+}
+
+TEST(PrimitiveConversionsTranslateTest, scoped_enum) {
+  enum class TestEnum { A, B, C };
+
+  EXPECT_TRUE(PrimitiveConversions::Translate<TestEnum>::value);
+  EXPECT_EQ(PrimitiveConversions::Translate<TestEnum>::decay(TestEnum::B), 1);
+  EXPECT_EQ(PrimitiveConversions::Translate<TestEnum>::recover(1), TestEnum::B);
+}
+

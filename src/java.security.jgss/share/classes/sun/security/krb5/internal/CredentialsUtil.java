@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,12 @@
 package sun.security.krb5.internal;
 
 import sun.security.krb5.*;
+
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
+
+import static sun.security.krb5.internal.Krb5.DEBUG;
 
 /**
  * This class is a utility that contains much of the TGS-Exchange
@@ -41,37 +46,58 @@ import java.io.IOException;
  */
 public class CredentialsUtil {
 
-    private static boolean DEBUG = sun.security.krb5.internal.Krb5.DEBUG;
+    private static enum S4U2Type {
+        NONE, SELF, PROXY
+    }
 
     /**
      * Used by a middle server to acquire credentials on behalf of a
-     * client to itself using the S4U2self extension.
-     * @param client the client to impersonate
-     * @param ccreds the TGT of the middle service
-     * @return the new creds (cname=client, sname=middle)
+     * user to itself using the S4U2self extension.
+     * @param user the user to impersonate
+     * @param middleTGT the TGT of the middle service
+     * @return the new creds (cname=user, sname=middle)
      */
-    public static Credentials acquireS4U2selfCreds(PrincipalName client,
-            Credentials ccreds) throws KrbException, IOException {
-        String uRealm = client.getRealmString();
-        String localRealm = ccreds.getClient().getRealmString();
+    public static Credentials acquireS4U2selfCreds(PrincipalName user,
+            Credentials middleTGT) throws KrbException, IOException {
+        PrincipalName sname = middleTGT.getClient();
+        String uRealm = user.getRealmString();
+        String localRealm = sname.getRealmString();
         if (!uRealm.equals(localRealm)) {
-            // TODO: we do not support kerberos referral now
-            throw new KrbException("Cross realm impersonation not supported");
+            // Referrals will be required because the middle service
+            // and the user impersonated are on different realms.
+            if (Config.DISABLE_REFERRALS) {
+                throw new KrbException("Cross-realm S4U2Self request not" +
+                        " possible when referrals are disabled.");
+            }
+            if (middleTGT.getClientAlias() != null) {
+                // If the name was canonicalized, the user pick
+                // has preference. This gives the possibility of
+                // using FQDNs that KDCs may use to return referrals.
+                // I.e.: a SVC/host.realm-2.com@REALM-1.COM name
+                // may be used by REALM-1.COM KDC to return a
+                // referral to REALM-2.COM.
+                sname = middleTGT.getClientAlias();
+            }
+            sname = new PrincipalName(sname.getNameType(),
+                    sname.getNameStrings(), new Realm(uRealm));
         }
-        if (!ccreds.isForwardable()) {
-            throw new KrbException("S4U2self needs a FORWARDABLE ticket");
-        }
-        KrbTgsReq req = new KrbTgsReq(
-                ccreds,
-                ccreds.getClient(),
-                new PAData(Krb5.PA_FOR_USER,
-                    new PAForUserEnc(client,
-                        ccreds.getSessionKey()).asn1Encode()));
-        Credentials creds = req.sendAndGetCreds();
-        if (!creds.getClient().equals(client)) {
+        Credentials creds = serviceCreds(
+                KDCOptions.with(KDCOptions.FORWARDABLE),
+                middleTGT, middleTGT.getClient(), sname, user,
+                null, new PAData[] {
+                        new PAData(Krb5.PA_FOR_USER,
+                                new PAForUserEnc(user,
+                                        middleTGT.getSessionKey()).asn1Encode()),
+                        new PAData(Krb5.PA_PAC_OPTIONS,
+                                new PaPacOptions()
+                                        .setResourceBasedConstrainedDelegation(true)
+                                        .setClaims(true)
+                                        .asn1Encode())
+                        }, S4U2Type.SELF);
+        if (!creds.getClient().equals(user)) {
             throw new KrbException("S4U2self request not honored by KDC");
         }
-        if (!creds.isForwardable()) {
+        if (!creds.isForwardable() && !Credentials.S4U2PROXY_ACCEPT_NON_FORWARDABLE) {
             throw new KrbException("S4U2self ticket must be FORWARDABLE");
         }
         return creds;
@@ -81,19 +107,39 @@ public class CredentialsUtil {
      * Used by a middle server to acquire a service ticket to a backend
      * server using the S4U2proxy extension.
      * @param backend the name of the backend service
-     * @param second the client's service ticket to the middle server
-     * @param ccreds the TGT of the middle server
-     * @return the creds (cname=client, sname=backend)
+     * @param userCreds containing the user's service ticket to the middle server
+     * @param middleTGT the TGT of the middle server
+     * @return the creds (cname=user, sname=backend)
      */
     public static Credentials acquireS4U2proxyCreds(
-                String backend, Ticket second,
-                PrincipalName client, Credentials ccreds)
+                String backend, Credentials userCreds,
+                PrincipalName client, Credentials middleTGT)
             throws KrbException, IOException {
-        KrbTgsReq req = new KrbTgsReq(
-                ccreds,
-                second,
-                new PrincipalName(backend));
-        Credentials creds = req.sendAndGetCreds();
+        PrincipalName backendPrincipal = new PrincipalName(backend);
+        String backendRealm = backendPrincipal.getRealmString();
+        String localRealm = middleTGT.getClient().getRealmString();
+        if (!backendRealm.equals(localRealm)) {
+            // The middle service and the backend service are on
+            // different realms, so referrals will be required.
+            if (Config.DISABLE_REFERRALS) {
+                throw new KrbException("Cross-realm S4U2Proxy request not" +
+                        " possible when referrals are disabled.");
+            }
+            backendPrincipal = new PrincipalName(
+                    backendPrincipal.getNameType(),
+                    backendPrincipal.getNameStrings(),
+                    new Realm(localRealm));
+        }
+        Credentials creds = serviceCreds(KDCOptions.with(
+                KDCOptions.CNAME_IN_ADDL_TKT, KDCOptions.FORWARDABLE),
+                middleTGT, middleTGT.getClient(), backendPrincipal, null,
+                userCreds, new PAData[] {
+                        new PAData(Krb5.PA_PAC_OPTIONS,
+                                new PaPacOptions()
+                                        .setResourceBasedConstrainedDelegation(true)
+                                        .setClaims(true)
+                                        .asn1Encode())
+                        }, S4U2Type.PROXY);
         if (!creds.getClient().equals(client)) {
             throw new KrbException("S4U2proxy request not honored by KDC");
         }
@@ -109,72 +155,30 @@ public class CredentialsUtil {
      * from the foreign KDC.
      *
      * @param service the name of service principal
-     * @param ccreds client's initial credential
+     * @param initCreds client's initial credential
      */
     public static Credentials acquireServiceCreds(
-                String service, Credentials ccreds)
+                String service, Credentials initCreds)
             throws KrbException, IOException {
-        PrincipalName sname = new PrincipalName(service);
-        String serviceRealm = sname.getRealmString();
-        String localRealm = ccreds.getClient().getRealmString();
-
-        if (localRealm.equals(serviceRealm)) {
-            if (DEBUG) {
-                System.out.println(
-                        ">>> Credentials acquireServiceCreds: same realm");
-            }
-            return serviceCreds(sname, ccreds);
-        }
-        Credentials theCreds = null;
-
-        boolean[] okAsDelegate = new boolean[1];
-        Credentials theTgt = getTGTforRealm(localRealm, serviceRealm,
-                ccreds, okAsDelegate);
-        if (theTgt != null) {
-            if (DEBUG) {
-                System.out.println(">>> Credentials acquireServiceCreds: "
-                        + "got right tgt");
-                System.out.println(">>> Credentials acquireServiceCreds: "
-                        + "obtaining service creds for " + sname);
-            }
-
-            try {
-                theCreds = serviceCreds(sname, theTgt);
-            } catch (Exception exc) {
-                if (DEBUG) {
-                    System.out.println(exc);
-                }
-                theCreds = null;
-            }
-        }
-
-        if (theCreds != null) {
-            if (DEBUG) {
-                System.out.println(">>> Credentials acquireServiceCreds: "
-                        + "returning creds:");
-                Credentials.printDebug(theCreds);
-            }
-            if (!okAsDelegate[0]) {
-                theCreds.resetDelegate();
-            }
-            return theCreds;
-        }
-        throw new KrbApErrException(Krb5.KRB_AP_ERR_GEN_CRED,
-                                    "No service creds");
+        return serviceCreds(new KDCOptions(), initCreds,
+                initCreds.getClient(),
+                new PrincipalName(service, PrincipalName.KRB_NT_UNKNOWN),
+                null, null,
+                null, S4U2Type.NONE);
     }
 
     /**
      * Gets a TGT to another realm
      * @param localRealm this realm
      * @param serviceRealm the other realm, cannot equals to localRealm
-     * @param ccreds TGT in this realm
+     * @param localTGT TGT in this realm
      * @param okAsDelegate an [out] argument to receive the okAsDelegate
      * property. True only if all realms allow delegation.
      * @return the TGT for the other realm, null if cannot find a path
      * @throws KrbException if something goes wrong
      */
     private static Credentials getTGTforRealm(String localRealm,
-            String serviceRealm, Credentials ccreds, boolean[] okAsDelegate)
+            String serviceRealm, Credentials localTGT, boolean[] okAsDelegate)
             throws KrbException {
 
         // Get a list of realms to traverse
@@ -186,11 +190,11 @@ public class CredentialsUtil {
         String newTgtRealm = null;
 
         okAsDelegate[0] = true;
-        for (cTgt = ccreds, i = 0; i < realms.length;) {
+        for (cTgt = localTGT, i = 0; i < realms.length;) {
             tempService = PrincipalName.tgsService(serviceRealm, realms[i]);
 
-            if (DEBUG) {
-                System.out.println(
+            if (DEBUG != null) {
+                DEBUG.println(
                         ">>> Credentials acquireServiceCreds: main loop: ["
                         + i +"] tempService=" + tempService);
             }
@@ -202,8 +206,8 @@ public class CredentialsUtil {
             }
 
             if (newTgt == null) {
-                if (DEBUG) {
-                    System.out.println(">>> Credentials acquireServiceCreds: "
+                if (DEBUG != null) {
+                    DEBUG.println(">>> Credentials acquireServiceCreds: "
                             + "no tgt; searching thru capath");
                 }
 
@@ -213,8 +217,8 @@ public class CredentialsUtil {
                 for (newTgt = null, k = i+1;
                         newTgt == null && k < realms.length; k++) {
                     tempService = PrincipalName.tgsService(realms[k], realms[i]);
-                    if (DEBUG) {
-                        System.out.println(
+                    if (DEBUG != null) {
+                        DEBUG.println(
                                 ">>> Credentials acquireServiceCreds: "
                                 + "inner loop: [" + k
                                 + "] tempService=" + tempService);
@@ -228,8 +232,8 @@ public class CredentialsUtil {
             } // Ends 'if (newTgt == null)'
 
             if (newTgt == null) {
-                if (DEBUG) {
-                    System.out.println(">>> Credentials acquireServiceCreds: "
+                if (DEBUG != null) {
+                    DEBUG.println(">>> Credentials acquireServiceCreds: "
                             + "no tgt; cannot get creds");
                 }
                 break;
@@ -241,16 +245,16 @@ public class CredentialsUtil {
              */
             newTgtRealm = newTgt.getServer().getInstanceComponent();
             if (okAsDelegate[0] && !newTgt.checkDelegate()) {
-                if (DEBUG) {
-                    System.out.println(">>> Credentials acquireServiceCreds: " +
+                if (DEBUG != null) {
+                    DEBUG.println(">>> Credentials acquireServiceCreds: " +
                             "global OK-AS-DELEGATE turned off at " +
                             newTgt.getServer());
                 }
                 okAsDelegate[0] = false;
             }
 
-            if (DEBUG) {
-                System.out.println(">>> Credentials acquireServiceCreds: "
+            if (DEBUG != null) {
+                DEBUG.println(">>> Credentials acquireServiceCreds: "
                         + "got tgt");
             }
 
@@ -279,8 +283,8 @@ public class CredentialsUtil {
                 i = k;
                 cTgt = newTgt;
 
-                if (DEBUG) {
-                    System.out.println(">>> Credentials acquireServiceCreds: "
+                if (DEBUG != null) {
+                    DEBUG.println(">>> Credentials acquireServiceCreds: "
                             + "continuing with main loop counter reset to " + i);
                 }
                 continue;
@@ -303,8 +307,262 @@ public class CredentialsUtil {
     * This method does the real job to request the service credential.
     */
     private static Credentials serviceCreds(
-            PrincipalName service, Credentials ccreds)
+            PrincipalName service, Credentials initCreds)
             throws KrbException, IOException {
-        return new KrbTgsReq(ccreds, service).sendAndGetCreds();
+        return serviceCreds(new KDCOptions(), initCreds,
+                initCreds.getClient(), service, null, null,
+                null, S4U2Type.NONE);
+    }
+
+    /*
+     * Obtains credentials for a service (TGS).
+     * Cross-realm referrals are handled if enabled. A fallback scheme
+     * without cross-realm referrals supports is used in case of server
+     * error to maintain backward compatibility.
+     */
+    private static Credentials serviceCreds(
+            KDCOptions options, Credentials asCreds,
+            PrincipalName cname, PrincipalName sname,
+            PrincipalName user, Credentials additionalCreds,
+            PAData[] extraPAs, S4U2Type s4u2Type)
+            throws KrbException, IOException {
+        KrbException ke = null;
+        if (!Config.DISABLE_REFERRALS) {
+            try {
+                return serviceCredsReferrals(options, asCreds, cname, sname,
+                        s4u2Type, user, additionalCreds, extraPAs);
+            } catch (KrbException e) {
+                ke = e;
+                // Server may raise an error if CANONICALIZE is true.
+                // Try CANONICALIZE false.
+            }
+        }
+        try {
+            return serviceCredsSingle(options, asCreds, cname,
+                    asCreds.getClientAlias(), sname, sname, s4u2Type,
+                    user, additionalCreds, extraPAs);
+        } catch (KrbException ke2) {
+            if (ke != null) {
+                // Still throw original exception
+                ke.addSuppressed(ke2);
+                throw ke;
+            } else {
+                throw ke2;
+            }
+        }
+    }
+
+    /*
+     * Obtains credentials for a service (TGS).
+     * May handle and follow cross-realm referrals as defined by RFC 6806.
+     */
+    private static Credentials serviceCredsReferrals(
+            KDCOptions options, Credentials asCreds,
+            PrincipalName cname, PrincipalName sname,
+            S4U2Type s4u2Type, PrincipalName user,
+            Credentials additionalCreds, PAData[] extraPAs)
+                    throws KrbException, IOException {
+        options = new KDCOptions(options.toBooleanArray());
+        options.set(KDCOptions.CANONICALIZE, true);
+        PrincipalName cSname = sname;
+        PrincipalName refSname = sname; // May change with referrals
+        Credentials creds = null;
+        boolean isReferral = false;
+        List<String> referrals = new LinkedList<>();
+        PrincipalName clientAlias = asCreds.getClientAlias();
+        while (referrals.size() <= Config.MAX_REFERRALS) {
+            ReferralsCache.ReferralCacheEntry ref =
+                    ReferralsCache.get(cname, sname, user,
+                            additionalCreds, refSname.getRealmString());
+            String toRealm = null;
+            if (ref == null) {
+                creds = serviceCredsSingle(options, asCreds, cname,
+                        clientAlias, refSname, cSname, s4u2Type,
+                        user, additionalCreds, extraPAs);
+                PrincipalName server = creds.getServer();
+                if (!refSname.equals(server)) {
+                    String[] serverNameStrings = server.getNameStrings();
+                    if (serverNameStrings.length == 2 &&
+                        serverNameStrings[0].equals(
+                                PrincipalName.TGS_DEFAULT_SRV_NAME) &&
+                        !refSname.getRealmAsString().equals(
+                                serverNameStrings[1])) {
+                        // Server Name (sname) has the following format:
+                        //      krbtgt/TO-REALM.COM@FROM-REALM.COM
+                        ReferralsCache.put(cname, sname, user,
+                                additionalCreds, server.getRealmString(),
+                                serverNameStrings[1], creds);
+                        toRealm = serverNameStrings[1];
+                        isReferral = true;
+                    }
+                }
+            } else {
+                creds = ref.getCreds();
+                toRealm = ref.getToRealm();
+                isReferral = true;
+            }
+            if (isReferral) {
+                if (s4u2Type == S4U2Type.PROXY) {
+                    Credentials[] credsInOut =
+                            new Credentials[] {creds, null};
+                    toRealm = handleS4U2ProxyReferral(asCreds,
+                            credsInOut, sname);
+                    creds = credsInOut[0];
+                    if (additionalCreds == null || credsInOut[1] == null) {
+                        throw new KrbException("Additional tickets expected" +
+                                " for S4U2Proxy.");
+                    }
+                    additionalCreds = credsInOut[1];
+                } else if (s4u2Type == S4U2Type.SELF) {
+                    handleS4U2SelfReferral(extraPAs, user, creds);
+                }
+                if (referrals.contains(toRealm)) {
+                    // Referrals loop detected
+                    return null;
+                }
+                asCreds = creds;
+                refSname = new PrincipalName(refSname.getNameString(),
+                        refSname.getNameType(), toRealm);
+                referrals.add(toRealm);
+                isReferral = false;
+                continue;
+            }
+            break;
+        }
+        return creds;
+    }
+
+    /*
+     * Obtains credentials for a service (TGS).
+     * If the service realm is different than the one in the TGT, a new TGT for
+     * the service realm is obtained first (see getTGTforRealm call). This is
+     * not expected when following cross-realm referrals because the referral
+     * TGT realm matches the service realm.
+     */
+    private static Credentials serviceCredsSingle(
+            KDCOptions options, Credentials asCreds,
+            PrincipalName cname, PrincipalName clientAlias,
+            PrincipalName refSname, PrincipalName sname,
+            S4U2Type s4u2Type, PrincipalName user,
+            Credentials additionalCreds, PAData[] extraPAs)
+                    throws KrbException, IOException {
+        Credentials theCreds = null;
+        boolean[] okAsDelegate = new boolean[]{true};
+        String[] serverAsCredsNames = asCreds.getServer().getNameStrings();
+        String tgtRealm = serverAsCredsNames[1];
+        String serviceRealm = refSname.getRealmString();
+        if (!serviceRealm.equals(tgtRealm)) {
+            // This is a cross-realm service request
+            if (DEBUG != null) {
+                DEBUG.println(">>> serviceCredsSingle:" +
+                        " cross-realm authentication");
+                DEBUG.println(">>> serviceCredsSingle:" +
+                        " obtaining credentials from " + tgtRealm +
+                        " to " + serviceRealm);
+            }
+            Credentials newTgt = getTGTforRealm(tgtRealm, serviceRealm,
+                    asCreds, okAsDelegate);
+            if (newTgt == null) {
+                throw new KrbException("No service creds");
+            }
+            if (DEBUG != null) {
+                DEBUG.println(">>> Cross-realm TGT Credentials" +
+                        " serviceCredsSingle: ");
+                Credentials.printDebug(newTgt);
+            }
+            if (s4u2Type == S4U2Type.SELF) {
+                handleS4U2SelfReferral(extraPAs, user, newTgt);
+            }
+            asCreds = newTgt;
+            cname = asCreds.getClient();
+        } else if (DEBUG != null) {
+            DEBUG.println(">>> Credentials serviceCredsSingle:" +
+                    " same realm");
+        }
+        KrbTgsReq req = new KrbTgsReq(options, asCreds, cname, clientAlias,
+                refSname, sname, additionalCreds, extraPAs);
+        theCreds = req.sendAndGetCreds();
+        if (theCreds != null) {
+            if (DEBUG != null) {
+                DEBUG.println(">>> TGS credentials serviceCredsSingle:");
+                Credentials.printDebug(theCreds);
+            }
+            if (!okAsDelegate[0]) {
+                theCreds.resetDelegate();
+            }
+        }
+        return theCreds;
+    }
+
+    /**
+     * PA-FOR-USER may need to be regenerated if credentials
+     * change. This may happen when obtaining a TGT for a
+     * different realm or when using a referral TGT.
+     */
+    private static void handleS4U2SelfReferral(PAData[] pas,
+            PrincipalName user, Credentials newCreds)
+                    throws Asn1Exception, KrbException, IOException {
+        if (DEBUG != null) {
+            DEBUG.println(">>> Handling S4U2Self referral");
+        }
+        for (int i = 0; i < pas.length; i++) {
+            PAData pa = pas[i];
+            if (pa.getType() == Krb5.PA_FOR_USER) {
+                pas[i] = new PAData(Krb5.PA_FOR_USER,
+                        new PAForUserEnc(user,
+                                newCreds.getSessionKey()).asn1Encode());
+                break;
+            }
+        }
+    }
+
+    /**
+     * This method is called after receiving the first realm referral for
+     * a S4U2Proxy request. The credentials and tickets needed for the
+     * final S4U2Proxy request (in the referrals chain) are returned.
+     *
+     * Referrals are handled as described by MS-SFU (section 3.1.5.2.2
+     * Receives Referral).
+     *
+     * @param asCreds middle service credentials used for the first S4U2Proxy
+     *        request
+     * @param credsInOut (in/out parameter):
+     *         * input: first S4U2Proxy referral TGT received, null
+     *         * output: referral TGT for final S4U2Proxy service request,
+     *                   client referral TGT for final S4U2Proxy service request
+     *                   (to be sent as additional-ticket)
+     * @param sname the backend service name
+     * @param additionalTickets (out parameter): the additional ticket for the
+     *        last S4U2Proxy request is returned
+     * @return the backend realm for the last S4U2Proxy request
+     */
+    private static String handleS4U2ProxyReferral(Credentials asCreds,
+            Credentials[] credsInOut, PrincipalName sname)
+                    throws KrbException, IOException {
+        if (DEBUG != null) {
+            DEBUG.println(">>> Handling S4U2Proxy referral");
+        }
+        Credentials refTGT = null;
+        // Get a credential for the middle service to the backend so we know
+        // the backend realm, as described in MS-SFU (section 3.1.5.2.2).
+        Credentials middleSvcCredsInBackendRealm =
+                serviceCreds(sname, asCreds);
+        String backendRealm =
+                middleSvcCredsInBackendRealm.getServer().getRealmString();
+        String toRealm = credsInOut[0].getServer().getNameStrings()[1];
+        if (!toRealm.equals(backendRealm)) {
+            // More than 1 hop. Follow the referrals chain and obtain a
+            // TGT for the backend realm.
+            refTGT = getTGTforRealm(toRealm, backendRealm, credsInOut[0],
+                    new boolean[1]);
+        } else {
+            // There was only 1 hop. The referral TGT received is already
+            // for the backend realm.
+            refTGT = credsInOut[0];
+        }
+        credsInOut[0] = getTGTforRealm(asCreds.getClient().getRealmString(),
+                backendRealm, asCreds, new boolean[1]);
+        credsInOut[1] = refTGT;
+        return backendRealm;
     }
 }

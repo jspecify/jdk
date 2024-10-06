@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,11 @@
 
 #include "precompiled.hpp"
 #include "rdtsc_x86.hpp"
-#include "runtime/thread.inline.hpp"
-#include "vm_version_ext_x86.hpp"
-
-// The following header contains the implementations of rdtsc()
-#include OS_CPU_HEADER_INLINE(os)
+#include "runtime/globals_extension.hpp"
+#include "runtime/javaThread.hpp"
+#include "runtime/os.inline.hpp"
+#include "runtime/orderAccess.hpp"
+#include "vm_version_x86.hpp"
 
 static jlong _epoch = 0;
 static bool rdtsc_elapsed_counter_enabled = false;
@@ -62,7 +62,7 @@ static void do_time_measurements(volatile jlong& time_base,
     fstart = os::rdtsc();
 
     // use sleep to prevent compiler from optimizing
-    os::sleep(Thread::current(), FT_SLEEP_MILLISECS, true);
+    JavaThread::current()->sleep(FT_SLEEP_MILLISECS);
 
     end = os::elapsed_counter();
     OrderAccess::fence();
@@ -99,9 +99,9 @@ static jlong initialize_frequency() {
 
   // if platform supports invariant tsc,
   // apply higher resolution and granularity for conversion calculations
-  if (VM_Version_Ext::supports_tscinv_ext()) {
+  if (VM_Version::supports_tscinv_ext()) {
     // for invariant tsc platforms, take the maximum qualified cpu frequency
-    tsc_freq = (double)VM_Version_Ext::maximum_qualified_cpu_frequency();
+    tsc_freq = (double)VM_Version::maximum_qualified_cpu_frequency();
     os_to_tsc_conv_factor = tsc_freq / os_freq;
   } else {
     // use measurements to estimate
@@ -145,7 +145,7 @@ static bool initialize_elapsed_counter() {
 static bool ergonomics() {
   const bool invtsc_support = Rdtsc::is_supported();
   if (FLAG_IS_DEFAULT(UseFastUnorderedTimeStamps) && invtsc_support) {
-    FLAG_SET_ERGO(bool, UseFastUnorderedTimeStamps, true);
+    FLAG_SET_ERGO(UseFastUnorderedTimeStamps, true);
   }
 
   bool ft_enabled = UseFastUnorderedTimeStamps && invtsc_support;
@@ -169,7 +169,7 @@ static bool ergonomics() {
 }
 
 bool Rdtsc::is_supported() {
-  return VM_Version_Ext::supports_tscinv_ext();
+  return VM_Version::supports_tscinv_ext();
 }
 
 bool Rdtsc::is_elapsed_counter_enabled() {
@@ -196,7 +196,7 @@ bool Rdtsc::initialize() {
   static bool initialized = false;
   if (!initialized) {
     assert(!rdtsc_elapsed_counter_enabled, "invariant");
-    VM_Version_Ext::initialize();
+    VM_Version::initialize_tsc();
     assert(0 == tsc_frequency, "invariant");
     assert(0 == _epoch, "invariant");
     bool result = initialize_elapsed_counter(); // init hw

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
  * @summary Check JDK_JAVA_OPTIONS parsing behavior
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.main
+ * @modules jdk.internal.opt/jdk.internal.opt
  * @build toolbox.ToolBox toolbox.TestRunner
  * @run main EnvVariableTest
  */
@@ -35,10 +36,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.stream.Collectors;
+import java.util.List;
 
 import toolbox.*;
 
-import com.sun.tools.javac.main.CommandLine;
+import jdk.internal.opt.CommandLine;
 
 public class EnvVariableTest extends TestRunner {
     final String testClasses;
@@ -115,7 +119,9 @@ public class EnvVariableTest extends TestRunner {
 
     void test(String full, String... expectedArgs) throws Exception {
         task.envVar("JDK_JAVAC_OPTIONS", full);
-        task.args("--add-exports", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+        task.args(
+                "--add-exports", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+                "--add-exports", "jdk.internal.opt/jdk.internal.opt=ALL-UNNAMED",
                 "-cp", testClasses, "EnvVariableTest$Tester");
         Task.Result tr = task.run(Task.Expect.SUCCESS);
         String expected = Tester.arrayToString(expectedArgs);
@@ -135,14 +141,14 @@ public class EnvVariableTest extends TestRunner {
      * print the result.
      */
     public static class Tester {
-        private static final String[] EMPTY_ARRAY = new String[0];
+        private static final List<String> EMPTY_LIST = List.of();
         static String arrayToString(String... args) {
-            return String.join(", ", args);
+            return List.of(args).stream().collect(Collectors.joining(", "));
         }
         public static void main(String... args) throws IOException {
             try {
-                String[] argv = CommandLine.parse("JDK_JAVAC_OPTIONS", EMPTY_ARRAY);
-                System.out.print(arrayToString(argv));
+                List<String> argv = CommandLine.parse("JDK_JAVAC_OPTIONS", EMPTY_LIST);
+                System.out.print(argv.stream().collect(Collectors.joining(", ")));
             } catch (CommandLine.UnmatchedQuote ex) {
                 System.out.print("Exception: " + ex.variableName);
             }

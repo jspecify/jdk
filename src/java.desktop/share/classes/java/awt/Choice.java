@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,18 +22,23 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package java.awt;
 
-import java.util.*;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.peer.ChoicePeer;
-import java.awt.event.*;
-import java.util.EventListener;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.util.EventListener;
+import java.util.Vector;
 
-import javax.accessibility.*;
-
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleAction;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
 
 /**
  * The {@code Choice} class presents a pop-up menu of choices.
@@ -51,8 +56,8 @@ import javax.accessibility.*;
  * After this choice menu has been added to a panel,
  * it appears as follows in its normal state:
  * <p>
- * <img src="doc-files/Choice-1.gif" alt="The following text describes the graphic"
- * style="float:center; margin: 7px 10px;">
+ * <img src="doc-files/Choice-1.gif" alt="The following text describes the
+ * graphic" style="margin: 7px 10px;">
  * <p>
  * In the picture, {@code "Green"} is the current choice.
  * Pushing the mouse button down on the object causes a menu to
@@ -98,9 +103,10 @@ public class Choice extends Component implements ItemSelectable, Accessible {
     private static final String base = "choice";
     private static int nameCounter = 0;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+    @Serial
     private static final long serialVersionUID = -4075310674757313071L;
 
     static {
@@ -118,7 +124,7 @@ public class Choice extends Component implements ItemSelectable, Accessible {
      * By default, the first item added to the choice menu becomes the
      * selected item, until a different selection is made by the user
      * by calling one of the {@code select} methods.
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true
      * @see       java.awt.GraphicsEnvironment#isHeadless
      * @see       #select(int)
@@ -199,7 +205,7 @@ public class Choice extends Component implements ItemSelectable, Accessible {
     /**
      * Adds an item to this {@code Choice} menu.
      * @param      item    the item to be added
-     * @exception  NullPointerException   if the item's value is
+     * @throws  NullPointerException   if the item's value is
      *                  {@code null}
      * @since      1.1
      */
@@ -213,7 +219,7 @@ public class Choice extends Component implements ItemSelectable, Accessible {
      * <p>
      * Adds an item to this {@code Choice} menu.
      * @param item the item to be added
-     * @exception NullPointerException if the item's value is equal to
+     * @throws NullPointerException if the item's value is equal to
      *          {@code null}
      */
     public void addItem(String item) {
@@ -232,7 +238,7 @@ public class Choice extends Component implements ItemSelectable, Accessible {
      * invoking this method.
      * @param item the item to be added
      * @param index the new item position
-     * @exception NullPointerException if the item's value is equal to
+     * @throws NullPointerException if the item's value is equal to
      *          {@code null}
      */
     private void insertNoInvalidate(String item, int index) {
@@ -268,7 +274,7 @@ public class Choice extends Component implements ItemSelectable, Accessible {
      * the selected item.
      * @param item the non-{@code null} item to be inserted
      * @param index the position at which the item should be inserted
-     * @exception IllegalArgumentException if index is less than 0
+     * @throws IllegalArgumentException if index is less than 0
      */
     public void insert(String item, int index) {
         synchronized (this) {
@@ -294,7 +300,7 @@ public class Choice extends Component implements ItemSelectable, Accessible {
      * item remains selected (and the selected index is
      * updated accordingly).
      * @param      item  the item to remove from this {@code Choice} menu
-     * @exception  IllegalArgumentException  if the item doesn't
+     * @throws  IllegalArgumentException  if the item doesn't
      *                     exist in the choice menu
      * @since      1.1
      */
@@ -424,7 +430,7 @@ public class Choice extends Component implements ItemSelectable, Accessible {
      * {@code ItemEvent} is by user interaction.
      *
      * @param      pos      the position of the selected item
-     * @exception  IllegalArgumentException if the specified
+     * @throws  IllegalArgumentException if the specified
      *                            position is greater than the
      *                            number of items or less than zero
      * @see        #getSelectedItem
@@ -555,7 +561,7 @@ public class Choice extends Component implements ItemSelectable, Accessible {
      *          <code><em>Foo</em>Listener</code>s on this choice,
      *          or an empty array if no such
      *          listeners have been added
-     * @exception ClassCastException if {@code listenerType}
+     * @throws ClassCastException if {@code listenerType}
      *          doesn't specify a class or interface that implements
      *          {@code java.util.EventListener}
      *
@@ -654,8 +660,8 @@ public class Choice extends Component implements ItemSelectable, Accessible {
     /* Serialization support.
      */
 
-    /*
-     * Choice Serial Data Version.
+    /**
+     * Serialized data version.
      * @serial
      */
     private int choiceSerializedDataVersion = 1;
@@ -667,7 +673,8 @@ public class Choice extends Component implements ItemSelectable, Accessible {
      * {@code ItemListeners} are detected and
      * no attempt is made to serialize them.
      *
-     * @param s the {@code ObjectOutputStream} to write
+     * @param  s the {@code ObjectOutputStream} to write
+     * @throws IOException if an I/O error occurs
      * @serialData {@code null} terminated sequence of 0
      *   or more pairs; the pair consists of a {@code String}
      *   and an {@code Object}; the {@code String} indicates
@@ -679,6 +686,7 @@ public class Choice extends Component implements ItemSelectable, Accessible {
      * @see java.awt.Component#itemListenerK
      * @see #readObject(ObjectInputStream)
      */
+    @Serial
     private void writeObject(ObjectOutputStream s)
       throws java.io.IOException
     {
@@ -694,16 +702,19 @@ public class Choice extends Component implements ItemSelectable, Accessible {
      * item events fired by the {@code Choice} item.
      * Unrecognized keys or values will be ignored.
      *
-     * @param s the {@code ObjectInputStream} to read
-     * @exception HeadlessException if
-     *   {@code GraphicsEnvironment.isHeadless} returns
-     *   {@code true}
-     * @serial
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
+     * @throws HeadlessException if {@code GraphicsEnvironment.isHeadless()}
+     *         returns {@code true}
+     *
      * @see #removeItemListener(ItemListener)
      * @see #addItemListener(ItemListener)
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see #writeObject(ObjectOutputStream)
      */
+    @Serial
     private void readObject(ObjectInputStream s)
       throws ClassNotFoundException, IOException, HeadlessException
     {
@@ -759,9 +770,10 @@ public class Choice extends Component implements ItemSelectable, Accessible {
     protected class AccessibleAWTChoice extends AccessibleAWTComponent
         implements AccessibleAction
     {
-        /*
-         * JDK 1.3 serialVersionUID
+        /**
+         * Use serialVersionUID from JDK 1.3 for interoperability.
          */
+        @Serial
         private static final long serialVersionUID = 7175603582428509322L;
 
         /**

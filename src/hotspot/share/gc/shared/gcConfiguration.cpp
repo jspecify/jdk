@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,15 @@
  *
  */
 #include "precompiled.hpp"
-
 #include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/gc_globals.hpp"
+#include "gc/shared/gcArguments.hpp"
 #include "gc/shared/gcConfiguration.hpp"
+#include "gc/shared/tlab_globals.hpp"
 #include "memory/universe.hpp"
-#include "runtime/arguments.hpp"
+#include "oops/compressedOops.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/globals_extension.hpp"
 #include "utilities/debug.hpp"
 
 GCName GCConfiguration::young_collector() const {
@@ -39,11 +42,15 @@ GCName GCConfiguration::young_collector() const {
     return ParallelScavenge;
   }
 
-  if (UseConcMarkSweepGC) {
-    return ParNew;
+  if (UseZGC) {
+    if (ZGenerational) {
+      return ZMinor;
+    } else {
+      return NA;
+    }
   }
 
-  if (UseZGC) {
+  if (UseShenandoahGC) {
     return NA;
   }
 
@@ -55,16 +62,20 @@ GCName GCConfiguration::old_collector() const {
     return G1Old;
   }
 
-  if (UseConcMarkSweepGC) {
-    return ConcurrentMarkSweep;
-  }
-
-  if (UseParallelOldGC) {
+  if (UseParallelGC) {
     return ParallelOld;
   }
 
   if (UseZGC) {
-    return Z;
+    if (ZGenerational) {
+      return ZMajor;
+    } else {
+      return Z;
+    }
+  }
+
+  if (UseShenandoahGC) {
+    return Shenandoah;
   }
 
   return SerialOld;
@@ -127,7 +138,7 @@ size_t GCHeapConfiguration::max_size() const {
 }
 
 size_t GCHeapConfiguration::min_size() const {
-  return Arguments::min_heap_size();
+  return MinHeapSize;
 }
 
 size_t GCHeapConfiguration::initial_size() const {
@@ -138,8 +149,8 @@ bool GCHeapConfiguration::uses_compressed_oops() const {
   return UseCompressedOops;
 }
 
-Universe::NARROW_OOP_MODE GCHeapConfiguration::narrow_oop_mode() const {
-  return Universe::narrow_oop_mode();
+CompressedOops::Mode GCHeapConfiguration::narrow_oop_mode() const {
+  return CompressedOops::mode();
 }
 
 uint GCHeapConfiguration::object_alignment_in_bytes() const {

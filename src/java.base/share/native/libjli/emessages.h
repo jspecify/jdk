@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@
 
 #define ARG_INFO_ENVVAR "NOTE: Picked up %s: %s"
 #define ARG_WARN        "Warning: %s option is no longer supported."
+#define ARG_DEPRECATED  "Warning: %s option is deprecated and may be removed in a future release."
 
 #define ARG_ERROR1      "Error: %s requires class path specification"
 #define ARG_ERROR2      "Error: %s requires jar file specification"
@@ -56,10 +57,10 @@
 #define ARG_ERROR15     "Error: Option %s is not allowed in this context"
 #define ARG_ERROR16     "Error: Option %s in %s is not allowed in this context"
 #define ARG_ERROR17     "Error: Cannot specify main class in this context"
+#define ARG_ERROR18     "Error: Failed to read %s"
 
 #define JVM_ERROR1      "Error: Could not create the Java Virtual Machine.\n" GEN_ERROR
 #define JVM_ERROR2      "Error: Could not detach main thread.\n" JNI_ERROR
-#define JVM_ERROR3      "Error: SPARC V8 processor detected;  Required V9 processors or better.\nUse JDK5 client compiler for V8 processors.\n" JVM_ERROR1
 
 #define JAR_ERROR1      "Error: Failed to load Main-Class manifest attribute from\n%s\n%s"
 #define JAR_ERROR2      "Error: Unable to access jarfile %s"
@@ -93,7 +94,7 @@
 #define JRE_ERROR3      "Error: Improper value at line %d."
 #define JRE_ERROR4      "Error: trying to exec %s.\nCheck if file exists and permissions are set correctly."
 #define JRE_ERROR5      "Error: Failed to start a %d-bit JVM process from a %d-bit JVM."
-#define JRE_ERROR6      "Error: Verify all necessary Java SE components have been installed.\n(Solaris SPARC 64-bit components must be installed after 32-bit components.)"
+#define JRE_ERROR6      "Error: Verify all necessary Java SE components have been installed."
 #define JRE_ERROR7      "Error: Either 64-bit processes are not supported by this platform\nor the 64-bit components have not been installed."
 #define JRE_ERROR8      "Error: could not find "
 #define JRE_ERROR9      "Error: Unable to resolve %s"
@@ -102,13 +103,10 @@
 #define JRE_ERROR12     "Error: Exec of %s failed"
 #define JRE_ERROR13     "Error: String processing operation failed"
 
-#define SPC_ERROR1      "Error: Specifying an alternate JDK/JRE version is no longer supported.\n  The use of the flag '-version:' is no longer valid.\n  Please download and execute the appropriate version."
-#define SPC_ERROR2      "Error: Specifying an alternate JDK/JRE is no longer supported.\n  The related flags -jre-restrict-search | -jre-no-restrict-search are also no longer valid."
-
 #define DLL_ERROR1      "Error: dl failure on line %d"
 #define DLL_ERROR2      "Error: failed %s, because %s"
 #define DLL_ERROR3      "Error: could not find executable %s"
-#define DLL_ERROR4      "Error: loading: %s"
+#define DLL_ERROR4      "Error: Failed to load %s"
 
 #define REG_ERROR1      "Error: opening registry key '%s'"
 #define REG_ERROR2      "Error: Failed reading value of registry key:\n\t%s\\CurrentVersion"

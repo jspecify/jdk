@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,9 @@
 #ifndef SHARE_GC_Z_ZSERVICEABILITY_HPP
 #define SHARE_GC_Z_ZSERVICEABILITY_HPP
 
+#include "gc/shared/collectorCounters.hpp"
+#include "gc/shared/gcVMOperations.hpp"
+#include "gc/z/zGenerationId.hpp"
 #include "memory/allocation.hpp"
 #include "services/memoryManager.hpp"
 #include "services/memoryPool.hpp"
@@ -32,8 +35,11 @@
 class ZServiceabilityCounters;
 
 class ZServiceabilityMemoryPool : public CollectedMemoryPool {
+private:
+  const ZGenerationId _generation_id;
+
 public:
-  ZServiceabilityMemoryPool(size_t min_capacity, size_t max_capacity);
+  ZServiceabilityMemoryPool(const char* name, ZGenerationId id, size_t min_capacity, size_t max_capacity);
 
   virtual size_t used_in_bytes();
   virtual MemoryUsage get_memory_usage();
@@ -41,62 +47,61 @@ public:
 
 class ZServiceabilityMemoryManager : public GCMemoryManager {
 public:
-  ZServiceabilityMemoryManager(ZServiceabilityMemoryPool* pool);
+  ZServiceabilityMemoryManager(const char* name,
+                               MemoryPool* young_memory_pool,
+                               MemoryPool* old_memory_pool);
 };
 
 class ZServiceability {
 private:
+  const size_t                 _initial_capacity;
   const size_t                 _min_capacity;
   const size_t                 _max_capacity;
-  ZServiceabilityMemoryPool    _memory_pool;
-  ZServiceabilityMemoryManager _memory_manager;
+  ZServiceabilityMemoryPool    _young_memory_pool;
+  ZServiceabilityMemoryPool    _old_memory_pool;
+  ZServiceabilityMemoryManager _minor_cycle_memory_manager;
+  ZServiceabilityMemoryManager _major_cycle_memory_manager;
+  ZServiceabilityMemoryManager _minor_pause_memory_manager;
+  ZServiceabilityMemoryManager _major_pause_memory_manager;
   ZServiceabilityCounters*     _counters;
 
 public:
-  ZServiceability(size_t min_capacity, size_t max_capacity);
+  ZServiceability(size_t initial_capacity,
+                  size_t min_capacity,
+                  size_t max_capacity);
 
   void initialize();
 
-  MemoryPool* memory_pool();
-  GCMemoryManager* memory_manager();
+  MemoryPool* memory_pool(ZGenerationId id);
+  GCMemoryManager* cycle_memory_manager(bool minor);
+  GCMemoryManager* pause_memory_manager(bool minor);
   ZServiceabilityCounters* counters();
 };
 
-class ZServiceabilityMemoryUsageTracker {
-public:
-  ~ZServiceabilityMemoryUsageTracker();
-};
-
-class ZServiceabilityManagerStatsTracer {
+class ZServiceabilityCycleTracer : public StackObj {
 private:
-  TraceMemoryManagerStats _stats;
+  static bool _minor_is_active;
+
+  TraceMemoryManagerStats _memory_manager_stats;
 
 public:
-  ZServiceabilityManagerStatsTracer(bool is_gc_begin, bool is_gc_end);
+  ZServiceabilityCycleTracer(bool minor);
+  ~ZServiceabilityCycleTracer();
+
+  static bool minor_is_active();
 };
 
-class ZServiceabilityCountersTracer {
-public:
-  ZServiceabilityCountersTracer();
-  ~ZServiceabilityCountersTracer();
-};
-
-template <bool IsGCStart, bool IsGCEnd>
-class ZServiceabilityTracer : public StackObj {
+class ZServiceabilityPauseTracer : public StackObj {
 private:
-  ZServiceabilityMemoryUsageTracker _memory_usage_tracker;
-  ZServiceabilityManagerStatsTracer _manager_stats_tracer;
-  ZServiceabilityCountersTracer     _counters_tracer;
+  SvcGCMarker             _svc_gc_marker;
+  TraceCollectorStats     _counters_stats;
+  TraceMemoryManagerStats _memory_manager_stats;
+
+  bool minor_is_active() const;
 
 public:
-  ZServiceabilityTracer() :
-      _memory_usage_tracker(),
-      _manager_stats_tracer(IsGCStart, IsGCEnd),
-      _counters_tracer() {}
+  ZServiceabilityPauseTracer();
+  ~ZServiceabilityPauseTracer();
 };
-
-typedef ZServiceabilityTracer<true,  false> ZServiceabilityMarkStartTracer;
-typedef ZServiceabilityTracer<false, false> ZServiceabilityMarkEndTracer;
-typedef ZServiceabilityTracer<false, true>  ZServiceabilityRelocateStartTracer;
 
 #endif // SHARE_GC_Z_ZSERVICEABILITY_HPP

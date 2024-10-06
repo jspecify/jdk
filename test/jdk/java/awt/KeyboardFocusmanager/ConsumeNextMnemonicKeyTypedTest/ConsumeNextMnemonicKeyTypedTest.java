@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,49 +22,61 @@
  */
 
 /*
-  test
-  @bug       6346690
-  @summary   Tests that key_typed is consumed after mnemonic key_pressed is handled for a menu item.
-  @author    anton.tarasov@sun.com: area=awt-focus
-  @library   ../../../../lib/testlibrary
-  @build jdk.testlibrary.OSInfo
-  @run       applet ConsumeNextMnemonicKeyTypedTest.html
+  @test
+  @key headful
+  @bug        6346690
+  @summary    Tests that key_typed is consumed after mnemonic key_pressed is handled for a menu item.
+  @library    /test/lib
+  @build      jdk.test.lib.Platform
+  @run        main ConsumeNextMnemonicKeyTypedTest
 */
 
-import java.awt.*;
-import javax.swing.*;
-import java.awt.event.*;
-import java.applet.Applet;
+import jdk.test.lib.Platform;
 
+import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import java.awt.Robot;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 
-public class ConsumeNextMnemonicKeyTypedTest extends Applet {
-    Robot robot;
-    JFrame frame = new JFrame("Test Frame");
-    JTextField text = new JTextField();
-    JMenuBar bar = new JMenuBar();
-    JMenu menu = new JMenu("Menu");
-    JMenuItem item = new JMenuItem("item");
+public class ConsumeNextMnemonicKeyTypedTest {
+    static Robot robot;
+    static JFrame frame;
+    static JTextField text;
+    static JMenuBar bar;
+    static JMenu menu;
+    static JMenuItem item;
 
-    public static void main(String[] args) {
-        ConsumeNextMnemonicKeyTypedTest app = new ConsumeNextMnemonicKeyTypedTest();
-        app.init();
-        app.start();
-    }
-
-    public void init() {
+    public static void main(String[] args) throws Exception {
+        robot = new Robot();
+        robot.setAutoDelay(50);
         try {
-            robot = new Robot();
-            robot.setAutoDelay(50);
-        } catch (AWTException e) {
-            throw new RuntimeException("Error: unable to create robot", e);
+            SwingUtilities.invokeAndWait(ConsumeNextMnemonicKeyTypedTest::init);
+
+            robot.waitForIdle();
+            robot.delay(500);
+
+            test();
+        } finally {
+            SwingUtilities.invokeAndWait(() -> {
+                if (frame != null) {
+                    frame.dispose();
+                }
+            });
         }
-        // Create instructions for the user here, as well as set up
-        // the environment -- set the layout manager, add buttons,
-        // etc.
-        this.setLayout (new BorderLayout ());
     }
 
-    public void start() {
+    public static void init() {
+        frame = new JFrame("Test Frame");
+        text = new JTextField();
+        bar = new JMenuBar();
+        menu = new JMenu("Menu");
+        item = new JMenuItem("item");
+
         menu.setMnemonic('f');
         item.setMnemonic('i');
         menu.add(item);
@@ -74,22 +86,20 @@ public class ConsumeNextMnemonicKeyTypedTest extends Applet {
         frame.setJMenuBar(bar);
         frame.pack();
 
-        frame.setLocation(800, 0);
+        frame.setLocationRelativeTo(null);
         frame.setVisible(true);
-
-        test();
     }
 
-    void test() {
+    static void test() {
 
         robot.waitForIdle();
 
         if (!text.isFocusOwner()) {
             robot.mouseMove(text.getLocationOnScreen().x + 5, text.getLocationOnScreen().y + 5);
             robot.delay(100);
-            robot.mousePress(MouseEvent.BUTTON1_MASK);
+            robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
             robot.delay(100);
-            robot.mouseRelease(MouseEvent.BUTTON1_MASK);
+            robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
             int iter = 10;
             while (!text.isFocusOwner() && iter-- > 0) {
@@ -116,7 +126,7 @@ public class ConsumeNextMnemonicKeyTypedTest extends Applet {
 
         robot.waitForIdle();
 
-        if (jdk.testlibrary.OSInfo.getOSType() == jdk.testlibrary.OSInfo.OSType.MACOSX) {
+        if (Platform.isOSX()) {
             robot.keyPress(KeyEvent.VK_CONTROL);
         }
         robot.keyPress(KeyEvent.VK_ALT);
@@ -124,7 +134,7 @@ public class ConsumeNextMnemonicKeyTypedTest extends Applet {
         robot.delay(100);
         robot.keyRelease(KeyEvent.VK_F);
         robot.keyRelease(KeyEvent.VK_ALT);
-        if (jdk.testlibrary.OSInfo.getOSType() == jdk.testlibrary.OSInfo.OSType.MACOSX) {
+        if (Platform.isOSX()) {
             robot.keyRelease(KeyEvent.VK_CONTROL);
         }
 
@@ -150,7 +160,7 @@ public class ConsumeNextMnemonicKeyTypedTest extends Applet {
 
         robot.waitForIdle();
 
-        System.err.println("Test: chracter typed with VK_A: " + text.getText());
+        System.err.println("Test: character typed with VK_A: " + text.getText());
 
         if (!charA.equals(text.getText())) {
             throw new RuntimeException("Test failed!");

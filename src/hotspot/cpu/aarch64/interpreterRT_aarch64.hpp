@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +24,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_INTERPRETERRT_AARCH64_HPP
-#define CPU_AARCH64_VM_INTERPRETERRT_AARCH64_HPP
+#ifndef CPU_AARCH64_INTERPRETERRT_AARCH64_HPP
+#define CPU_AARCH64_INTERPRETERRT_AARCH64_HPP
 
 // This is included in the middle of class Interpreter.
 // Do not include files here.
@@ -34,16 +35,21 @@
 class SignatureHandlerGenerator: public NativeSignatureIterator {
  private:
   MacroAssembler* _masm;
-  unsigned int _call_format;
-  unsigned int _num_fp_args;
-  unsigned int _num_int_args;
+  unsigned int _num_reg_fp_args;
+  unsigned int _num_reg_int_args;
   int _stack_offset;
 
+  void pass_byte();
+  void pass_short();
   void pass_int();
   void pass_long();
   void pass_float();
   void pass_double();
   void pass_object();
+
+  Register next_gpr();
+  FloatRegister next_fpr();
+  int next_stack_offset(unsigned elem_size);
 
  public:
   // Creation
@@ -58,4 +64,4 @@ class SignatureHandlerGenerator: public NativeSignatureIterator {
   static Register temp();
 };
 
-#endif // CPU_AARCH64_VM_INTERPRETERRT_AARCH64_HPP
+#endif // CPU_AARCH64_INTERPRETERRT_AARCH64_HPP

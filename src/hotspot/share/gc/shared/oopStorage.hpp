@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "oops/oop.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/singleWriterSynchronizer.hpp"
 
 class Mutex;
 class outputStream;
@@ -71,9 +72,9 @@ class outputStream;
 // interactions for this protocol.  Similarly, see the allocate() function for
 // a discussion of allocation.
 
-class OopStorage : public CHeapObj<mtGC> {
+class OopStorage : public CHeapObjBase {
 public:
-  OopStorage(const char* name, Mutex* allocate_mutex, Mutex* active_mutex);
+  static OopStorage* create(const char* name, MemTag mem_tag);
   ~OopStorage();
 
   // These count and usage accessors are racy unless at a safepoint.
@@ -88,30 +89,49 @@ public:
   // bookkeeping overhead, including this storage object.
   size_t total_memory_usage() const;
 
+  // The memory tag for allocations.
+  MemTag mem_tag() const;
+
   enum EntryStatus {
     INVALID_ENTRY,
     UNALLOCATED_ENTRY,
     ALLOCATED_ENTRY
   };
 
-  // Locks _allocate_mutex.
-  // precondition: ptr != NULL.
+  // Locks _allocation_mutex.
+  // precondition: ptr != nullptr.
   EntryStatus allocation_status(const oop* ptr) const;
 
-  // Allocates and returns a new entry.  Returns NULL if memory allocation
-  // failed.  Locks _allocate_mutex.
-  // postcondition: *result == NULL.
+  // Allocates and returns a new entry.  Returns null if memory allocation
+  // failed.  Locks _allocation_mutex.
+  // postcondition: result == nullptr or *result == nullptr.
   oop* allocate();
+
+  // Maximum number of entries that can be obtained by one call to
+  // allocate(oop**, size_t).
+  static const size_t bulk_allocate_limit = BitsPerWord;
+
+  // Allocates multiple entries, returning them in the ptrs buffer. Possibly
+  // faster than making repeated calls to allocate(). Always make maximal
+  // requests for best efficiency. Returns the number of entries allocated,
+  // which may be less than requested. A result of zero indicates failure to
+  // allocate any entries.
+  // Locks _allocation_mutex.
+  // precondition: size > 0.
+  // postcondition: result <= min(size, bulk_allocate_limit).
+  // postcondition: ptrs[i] is an allocated entry for i in [0, result).
+  // postcondition: *ptrs[i] == nullptr for i in [0, result).
+  size_t allocate(oop** ptrs, size_t size);
 
   // Deallocates ptr.  No locking.
   // precondition: ptr is a valid allocated entry.
-  // precondition: *ptr == NULL.
+  // precondition: *ptr == nullptr.
   void release(const oop* ptr);
 
   // Releases all the ptrs.  Possibly faster than individual calls to
   // release(oop*).  Best if ptrs is sorted by address.  No locking.
   // precondition: All elements of ptrs are valid allocated entries.
-  // precondition: *ptrs[i] == NULL, for i in [0,size).
+  // precondition: *ptrs[i] == nullptr, for i in [0,size).
   void release(const oop* const* ptrs, size_t size);
 
   // Applies f to each allocated entry's location.  f must be a function or
@@ -135,9 +155,9 @@ public:
   // - is_alive->do_object_b(*p) must be a valid expression whose value is
   // convertible to bool.
   //
-  // For weak_oops_do, if *p == NULL then neither is_alive nor closure will be
+  // For weak_oops_do, if *p == nullptr then neither is_alive nor closure will be
   // invoked for p.  If is_alive->do_object_b(*p) is false, then closure will
-  // not be invoked on p, and *p will be set to NULL.
+  // not be invoked on p, and *p will be set to null.
 
   template<typename Closure> inline void oops_do(Closure* closure);
   template<typename Closure> inline void oops_do(Closure* closure) const;
@@ -150,15 +170,50 @@ public:
   // Other clients must use serial iteration.
   template<bool concurrent, bool is_const> class ParState;
 
-  // Block cleanup functions are for the exclusive use of the GC.
-  // Both stop deleting if there is an in-progress concurrent iteration.
-  // Concurrent deletion locks both the allocate_mutex and the active_mutex.
-  void delete_empty_blocks_safepoint();
-  void delete_empty_blocks_concurrent();
+  // Support GC callbacks reporting dead entries.  This lets clients respond
+  // to entries being cleared.
+
+  typedef void (*NumDeadCallback)(size_t num_dead);
+
+  // Used by a client to register a callback function with the GC.
+  // precondition: No more than one registration per storage object.
+  void register_num_dead_callback(NumDeadCallback f);
+
+  // Called by the GC after an iteration that may clear dead referents.
+  // This calls the registered callback function, if any.  num_dead is the
+  // number of entries which were either already null or were cleared by the
+  // iteration.
+  void report_num_dead(size_t num_dead) const;
+
+  // Used by the GC to test whether a callback function has been registered.
+  bool should_report_num_dead() const;
+
+  // Service thread cleanup support.
+
+  // Called by the service thread to process any pending cleanups for this
+  // storage object.  Drains the _deferred_updates list, and deletes empty
+  // blocks.  Stops deleting if there is an in-progress concurrent
+  // iteration.  Locks both the _allocation_mutex and the _active_mutex, and
+  // may safepoint.  Deletion may be throttled, with only some available
+  // work performed, in order to allow other Service thread subtasks to run.
+  // Returns true if there may be more work to do, false if nothing to do.
+  bool delete_empty_blocks();
+
+  // Called by safepoint cleanup to notify the service thread (via
+  // Service_lock) that there may be some OopStorage objects with pending
+  // cleanups to process.
+  static void trigger_cleanup_if_needed();
+
+  // Called by the service thread (while holding Service_lock) to test
+  // for pending cleanup requests, and resets the request state to allow
+  // recognition of new requests.  Returns true if there was a pending
+  // request.
+  static bool has_cleanup_work_and_reset();
 
   // Debugging and logging support.
   const char* name() const;
   void print_on(outputStream* st) const PRODUCT_RETURN;
+  bool print_containing(const oop* addr, outputStream* st);
 
   // Provides access to storage internals, for unit testing.
   // Declare, but not define, the public class OopStorage::TestAccess.
@@ -166,26 +221,22 @@ public:
   // private types by providing public typedefs for them.
   class TestAccess;
 
-  // xlC on AIX can't compile test_oopStorage.cpp with following private
-  // classes. C++03 introduced access for nested classes with DR45, but xlC
-  // version 12 rejects it.
-NOT_AIX( private: )
+private:
   class Block;                  // Fixed-size array of oops, plus bookkeeping.
   class ActiveArray;            // Array of Blocks, plus bookkeeping.
-  class AllocateEntry;          // Provides AllocateList links in a Block.
+  class AllocationListEntry;    // Provides AllocationList links in a Block.
 
-  // Doubly-linked list of Blocks.
-  class AllocateList {
+  // Doubly-linked list of Blocks.  For all operations with a block
+  // argument, the block must be from the list's OopStorage.
+  class AllocationList {
     const Block* _head;
     const Block* _tail;
 
-    // Noncopyable.
-    AllocateList(const AllocateList&);
-    AllocateList& operator=(const AllocateList&);
+    NONCOPYABLE(AllocationList);
 
   public:
-    AllocateList();
-    ~AllocateList();
+    AllocationList();
+    ~AllocationList();
 
     Block* head();
     Block* tail();
@@ -201,42 +252,46 @@ NOT_AIX( private: )
     void push_front(const Block& block);
     void push_back(const Block& block);
     void unlink(const Block& block);
-  };
 
-  // RCU-inspired protection of access to _active_array.
-  class ProtectActive {
-    volatile uint _enter;
-    volatile uint _exit[2];
-
-  public:
-    ProtectActive();
-
-    uint read_enter();
-    void read_exit(uint enter_value);
-    void write_synchronize();
+    bool contains(const Block& block) const;
   };
 
 private:
   const char* _name;
   ActiveArray* _active_array;
-  AllocateList _allocate_list;
+  AllocationList _allocation_list;
   Block* volatile _deferred_updates;
-
-  Mutex* _allocate_mutex;
+  Mutex* _allocation_mutex;
   Mutex* _active_mutex;
+  NumDeadCallback _num_dead_callback;
 
   // Volatile for racy unlocked accesses.
   volatile size_t _allocation_count;
 
   // Protection for _active_array.
-  mutable ProtectActive _protect_active;
+  mutable SingleWriterSynchronizer _protect_active;
 
   // mutable because this gets set even for const iteration.
-  mutable bool _concurrent_iteration_active;
+  mutable int _concurrent_iteration_count;
+
+  // The memory tag for allocations.
+  MemTag _mem_tag;
+
+  // Flag indicating this storage object is a candidate for empty block deletion.
+  volatile bool _needs_cleanup;
+
+  // Clients construct via "create" factory function.
+  OopStorage(const char* name, MemTag mem_tag);
+  NONCOPYABLE(OopStorage);
+
+  bool try_add_block();
+  Block* block_for_allocation();
+  void  log_block_transition(Block* block, const char* new_state) const;
 
   Block* find_block_or_null(const oop* ptr) const;
   void delete_empty_block(const Block& block);
   bool reduce_deferred_updates();
+  void record_needs_cleanup();
 
   // Managing _active_array.
   bool expand_active_array();
@@ -263,9 +318,9 @@ private:
   template<typename IsAlive, typename F>
   static IfAliveFn<IsAlive, F> if_alive_fn(IsAlive* is_alive, F f);
 
-  // Wrapper for iteration handler, automatically skipping NULL entries.
+  // Wrapper for iteration handler, automatically skipping null entries.
   template<typename F> class SkipNullFn;
   template<typename F> static SkipNullFn<F> skip_null_fn(F f);
 };
 
-#endif // include guard
+#endif // SHARE_GC_SHARED_OOPSTORAGE_HPP

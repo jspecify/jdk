@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -106,7 +106,7 @@ class D3DGlyphCache;
  *  - holds a glyph cache texture for the associated device
  *  - implements primitives batching mechanism
  */
-class D3DPIPELINE_API D3DContext {
+class D3DContext {
 public:
     /**
      * Releases the old device (if there was one) and all associated
@@ -132,13 +132,6 @@ public:
     // resets existing D3D device with the current presentation parameters
     HRESULT ResetContext();
     HRESULT CheckAndResetDevice();
-
-    // saves the state of the D3D device in a state block, resets
-    // context's state to STATE_CHANGE
-    HRESULT SaveState();
-    // restores the state of the D3D device from existing state block,
-    // resets context's state to STATE_CHANGE
-    HRESULT RestoreState();
 
     void    ReleaseContextResources();
     void    ReleaseDefPoolResources();

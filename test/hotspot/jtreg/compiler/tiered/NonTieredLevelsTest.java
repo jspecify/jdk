@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,10 @@
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @requires vm.opt.TieredStopAtLevel==null
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:-TieredCompilation
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:-UseCounterDecay
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=compileonly,compiler.whitebox.SimpleTestCaseHelper::*
  *                   compiler.tiered.NonTieredLevelsTest
  */
@@ -42,6 +41,7 @@ package compiler.tiered;
 import java.util.function.IntPredicate;
 import compiler.whitebox.CompilerWhiteBoxTest;
 import jdk.test.lib.Platform;
+import jtreg.SkippedException;
 
 public class NonTieredLevelsTest extends CompLevelsTest {
     private static final int AVAILABLE_COMP_LEVEL;
@@ -60,7 +60,7 @@ public class NonTieredLevelsTest extends CompLevelsTest {
     }
     public static void main(String[] args) throws Exception {
         if (CompilerWhiteBoxTest.skipOnTieredCompilation(true)) {
-            return;
+            throw new SkippedException("Test isn't applicable for tiered mode");
         }
         CompilerWhiteBoxTest.main(NonTieredLevelsTest::new, args);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
 
 package java.lang;
 
+import jdk.internal.misc.Blocker;
 import nsk.jvmti.scenarios.bcinstr.BI04.bi04t002a;
 
 /**
@@ -36,11 +37,6 @@ import nsk.jvmti.scenarios.bcinstr.BI04.bi04t002a;
  * @since   JDK1.0
  */
 public class Object {
-
-    private static native void registerNatives();
-    static {
-        registerNatives();
-    }
 
     /**
      * Returns the runtime class of an object. That <tt>Class</tt>
@@ -371,7 +367,24 @@ public class Object {
      * @see        java.lang.Object#notify()
      * @see        java.lang.Object#notifyAll()
      */
-    public final native void wait(long timeout) throws InterruptedException;
+    public final void wait(long timeoutMillis) throws InterruptedException {
+        if (!Thread.currentThread().isVirtual()) {
+            wait0(timeoutMillis);
+            return;
+        }
+
+        // virtual thread waiting
+        boolean attempted = Blocker.begin();
+        try {
+            wait0(timeoutMillis);
+        } catch (InterruptedException e) {
+            // virtual thread's interrupt status needs to be cleared
+            Thread.currentThread().getAndClearInterrupt();
+            throw e;
+        } finally {
+            Blocker.end(attempted);
+        }
+    }
 
     /**
      * Causes current thread to wait until another thread invokes the
@@ -454,6 +467,9 @@ public class Object {
 
             wait(timeout);
     }
+
+    // final modifier so method not in vtable
+    private final native void wait0(long timeoutMillis) throws InterruptedException;
 
     /**
      * Causes current thread to wait until another thread invokes the

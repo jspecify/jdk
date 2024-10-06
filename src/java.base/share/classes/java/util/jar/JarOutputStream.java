@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,31 +29,33 @@ import java.util.zip.*;
 import java.io.*;
 
 /**
- * The <code>JarOutputStream</code> class is used to write the contents
+ * The {@code JarOutputStream} class is used to write the contents
  * of a JAR file to any output stream. It extends the class
- * <code>java.util.zip.ZipOutputStream</code> with support
- * for writing an optional <code>Manifest</code> entry. The
- * <code>Manifest</code> can be used to specify meta-information about
+ * {@code java.util.zip.ZipOutputStream} with support
+ * for writing an optional {@code Manifest} entry. The
+ * {@code Manifest} can be used to specify meta-information about
  * the JAR file and its entries.
- *
+ * <p> Unless otherwise noted, passing a {@code null} argument to a constructor
+ * or method in this class will cause a {@link NullPointerException} to be
+ * thrown.
  * @author  David Connelly
  * @see     Manifest
  * @see     java.util.zip.ZipOutputStream
  * @since   1.2
  */
-public
-class JarOutputStream extends ZipOutputStream {
+public class JarOutputStream extends ZipOutputStream {
     private static final int JAR_MAGIC = 0xCAFE;
 
     /**
-     * Creates a new <code>JarOutputStream</code> with the specified
-     * <code>Manifest</code>. The manifest is written as the first
+     * Creates a new {@code JarOutputStream} with the specified
+     * {@code Manifest}. The manifest is written as the first
      * entry to the output stream.
      *
      * @param out the actual output stream
-     * @param man the optional <code>Manifest</code>
-     * @exception IOException if an I/O error has occurred
+     * @param man the optional {@code Manifest}
+     * @throws    IOException if an I/O error has occurred
      */
+    @SuppressWarnings("this-escape")
     public JarOutputStream(OutputStream out, Manifest man) throws IOException {
         super(out);
         if (man == null) {
@@ -66,9 +68,9 @@ class JarOutputStream extends ZipOutputStream {
     }
 
     /**
-     * Creates a new <code>JarOutputStream</code> with no manifest.
+     * Creates a new {@code JarOutputStream} with no manifest.
      * @param out the actual output stream
-     * @exception IOException if an I/O error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
     public JarOutputStream(OutputStream out) throws IOException {
         super(out);
@@ -77,14 +79,21 @@ class JarOutputStream extends ZipOutputStream {
     /**
      * Begins writing a new JAR file entry and positions the stream
      * to the start of the entry data. This method will also close
-     * any previous entry. The default compression method will be
-     * used if no compression method was specified for the entry.
+     * any previous entry.
+     * <p>
+     * The default compression method will be used if no compression
+     * method was specified for the entry. When writing a compressed
+     * (DEFLATED) entry, and the compressed size has not been explicitly
+     * set with the {@link ZipEntry#setCompressedSize(long)} method,
+     * then the compressed size will be set to the actual compressed
+     * size after deflation.
+     * <p>
      * The current time will be used if the entry has no set modification
      * time.
      *
      * @param ze the ZIP/JAR entry to be written
-     * @exception ZipException if a ZIP error has occurred
-     * @exception IOException if an I/O error has occurred
+     * @throws    ZipException if a ZIP error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
     public void putNextEntry(ZipEntry ze) throws IOException {
         if (firstEntry) {

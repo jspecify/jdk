@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIFIELD_HPP
-#define SHARE_VM_CI_CIFIELD_HPP
+#ifndef SHARE_CI_CIFIELD_HPP
+#define SHARE_CI_CIFIELD_HPP
 
 #include "ci/ciClassList.hpp"
 #include "ci/ciConstant.hpp"
@@ -36,7 +36,7 @@
 // This class represents the result of a field lookup in the VM.
 // The lookup may not succeed, in which case the information in
 // the ciField will be incomplete.
-class ciField : public ResourceObj {
+class ciField : public ArenaObj {
   CI_PACKAGE_ACCESS
   friend class ciEnv;
   friend class ciInstanceKlass;
@@ -56,7 +56,7 @@ private:
   ciType* compute_type();
   ciType* compute_type_impl();
 
-  ciField(ciInstanceKlass* klass, int index);
+  ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc);
   ciField(fieldDescriptor* fd);
 
   // shared constructor code
@@ -99,23 +99,18 @@ public:
   ciSymbol* signature() const { return _signature; }
 
   // Of what type is this field?
-  ciType* type() { return (_type == NULL) ? compute_type() : _type; }
+  ciType* type() { return (_type == nullptr) ? compute_type() : _type; }
 
   // How is this field actually stored in memory?
-  BasicType layout_type() { return type2field[(_type == NULL) ? T_OBJECT : _type->basic_type()]; }
+  BasicType layout_type() { return type2field[(_type == nullptr) ? T_OBJECT : _type->basic_type()]; }
 
   // How big is this field in memory?
   int size_in_bytes() { return type2aelembytes(layout_type()); }
 
-  // What is the offset of this field?
-  int offset() const {
+  // What is the offset of this field? (Fields are aligned to the byte level.)
+  int offset_in_bytes() const {
     assert(_offset >= 1, "illegal call to offset()");
     return _offset;
-  }
-
-  // Same question, explicit units.  (Fields are aligned to the byte level.)
-  int offset_in_bytes() const {
-    return offset();
   }
 
   // Is this field shared?
@@ -178,27 +173,13 @@ public:
   // (or class/initializer methods if the field is static).
   bool has_initialized_final_update() const { return flags().has_initialized_final_update(); }
 
-  bool is_call_site_target() {
-    ciInstanceKlass* callsite_klass = CURRENT_ENV->CallSite_klass();
-    if (callsite_klass == NULL)
-      return false;
-    return (holder()->is_subclass_of(callsite_klass) && (name() == ciSymbol::target_name()));
-  }
+  bool is_call_site_target();
 
-  bool is_autobox_cache() {
-    ciSymbol* klass_name = holder()->name();
-    return (name() == ciSymbol::cache_field_name() &&
-            holder()->uses_default_loader() &&
-            (klass_name == ciSymbol::java_lang_Character_CharacterCache() ||
-             klass_name == ciSymbol::java_lang_Byte_ByteCache() ||
-             klass_name == ciSymbol::java_lang_Short_ShortCache() ||
-             klass_name == ciSymbol::java_lang_Integer_IntegerCache() ||
-             klass_name == ciSymbol::java_lang_Long_LongCache()));
-  }
+  bool is_autobox_cache();
 
   // Debugging output
   void print();
   void print_name_on(outputStream* st);
 };
 
-#endif // SHARE_VM_CI_CIFIELD_HPP
+#endif // SHARE_CI_CIFIELD_HPP

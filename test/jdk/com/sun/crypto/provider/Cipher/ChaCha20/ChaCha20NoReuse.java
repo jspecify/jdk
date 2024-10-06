@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,8 @@
 
 /**
  * @test
- * @bug 8153029
+ * @bug 8153029 8305091
  * @library /test/lib
- * @build jdk.test.lib.Convert
  * @run main ChaCha20NoReuse
  * @summary ChaCha20 Cipher Implementation (key/nonce reuse protection)
  */
@@ -39,7 +38,6 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.AEADBadTagException;
 import javax.crypto.SecretKey;
 import java.security.InvalidKeyException;
-import jdk.test.lib.Convert;
 
 public class ChaCha20NoReuse {
 
@@ -76,9 +74,9 @@ public class ChaCha20NoReuse {
         public TestData(String name, String keyStr, String nonceStr, int ctr,
                 int dir, String inputStr, String aadStr, String outStr) {
             testName = Objects.requireNonNull(name);
-            key = Convert.hexStringToByteArray(Objects.requireNonNull(keyStr));
-            nonce = Convert.hexStringToByteArray(
-                    Objects.requireNonNull(nonceStr));
+            HexFormat hex = HexFormat.of();
+            key = hex.parseHex(keyStr);
+            nonce = hex.parseHex(nonceStr);
             if ((counter = ctr) < 0) {
                 throw new IllegalArgumentException(
                         "counter must be 0 or greater");
@@ -89,12 +87,9 @@ public class ChaCha20NoReuse {
                 throw new IllegalArgumentException(
                         "Direction must be ENCRYPT_MODE or DECRYPT_MODE");
             }
-            input = Convert.hexStringToByteArray(
-                    Objects.requireNonNull(inputStr));
-            aad = (aadStr != null) ?
-                Convert.hexStringToByteArray(aadStr) : null;
-            expOutput = Convert.hexStringToByteArray(
-                    Objects.requireNonNull(outStr));
+            input = hex.parseHex(inputStr);
+            aad = (aadStr != null) ? hex.parseHex(aadStr) : null;
+            expOutput = hex.parseHex(outStr);
         }
 
         public final String testName;
@@ -381,7 +376,7 @@ public class ChaCha20NoReuse {
                 }
                 SecretKey key = new SecretKeySpec(testData.key, ALG_CC20);
 
-                // Initialize and encrypt
+                // Initialize and decrypt
                 cipher.init(testData.direction, key, spec);
                 if (algorithm.equals(ALG_CC20_P1305)) {
                     cipher.updateAAD(testData.aad);
@@ -389,18 +384,12 @@ public class ChaCha20NoReuse {
                 cipher.doFinal(testData.input);
                 System.out.println("First decryption complete");
 
-                // Now attempt to encrypt again without changing the key/IV
-                // This should fail.
-                try {
-                    if (algorithm.equals(ALG_CC20_P1305)) {
-                        cipher.updateAAD(testData.aad);
-                    }
-                    cipher.doFinal(testData.input);
-                    throw new RuntimeException(
-                            "Expected IllegalStateException not thrown");
-                } catch (IllegalStateException ise) {
-                    // Do nothing, this is what we expected to happen
+                // Now attempt to decrypt again without changing the key/IV
+                // We allow this scenario.
+                if (algorithm.equals(ALG_CC20_P1305)) {
+                    cipher.updateAAD(testData.aad);
                 }
+                cipher.doFinal(testData.input);
             } catch (Exception exc) {
                 System.out.println("Unexpected exception: " + exc);
                 exc.printStackTrace();
@@ -413,7 +402,8 @@ public class ChaCha20NoReuse {
 
     /**
      * Perform an AEAD decryption with corrupted data so the tag does not
-     * match.  Then attempt to reuse the cipher without initialization.
+     * match.  Then use the uncorrupted test vector input and attempt to
+     * reuse the cipher without initialization.
      */
     public static final TestMethod decFailNoInit = new TestMethod() {
         @Override
@@ -446,16 +436,16 @@ public class ChaCha20NoReuse {
                     System.out.println("Expected decryption failure occurred");
                 }
 
-                // Make sure that despite the exception, the Cipher object is
-                // not in a state that would leave it initialized and able
-                // to process future decryption operations without init.
-                try {
-                    cipher.updateAAD(testData.aad);
-                    cipher.doFinal(testData.input);
-                    throw new RuntimeException(
-                            "Expected IllegalStateException not thrown");
-                } catch (IllegalStateException ise) {
-                    // Do nothing, this is what we expected to happen
+                // Even though an exception occurred during decryption, the
+                // Cipher object should be returned to its post-init state.
+                // Since this is a decryption operation, we should allow
+                // key/nonce reuse.  It should properly decrypt the uncorrupted
+                // input.
+                cipher.updateAAD(testData.aad);
+                byte[] pText = cipher.doFinal(testData.input);
+                if (!Arrays.equals(pText, testData.expOutput)) {
+                    throw new RuntimeException("FAIL: Attempted decryption " +
+                            "did not match expected plaintext");
                 }
             } catch (Exception exc) {
                 System.out.println("Unexpected exception: " + exc);
@@ -567,18 +557,17 @@ public class ChaCha20NoReuse {
                 if (algorithm.equals(ALG_CC20_P1305)) {
                     cipher.updateAAD(testData.aad);
                 }
-                cipher.doFinal(testData.input);
+                byte[] pText = cipher.doFinal(testData.input);
+                if (!Arrays.equals(pText, testData.expOutput)) {
+                    throw new RuntimeException("FAIL: Attempted decryption " +
+                            "did not match expected plaintext");
+                }
                 System.out.println("First decryption complete");
 
                 // Initializing after the completed decryption with
-                // the same key and nonce should fail.
-                try {
-                    cipher.init(testData.direction, key, spec);
-                    throw new RuntimeException(
-                            "Expected InvalidKeyException not thrown");
-                } catch (InvalidKeyException ike) {
-                    // Do nothing, this is what we expected to happen
-                }
+                // the same key and nonce is allowed.
+                cipher.init(testData.direction, key, spec);
+                System.out.println("Successful reinit in DECRYPT_MODE");
             } catch (Exception exc) {
                 System.out.println("Unexpected exception: " + exc);
                 exc.printStackTrace();

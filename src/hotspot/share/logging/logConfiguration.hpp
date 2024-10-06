@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,18 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGCONFIGURATION_HPP
-#define SHARE_VM_LOGGING_LOGCONFIGURATION_HPP
+#ifndef SHARE_LOGGING_LOGCONFIGURATION_HPP
+#define SHARE_LOGGING_LOGCONFIGURATION_HPP
 
+#include "logging/logFileStreamOutput.hpp"
 #include "logging/logLevel.hpp"
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class LogOutput;
 class LogDecorators;
 class LogSelectionList;
+class outputStream;
 
 // Global configuration of logging. Handles parsing and configuration of the logging framework,
 // and manages the list of configured log outputs. The actual tag and level configuration is
@@ -40,6 +42,8 @@ class LogConfiguration : public AllStatic {
  friend class VMError;
  friend class LogTestFixture;
  public:
+  static LogStdoutOutput* StdoutLog;
+  static LogStderrOutput* StderrLog;
   // Function for listeners
   typedef void (*UpdateListenerFunction)(void);
 
@@ -58,8 +62,9 @@ class LogConfiguration : public AllStatic {
 
   static UpdateListenerFunction*    _listener_callbacks;
   static size_t                     _n_listener_callbacks;
+  static bool                       _async_mode;
 
-  // Create a new output. Returns NULL if failed.
+  // Create a new output. Returns null if failed.
   static LogOutput* new_output(const char* name, const char* options, outputStream* errstream);
 
   // Add an output to the list of configured outputs. Returns the assigned index.
@@ -69,8 +74,8 @@ class LogConfiguration : public AllStatic {
   // Output should be completely disabled before it is deleted.
   static void delete_output(size_t idx);
 
-  // Disable all logging to the specified output and then delete it (unless it is stdout/stderr).
-  static void disable_output(size_t idx);
+  // Disable all logging to all outputs. All outputs except stdout/stderr will be deleted.
+  static void disable_outputs();
 
   // Get output index by name. Returns SIZE_MAX if output not found.
   static size_t find_output(const char* name);
@@ -123,6 +128,11 @@ class LogConfiguration : public AllStatic {
 
   // Rotates all LogOutput
   static void rotate_all_outputs();
+
+  static bool is_async_mode() { return _async_mode; }
+  static void set_async_mode(bool value) {
+    _async_mode = value;
+  }
 };
 
-#endif // SHARE_VM_LOGGING_LOGCONFIGURATION_HPP
+#endif // SHARE_LOGGING_LOGCONFIGURATION_HPP

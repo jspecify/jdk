@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,6 +85,10 @@ public class TestSymtabItems {
             if (f.getName().toLowerCase().contains("methodhandle"))
                 continue;
 
+            // Temporarily ignore java.io.IO:
+            if (f.getName().equals("ioType"))
+                continue;
+
             //both noModule and unnamedModule claim the unnamed package, ignore noModule for now:
             if (f.getName().equals("noModule"))
                 continue;
@@ -122,7 +126,7 @@ public class TestSymtabItems {
 
     int errors;
 
-    class ElemPrinter extends ElementScanner9<Void, Void> {
+    class ElemPrinter extends ElementScanner14<Void, Void> {
         @Override
         public Void visitModule(ModuleElement e, Void p) {
             show("module", e);
@@ -222,7 +226,7 @@ public class TestSymtabItems {
         int indent;
     };
 
-    class TypePrinter extends SimpleTypeVisitor9<Void, Types> {
+    class TypePrinter extends SimpleTypeVisitor14<Void, Types> {
         @Override
         public Void defaultAction(TypeMirror m, Types types) {
             System.err.println(m.getKind() + " " + m + " " + types.asElement(m));

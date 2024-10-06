@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,6 +132,11 @@ public class BasicProgressBarUI extends ProgressBarUI {
     private double delta = 0.0;
 
     private int maxPosition = 0; //maximum X (horiz) or Y box location
+
+    /**
+     * Constructs a {@code BasicProgressBarUI}.
+     */
+    public BasicProgressBarUI() {}
 
     /**
      * Returns a new instance of {@code BasicProgressBarUI}.
@@ -874,7 +879,7 @@ public class BasicProgressBarUI extends ProgressBarUI {
                                                       progressString);
 
         if (progressBar.getOrientation() == JProgressBar.HORIZONTAL) {
-            return new Point(x + Math.round(width/2 - stringWidth/2),
+            return new Point(x + (int)Math.round(width/2.0 - stringWidth/2.0),
                              y + ((height +
                                  fontSizer.getAscent() -
                                  fontSizer.getLeading() -
@@ -882,7 +887,7 @@ public class BasicProgressBarUI extends ProgressBarUI {
         } else { // VERTICAL
             return new Point(x + ((width - fontSizer.getAscent() +
                     fontSizer.getLeading() + fontSizer.getDescent()) / 2),
-                    y + Math.round(height/2 - stringWidth/2));
+                    y + (int)Math.round(height/2.0 - stringWidth/2.0));
         }
     }
 
@@ -908,7 +913,7 @@ public class BasicProgressBarUI extends ProgressBarUI {
                 // there is more than enough room in the progress bar
                 // for everything.
                 // This does have a strange dependency on
-                // getStringPlacememnt() in a funny way.
+                // getStringPlacement() in a funny way.
                 int stringHeight = fontSizer.getHeight() +
                                    fontSizer.getDescent();
                 if (stringHeight > size.height) {
@@ -975,7 +980,7 @@ public class BasicProgressBarUI extends ProgressBarUI {
 
     /**
      * Returns the number of frames for the complete animation loop
-     * used by an indeterminate JProgessBar. The progress chunk will go
+     * used by an indeterminate JProgressBar. The progress chunk will go
      * from one end to the other and back during the entire loop. This
      * visual behavior may be changed by subclasses in other Look and Feels.
      *
@@ -1288,6 +1293,11 @@ public class BasicProgressBarUI extends ProgressBarUI {
      * Instantiate it only within subclasses of {@code BasicProgressBarUI}.
      */
     public class ChangeHandler implements ChangeListener {
+        /**
+         * Constructs a {@code ChangeHandler}.
+         */
+        public ChangeHandler() {}
+
         // NOTE: This class exists only for backward compatibility. All
         // its functionality has been moved into Handler. If you need to add
         // new functionality add it to the Handler, but make sure this

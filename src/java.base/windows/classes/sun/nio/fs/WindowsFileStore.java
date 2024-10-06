@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,17 @@
 
 package sun.nio.fs;
 
-import org.jspecify.annotations.Nullable;
-
-import java.nio.file.*;
-import java.nio.file.attribute.*;
+import java.nio.file.FileStore;
+import java.nio.file.FileSystemException;
+import java.nio.file.attribute.AclFileAttributeView;
+import java.nio.file.attribute.BasicFileAttributeView;
+import java.nio.file.attribute.DosFileAttributeView;
+import java.nio.file.attribute.FileAttributeView;
+import java.nio.file.attribute.FileOwnerAttributeView;
+import java.nio.file.attribute.FileStoreAttributeView;
+import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.io.IOException;
+import java.util.Locale;
 
 import static sun.nio.fs.WindowsConstants.*;
 import static sun.nio.fs.WindowsNativeDispatcher.*;
@@ -46,6 +52,8 @@ class WindowsFileStore
     private final int volType;
     private final String displayName;   // returned by toString
 
+    private int hashCode;
+
     private WindowsFileStore(String root) throws WindowsException {
         assert root.charAt(root.length()-1) == '\\';
         this.root = root;
@@ -54,7 +62,7 @@ class WindowsFileStore
 
         // file store "display name" is the volume name if available
         String vol = volInfo.volumeName();
-        if (vol.length() > 0) {
+        if (!vol.isEmpty()) {
             this.displayName = vol;
         } else {
             // TBD - should we map all types? Does this need to be localized?
@@ -84,7 +92,12 @@ class WindowsFileStore
             try {
                 return createFromPath(target);
             } catch (WindowsException e) {
-                if (e.lastError() != ERROR_DIR_NOT_ROOT)
+                // GetVolumePathName might return the following error codes
+                // when the drives were created using `subst`.
+                // Try expanding the path again in such cases.
+                if (e.lastError() != ERROR_DIR_NOT_ROOT &&
+                    e.lastError() != ERROR_INVALID_PARAMETER &&
+                    e.lastError() != ERROR_DIRECTORY)
                     throw e;
                 target = WindowsLinkSupport.getFinalPath(file);
                 if (target == null)
@@ -147,21 +160,25 @@ class WindowsFileStore
 
     @Override
     public long getTotalSpace() throws IOException {
-        return readDiskFreeSpaceEx().totalNumberOfBytes();
+        long space = readDiskFreeSpaceEx().totalNumberOfBytes();
+        return space >= 0 ? space : Long.MAX_VALUE;
     }
 
     @Override
     public long getUsableSpace() throws IOException {
-        return readDiskFreeSpaceEx().freeBytesAvailable();
-    }
-
-    public long getBlockSize() throws IOException {
-        return readDiskFreeSpace().bytesPerSector();
+        long space = readDiskFreeSpaceEx().freeBytesAvailable();
+        return space >= 0 ? space : Long.MAX_VALUE;
     }
 
     @Override
     public long getUnallocatedSpace() throws IOException {
-        return readDiskFreeSpaceEx().freeBytesAvailable();
+        long space = readDiskFreeSpaceEx().freeBytesAvailable();
+        return space >= 0 ? space : Long.MAX_VALUE;
+    }
+
+    @Override
+    public long getBlockSize() throws IOException {
+        return readDiskFreeSpace().bytesPerSector();
     }
 
     @Override
@@ -219,20 +236,27 @@ class WindowsFileStore
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object ob) {
+    public boolean equals(Object ob) {
         if (ob == this)
             return true;
-        if (!(ob instanceof WindowsFileStore))
-            return false;
-        WindowsFileStore other = (WindowsFileStore)ob;
-        return root.equals(other.root);
+        if (ob instanceof WindowsFileStore other) {
+            if (root.equals(other.root))
+                return true;
+            if (volType == DRIVE_FIXED && other.volumeType() == DRIVE_FIXED)
+                return root.equalsIgnoreCase(other.root);
+        }
+        return false;
     }
 
     @Override
     public int hashCode() {
-        return root.hashCode();
+        int hc = hashCode;
+        if (hc == 0) {
+            hc = (volType == DRIVE_FIXED) ?
+                root.toLowerCase(Locale.ROOT).hashCode() : root.hashCode();
+            hashCode = hc;
+        }
+        return hc;
     }
 
     @Override
@@ -246,4 +270,4 @@ class WindowsFileStore
         sb.append(")");
         return sb.toString();
     }
- }
+}

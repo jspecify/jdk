@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import javax.naming.NamingException;
  * Contains methods for registering/deregistering listeners to be notified of
  * events fired when objects named in a context changes.
  *
- *<h1>Target</h1>
+ *<h2>Target</h2>
  * The name parameter in the {@code addNamingListener()} methods is referred
  * to as the <em>target</em>. The target, along with the scope, identify
  * the object(s) that the listener is interested in.
@@ -59,7 +59,7 @@ import javax.naming.NamingException;
  * whether an {@code EventContext} supports registration
  * of nonexistent targets.
  *
- *<h1>Event Source</h1>
+ *<h2>Event Source</h2>
  * The {@code EventContext} instance on which you invoke the
  * registration methods is the <em>event source</em> of the events that are
  * (potentially) generated.
@@ -93,7 +93,7 @@ import javax.naming.NamingException;
  * it needs to keep a reference to the listener in order to remove it
  * later). It cannot expect to do a {@code lookup()} and get another instance of
  * an {@code EventContext} on which to perform the deregistration.
- *<h1>Lifetime of Registration</h1>
+ *<h2>Lifetime of Registration</h2>
  * A registered listener becomes deregistered when:
  *<ul>
  *<li>It is removed using {@code removeNamingListener()}.
@@ -105,7 +105,7 @@ import javax.naming.NamingException;
  * Until that point, an {@code EventContext} instance that has outstanding
  * listeners will continue to exist and be maintained by the service provider.
  *
- *<h1>Listener Implementations</h1>
+ *<h2>Listener Implementations</h2>
  * The registration/deregistration methods accept an instance of
  * {@code NamingListener}. There are subinterfaces of {@code NamingListener}
  * for different of event types of {@code NamingEvent}.
@@ -118,7 +118,7 @@ import javax.naming.NamingException;
  * of the listeners, this allows some service providers to optimize the
  * registration.
  *
- *<h1>Threading Issues</h1>
+ *<h2>Threading Issues</h2>
  *
  * Like {@code Context} instances in general, instances of
  * {@code EventContext} are not guaranteed to be thread-safe.
@@ -140,7 +140,7 @@ public interface EventContext extends Context {
      *<p>
      * The value of this constant is {@code 0}.
      */
-    public final static int OBJECT_SCOPE = 0;
+    public static final int OBJECT_SCOPE = 0;
 
     /**
      * Constant for expressing interest in events concerning objects
@@ -149,7 +149,7 @@ public interface EventContext extends Context {
      *<p>
      * The value of this constant is {@code 1}.
      */
-    public final static int ONELEVEL_SCOPE = 1;
+    public static final int ONELEVEL_SCOPE = 1;
 
     /**
      * Constant for expressing interest in events concerning objects
@@ -158,7 +158,7 @@ public interface EventContext extends Context {
      *<p>
      * The value of this constant is {@code 2}.
      */
-    public final static int SUBTREE_SCOPE = 2;
+    public static final int SUBTREE_SCOPE = 2;
 
 
     /**
@@ -193,7 +193,7 @@ public interface EventContext extends Context {
      * @param scope One of {@code OBJECT_SCOPE}, {@code ONELEVEL_SCOPE}, or
      * {@code SUBTREE_SCOPE}.
      * @param l  The nonnull listener.
-     * @exception NamingException If a problem was encountered while
+     * @throws NamingException If a problem was encountered while
      * adding the listener.
      * @see #removeNamingListener
      */
@@ -211,7 +211,7 @@ public interface EventContext extends Context {
      * @param scope One of {@code OBJECT_SCOPE}, {@code ONELEVEL_SCOPE}, or
      * {@code SUBTREE_SCOPE}.
      * @param l  The nonnull listener.
-     * @exception NamingException If a problem was encountered while
+     * @throws NamingException If a problem was encountered while
      * adding the listener.
      * @see #removeNamingListener
      */
@@ -231,7 +231,7 @@ public interface EventContext extends Context {
      * this {@code EventContext} instance, this method does not do anything.
      *
      * @param l  The nonnull listener.
-     * @exception NamingException If a problem was encountered while
+     * @throws NamingException If a problem was encountered while
      * removing the listener.
      * @see #addNamingListener
      */
@@ -242,7 +242,7 @@ public interface EventContext extends Context {
      * that does not exist.
      *
      * @return true if the target must exist; false if the target need not exist.
-     * @exception NamingException If the context's behavior in this regard cannot
+     * @throws NamingException If the context's behavior in this regard cannot
      * be determined.
      */
     boolean targetMustExist() throws NamingException;

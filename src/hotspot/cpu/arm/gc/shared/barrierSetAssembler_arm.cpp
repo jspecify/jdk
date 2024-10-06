@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,13 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
+#include "gc/shared/barrierSetNMethod.hpp"
+#include "gc/shared/collectedHeap.hpp"
+#include "memory/universe.hpp"
+#include "runtime/javaThread.hpp"
+#include "runtime/stubRoutines.hpp"
 
 #define __ masm->
 
@@ -35,12 +41,6 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
   case T_OBJECT:
   case T_ARRAY: {
     if (in_heap) {
-#ifdef AARCH64
-      if (UseCompressedOops) {
-        __ ldr_w(dst, src);
-        __ decode_heap_oop(dst);
-      } else
-#endif // AARCH64
       {
         __ ldr(dst, src);
       }
@@ -50,6 +50,39 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
     }
     break;
   }
+  case T_BOOLEAN: __ ldrb      (dst, src); break;
+  case T_BYTE:    __ ldrsb     (dst, src); break;
+  case T_CHAR:    __ ldrh      (dst, src); break;
+  case T_SHORT:   __ ldrsh     (dst, src); break;
+  case T_INT:     __ ldr_s32   (dst, src); break;
+  case T_ADDRESS: __ ldr       (dst, src); break;
+  case T_LONG:
+    assert(dst == noreg, "only to ltos");
+    __ add                     (src.index(), src.index(), src.base());
+    __ ldmia                   (src.index(), RegisterSet(R0_tos_lo) | RegisterSet(R1_tos_hi));
+    break;
+#ifdef __SOFTFP__
+  case T_FLOAT:
+    assert(dst == noreg, "only to ftos");
+    __ ldr                     (R0_tos, src);
+    break;
+  case T_DOUBLE:
+    assert(dst == noreg, "only to dtos");
+    __ add                     (src.index(), src.index(), src.base());
+    __ ldmia                   (src.index(), RegisterSet(R0_tos_lo) | RegisterSet(R1_tos_hi));
+    break;
+#else
+  case T_FLOAT:
+    assert(dst == noreg, "only to ftos");
+    __ add(src.index(), src.index(), src.base());
+    __ ldr_float               (S0_tos, src.index());
+    break;
+  case T_DOUBLE:
+    assert(dst == noreg, "only to dtos");
+    __ add                     (src.index(), src.index(), src.base());
+    __ ldr_double              (D0_tos, src.index());
+    break;
+#endif
   default: Unimplemented();
   }
 
@@ -63,17 +96,8 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
   case T_OBJECT:
   case T_ARRAY: {
     if (in_heap) {
-#ifdef AARCH64
-      if (UseCompressedOops) {
-        assert(!dst.uses(src), "not enough registers");
-        if (!is_null) {
-          __ encode_heap_oop(src);
-        }
-        __ str_w(val, obj);
-      } else
-#endif // AARCH64
       {
-        __ str(val, obj);
+      __ str(val, obj);
       }
     } else {
       assert(in_native, "why else?");
@@ -81,7 +105,108 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
     }
     break;
   }
+  case T_BOOLEAN:
+    __ and_32(val, val, 1);
+    __ strb(val, obj);
+    break;
+  case T_BYTE:    __ strb      (val, obj); break;
+  case T_CHAR:    __ strh      (val, obj); break;
+  case T_SHORT:   __ strh      (val, obj); break;
+  case T_INT:     __ str       (val, obj); break;
+  case T_ADDRESS: __ str       (val, obj); break;
+  case T_LONG:
+    assert(val == noreg, "only tos");
+    __ add                     (obj.index(), obj.index(), obj.base());
+    __ stmia                   (obj.index(), RegisterSet(R0_tos_lo) | RegisterSet(R1_tos_hi));
+    break;
+#ifdef __SOFTFP__
+  case T_FLOAT:
+    assert(val == noreg, "only tos");
+    __ str (R0_tos,  obj);
+    break;
+  case T_DOUBLE:
+    assert(val == noreg, "only tos");
+    __ add                     (obj.index(), obj.index(), obj.base());
+    __ stmia                   (obj.index(), RegisterSet(R0_tos_lo) | RegisterSet(R1_tos_hi));
+    break;
+#else
+  case T_FLOAT:
+    assert(val == noreg, "only tos");
+    __ add                     (obj.index(), obj.index(), obj.base());
+    __ str_float               (S0_tos,  obj.index());
+    break;
+  case T_DOUBLE:
+    assert(val == noreg, "only tos");
+    __ add                     (obj.index(), obj.index(), obj.base());
+    __ str_double              (D0_tos,  obj.index());
+    break;
+#endif
   default: Unimplemented();
   }
 }
 
+// Puts address of allocated object into register `obj` and end of allocated object into register `obj_end`.
+void BarrierSetAssembler::tlab_allocate(MacroAssembler* masm, Register obj, Register obj_end, Register tmp1,
+                                 RegisterOrConstant size_expression, Label& slow_case) {
+  const Register tlab_end = tmp1;
+  assert_different_registers(obj, obj_end, tlab_end);
+
+  __ ldr(obj, Address(Rthread, JavaThread::tlab_top_offset()));
+  __ ldr(tlab_end, Address(Rthread, JavaThread::tlab_end_offset()));
+  __ add_rc(obj_end, obj, size_expression);
+  __ cmp(obj_end, tlab_end);
+  __ b(slow_case, hi);
+  __ str(obj_end, Address(Rthread, JavaThread::tlab_top_offset()));
+}
+
+void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm) {
+
+  BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+
+  Register tmp0 = Rtemp;
+  Register tmp1 = R5; // must be callee-save register
+
+  if (bs_nm == nullptr) {
+    return;
+  }
+
+  // The are no GCs that require memory barrier on arm32 now
+#ifdef ASSERT
+  NMethodPatchingType patching_type = nmethod_patching_type();
+  assert(patching_type == NMethodPatchingType::stw_instruction_and_data_patch, "Unsupported patching type");
+#endif
+
+  Label skip, guard;
+  Address thread_disarmed_addr(Rthread, in_bytes(bs_nm->thread_disarmed_guard_value_offset()));
+
+  __ block_comment("nmethod_barrier begin");
+  __ ldr_label(tmp0, guard);
+
+  // No memory barrier here
+  __ ldr(tmp1, thread_disarmed_addr);
+  __ cmp(tmp0, tmp1);
+  __ b(skip, eq);
+
+  __ mov_address(tmp0, StubRoutines::method_entry_barrier());
+  __ call(tmp0);
+  __ b(skip);
+
+  __ bind(guard);
+
+  // nmethod guard value. Skipped over in common case.
+  //
+  // Put a debug value to make any offsets skew
+  // clearly visible in coredump
+  __ emit_int32(0xDEADBEAF);
+
+  __ bind(skip);
+  __ block_comment("nmethod_barrier end");
+}
+
+#ifdef COMPILER2
+
+OptoReg::Name BarrierSetAssembler::refine_register(const Node* node, OptoReg::Name opto_reg) {
+  Unimplemented(); // This must be implemented to support late barrier expansion.
+}
+
+#endif // COMPILER2

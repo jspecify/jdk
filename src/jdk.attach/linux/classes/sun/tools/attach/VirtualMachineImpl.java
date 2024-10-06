@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,6 @@
  */
 package sun.tools.attach;
 
-import com.sun.tools.attach.AttachOperationFailedException;
 import com.sun.tools.attach.AgentLoadException;
 import com.sun.tools.attach.AttachNotSupportedException;
 import com.sun.tools.attach.spi.AttachProvider;
@@ -32,14 +31,16 @@ import com.sun.tools.attach.spi.AttachProvider;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.Files;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /*
  * Linux implementation of HotSpotVirtualMachine
  */
+@SuppressWarnings("restricted")
 public class VirtualMachineImpl extends HotSpotVirtualMachine {
     // "/tmp" is used as a global well-known location for the files
     // .java_pid<pid>. and .attach_pid<pid>. It is important that this
@@ -57,11 +58,9 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
         super(provider, vmid);
 
         // This provider only understands pids
-        int pid;
-        try {
-            pid = Integer.parseInt(vmid);
-        } catch (NumberFormatException x) {
-            throw new AttachNotSupportedException("Invalid process identifier");
+        int pid = Integer.parseInt(vmid);
+        if (pid < 1) {
+            throw new AttachNotSupportedException("Invalid process identifier: " + vmid);
         }
 
         // Try to resolve to the "inner most" pid namespace
@@ -73,7 +72,8 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
         File socket_file = findSocketFile(pid, ns_pid);
         socket_path = socket_file.getPath();
         if (!socket_file.exists()) {
-            File f = createAttachFile(pid, ns_pid);
+            // Keep canonical version of File, to delete, in case target process ends and /proc link has gone:
+            File f = createAttachFile(pid, ns_pid).getCanonicalFile();
             try {
                 sendQuitTo(pid);
 
@@ -134,16 +134,14 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
     }
 
     // protocol version
-    private final static String PROTOCOL_VERSION = "1";
-
-    // known errors
-    private final static int ATTACH_ERROR_BADVERSION = 101;
+    private static final String PROTOCOL_VERSION = "1";
 
     /**
      * Execute the given command in the target VM.
      */
     InputStream execute(String cmd, Object ... args) throws AgentLoadException, IOException {
         assert args.length <= 3;                // includes null
+        checkNulls(args);
 
         // did we detach?
         synchronized (this) {
@@ -171,7 +169,7 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
             writeString(s, PROTOCOL_VERSION);
             writeString(s, cmd);
 
-            for (int i=0; i<3; i++) {
+            for (int i = 0; i < 3; i++) {
                 if (i < args.length && args[i] != null) {
                     writeString(s, (String)args[i]);
                 } else {
@@ -184,46 +182,10 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
 
 
         // Create an input stream to read reply
-        SocketInputStream sis = new SocketInputStream(s);
+        SocketInputStreamImpl sis = new SocketInputStreamImpl(s);
 
-        // Read the command completion status
-        int completionStatus;
-        try {
-            completionStatus = readInt(sis);
-        } catch (IOException x) {
-            sis.close();
-            if (ioe != null) {
-                throw ioe;
-            } else {
-                throw x;
-            }
-        }
-
-        if (completionStatus != 0) {
-            // read from the stream and use that as the error message
-            String message = readErrorMessage(sis);
-            sis.close();
-
-            // In the event of a protocol mismatch then the target VM
-            // returns a known error so that we can throw a reasonable
-            // error.
-            if (completionStatus == ATTACH_ERROR_BADVERSION) {
-                throw new IOException("Protocol mismatch with target VM");
-            }
-
-            // Special-case the "load" command so that the right exception is
-            // thrown.
-            if (cmd.equals("load")) {
-                String msg = "Failed to load agent library";
-                if (!message.isEmpty())
-                    msg += ": " + message;
-                throw new AgentLoadException(msg);
-            } else {
-                if (message.isEmpty())
-                    message = "Command failed in target VM";
-                throw new AttachOperationFailedException(message);
-            }
-        }
+        // Process the command completion status
+        processCompletionStatus(ioe, cmd, sis);
 
         // Return the input stream so that the command output can be read
         return sis;
@@ -232,45 +194,25 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
     /*
      * InputStream for the socket connection to get target VM
      */
-    private class SocketInputStream extends InputStream {
-        int s;
-
-        public SocketInputStream(int s) {
-            this.s = s;
+    private static class SocketInputStreamImpl extends SocketInputStream {
+        public SocketInputStreamImpl(long fd) {
+            super(fd);
         }
 
-        public synchronized int read() throws IOException {
-            byte b[] = new byte[1];
-            int n = this.read(b, 0, 1);
-            if (n == 1) {
-                return b[0] & 0xff;
-            } else {
-                return -1;
-            }
+        @Override
+        protected int read(long fd, byte[] bs, int off, int len) throws IOException {
+            return VirtualMachineImpl.read((int)fd, bs, off, len);
         }
 
-        public synchronized int read(byte[] bs, int off, int len) throws IOException {
-            if ((off < 0) || (off > bs.length) || (len < 0) ||
-                ((off + len) > bs.length) || ((off + len) < 0)) {
-                throw new IndexOutOfBoundsException();
-            } else if (len == 0) {
-                return 0;
-            }
-
-            return VirtualMachineImpl.read(s, bs, off, len);
-        }
-
-        public void close() throws IOException {
-            VirtualMachineImpl.close(s);
+        @Override
+        protected void close(long fd) throws IOException {
+            VirtualMachineImpl.close((int)fd);
         }
     }
 
     // Return the socket file for the given process.
-    private File findSocketFile(int pid, int ns_pid) {
-        // A process may not exist in the same mount namespace as the caller.
-        // Instead, attach relative to the target root filesystem as exposed by
-        // procfs regardless of namespaces.
-        String root = "/proc/" + pid + "/root/" + tmpdir;
+    private File findSocketFile(int pid, int ns_pid) throws IOException {
+        String root = findTargetProcessTmpDirectory(pid, ns_pid);
         return new File(root, ".java_pid" + ns_pid);
     }
 
@@ -283,21 +225,35 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
         String path = "/proc/" + pid + "/cwd/" + fn;
         File f = new File(path);
         try {
+            // Do not canonicalize the file path, or we will fail to attach to a VM in a container.
             f.createNewFile();
         } catch (IOException x) {
-            String root;
-            if (pid != ns_pid) {
-                // A process may not exist in the same mount namespace as the caller.
-                // Instead, attach relative to the target root filesystem as exposed by
-                // procfs regardless of namespaces.
-                root = "/proc/" + pid + "/root/" + tmpdir;
-            } else {
-                root = tmpdir;
-            }
+            String root = findTargetProcessTmpDirectory(pid, ns_pid);
             f = new File(root, fn);
             f.createNewFile();
         }
         return f;
+    }
+
+    private String findTargetProcessTmpDirectory(int pid, int ns_pid) throws IOException {
+        String root;
+        if (pid != ns_pid) {
+            // A process may not exist in the same mount namespace as the caller, e.g.
+            // if we are trying to attach to a JVM process inside a container.
+            // Instead, attach relative to the target root filesystem as exposed by
+            // procfs regardless of namespaces.
+            String procRootDirectory = "/proc/" + pid + "/root";
+            if (!Files.isReadable(Path.of(procRootDirectory))) {
+                throw new IOException(
+                        String.format("Unable to access root directory %s " +
+                          "of target process %d", procRootDirectory, pid));
+            }
+
+            root = procRootDirectory + "/" + tmpdir;
+        } else {
+            root = tmpdir;
+        }
+        return root;
     }
 
     /*
@@ -306,12 +262,7 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
      */
     private void writeString(int fd, String s) throws IOException {
         if (s.length() > 0) {
-            byte b[];
-            try {
-                b = s.getBytes("UTF-8");
-            } catch (java.io.UnsupportedEncodingException x) {
-                throw new InternalError(x);
-            }
+            byte[] b = s.getBytes(UTF_8);
             VirtualMachineImpl.write(fd, b, 0, b.length);
         }
         byte b[] = new byte[1];
@@ -334,7 +285,7 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
         Path statusPath = Paths.get(statusFile);
 
         try {
-            for (String line : Files.readAllLines(statusPath, StandardCharsets.UTF_8)) {
+            for (String line : Files.readAllLines(statusPath)) {
                 String[] parts = line.split(":");
                 if (parts.length == 2 && parts[0].trim().equals("NSpid")) {
                     parts = parts[1].trim().split("\\s+");

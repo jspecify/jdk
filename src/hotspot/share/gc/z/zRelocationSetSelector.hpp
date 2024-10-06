@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,60 +25,126 @@
 #define SHARE_GC_Z_ZRELOCATIONSETSELECTOR_HPP
 
 #include "gc/z/zArray.hpp"
+#include "gc/z/zGenerationId.hpp"
+#include "gc/z/zPageAge.hpp"
+#include "gc/z/zPageType.hpp"
 #include "memory/allocation.hpp"
 
 class ZPage;
-class ZRelocationSet;
+
+class ZRelocationSetSelectorGroupStats {
+  friend class ZRelocationSetSelectorGroup;
+
+private:
+  // Candidate set
+  size_t _npages_candidates;
+  size_t _total;
+  size_t _live;
+  size_t _empty;
+
+  // Selected set
+  size_t _npages_selected;
+  size_t _relocate;
+
+public:
+  ZRelocationSetSelectorGroupStats();
+
+  size_t npages_candidates() const;
+  size_t total() const;
+  size_t live() const;
+  size_t empty() const;
+
+  size_t npages_selected() const;
+  size_t relocate() const;
+};
+
+class ZRelocationSetSelectorStats {
+  friend class ZRelocationSetSelector;
+
+private:
+  ZRelocationSetSelectorGroupStats _small[ZPageAgeMax + 1];
+  ZRelocationSetSelectorGroupStats _medium[ZPageAgeMax + 1];
+  ZRelocationSetSelectorGroupStats _large[ZPageAgeMax + 1];
+
+  size_t _has_relocatable_pages;
+
+public:
+  const ZRelocationSetSelectorGroupStats& small(ZPageAge age) const;
+  const ZRelocationSetSelectorGroupStats& medium(ZPageAge age) const;
+  const ZRelocationSetSelectorGroupStats& large(ZPageAge age) const;
+
+  bool has_relocatable_pages() const;
+};
 
 class ZRelocationSetSelectorGroup {
 private:
-  const char* const    _name;
-  const size_t         _page_size;
-  const size_t         _object_size_limit;
-  const size_t         _fragmentation_limit;
+  const char* const                _name;
+  const ZPageType                  _page_type;
+  const size_t                     _page_size;
+  const size_t                     _object_size_limit;
+  const double                     _fragmentation_limit;
+  const size_t                     _page_fragmentation_limit;
+  ZArray<ZPage*>                   _live_pages;
+  ZArray<ZPage*>                   _not_selected_pages;
+  size_t                           _forwarding_entries;
+  ZRelocationSetSelectorGroupStats _stats[ZPageAgeMax + 1];
 
-  ZArray<const ZPage*> _registered_pages;
-  const ZPage**        _sorted_pages;
-  size_t               _nselected;
-  size_t               _relocating;
-  size_t               _fragmentation;
-
+  bool is_disabled();
+  bool is_selectable();
   void semi_sort();
+  void select_inner();
 
 public:
   ZRelocationSetSelectorGroup(const char* name,
+                              ZPageType page_type,
                               size_t page_size,
-                              size_t object_size_limit);
-  ~ZRelocationSetSelectorGroup();
+                              size_t object_size_limit,
+                              double fragmentation_limit);
 
-  void register_live_page(const ZPage* page, size_t garbage);
+  void register_live_page(ZPage* page);
+  void register_empty_page(ZPage* page);
   void select();
 
-  const ZPage* const* selected() const;
-  size_t nselected() const;
-  size_t relocating() const;
-  size_t fragmentation() const;
+  const ZArray<ZPage*>* live_pages() const;
+  const ZArray<ZPage*>* selected_pages() const;
+  const ZArray<ZPage*>* not_selected_pages() const;
+  size_t forwarding_entries() const;
+
+  const ZRelocationSetSelectorGroupStats& stats(ZPageAge age) const;
 };
 
 class ZRelocationSetSelector : public StackObj {
 private:
   ZRelocationSetSelectorGroup _small;
   ZRelocationSetSelectorGroup _medium;
-  size_t                      _live;
-  size_t                      _garbage;
-  size_t                      _fragmentation;
+  ZRelocationSetSelectorGroup _large;
+  ZArray<ZPage*>              _empty_pages;
+
+  size_t total() const;
+  size_t empty() const;
+  size_t relocate() const;
 
 public:
-  ZRelocationSetSelector();
+  ZRelocationSetSelector(double fragmentation_limit);
 
-  void register_live_page(const ZPage* page);
-  void register_garbage_page(const ZPage* page);
-  void select(ZRelocationSet* relocation_set);
+  void register_live_page(ZPage* page);
+  void register_empty_page(ZPage* page);
 
-  size_t live() const;
-  size_t garbage() const;
-  size_t relocating() const;
-  size_t fragmentation() const;
+  bool should_free_empty_pages(int bulk) const;
+  const ZArray<ZPage*>* empty_pages() const;
+  void clear_empty_pages();
+
+  void select();
+
+  const ZArray<ZPage*>* selected_small() const;
+  const ZArray<ZPage*>* selected_medium() const;
+
+  const ZArray<ZPage*>* not_selected_small() const;
+  const ZArray<ZPage*>* not_selected_medium() const;
+  const ZArray<ZPage*>* not_selected_large() const;
+  size_t forwarding_entries() const;
+
+  ZRelocationSetSelectorStats stats() const;
 };
 
 #endif // SHARE_GC_Z_ZRELOCATIONSETSELECTOR_HPP

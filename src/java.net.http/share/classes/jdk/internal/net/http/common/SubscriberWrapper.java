@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,7 @@
 package jdk.internal.net.http.common;
 
 import java.io.Closeable;
-import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -76,7 +74,7 @@ public abstract class SubscriberWrapper
     private final CompletableFuture<Void> cf;
     private final SequentialScheduler pushScheduler;
     private final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-    final AtomicLong upstreamWindow = new AtomicLong(0);
+    final AtomicLong upstreamWindow = new AtomicLong();
 
     /**
      * Wraps the given downstream subscriber. For each call to {@link
@@ -98,7 +96,7 @@ public abstract class SubscriberWrapper
                 errorCommon(t);
         });
         this.pushScheduler =
-                SequentialScheduler.synchronizedScheduler(new DownstreamPusher());
+                SequentialScheduler.lockingScheduler(new DownstreamPusher());
         this.downstreamSubscription = new SubscriptionBase(pushScheduler,
                                                            this::downstreamCompletion);
     }
@@ -284,7 +282,7 @@ public abstract class SubscriberWrapper
             // If there was an error, send it downstream.
             Throwable error = errorRef.get();
             if (error != null && outputQ.isEmpty()) {
-                synchronized(this) {
+                synchronized (this) {
                     if (downstreamCompleted)
                         return;
                     downstreamCompleted = true;
@@ -318,12 +316,35 @@ public abstract class SubscriberWrapper
                 downstreamSubscriber.onNext(b);
                 datasent = true;
             }
-            if (datasent) upstreamWindowUpdate();
+
+            // If we have sent some decrypted data downstream,
+            // or if:
+            //    - there's nothing more available to send downstream
+            //    - and we still have some demand from downstream
+            //    - and upstream is not completed yet
+            //    - and our demand from upstream has reached 0,
+            // then check whether we should request more data from
+            // upstream
+            if (datasent || outputQ.isEmpty()
+                    && !downstreamSubscription.demand.isFulfilled()
+                    && !upstreamCompleted
+                    && upstreamWindow.get() == 0) {
+                upstreamWindowUpdate();
+            }
             checkCompletion();
         }
     }
 
+    final int outputQueueSize() {
+        return outputQ.size();
+    }
+
+    final boolean hasNoOutputData() {
+        return outputQ.isEmpty();
+    }
+
     void upstreamWindowUpdate() {
+        if (pushScheduler.isStopped()) return;
         long downstreamQueueSize = outputQ.size();
         long upstreamWindowSize = upstreamWindow.get();
         long n = upstreamWindowUpdate(upstreamWindowSize, downstreamQueueSize);
@@ -341,7 +362,7 @@ public abstract class SubscriberWrapper
             throw new IllegalStateException("Single shot publisher");
         }
         this.upstreamSubscription = subscription;
-        upstreamRequest(upstreamWindowUpdate(0, 0));
+        upstreamRequest(initialUpstreamDemand());
         if (debug.on())
             debug.log("calling downstreamSubscriber::onSubscribe on %s",
                       downstreamSubscriber);
@@ -356,13 +377,23 @@ public abstract class SubscriberWrapper
         if (prev <= 0)
             throw new IllegalStateException("invalid onNext call");
         incomingCaller(item, false);
-        upstreamWindowUpdate();
     }
 
     private void upstreamRequest(long n) {
+        if (pushScheduler.isStopped()) return;
         if (debug.on()) debug.log("requesting %d", n);
         upstreamWindow.getAndAdd(n);
         upstreamSubscription.request(n);
+    }
+
+    /**
+     * Initial demand that should be requested
+     * from upstream when we get the upstream subscription
+     * from {@link #onSubscribe(Flow.Subscription)}.
+     * @return The initial demand to request from upstream.
+     */
+    protected long initialUpstreamDemand() {
+        return 1;
     }
 
     protected void requestMore() {
@@ -461,14 +492,15 @@ public abstract class SubscriberWrapper
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("SubscriberWrapper:")
-          .append(" upstreamCompleted: ").append(Boolean.toString(upstreamCompleted))
-          .append(" upstreamWindow: ").append(upstreamWindow.toString())
-          .append(" downstreamCompleted: ").append(Boolean.toString(downstreamCompleted))
-          .append(" completionAcknowledged: ").append(Boolean.toString(completionAcknowledged))
-          .append(" outputQ size: ").append(Integer.toString(outputQ.size()))
+          .append(" upstreamCompleted: ").append(upstreamCompleted)
+          .append(" upstreamWindow: ").append(upstreamWindow)
+          .append(" downstreamCompleted: ").append(downstreamCompleted)
+          .append(" completionAcknowledged: ").append(completionAcknowledged)
+          .append(" outputQ size: ").append(outputQ.size())
           //.append(" outputQ: ").append(outputQ.toString())
-          .append(" cf: ").append(cf.toString())
-          .append(" downstreamSubscription: ").append(downstreamSubscription.toString());
+          .append(" cf: ").append(cf)
+          .append(" downstreamSubscription: ").append(downstreamSubscription)
+          .append(" downstreamSubscriber: ").append(downstreamSubscriber);
 
         return sb.toString();
     }

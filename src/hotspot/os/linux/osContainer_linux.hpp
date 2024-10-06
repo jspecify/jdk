@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,31 +22,42 @@
  *
  */
 
-#ifndef OS_LINUX_VM_OSCONTAINER_LINUX_HPP
-#define OS_LINUX_VM_OSCONTAINER_LINUX_HPP
+#ifndef OS_LINUX_OSCONTAINER_LINUX_HPP
+#define OS_LINUX_OSCONTAINER_LINUX_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
-#include "memory/allocation.hpp"
+#include "utilities/ostream.hpp"
+#include "memory/allStatic.hpp"
 
 #define OSCONTAINER_ERROR (-2)
+
+// 20ms timeout between re-reads of memory limit and _active_processor_count.
+#define OSCONTAINER_CACHE_TIMEOUT (NANOSECS_PER_SEC/50)
 
 class OSContainer: AllStatic {
 
  private:
   static bool   _is_initialized;
   static bool   _is_containerized;
+  static int    _active_processor_count;
 
  public:
   static void init();
+  static void print_version_specific_info(outputStream* st);
+  static void print_container_helper(outputStream* st, jlong j, const char* metrics);
+
   static inline bool is_containerized();
   static const char * container_type();
 
   static jlong memory_limit_in_bytes();
   static jlong memory_and_swap_limit_in_bytes();
+  static jlong memory_and_swap_usage_in_bytes();
   static jlong memory_soft_limit_in_bytes();
   static jlong memory_usage_in_bytes();
   static jlong memory_max_usage_in_bytes();
+  static jlong rss_usage_in_bytes();
+  static jlong cache_usage_in_bytes();
 
   static int active_processor_count();
 
@@ -58,11 +69,12 @@ class OSContainer: AllStatic {
 
   static int cpu_shares();
 
+  static jlong pids_max();
+  static jlong pids_current();
 };
 
 inline bool OSContainer::is_containerized() {
-  assert(_is_initialized, "OSContainer not initialized");
   return _is_containerized;
 }
 
-#endif // OS_LINUX_VM_OSCONTAINER_LINUX_HPP
+#endif // OS_LINUX_OSCONTAINER_LINUX_HPP

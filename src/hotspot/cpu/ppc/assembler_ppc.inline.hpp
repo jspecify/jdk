@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,13 @@
  *
  */
 
-#ifndef CPU_PPC_VM_ASSEMBLER_PPC_INLINE_HPP
-#define CPU_PPC_VM_ASSEMBLER_PPC_INLINE_HPP
+#ifndef CPU_PPC_ASSEMBLER_PPC_INLINE_HPP
+#define CPU_PPC_ASSEMBLER_PPC_INLINE_HPP
 
 #include "asm/assembler.inline.hpp"
 #include "asm/codeBuffer.hpp"
 #include "code/codeCache.hpp"
+#include "runtime/vm_version.hpp"
 
 inline void Assembler::emit_int32(int x) {
   AbstractAssembler::emit_int32(x);
@@ -57,7 +58,7 @@ inline address Assembler::emit_addr(const address addr) {
 
 #if !defined(ABI_ELFv2)
 // Emit a function descriptor with the specified entry point, TOC, and
-// ENV. If the entry point is NULL, the descriptor will point just
+// ENV. If the entry point is null, the descriptor will point just
 // past the descriptor.
 inline address Assembler::emit_fd(address entry, address toc, address env) {
   FunctionDescriptor* fd = (FunctionDescriptor*)pc();
@@ -68,7 +69,7 @@ inline address Assembler::emit_fd(address entry, address toc, address env) {
   (void)emit_addr();
   (void)emit_addr();
 
-  fd->set_entry(entry == NULL ? pc() : entry);
+  fd->set_entry(entry == nullptr ? pc() : entry);
   fd->set_toc(toc);
   fd->set_env(env);
 
@@ -78,7 +79,7 @@ inline address Assembler::emit_fd(address entry, address toc, address env) {
 
 // Issue an illegal instruction. 0 is guaranteed to be an illegal instruction.
 inline void Assembler::illtrap() { Assembler::emit_int32(0); }
-inline bool Assembler::is_illtrap(int x) { return x == 0; }
+inline bool Assembler::is_illtrap(address instr_addr) { return *(uint32_t*)instr_addr == 0u; }
 
 // PPC 1, section 3.3.8, Fixed-Point Arithmetic Instructions
 inline void Assembler::addi(   Register d, Register a, int si16)   { assert(a != R0, "r0 not allowed"); addi_r0ok( d, a, si16); }
@@ -127,6 +128,26 @@ inline void Assembler::divd(   Register d, Register a, Register b) { emit_int32(
 inline void Assembler::divd_(  Register d, Register a, Register b) { emit_int32(DIVD_OPCODE   | rt(d) | ra(a) | rb(b) | oe(0) | rc(1)); }
 inline void Assembler::divw(   Register d, Register a, Register b) { emit_int32(DIVW_OPCODE   | rt(d) | ra(a) | rb(b) | oe(0) | rc(0)); }
 inline void Assembler::divw_(  Register d, Register a, Register b) { emit_int32(DIVW_OPCODE   | rt(d) | ra(a) | rb(b) | oe(0) | rc(1)); }
+inline void Assembler::divdu(  Register d, Register a, Register b) { emit_int32(DIVDU_OPCODE  | rt(d) | ra(a) | rb(b) | oe(0) | rc(0)); }
+inline void Assembler::divdu_( Register d, Register a, Register b) { emit_int32(DIVDU_OPCODE  | rt(d) | ra(a) | rb(b) | oe(0) | rc(1)); }
+inline void Assembler::divwu(  Register d, Register a, Register b) { emit_int32(DIVWU_OPCODE  | rt(d) | ra(a) | rb(b) | oe(0) | rc(0)); }
+inline void Assembler::divwu_( Register d, Register a, Register b) { emit_int32(DIVWU_OPCODE  | rt(d) | ra(a) | rb(b) | oe(0) | rc(1)); }
+
+// Prefixed instructions, introduced by POWER10
+inline void Assembler::paddi(Register d, Register a, long si34, bool r = false) {
+  assert(a != R0 || r, "r0 not allowed, unless R is set (CIA relative)");
+  paddi_r0ok( d, a, si34, r);
+}
+
+inline void Assembler::paddi_r0ok(Register d, Register a, long si34, bool r = false) {
+  emit_int32(PADDI_PREFIX_OPCODE | r_eo(r) | d0_eo(si34));
+  emit_int32(PADDI_SUFFIX_OPCODE | rt(d)   | ra(a)   | d1_eo(si34));
+}
+
+inline void Assembler::xxpermx( VectorSRegister d, VectorSRegister a, VectorSRegister b, VectorSRegister c, int ui3) {
+  emit_int32(XXPERMX_PREFIX_OPCODE | uimm(ui3, 3));
+  emit_int32(XXPERMX_SUFFIX_OPCODE | vsrt(d) | vsra(a) | vsrb(b) | vsrc(c));
+}
 
 // Fixed-Point Arithmetic Instructions with Overflow detection
 inline void Assembler::addo(    Register d, Register a, Register b) { emit_int32(ADD_OPCODE    | rt(d) | ra(a) | rb(b) | oe(1) | rc(0)); }
@@ -166,11 +187,16 @@ inline void Assembler::lis(  Register d, int si16)             { Assembler::addi
 inline void Assembler::addir(Register d, int si16, Register a) { Assembler::addi(d, a, si16); }
 inline void Assembler::subi( Register d, Register a, int si16) { Assembler::addi(d, a, -si16); }
 
+// Prefixed instructions, introduced by POWER10
+inline void Assembler::pli(Register d, long si34) { Assembler::paddi_r0ok( d, R0, si34, false); }
+
 // PPC 1, section 3.3.9, Fixed-Point Compare Instructions
 inline void Assembler::cmpi(  ConditionRegister f, int l, Register a, int si16)   { emit_int32( CMPI_OPCODE  | bf(f) | l10(l) | ra(a) | simm(si16,16)); }
 inline void Assembler::cmp(   ConditionRegister f, int l, Register a, Register b) { emit_int32( CMP_OPCODE   | bf(f) | l10(l) | ra(a) | rb(b)); }
 inline void Assembler::cmpli( ConditionRegister f, int l, Register a, int ui16)   { emit_int32( CMPLI_OPCODE | bf(f) | l10(l) | ra(a) | uimm(ui16,16)); }
 inline void Assembler::cmpl(  ConditionRegister f, int l, Register a, Register b) { emit_int32( CMPL_OPCODE  | bf(f) | l10(l) | ra(a) | rb(b)); }
+inline void Assembler::cmprb( ConditionRegister f, int l, Register a, Register b) { emit_int32( CMPRB_OPCODE | bf(f) | l10(l) | ra(a) | rb(b)); }
+inline void Assembler::cmpeqb(ConditionRegister f, Register a, Register b)        { emit_int32( CMPEQB_OPCODE| bf(f) | ra(a)  | rb(b)); }
 
 // extended mnemonics of Compare Instructions
 inline void Assembler::cmpwi( ConditionRegister crx, Register a, int si16)   { Assembler::cmpi( crx, 0, a, si16); }
@@ -235,6 +261,10 @@ inline void Assembler::cntlzw(  Register a, Register s)              { emit_int3
 inline void Assembler::cntlzw_( Register a, Register s)              { emit_int32(CNTLZW_OPCODE | rta(a) | rs(s) | rc(1)); }
 inline void Assembler::cntlzd(  Register a, Register s)              { emit_int32(CNTLZD_OPCODE | rta(a) | rs(s) | rc(0)); }
 inline void Assembler::cntlzd_( Register a, Register s)              { emit_int32(CNTLZD_OPCODE | rta(a) | rs(s) | rc(1)); }
+inline void Assembler::cnttzw(  Register a, Register s)              { emit_int32(CNTTZW_OPCODE | rta(a) | rs(s) | rc(0)); }
+inline void Assembler::cnttzw_( Register a, Register s)              { emit_int32(CNTTZW_OPCODE | rta(a) | rs(s) | rc(1)); }
+inline void Assembler::cnttzd(  Register a, Register s)              { emit_int32(CNTTZD_OPCODE | rta(a) | rs(s) | rc(0)); }
+inline void Assembler::cnttzd_( Register a, Register s)              { emit_int32(CNTTZD_OPCODE | rta(a) | rs(s) | rc(1)); }
 
 // PPC 1, section 3.3.12, Fixed-Point Rotate and Shift Instructions
 inline void Assembler::sld(     Register a, Register s, Register b)  { emit_int32(SLD_OPCODE    | rta(a) | rs(s) | rb(b) | rc(0)); }
@@ -281,6 +311,11 @@ inline void Assembler::testbitdi(ConditionRegister cr, Register a, Register s, i
   }
 }
 
+// Byte reverse instructions (introduced with Power10)
+inline void Assembler::brh(Register a, Register s) { emit_int32(BRH_OPCODE | rta(a) | rs(s)); }
+inline void Assembler::brw(Register a, Register s) { emit_int32(BRW_OPCODE | rta(a) | rs(s)); }
+inline void Assembler::brd(Register a, Register s) { emit_int32(BRD_OPCODE | rta(a) | rs(s)); }
+
 // rotate instructions
 inline void Assembler::rotldi( Register a, Register s, int n) { Assembler::rldicl(a, s, n, 0); }
 inline void Assembler::rotrdi( Register a, Register s, int n) { Assembler::rldicl(a, s, 64-n, 0); }
@@ -326,12 +361,13 @@ inline void Assembler::lbz(  Register d, int si16,    Register s1) { emit_int32(
 inline void Assembler::lbzu( Register d, int si16,    Register s1) { assert(d != s1, "according to ibm manual"); emit_int32(LBZU_OPCODE | rt(d) | d1(si16) | rta0mem(s1));}
 
 inline void Assembler::ld(   Register d, int si16,    Register s1) { emit_int32(LD_OPCODE  | rt(d) | ds(si16)   | ra0mem(s1));}
+inline void Assembler::ld(   Register d, ByteSize si16, Register s1) { assert(in_bytes(si16) < 0x7fff, "overflow"); ld(d, in_bytes(si16), s1); }
 inline void Assembler::ldx(  Register d, Register s1, Register s2) { emit_int32(LDX_OPCODE | rt(d) | ra0mem(s1) | rb(s2));}
 inline void Assembler::ldu(  Register d, int si16,    Register s1) { assert(d != s1, "according to ibm manual"); emit_int32(LDU_OPCODE | rt(d) | ds(si16) | rta0mem(s1));}
 inline void Assembler::ldbrx( Register d, Register s1, Register s2) { emit_int32(LDBRX_OPCODE | rt(d) | ra0mem(s1) | rb(s2));}
 
 inline void Assembler::ld_ptr(Register d, int b, Register s1) { ld(d, b, s1); }
-DEBUG_ONLY(inline void Assembler::ld_ptr(Register d, ByteSize b, Register s1) { ld(d, in_bytes(b), s1); })
+inline void Assembler::ld_ptr(Register d, ByteSize b, Register s1) { ld(d, in_bytes(b), s1); }
 
 //  PPC 1, section 3.3.3 Fixed-Point Store Instructions
 inline void Assembler::stwx( Register d, Register s1, Register s2) { emit_int32(STWX_OPCODE | rs(d) | ra0mem(s1) | rb(s2));}
@@ -355,7 +391,7 @@ inline void Assembler::stdux(Register s, Register a,  Register b)  { emit_int32(
 inline void Assembler::stdbrx( Register d, Register s1, Register s2) { emit_int32(STDBRX_OPCODE | rs(d) | ra0mem(s1) | rb(s2));}
 
 inline void Assembler::st_ptr(Register d, int b, Register s1) { std(d, b, s1); }
-DEBUG_ONLY(inline void Assembler::st_ptr(Register d, ByteSize b, Register s1) { std(d, in_bytes(b), s1); })
+inline void Assembler::st_ptr(Register d, ByteSize b, Register s1) { std(d, in_bytes(b), s1); }
 
 // PPC 1, section 3.3.13 Move To/From System Register Instructions
 inline void Assembler::mtlr( Register s1)         { emit_int32(MTLR_OPCODE  | rs(s1)); }
@@ -367,6 +403,27 @@ inline void Assembler::mfcr( Register d )         { emit_int32(MFCR_OPCODE  | rt
 inline void Assembler::mcrf( ConditionRegister crd, ConditionRegister cra)
                                                       { emit_int32(MCRF_OPCODE | bf(crd) | bfa(cra)); }
 inline void Assembler::mtcr( Register s)          { Assembler::mtcrf(0xff, s); }
+// Introduced in Power 9:
+inline void Assembler::mcrxrx(ConditionRegister cra)
+                                                  { emit_int32(MCRXRX_OPCODE | bf(cra)); }
+inline void Assembler::setb(Register d, ConditionRegister cra)
+                                                  { emit_int32(SETB_OPCODE | rt(d) | bfa(cra)); }
+
+inline void Assembler::setbc(Register d, int biint)
+                                                  { emit_int32(SETBC_OPCODE | rt(d) | bi(biint)); }
+inline void Assembler::setbc(Register d, ConditionRegister cr, Condition cc) {
+  setbc(d, bi0(cr, cc));
+}
+inline void Assembler::setnbc(Register d, int biint)
+                                                  { emit_int32(SETNBC_OPCODE | rt(d) | bi(biint)); }
+inline void Assembler::setnbc(Register d, ConditionRegister cr, Condition cc) {
+  setnbc(d, bi0(cr, cc));
+}
+inline void Assembler::setbcr(Register d, int biint)
+                                                  { emit_int32(SETBCR_OPCODE | rt(d) | bi(biint)); }
+inline void Assembler::setbcr(Register d, ConditionRegister cr, Condition cc) {
+  setbcr(d, bi0(cr, cc));
+}
 
 // Special purpose registers
 // Exception Register
@@ -381,13 +438,7 @@ inline void Assembler::mftb(Register d )          { emit_int32(MFTB_OPCODE  | rt
 // Data Stream Control Register
 inline void Assembler::mtdscr(Register s1)        { emit_int32(MTDSCR_OPCODE | rs(s1)); }
 inline void Assembler::mfdscr(Register d )        { emit_int32(MFDSCR_OPCODE | rt(d)); }
-// Transactional Memory Registers
-inline void Assembler::mftfhar(Register d )       { emit_int32(MFTFHAR_OPCODE   | rt(d)); }
-inline void Assembler::mftfiar(Register d )       { emit_int32(MFTFIAR_OPCODE   | rt(d)); }
-inline void Assembler::mftexasr(Register d )      { emit_int32(MFTEXASR_OPCODE  | rt(d)); }
-inline void Assembler::mftexasru(Register d )     { emit_int32(MFTEXASRU_OPCODE | rt(d)); }
 
-// SAP JVM 2006-02-13 PPC branch instruction.
 // PPC 1, section 2.4.1 Branch Instructions
 inline void Assembler::b( address a, relocInfo::relocType rt) { emit_data(BXX_OPCODE| li(disp( intptr_t(a), intptr_t(pc()))) |aa(0)|lk(0), rt); }
 inline void Assembler::b( Label& L)                           { b( target(L)); }
@@ -405,7 +456,7 @@ inline void Assembler::bcctrl(int boint, int biint, int bhint, relocInfo::relocT
 
 // helper function for b
 inline bool Assembler::is_within_range_of_b(address a, address pc) {
-  // Guard against illegal branch targets, e.g. -1 (see CompiledStaticCall and ad-file).
+  // Guard against illegal branch targets, e.g. -1 (see CompiledDirectCall and ad-file).
   if ((((uint64_t)a) & 0x3) != 0) return false;
 
   const int range = 1 << (29-6); // li field is from bit 6 to bit 29.
@@ -419,7 +470,7 @@ inline bool Assembler::is_within_range_of_b(address a, address pc) {
 
 // helper functions for bcxx.
 inline bool Assembler::is_within_range_of_bcxx(address a, address pc) {
-  // Guard against illegal branch targets, e.g. -1 (see CompiledStaticCall and ad-file).
+  // Guard against illegal branch targets, e.g. -1 (see CompiledDirectCall and ad-file).
   if ((((uint64_t)a) & 0x3) != 0) return false;
 
   const int range = 1 << (29-16); // bd field is from bit 16 to bit 29.
@@ -667,6 +718,10 @@ inline void Assembler::stfdx(FloatRegister s, Register a, Register b){ emit_int3
 inline void Assembler::fmr( FloatRegister d, FloatRegister b) { emit_int32( FMR_OPCODE | frt(d) | frb(b) | rc(0)); }
 inline void Assembler::fmr_(FloatRegister d, FloatRegister b) { emit_int32( FMR_OPCODE | frt(d) | frb(b) | rc(1)); }
 
+inline void Assembler::frin( FloatRegister d, FloatRegister b) { emit_int32( FRIN_OPCODE | frt(d) | frb(b) | rc(0)); }
+inline void Assembler::frip( FloatRegister d, FloatRegister b) { emit_int32( FRIP_OPCODE | frt(d) | frb(b) | rc(0)); }
+inline void Assembler::frim( FloatRegister d, FloatRegister b) { emit_int32( FRIM_OPCODE | frt(d) | frb(b) | rc(0)); }
+
 // These are special Power6 opcodes, reused for "lfdepx" and "stfdepx"
 // on Power7.  Do not use.
 //inline void Assembler::mffgpr( FloatRegister d, Register b)   { emit_int32( MFFGPR_OPCODE | frt(d) | rb(b) | rc(0)); }
@@ -759,23 +814,60 @@ inline void Assembler::lvsl(  VectorRegister d, Register s1, Register s2) { emit
 inline void Assembler::lvsr(  VectorRegister d, Register s1, Register s2) { emit_int32( LVSR_OPCODE   | vrt(d) | ra0mem(s1) | rb(s2)); }
 
 // Vector-Scalar (VSX) instructions.
+inline void Assembler::lxv(     VectorSRegister d, int ui16, Register a)     { assert(is_aligned(ui16, 16), "displacement must be a multiple of 16"); emit_int32( LXV_OPCODE  | vsrt_dq(d) | ra0mem(a) | uimm(ui16, 16)); }
+inline void Assembler::stxv(    VectorSRegister d, int ui16, Register a)     { assert(is_aligned(ui16, 16), "displacement must be a multiple of 16"); emit_int32( STXV_OPCODE  | vsrs_dq(d) | ra0mem(a) | uimm(ui16, 16)); }
+inline void Assembler::lxvl(    VectorSRegister d, Register s1, Register b)  { emit_int32( LXVL_OPCODE    | vsrt(d) | ra0mem(s1) | rb(b)); }
+inline void Assembler::stxvl(   VectorSRegister d, Register s1, Register b)  { emit_int32( STXVL_OPCODE   | vsrt(d) | ra0mem(s1) | rb(b)); }
 inline void Assembler::lxvd2x(  VectorSRegister d, Register s1)              { emit_int32( LXVD2X_OPCODE  | vsrt(d) | ra(0) | rb(s1)); }
 inline void Assembler::lxvd2x(  VectorSRegister d, Register s1, Register s2) { emit_int32( LXVD2X_OPCODE  | vsrt(d) | ra0mem(s1) | rb(s2)); }
 inline void Assembler::stxvd2x( VectorSRegister d, Register s1)              { emit_int32( STXVD2X_OPCODE | vsrs(d) | ra(0) | rb(s1)); }
 inline void Assembler::stxvd2x( VectorSRegister d, Register s1, Register s2) { emit_int32( STXVD2X_OPCODE | vsrs(d) | ra0mem(s1) | rb(s2)); }
 inline void Assembler::mtvsrd(  VectorSRegister d, Register a)               { emit_int32( MTVSRD_OPCODE  | vsrt(d)  | ra(a)); }
+inline void Assembler::mtvsrdd( VectorSRegister d, Register a, Register b)   { emit_int32( MTVSRDD_OPCODE | vsrt(d)  | ra(a) | rb(b)); }
+inline void Assembler::mfvsrd(  Register d, VectorSRegister a)               { emit_int32( MFVSRD_OPCODE  | vsrs(a)  | ra(d)); }
 inline void Assembler::mtvsrwz( VectorSRegister d, Register a)               { emit_int32( MTVSRWZ_OPCODE | vsrt(d) | ra(a)); }
+inline void Assembler::mfvsrwz( Register d, VectorSRegister a)               { emit_int32( MFVSRWZ_OPCODE | vsrs(a) | ra(d)); }
+inline void Assembler::xxspltib(VectorSRegister d, int ui8)                  { emit_int32( XXSPLTIB_OPCODE | vsrt(d) | imm8(ui8)); }
 inline void Assembler::xxspltw( VectorSRegister d, VectorSRegister b, int ui2)           { emit_int32( XXSPLTW_OPCODE | vsrt(d) | vsrb(b) | xxsplt_uim(uimm(ui2,2))); }
+inline void Assembler::xxland(  VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XXLAND_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
 inline void Assembler::xxlor(   VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XXLOR_OPCODE  | vsrt(d) | vsra(a) | vsrb(b)); }
 inline void Assembler::xxlxor(  VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XXLXOR_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
 inline void Assembler::xxleqv(  VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XXLEQV_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
-inline void Assembler::mtvrd(    VectorRegister d, Register a)               { emit_int32( MTVSRD_OPCODE  | vsrt(d->to_vsr()) | ra(a)); }
+inline void Assembler::xxbrd(   VectorSRegister d, VectorSRegister b)                    { emit_int32( XXBRD_OPCODE | vsrt(d) | vsrb(b) ); }
+inline void Assembler::xxbrw(   VectorSRegister d, VectorSRegister b)                    { emit_int32( XXBRW_OPCODE | vsrt(d) | vsrb(b) ); }
+inline void Assembler::xvdivsp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVDIVSP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvdivdp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVDIVDP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvabssp( VectorSRegister d, VectorSRegister b)                    { emit_int32( XVABSSP_OPCODE | vsrt(d) | vsrb(b)); }
+inline void Assembler::xvabsdp( VectorSRegister d, VectorSRegister b)                    { emit_int32( XVABSDP_OPCODE | vsrt(d) | vsrb(b)); }
+inline void Assembler::xvnegsp( VectorSRegister d, VectorSRegister b)                    { emit_int32( XVNEGSP_OPCODE | vsrt(d) | vsrb(b)); }
+inline void Assembler::xvnegdp( VectorSRegister d, VectorSRegister b)                    { emit_int32( XVNEGDP_OPCODE | vsrt(d) | vsrb(b)); }
+inline void Assembler::xvsqrtsp(VectorSRegister d, VectorSRegister b)                    { emit_int32( XVSQRTSP_OPCODE| vsrt(d) | vsrb(b)); }
+inline void Assembler::xvsqrtdp(VectorSRegister d, VectorSRegister b)                    { emit_int32( XVSQRTDP_OPCODE| vsrt(d) | vsrb(b)); }
+inline void Assembler::xscvdpspn(VectorSRegister d, VectorSRegister b)                   { emit_int32( XSCVDPSPN_OPCODE | vsrt(d) | vsrb(b)); }
+inline void Assembler::xvadddp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVADDDP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvsubdp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVSUBDP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvmulsp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMULSP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvmuldp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMULDP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvmaddasp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMADDASP_OPCODE  | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvmaddadp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMADDADP_OPCODE  | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvmsubasp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMSUBASP_OPCODE  | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvmsubadp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMSUBADP_OPCODE  | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvnmsubasp(VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVNMSUBASP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvnmsubadp(VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVNMSUBADP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvrdpi(    VectorSRegister d, VectorSRegister b)                  { emit_int32( XVRDPI_OPCODE  | vsrt(d) | vsrb(b)); }
+inline void Assembler::xvrdpic(   VectorSRegister d, VectorSRegister b)                  { emit_int32( XVRDPIC_OPCODE | vsrt(d) | vsrb(b)); }
+inline void Assembler::xvrdpim(   VectorSRegister d, VectorSRegister b)                  { emit_int32( XVRDPIM_OPCODE | vsrt(d) | vsrb(b)); }
+inline void Assembler::xvrdpip(   VectorSRegister d, VectorSRegister b)                  { emit_int32( XVRDPIP_OPCODE | vsrt(d) | vsrb(b)); }
+
+inline void Assembler::mtvrd(   VectorRegister d, Register a)               { emit_int32( MTVSRD_OPCODE  | vsrt(d->to_vsr()) | ra(a)); }
 inline void Assembler::mfvrd(   Register        a, VectorRegister d)         { emit_int32( MFVSRD_OPCODE  | vsrt(d->to_vsr()) | ra(a)); }
 inline void Assembler::mtvrwz(  VectorRegister  d, Register a)               { emit_int32( MTVSRWZ_OPCODE | vsrt(d->to_vsr()) | ra(a)); }
 inline void Assembler::mfvrwz(  Register        a, VectorRegister d)         { emit_int32( MFVSRWZ_OPCODE | vsrt(d->to_vsr()) | ra(a)); }
+inline void Assembler::xxperm(  VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XXPERM_OPCODE  | vsrt(d) | vsra(a) | vsrb(b)); }
 inline void Assembler::xxpermdi(VectorSRegister d, VectorSRegister a, VectorSRegister b, int dm) { emit_int32( XXPERMDI_OPCODE | vsrt(d) | vsra(a) | vsrb(b) | vsdm(dm)); }
 inline void Assembler::xxmrghw( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XXMRGHW_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
 inline void Assembler::xxmrglw( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XXMRGHW_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xxsel(   VectorSRegister d, VectorSRegister a, VectorSRegister b, VectorSRegister c) { emit_int32( XXSEL_OPCODE | vsrt(d) | vsra(a) | vsrb(b) | vsrc(c)); }
 
 // VSX Extended Mnemonics
 inline void Assembler::xxspltd( VectorSRegister d, VectorSRegister a, int x)             { xxpermdi(d, a, a, x ? 3 : 0); }
@@ -816,6 +908,7 @@ inline void Assembler::vspltisb(VectorRegister d, int si5)                      
 inline void Assembler::vspltish(VectorRegister d, int si5)                            { emit_int32( VSPLTISH_OPCODE| vrt(d) | vsplti_sim(simm(si5,5))); }
 inline void Assembler::vspltisw(VectorRegister d, int si5)                            { emit_int32( VSPLTISW_OPCODE| vrt(d) | vsplti_sim(simm(si5,5))); }
 inline void Assembler::vperm(   VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c){ emit_int32( VPERM_OPCODE | vrt(d) | vra(a) | vrb(b) | vrc(c)); }
+inline void Assembler::vpextd(  VectorRegister d, VectorRegister a, VectorRegister b)                  { emit_int32( VPEXTD_OPCODE| vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsel(    VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c){ emit_int32( VSEL_OPCODE  | vrt(d) | vra(a) | vrb(b) | vrc(c)); }
 inline void Assembler::vsl(     VectorRegister d, VectorRegister a, VectorRegister b)                  { emit_int32( VSL_OPCODE   | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsldoi(  VectorRegister d, VectorRegister a, VectorRegister b, int ui4)         { emit_int32( VSLDOI_OPCODE| vrt(d) | vra(a) | vrb(b) | vsldoi_shb(uimm(ui4,4))); }
@@ -833,6 +926,7 @@ inline void Assembler::vaddudm( VectorRegister d, VectorRegister a, VectorRegist
 inline void Assembler::vaddubs( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VADDUBS_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vadduws( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VADDUWS_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vadduhs( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VADDUHS_OPCODE | vrt(d) | vra(a) | vrb(b)); }
+inline void Assembler::vaddfp(  VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VADDFP_OPCODE  | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsubcuw( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBCUW_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsubshs( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBSHS_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsubsbs( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBSBS_OPCODE | vrt(d) | vra(a) | vrb(b)); }
@@ -840,9 +934,11 @@ inline void Assembler::vsubsws( VectorRegister d, VectorRegister a, VectorRegist
 inline void Assembler::vsububm( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBUBM_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsubuwm( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBUWM_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsubuhm( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBUHM_OPCODE | vrt(d) | vra(a) | vrb(b)); }
+inline void Assembler::vsubudm( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBUDM_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsububs( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBUBS_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsubuws( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBUWS_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsubuhs( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBUHS_OPCODE | vrt(d) | vra(a) | vrb(b)); }
+inline void Assembler::vsubfp(  VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUBFP_OPCODE  | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vmulesb( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VMULESB_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vmuleub( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VMULEUB_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vmulesh( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VMULESH_OPCODE | vrt(d) | vra(a) | vrb(b)); }
@@ -850,7 +946,9 @@ inline void Assembler::vmuleuh( VectorRegister d, VectorRegister a, VectorRegist
 inline void Assembler::vmulosb( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VMULOSB_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vmuloub( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VMULOUB_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vmulosh( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VMULOSH_OPCODE | vrt(d) | vra(a) | vrb(b)); }
+inline void Assembler::vmulosw( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VMULOSW_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vmulouh( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VMULOUH_OPCODE | vrt(d) | vra(a) | vrb(b)); }
+inline void Assembler::vmuluwm( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VMULUWM_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vmhaddshs(VectorRegister d,VectorRegister a, VectorRegister b, VectorRegister c) { emit_int32( VMHADDSHS_OPCODE | vrt(d) | vra(a) | vrb(b)| vrc(c)); }
 inline void Assembler::vmhraddshs(VectorRegister d,VectorRegister a,VectorRegister b, VectorRegister c) { emit_int32( VMHRADDSHS_OPCODE| vrt(d) | vra(a) | vrb(b)| vrc(c)); }
 inline void Assembler::vmladduhm(VectorRegister d,VectorRegister a, VectorRegister b, VectorRegister c) { emit_int32( VMLADDUHM_OPCODE | vrt(d) | vra(a) | vrb(b)| vrc(c)); }
@@ -860,6 +958,7 @@ inline void Assembler::vmsumshm(VectorRegister d, VectorRegister a, VectorRegist
 inline void Assembler::vmsumshs(VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c) { emit_int32( VMSUMSHS_OPCODE  | vrt(d) | vra(a) | vrb(b)| vrc(c)); }
 inline void Assembler::vmsumuhm(VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c) { emit_int32( VMSUMUHM_OPCODE  | vrt(d) | vra(a) | vrb(b)| vrc(c)); }
 inline void Assembler::vmsumuhs(VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c) { emit_int32( VMSUMUHS_OPCODE  | vrt(d) | vra(a) | vrb(b)| vrc(c)); }
+inline void Assembler::vmaddfp( VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c) { emit_int32( VMADDFP_OPCODE   | vrt(d) | vra(a) | vrb(b)| vrc(c)); }
 inline void Assembler::vsumsws( VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUMSWS_OPCODE  | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsum2sws(VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUM2SWS_OPCODE | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsum4sbs(VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSUM4SBS_OPCODE | vrt(d) | vra(a) | vrb(b)); }
@@ -921,6 +1020,10 @@ inline void Assembler::vsrh(    VectorRegister d, VectorRegister a, VectorRegist
 inline void Assembler::vsrab(   VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSRAB_OPCODE    | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsraw(   VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSRAW_OPCODE    | vrt(d) | vra(a) | vrb(b)); }
 inline void Assembler::vsrah(   VectorRegister d, VectorRegister a, VectorRegister b) { emit_int32( VSRAH_OPCODE    | vrt(d) | vra(a) | vrb(b)); }
+inline void Assembler::vpopcntb(VectorRegister d, VectorRegister b)                   { emit_int32( VPOPCNTB_OPCODE | vrt(d) | vrb(b)); }
+inline void Assembler::vpopcnth(VectorRegister d, VectorRegister b)                   { emit_int32( VPOPCNTH_OPCODE | vrt(d) | vrb(b)); }
+inline void Assembler::vpopcntw(VectorRegister d, VectorRegister b)                   { emit_int32( VPOPCNTW_OPCODE | vrt(d) | vrb(b)); }
+inline void Assembler::vpopcntd(VectorRegister d, VectorRegister b)                   { emit_int32( VPOPCNTD_OPCODE | vrt(d) | vrb(b)); }
 inline void Assembler::mtvscr(  VectorRegister b)                                     { emit_int32( MTVSCR_OPCODE   | vrb(b)); }
 inline void Assembler::mfvscr(  VectorRegister d)                                     { emit_int32( MFVSCR_OPCODE   | vrt(d)); }
 
@@ -944,20 +1047,8 @@ inline void Assembler::vpmsumw(  VectorRegister d, VectorRegister a, VectorRegis
 // Vector Permute and Xor (introduced with Power 8)
 inline void Assembler::vpermxor( VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c) { emit_int32( VPERMXOR_OPCODE | vrt(d) | vra(a) | vrb(b) | vrc(c)); }
 
-// Transactional Memory instructions (introduced with Power 8)
-inline void Assembler::tbegin_()                                { emit_int32( TBEGIN_OPCODE | rc(1)); }
-inline void Assembler::tbeginrot_()                             { emit_int32( TBEGIN_OPCODE | /*R=1*/ 1u << (31-10) | rc(1)); }
-inline void Assembler::tend_()                                  { emit_int32( TEND_OPCODE | rc(1)); }
-inline void Assembler::tendall_()                               { emit_int32( TEND_OPCODE | /*A=1*/ 1u << (31-6) | rc(1)); }
-inline void Assembler::tabort_()                                { emit_int32( TABORT_OPCODE | rc(1)); }
-inline void Assembler::tabort_(Register a)                      { assert(a != R0, "r0 not allowed"); emit_int32( TABORT_OPCODE | ra(a) | rc(1)); }
-inline void Assembler::tabortwc_(int t, Register a, Register b) { emit_int32( TABORTWC_OPCODE | to(t) | ra(a) | rb(b) | rc(1)); }
-inline void Assembler::tabortwci_(int t, Register a, int si)    { emit_int32( TABORTWCI_OPCODE | to(t) | ra(a) | sh1620(si) | rc(1)); }
-inline void Assembler::tabortdc_(int t, Register a, Register b) { emit_int32( TABORTDC_OPCODE | to(t) | ra(a) | rb(b) | rc(1)); }
-inline void Assembler::tabortdci_(int t, Register a, int si)    { emit_int32( TABORTDCI_OPCODE | to(t) | ra(a) | sh1620(si) | rc(1)); }
-inline void Assembler::tsuspend_()                              { emit_int32( TSR_OPCODE | rc(1)); }
-inline void Assembler::tresume_()                               { emit_int32( TSR_OPCODE | /*L=1*/ 1u << (31-10) | rc(1)); }
-inline void Assembler::tcheck(int f)                            { emit_int32( TCHECK_OPCODE | bf(f)); }
+// Deliver A Random Number (introduced with POWER9)
+inline void Assembler::darn(Register d, int l /* =1 */) { emit_int32( DARN_OPCODE | rt(d) | l14(l)); }
 
 // ra0 version
 inline void Assembler::lwzx( Register d, Register s2) { emit_int32( LWZX_OPCODE | rt(d) | rb(s2));}
@@ -973,6 +1064,7 @@ inline void Assembler::lhbrx(Register d, Register s2) { emit_int32( LHBRX_OPCODE
 inline void Assembler::lbzx( Register d, Register s2) { emit_int32( LBZX_OPCODE | rt(d) | rb(s2));}
 inline void Assembler::lbz(  Register d, int si16   ) { emit_int32( LBZ_OPCODE  | rt(d) | d1(si16));}
 inline void Assembler::ld(   Register d, int si16   ) { emit_int32( LD_OPCODE   | rt(d) | ds(si16));}
+inline void Assembler::ld(   Register d, ByteSize si16) { assert(in_bytes(si16) < 0x7fff, "overflow"); ld(d, in_bytes(si16)); }
 inline void Assembler::ldx(  Register d, Register s2) { emit_int32( LDX_OPCODE  | rt(d) | rb(s2));}
 inline void Assembler::ldbrx(Register d, Register s2) { emit_int32( LDBRX_OPCODE| rt(d) | rb(s2));}
 inline void Assembler::stwx( Register d, Register s2) { emit_int32( STWX_OPCODE | rs(d) | rb(s2));}
@@ -1090,4 +1182,4 @@ inline void Assembler::load_const32(Register d, int i) {
   ori(d, d, i & 0xFFFF);
 }
 
-#endif // CPU_PPC_VM_ASSEMBLER_PPC_INLINE_HPP
+#endif // CPU_PPC_ASSEMBLER_PPC_INLINE_HPP

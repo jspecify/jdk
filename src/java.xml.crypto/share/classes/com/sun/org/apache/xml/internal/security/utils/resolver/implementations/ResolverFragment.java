@@ -43,11 +43,6 @@ public class ResolverFragment extends ResourceResolverSpi {
     private static final com.sun.org.slf4j.internal.Logger LOG =
         com.sun.org.slf4j.internal.LoggerFactory.getLogger(ResolverFragment.class);
 
-    @Override
-    public boolean engineIsThreadSafe() {
-        return true;
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -58,7 +53,7 @@ public class ResolverFragment extends ResourceResolverSpi {
         Document doc = context.attr.getOwnerElement().getOwnerDocument();
 
         Node selectedElem = null;
-        if (context.uriToResolve.equals("")) {
+        if (context.uriToResolve.isEmpty()) {
             /*
              * Identifies the node-set (minus any comment nodes) of the XML
              * resource containing the signature
@@ -78,7 +73,7 @@ public class ResolverFragment extends ResourceResolverSpi {
 
             selectedElem = doc.getElementById(id);
             if (selectedElem == null) {
-                Object exArgs[] = { id };
+                Object[] exArgs = { id };
                 throw new ResourceResolverException(
                     "signature.Verification.MissingID", exArgs, context.uriToResolve, context.baseUri
                 );
@@ -86,7 +81,7 @@ public class ResolverFragment extends ResourceResolverSpi {
             if (context.secureValidation) {
                 Element start = context.attr.getOwnerDocument().getDocumentElement();
                 if (!XMLUtils.protectAgainstWrappingAttack(start, id)) {
-                    Object exArgs[] = { id };
+                    Object[] exArgs = { id };
                     throw new ResourceResolverException(
                         "signature.Verification.MultipleIDs", exArgs, context.uriToResolve, context.baseUri
                     );
@@ -115,13 +110,14 @@ public class ResolverFragment extends ResourceResolverSpi {
      * {@inheritDoc}
      * @param context
      */
+    @Override
     public boolean engineCanResolveURI(ResourceResolverContext context) {
         if (context.uriToResolve == null) {
             LOG.debug("Quick fail for null uri");
             return false;
         }
 
-        if (context.uriToResolve.equals("") ||
+        if (context.uriToResolve.isEmpty() ||
             context.uriToResolve.charAt(0) == '#' && !context.uriToResolve.startsWith("#xpointer(")
         ) {
             LOG.debug("State I can resolve reference: \"{}\"", context.uriToResolve);

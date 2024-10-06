@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,6 @@ public class popframe003p extends Thread {
     static final int FAILED = 2;
 
     private PrintStream out;
-    private boolean DEBUG_MODE;
 
     public static volatile int totRes = PASSED;
     public static Object barrier = new Object();
@@ -76,10 +75,9 @@ public class popframe003p extends Thread {
 
     private popFrameCls popframeCls;
 
-    popframe003p(String name, PrintStream out, boolean verbose) {
+    popframe003p(String name, PrintStream out) {
         super(name);
         this.out = out;
-        DEBUG_MODE = verbose;
         startingBarrier = new Wicket();
         popframeCls = new popFrameCls();
     }
@@ -124,10 +122,11 @@ public class popframe003p extends Thread {
                 "\t\tbooleanPubGlFld=" + booleanPubGlFld + "\texpected: true\n" +
                 "\t\tstrPubGlFld=\"" + strPubGlFld + "\"\texpected: null\n");
             totRes = FAILED;
-        } else if (DEBUG_MODE)
+        } else {
             out.println("Check #5 PASSED: changes for the instance fields of a class,\n" +
-                "\twhich have been made in the popped frame's method, remained\n" +
-                "popframe003p (" + this + "): exiting...");
+                    "\twhich have been made in the popped frame's method, remained\n" +
+                    "popframe003p (" + this + "): exiting...");
+        }
     }
 
     class popFrameCls {
@@ -149,9 +148,7 @@ public class popframe003p extends Thread {
             boolean compl = true;
 
             if (popFrameHasBeenDone) { // popping has been done
-                if (DEBUG_MODE)
-                    out.println("popframe003p (" + this +
-                        "): enter activeMeth() after popping");
+                out.println("popframe003p (" + this + "): enter activeMeth() after popping");
                 /* check that any changes for the arguments,
                  * which occurred in the called method, remain
                  */
@@ -162,9 +159,10 @@ public class popframe003p extends Thread {
                         "\tcurrent argument values: i=" + i + " l=" + l +
                         " d=" + d + " c='" + c + "'\n");
                     totRes = FAILED;
-                } else if (DEBUG_MODE)
+                } else {
                     out.println("Check #3 PASSED: changes for the arguments of " +
-                        "the popped frame's method, remained\n");
+                            "the popped frame's method, remained\n");
+                }
                 /* check that any changes for the class fields,
                  * which occurred in the called method, remain
                  */
@@ -185,10 +183,11 @@ public class popframe003p extends Thread {
                         "\t\tbooleanPubFld=" + booleanPubFld + "\texpected: false\n" +
                         "\t\tstrPubFld=\"" + strPubFld + "\"\texpected: \"static fld\"\n");
                     totRes = FAILED;
-                } else if (DEBUG_MODE)
+                } else {
                     out.println("Check #4 PASSED: changes for the fields of an inner class,\n" +
-                        "\twhich have been made in the popped frame's method, remained\n" +
-                        "popframe003p (" + this + "): exiting...\n");
+                            "\twhich have been made in the popped frame's method, remained\n" +
+                            "popframe003p (" + this + "): exiting...\n");
+                }
 
                 return;
             }
@@ -221,7 +220,7 @@ public class popframe003p extends Thread {
             charGlFld = 'd';
             booleanGlFld = false;
             strGlFld = "nstnc fld";
-            objGl = new Integer(1973);
+            objGl = Integer.valueOf(1973);
 
             // for the global public instance fields
             bytePubGlFld = 7;
@@ -248,13 +247,9 @@ public class popframe003p extends Thread {
             try {
                 // notify the main thread about readiness
                 synchronized (barrier) {
-                    if (DEBUG_MODE)
-                        out.println("popFrameCls (" + this +
-                            "): notifying main thread");
+                    out.println("popFrameCls (" + this + "): notifying main thread");
                     startingBarrier.unlock();
-                    if (DEBUG_MODE)
-                        out.println("popFrameCls (" + this +
-                            "): inside activeMethod()");
+                    out.println("popFrameCls (" + this + "): inside activeMethod()");
                 }
                 // loop until the main thread pops us
                 int ii = 0;

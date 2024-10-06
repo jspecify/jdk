@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,17 +42,7 @@ import java.security.*;
  * @see SSLServerSocket
  * @author David Brownell
  */
-public abstract class SSLServerSocketFactory extends ServerSocketFactory
-{
-    private static SSLServerSocketFactory theFactory;
-
-    private static boolean propertyChecked;
-
-    private static void log(String msg) {
-        if (SSLSocketFactory.DEBUG) {
-            System.out.println(msg);
-        }
-    }
+public abstract class SSLServerSocketFactory extends ServerSocketFactory {
 
     /**
      * Constructor is used only by subclasses.
@@ -75,44 +65,14 @@ public abstract class SSLServerSocketFactory extends ServerSocketFactory
      * @return the default <code>ServerSocketFactory</code>
      * @see SSLContext#getDefault
      */
-    public static synchronized ServerSocketFactory getDefault() {
-        if (theFactory != null) {
-            return theFactory;
-        }
-
-        if (propertyChecked == false) {
-            propertyChecked = true;
-            String clsName = SSLSocketFactory.getSecurityProperty
-                                        ("ssl.ServerSocketFactory.provider");
-            if (clsName != null) {
-                log("setting up default SSLServerSocketFactory");
-                try {
-                    Class<?> cls = null;
-                    try {
-                        cls = Class.forName(clsName);
-                    } catch (ClassNotFoundException e) {
-                        ClassLoader cl = ClassLoader.getSystemClassLoader();
-                        if (cl != null) {
-                            cls = cl.loadClass(clsName);
-                        }
-                    }
-                    log("class " + clsName + " is loaded");
-                    @SuppressWarnings("deprecation")
-                    SSLServerSocketFactory fac = (SSLServerSocketFactory)cls.newInstance();
-                    log("instantiated an instance of class " + clsName);
-                    theFactory = fac;
-                    return fac;
-                } catch (Exception e) {
-                    log("SSLServerSocketFactory instantiation failed: " + e);
-                    theFactory = new DefaultSSLServerSocketFactory(e);
-                    return theFactory;
-                }
-            }
+    public static ServerSocketFactory getDefault() {
+        if (DefaultFactoryHolder.defaultFactory != null) {
+            return DefaultFactoryHolder.defaultFactory;
         }
 
         try {
             return SSLContext.getDefault().getServerSocketFactory();
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException | UnsupportedOperationException e) {
             return new DefaultSSLServerSocketFactory(e);
         }
     }
@@ -127,9 +87,9 @@ public abstract class SSLServerSocketFactory extends ServerSocketFactory
      * The returned array includes cipher suites from the list of standard
      * cipher suite names in the <a href=
      * "{@docRoot}/../specs/security/standard-names.html#jsse-cipher-suite-names">
-     * JSSE Cipher Suite Names</a> section of the Java Cryptography
-     * Architecture Standard Algorithm Name Documentation, and may also
-     * include other cipher suites that the provider supports.
+     * JSSE Cipher Suite Names</a> section of the Java Security Standard
+     * Algorithm Names Specification, and may also include other cipher
+     * suites that the provider supports.
      *
      * @see #getSupportedCipherSuites()
      * @return array of the cipher suites enabled by default
@@ -148,16 +108,58 @@ public abstract class SSLServerSocketFactory extends ServerSocketFactory
      * The returned array includes cipher suites from the list of standard
      * cipher suite names in the <a href=
      * "{@docRoot}/../specs/security/standard-names.html#jsse-cipher-suite-names">
-     * JSSE Cipher Suite Names</a> section of the Java Cryptography
-     * Architecture Standard Algorithm Name Documentation, and may also
-     * include other cipher suites that the provider supports.
+     * JSSE Cipher Suite Names</a> section of the Java Security Standard
+     * Algorithm Names Specification, and may also include other cipher
+     * suites that the provider supports.
      *
      * @return an array of cipher suite names
      * @see #getDefaultCipherSuites()
      */
     public abstract String [] getSupportedCipherSuites();
-}
 
+    // lazy initialization holder class idiom for static default factory
+    //
+    // See Effective Java Second Edition: Item 71.
+    private static final class DefaultFactoryHolder {
+        private static final SSLServerSocketFactory defaultFactory;
+
+        static {
+            SSLServerSocketFactory mediator = null;
+            String clsName = SSLSocketFactory.getSecurityProperty(
+                    "ssl.ServerSocketFactory.provider");
+            if (clsName != null) {
+                log("setting up default SSLServerSocketFactory");
+                try {
+                    Class<?> cls = null;
+                    try {
+                        cls = Class.forName(clsName);
+                    } catch (ClassNotFoundException e) {
+                        ClassLoader cl = ClassLoader.getSystemClassLoader();
+                        if (cl != null) {
+                            cls = cl.loadClass(clsName);
+                        }
+                    }
+                    log("class " + clsName + " is loaded");
+
+                    mediator = (SSLServerSocketFactory)cls
+                            .getDeclaredConstructor().newInstance();
+                    log("instantiated an instance of class " + clsName);
+                } catch (Exception e) {
+                    log("SSLServerSocketFactory instantiation failed: " + e);
+                    mediator = new DefaultSSLServerSocketFactory(e);
+                }
+            }
+
+            defaultFactory = mediator;
+        }
+
+        private static void log(String msg) {
+            if (SSLSocketFactory.DEBUG) {
+                System.out.println(msg);
+            }
+        }
+    }
+}
 
 //
 // The default factory does NOTHING.
@@ -171,8 +173,7 @@ class DefaultSSLServerSocketFactory extends SSLServerSocketFactory {
     }
 
     private ServerSocket throwException() throws SocketException {
-        throw (SocketException)
-            new SocketException(reason.toString()).initCause(reason);
+        throw new SocketException(reason.toString(), reason);
     }
 
     @Override

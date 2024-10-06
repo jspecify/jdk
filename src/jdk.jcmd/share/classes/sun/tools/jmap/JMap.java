@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,14 +28,14 @@ package sun.tools.jmap;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.util.Collection;
 
 import com.sun.tools.attach.VirtualMachine;
-import com.sun.tools.attach.VirtualMachineDescriptor;
 import com.sun.tools.attach.AttachNotSupportedException;
 import sun.tools.attach.HotSpotVirtualMachine;
 import sun.tools.common.ProcessArgumentMatcher;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /*
  * This class is the main class for the JMap utility. It parses its arguments
@@ -115,7 +115,7 @@ public class JMap {
             } else if (option.equals("-finalizerinfo")) {
                 executeCommandForPid(pid, "jcmd", "GC.finalizer_info");
             } else if (option.equals("-clstats")) {
-                executeCommandForPid(pid, "jcmd", "GC.class_stats");
+                executeCommandForPid(pid, "jcmd", "VM.classloader_stats");
             } else {
               usage(1);
             }
@@ -123,8 +123,7 @@ public class JMap {
     }
 
     private static void executeCommandForPid(String pid, String command, Object ... args)
-        throws AttachNotSupportedException, IOException,
-               UnsupportedEncodingException {
+        throws AttachNotSupportedException, IOException {
         VirtualMachine vm = VirtualMachine.attach(pid);
 
         // Cast to HotSpotVirtualMachine as this is an
@@ -137,7 +136,7 @@ public class JMap {
           do {
               n = in.read(b);
               if (n > 0) {
-                  String s = new String(b, 0, n, "UTF-8");
+                  String s = new String(b, 0, n, UTF_8);
                   System.out.print(s);
               }
           } while (n > 0);
@@ -145,55 +144,103 @@ public class JMap {
         vm.detach();
     }
 
+    private static String parseFileName(String opt) {
+        // opt starts with "file="
+        if (opt.length() > 5) {
+            //  pass whole "file=" string
+            String filename = opt.substring(5);
+            try {
+                // Get the canonical path - important to avoid just
+                // passing a "heap.bin" and having the dump created
+                // in the target VM working directory rather than the
+                // directory where jmap is executed.
+                return new File(filename).getCanonicalPath();
+            } catch (IOException ioe) {
+              return null;
+            }
+        }
+        // no filename
+        return null;
+    }
+
     private static void histo(String pid, String options)
-        throws AttachNotSupportedException, IOException,
-               UnsupportedEncodingException {
+        throws AttachNotSupportedException, IOException {
         String liveopt = "-all";
-        if (options.equals("") || options.equals("all")) {
-            //  pass
-        }
-        else if (options.equals("live")) {
-            liveopt = "-live";
-        }
-        else {
-            usage(1);
+        String filename = null;
+        String parallel = null;
+        String subopts[] = options.split(",");
+
+        for (String subopt : subopts) {
+            if (subopt.equals("") || subopt.equals("all")) {
+                // pass
+            } else if (subopt.equals("live")) {
+                liveopt = "-live";
+            } else if (subopt.startsWith("file=")) {
+                filename = parseFileName(subopt);
+                if (filename == null) {
+                    System.err.println("Fail: invalid option or no file name '" + subopt + "'");
+                    usage(1);
+                }
+            } else if (subopt.startsWith("parallel=")) {
+                parallel = subopt.substring("parallel=".length());
+                if (parallel == null) {
+                    System.err.println("Fail: no number provided in option: '" + subopt + "'");
+                    usage(1);
+                }
+            } else {
+                System.err.println("Fail: invalid option: '" + subopt + "'");
+                usage(1);
+            }
         }
 
+        System.out.flush();
+
         // inspectHeap is not the same as jcmd GC.class_histogram
-        executeCommandForPid(pid, "inspectheap", liveopt);
+        executeCommandForPid(pid, "inspectheap", liveopt, filename, parallel);
     }
 
     private static void dump(String pid, String options)
-        throws AttachNotSupportedException, IOException,
-               UnsupportedEncodingException {
+        throws AttachNotSupportedException, IOException {
 
         String subopts[] = options.split(",");
         String filename = null;
         String liveopt = "-all";
+        String compress_level = null;
 
-        for (int i = 0; i < subopts.length; i++) {
-            String subopt = subopts[i];
-            if (subopt.equals("live")) {
+        for (String subopt : subopts) {
+            if (subopt.equals("") || subopt.equals("all")) {
+                // pass
+            } else if (subopt.equals("live")) {
                 liveopt = "-live";
             } else if (subopt.startsWith("file=")) {
-                // file=<file> - check that <file> is specified
-                if (subopt.length() > 5) {
-                    filename = subopt.substring(5);
+                filename = parseFileName(subopt);
+                if (filename == null) {
+                    System.err.println("Fail: invalid option or no file name '" + subopt + "'");
+                    usage(1);
                 }
+            } else if (subopt.equals("format=b")) {
+                // ignore format (not needed at this time)
+            } else if (subopt.startsWith("gz=")) {
+                compress_level = subopt.substring("gz=".length());
+                if (compress_level.length() == 0) {
+                    System.err.println("Fail: no number provided in option: '" + subopt + "'");
+                    usage(1);
+                }
+            } else {
+                System.err.println("Fail: invalid option: '" + subopt + "'");
+                usage(1);
             }
         }
 
         if (filename == null) {
-            usage(1);  // invalid options or no filename
+            System.err.println("Fail: invalid option or no file name");
+            usage(1);
         }
 
-        // get the canonical path - important to avoid just passing
-        // a "heap.bin" and having the dump created in the target VM
-        // working directory rather than the directory where jmap
-        // is executed.
-        filename = new File(filename).getCanonicalPath();
+        System.out.flush();
+
         // dumpHeap is not the same as jcmd GC.heap_dump
-        executeCommandForPid(pid, "dumpheap", filename, liveopt);
+        executeCommandForPid(pid, "dumpheap", filename, liveopt, compress_level);
     }
 
     private static void checkForUnsupportedOptions(String[] args) {
@@ -246,21 +293,33 @@ public class JMap {
         System.err.println("        to connect to running process and print class loader statistics");
         System.err.println("    jmap -finalizerinfo <pid>");
         System.err.println("        to connect to running process and print information on objects awaiting finalization");
-        System.err.println("    jmap -histo[:live] <pid>");
+        System.err.println("    jmap -histo[:[<histo-options>]] <pid>");
         System.err.println("        to connect to running process and print histogram of java object heap");
-        System.err.println("        if the \"live\" suboption is specified, only count live objects");
         System.err.println("    jmap -dump:<dump-options> <pid>");
         System.err.println("        to connect to running process and dump java heap");
         System.err.println("    jmap -? -h --help");
         System.err.println("        to print this help message");
         System.err.println("");
         System.err.println("    dump-options:");
-        System.err.println("      live         dump only live objects; if not specified,");
-        System.err.println("                   all objects in the heap are dumped.");
+        System.err.println("      live         dump only live objects (takes precedence if both \"live\" and \"all\" are specified)");
+        System.err.println("      all          dump all objects in the heap (default if one of \"live\" or \"all\" is not specified)");
         System.err.println("      format=b     binary format");
         System.err.println("      file=<file>  dump heap to <file>");
+        System.err.println("      gz=<number>  If specified, the heap dump is written in gzipped format using the given compression level.");
+        System.err.println("                   1 (recommended) is the fastest, 9 the strongest compression.");
         System.err.println("");
         System.err.println("    Example: jmap -dump:live,format=b,file=heap.bin <pid>");
+        System.err.println("");
+        System.err.println("    histo-options:");
+        System.err.println("      live                count only live objects (takes precedence if both \"live\" and \"all\" are specified)");
+        System.err.println("      all                 count all objects in the heap (default if one of \"live\" or \"all\" is not specified)");
+        System.err.println("      file=<file>         dump data to <file>");
+        System.err.println("      parallel=<number>   Number of parallel threads to use for heap inspection:");
+        System.err.println("                          0 (the default) means let the VM determine the number of threads to use");
+        System.err.println("                          1 means use one thread (disable parallelism).");
+        System.err.println("                          For any other value the VM will try to use the specified number of threads, but might use fewer.");
+        System.err.println("");
+        System.err.println("    Example: jmap -histo:live,file=/tmp/histo.data <pid>");
         System.exit(exit);
     }
 }

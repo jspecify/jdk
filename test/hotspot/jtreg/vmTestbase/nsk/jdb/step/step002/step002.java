@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,14 +50,14 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jdb.step.step002.step002
  *
  * @comment make sure step002a is compiled w/ full debug info
  * @clean nsk.jdb.step.step002.step002a
  * @compile -g:lines,source,vars step002a.java
  *
- * @run main/othervm PropertyResolvingWrapper nsk.jdb.step.step002.step002
+ * @run driver
+ *      nsk.jdb.step.step002.step002
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
  *      -debugee.vmkind=java
@@ -79,14 +79,10 @@ import java.util.*;
 public class step002 extends JdbTest {
 
     public static void main (String argv[]) {
-        System.exit(run(argv, System.out) + JCK_STATUS_BASE);
-    }
-
-    public static int run(String argv[], PrintStream out) {
         debuggeeClass =  DEBUGGEE_CLASS;
         firstBreak = FIRST_BREAK;
         lastBreak = LAST_BREAK;
-        return new step002().runTest(argv, out);
+        new step002().runTest(argv);
     }
 
     static final String PACKAGE_NAME    = "nsk.jdb.step.step002";

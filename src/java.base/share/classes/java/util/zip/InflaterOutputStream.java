@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Objects;
 
 /**
  * Implements an output stream filter for uncompressing data stored in the
@@ -80,7 +81,7 @@ public class InflaterOutputStream extends FilterOutputStream {
      * @throws NullPointerException if {@code out} is null
      */
     public InflaterOutputStream(OutputStream out) {
-        this(out, new Inflater());
+        this(out, out != null ? new Inflater() : null);
         usesDefaultInflater = true;
     }
 
@@ -229,9 +230,9 @@ public class InflaterOutputStream extends FilterOutputStream {
         ensureOpen();
         if (b == null) {
             throw new NullPointerException("Null buffer for read");
-        } else if (off < 0 || len < 0 || len > b.length - off) {
-            throw new IndexOutOfBoundsException();
-        } else if (len == 0) {
+        }
+        Objects.checkFromIndexSize(off, len, b.length);
+        if (len == 0) {
             return;
         }
 
@@ -242,16 +243,9 @@ public class InflaterOutputStream extends FilterOutputStream {
 
                 // Fill the decompressor buffer with output data
                 if (inf.needsInput()) {
-                    int part;
-
-                    if (len < 1) {
-                        break;
-                    }
-
-                    part = (len < 512 ? len : 512);
-                    inf.setInput(b, off, part);
-                    off += part;
-                    len -= part;
+                    inf.setInput(b, off, len);
+                    // Only use input buffer once.
+                    len = 0;
                 }
 
                 // Decompress and write blocks of output data
@@ -262,12 +256,13 @@ public class InflaterOutputStream extends FilterOutputStream {
                     }
                 } while (n > 0);
 
-                // Check the decompressor
-                if (inf.finished()) {
-                    break;
-                }
+                // Check for missing dictionary first
                 if (inf.needsDictionary()) {
                     throw new ZipException("ZLIB dictionary missing");
+                }
+                // Check the decompressor
+                if (inf.finished() || (len == 0)/* no more input */) {
+                    break;
                 }
             }
         } catch (DataFormatException ex) {

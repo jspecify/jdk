@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,7 @@ public class Continuation extends ResolveResult {
     /**
      * Whether links were encountered.
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected Object followingLink = null;
 
     /**
@@ -71,6 +72,7 @@ public class Continuation extends ResolveResult {
      * The last resolved context. Used to set the "AltNameCtx" in a
      * CannotProceedException.
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected Context resolvedContext = null;
 
     /**
@@ -132,7 +134,7 @@ public class Continuation extends ResolveResult {
     /**
      * Fills in an exception's fields using data from this Continuation.
      * The resolved name is set by subtracting remainingName from starter.
-     * %%% This might not not always produce the correct answer wrt trailing "/".
+     * %%% This might not always produce the correct answer wrt trailing "/".
      * If the exception is a CannotProceedException, its environment,
      * altName, and altNameCtx fields are set using this continuation's
      * environment, relativeResolvedName, and resolvedContext.
@@ -203,7 +205,7 @@ public class Continuation extends ResolveResult {
     public void setErrorNNS(Object resObj, String remain) {
         CompositeName rname = new CompositeName();
         try {
-            if (remain != null && !remain.equals(""))
+            if (remain != null && !remain.isEmpty())
                 rname.add(remain);
 
             rname.add("");
@@ -247,7 +249,7 @@ public class Continuation extends ResolveResult {
      */
     public void setError(Object resObj, String remain) {
         CompositeName rname = new CompositeName();
-        if (remain != null && !remain.equals("")) {
+        if (remain != null && !remain.isEmpty()) {
             try {
                 rname.add(remain);
             } catch (InvalidNameException e) {
@@ -294,8 +296,6 @@ public class Continuation extends ResolveResult {
      * @param currCtx The non-null context from which relResName is to be resolved.
      */
     public void setContinueNNS(Object resObj, Name relResName, Context currCtx) {
-        CompositeName rname = new CompositeName();
-
         setContinue(resObj, relResName, currCtx, PartialCompositeContext._NNS_NAME);
     }
 
@@ -375,14 +375,14 @@ public class Continuation extends ResolveResult {
     public void setContinue(Object obj, String relResName,
         Context currCtx, String remain) {
         CompositeName relname = new CompositeName();
-        if (!relResName.equals("")) {
+        if (!relResName.isEmpty()) {
             try {
                 relname.add(relResName);
             } catch (NamingException e){}
         }
 
         CompositeName rname = new CompositeName();
-        if (!remain.equals("")) {
+        if (!remain.isEmpty()) {
             try {
                 rname.add(remain);
             } catch (NamingException e) {

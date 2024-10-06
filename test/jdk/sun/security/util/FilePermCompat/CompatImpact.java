@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,15 @@
  * @test
  * @bug 8164705 8168410
  * @summary check compatibility after FilePermission change
- * @library /java/security/testlibrary/
- * @modules java.base/jdk.internal.misc
+ * @library /test/lib
  * @run main CompatImpact prepare
  * @run main CompatImpact builtin
  * @run main/othervm -Djdk.security.filePermCompat=true CompatImpact mine
  * @run main/fail CompatImpact mine
  * @run main CompatImpact dopriv
  */
+
+import jdk.test.lib.process.Proc;
 
 import java.io.File;
 import java.io.FilePermission;
@@ -90,7 +91,7 @@ public class CompatImpact {
                         .debug(testcase)
                         .start();
                 if (p.waitFor() != 0) {
-                    Files.copy(Paths.get("stderr." + testcase), System.out);
+                    Files.copy(Paths.get(testcase + ".stderr"), System.out);
                     failed += testcase + " ";
                 }
 
@@ -101,7 +102,7 @@ public class CompatImpact {
                         .debug(testcase)
                         .start();
                 if (p.waitFor() != 0) {
-                    Files.copy(Paths.get("stderr." + testcase), System.out);
+                    Files.copy(Paths.get(testcase + ".stderr"), System.out);
                     failed += testcase + " ";
                 }
 
@@ -114,7 +115,7 @@ public class CompatImpact {
                         .debug(testcase)
                         .start();
                 if (p.waitFor() != 0) {
-                    Files.copy(Paths.get("stderr." + testcase), System.out);
+                    Files.copy(Paths.get(testcase + ".stderr"), System.out);
                     failed += testcase + " ";
                 }
 
@@ -126,7 +127,7 @@ public class CompatImpact {
                         .debug(testcase)
                         .start();
                 if (p.waitFor() != 0) {
-                    Files.copy(Paths.get("stderr." + testcase), System.out);
+                    Files.copy(Paths.get(testcase + ".stderr"), System.out);
                     failed += testcase + " ";
                 }
 
@@ -138,7 +139,7 @@ public class CompatImpact {
                         .debug(testcase)
                         .start();
                 if (p.waitFor() != 0) {
-                    Files.copy(Paths.get("stderr." + testcase), System.out);
+                    Files.copy(Paths.get(testcase + ".stderr"), System.out);
                     failed += testcase + " ";
                 }
 
@@ -238,6 +239,7 @@ public class CompatImpact {
                 // For my policy, f is passed into test and new MP(f)
                 // will be set as new policy
                 p.perm(new SecurityPermission("setPolicy"));
+                p.perm(new SecurityPermission("getPolicy"));
                 p.args(f);
                 break;
             default:
@@ -249,7 +251,9 @@ public class CompatImpact {
     // My own Policy impl, with only one granted permission, also not smart
     // enough to know whether ProtectionDomain grants any permission
     static class MP extends Policy {
+        static final Policy DEFAULT_POLICY = Policy.getPolicy();
         final PermissionCollection pc;
+
         MP(String f) {
             FilePermission p = new FilePermission(f, "read");
             pc = p.newPermissionCollection();
@@ -267,7 +271,7 @@ public class CompatImpact {
 
         @Override
         public boolean implies(ProtectionDomain domain, Permission permission) {
-            return pc.implies(permission);
+            return pc.implies(permission) || DEFAULT_POLICY.implies(domain, permission);
         }
     }
 }

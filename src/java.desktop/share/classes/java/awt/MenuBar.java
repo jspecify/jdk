@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.awt.peer.MenuBarPeer;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serial;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.Vector;
@@ -50,9 +51,9 @@ import sun.awt.AWTAccessor;
  * This is what a menu bar might look like:
  * <p>
  * <img src="doc-files/MenuBar-1.gif"
- * alt="Diagram of MenuBar containing 2 menus: Examples and Options.
- * Examples menu is expanded showing items: Basic, Simple, Check, and More Examples."
- * style="float:center; margin: 7px 10px;">
+ * alt="Diagram of MenuBar containing 2 menus: Examples and Options. Examples
+ * menu is expanded showing items: Basic, Simple, Check, and More Examples."
+ * style="margin: 7px 10px;">
  * <p>
  * A menu bar handles keyboard shortcuts for menu items, passing them
  * along to its child menus.
@@ -118,14 +119,15 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
     private static final String base = "menubar";
     private static int nameCounter = 0;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+     @Serial
      private static final long serialVersionUID = -4930327919388951260L;
 
     /**
      * Creates a new menu bar.
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      * returns true.
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -427,13 +429,14 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
     /**
      * Writes default serializable fields to stream.
      *
-     * @param s the {@code ObjectOutputStream} to write
+     * @param  s the {@code ObjectOutputStream} to write
+     * @throws IOException if an I/O error occurs
      * @see AWTEventMulticaster#save(ObjectOutputStream, String, EventListener)
      * @see #readObject(java.io.ObjectInputStream)
      */
+    @Serial
     private void writeObject(java.io.ObjectOutputStream s)
-      throws java.lang.ClassNotFoundException,
-             java.io.IOException
+      throws java.io.IOException
     {
       s.defaultWriteObject();
     }
@@ -442,13 +445,16 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
      * Reads the {@code ObjectInputStream}.
      * Unrecognized keys or values will be ignored.
      *
-     * @param s the {@code ObjectInputStream} to read
-     * @exception HeadlessException if
-     *   {@code GraphicsEnvironment.isHeadless} returns
-     *   {@code true}
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
+     * @throws HeadlessException if {@code GraphicsEnvironment.isHeadless()}
+     *         returns {@code true}
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see #writeObject(java.io.ObjectOutputStream)
      */
+    @Serial
     private void readObject(ObjectInputStream s)
       throws ClassNotFoundException, IOException, HeadlessException
     {
@@ -507,10 +513,16 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
      */
     protected class AccessibleAWTMenuBar extends AccessibleAWTMenuComponent
     {
-        /*
-         * JDK 1.3 serialVersionUID
+        /**
+         * Use serialVersionUID from JDK 1.3 for interoperability.
          */
+        @Serial
         private static final long serialVersionUID = -8577604491830083815L;
+
+        /**
+         * Constructs an {@code AccessibleAWTMenuBar}.
+         */
+        protected AccessibleAWTMenuBar() {}
 
         /**
          * Get the role of this object.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package com.sun.crypto.provider;
 
 import java.io.*;
-import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 import java.security.AlgorithmParametersSpi;
 import java.security.spec.AlgorithmParameterSpec;
@@ -91,57 +90,18 @@ import sun.security.util.*;
  *
  * </pre>
  */
-
 abstract class PBES2Parameters extends AlgorithmParametersSpi {
 
-    private static final int pkcs5PBKDF2[] =
-                                        {1, 2, 840, 113549, 1, 5, 12};
-    private static final int pkcs5PBES2[] =
-                                        {1, 2, 840, 113549, 1, 5, 13};
-    private static final int hmacWithSHA1[] =
-                                        {1, 2, 840, 113549, 2, 7};
-    private static final int hmacWithSHA224[] =
-                                        {1, 2, 840, 113549, 2, 8};
-    private static final int hmacWithSHA256[] =
-                                        {1, 2, 840, 113549, 2, 9};
-    private static final int hmacWithSHA384[] =
-                                        {1, 2, 840, 113549, 2, 10};
-    private static final int hmacWithSHA512[] =
-                                        {1, 2, 840, 113549, 2, 11};
-    private static final int aes128CBC[] =
-                                        {2, 16, 840, 1, 101, 3, 4, 1, 2};
-    private static final int aes192CBC[] =
-                                        {2, 16, 840, 1, 101, 3, 4, 1, 22};
-    private static final int aes256CBC[] =
-                                        {2, 16, 840, 1, 101, 3, 4, 1, 42};
-
-    private static ObjectIdentifier pkcs5PBKDF2_OID;
-    private static ObjectIdentifier pkcs5PBES2_OID;
-    private static ObjectIdentifier hmacWithSHA1_OID;
-    private static ObjectIdentifier hmacWithSHA224_OID;
-    private static ObjectIdentifier hmacWithSHA256_OID;
-    private static ObjectIdentifier hmacWithSHA384_OID;
-    private static ObjectIdentifier hmacWithSHA512_OID;
-    private static ObjectIdentifier aes128CBC_OID;
-    private static ObjectIdentifier aes192CBC_OID;
-    private static ObjectIdentifier aes256CBC_OID;
-
-    static {
-        try {
-            pkcs5PBKDF2_OID = new ObjectIdentifier(pkcs5PBKDF2);
-            pkcs5PBES2_OID = new ObjectIdentifier(pkcs5PBES2);
-            hmacWithSHA1_OID = new ObjectIdentifier(hmacWithSHA1);
-            hmacWithSHA224_OID = new ObjectIdentifier(hmacWithSHA224);
-            hmacWithSHA256_OID = new ObjectIdentifier(hmacWithSHA256);
-            hmacWithSHA384_OID = new ObjectIdentifier(hmacWithSHA384);
-            hmacWithSHA512_OID = new ObjectIdentifier(hmacWithSHA512);
-            aes128CBC_OID = new ObjectIdentifier(aes128CBC);
-            aes192CBC_OID = new ObjectIdentifier(aes192CBC);
-            aes256CBC_OID = new ObjectIdentifier(aes256CBC);
-        } catch (IOException ioe) {
-            // should not happen
-        }
-    }
+    private static final ObjectIdentifier pkcs5PBKDF2_OID =
+            ObjectIdentifier.of(KnownOIDs.PBKDF2WithHmacSHA1);
+    private static final ObjectIdentifier pkcs5PBES2_OID =
+            ObjectIdentifier.of(KnownOIDs.PBES2);
+    private static final ObjectIdentifier aes128CBC_OID =
+            ObjectIdentifier.of(KnownOIDs.AES_128$CBC$NoPadding);
+    private static final ObjectIdentifier aes192CBC_OID =
+            ObjectIdentifier.of(KnownOIDs.AES_192$CBC$NoPadding);
+    private static final ObjectIdentifier aes256CBC_OID =
+            ObjectIdentifier.of(KnownOIDs.AES_256$CBC$NoPadding);
 
     // the PBES2 algorithm name
     private String pbes2AlgorithmName = null;
@@ -156,7 +116,8 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
     private AlgorithmParameterSpec cipherParam = null;
 
     // the key derivation function (default is HmacSHA1)
-    private ObjectIdentifier kdfAlgo_OID = hmacWithSHA1_OID;
+    private ObjectIdentifier kdfAlgo_OID =
+            ObjectIdentifier.of(KnownOIDs.HmacSHA1);
 
     // the encryption function
     private ObjectIdentifier cipherAlgo_OID = null;
@@ -170,8 +131,8 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
 
     PBES2Parameters(String pbes2AlgorithmName) throws NoSuchAlgorithmException {
         int and;
-        String kdfAlgo = null;
-        String cipherAlgo = null;
+        String kdfAlgo;
+        String cipherAlgo;
 
         // Extract the KDF and encryption algorithm names
         this.pbes2AlgorithmName = pbes2AlgorithmName;
@@ -201,19 +162,13 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
 
         switch (kdfAlgo) {
         case "HmacSHA1":
-            kdfAlgo_OID = hmacWithSHA1_OID;
-            break;
         case "HmacSHA224":
-            kdfAlgo_OID = hmacWithSHA224_OID;
-            break;
         case "HmacSHA256":
-            kdfAlgo_OID = hmacWithSHA256_OID;
-            break;
         case "HmacSHA384":
-            kdfAlgo_OID = hmacWithSHA384_OID;
-            break;
         case "HmacSHA512":
-            kdfAlgo_OID = hmacWithSHA512_OID;
+        case "HmacSHA512/224":
+        case "HmacSHA512/256":
+            kdfAlgo_OID = ObjectIdentifier.of(KnownOIDs.findMatch(kdfAlgo));
             break;
         default:
             throw new NoSuchAlgorithmException(
@@ -221,7 +176,6 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
         }
 
         if (cipherAlgo.equals("AES")) {
-            this.keysize = keysize;
             switch (keysize) {
             case 128:
                 cipherAlgo_OID = aes128CBC_OID;
@@ -256,24 +210,33 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
     protected void engineInit(byte[] encoded)
         throws IOException
     {
-        String kdfAlgo = null;
-        String cipherAlgo = null;
-
         DerValue pBES2_params = new DerValue(encoded);
         if (pBES2_params.tag != DerValue.tag_Sequence) {
             throw new IOException("PBE parameter parsing error: "
                 + "not an ASN.1 SEQUENCE tag");
         }
-        kdfAlgo = parseKDF(pBES2_params.data.getDerValue());
+        DerValue kdf = pBES2_params.data.getDerValue();
+
+        // Before JDK-8202837, PBES2-params was mistakenly encoded like
+        // an AlgorithmId which is a sequence of its own OID and the real
+        // PBES2-params. If the first DerValue is an OID instead of a
+        // PBES2-KDFs (which should be a SEQUENCE), we are likely to be
+        // dealing with this buggy encoding. Skip the OID and treat the
+        // next DerValue as the real PBES2-params.
+        if (kdf.getTag() == DerValue.tag_ObjectId) {
+            pBES2_params = pBES2_params.data.getDerValue();
+            kdf = pBES2_params.data.getDerValue();
+        }
+
+        String kdfAlgo = parseKDF(kdf);
 
         if (pBES2_params.tag != DerValue.tag_Sequence) {
             throw new IOException("PBE parameter parsing error: "
                 + "not an ASN.1 SEQUENCE tag");
         }
-        cipherAlgo = parseES(pBES2_params.data.getDerValue());
+        String cipherAlgo = parseES(pBES2_params.data.getDerValue());
 
-        pbes2AlgorithmName = new StringBuilder().append("PBEWith")
-            .append(kdfAlgo).append("And").append(cipherAlgo).toString();
+        this.pbes2AlgorithmName = "PBEWith" + kdfAlgo + "And" + cipherAlgo;
     }
 
     @SuppressWarnings("deprecation")
@@ -302,51 +265,43 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
                 + "not an ASN.1 OCTET STRING tag");
         }
         iCount = pBKDF2_params.data.getInteger();
+
         // keyLength INTEGER (1..MAX) OPTIONAL,
-        if (pBKDF2_params.data.available() > 0) {
-            DerValue keyLength = pBKDF2_params.data.getDerValue();
-            if (keyLength.tag == DerValue.tag_Integer) {
-                keysize = keyLength.getInteger() * 8; // keysize (in bits)
-            }
-        }
-        // prf AlgorithmIdentifier {{PBKDF2-PRFs}} DEFAULT algid-hmacWithSHA1
-        String kdfAlgo = "HmacSHA1";
-        if (pBKDF2_params.data.available() > 0) {
-            if (pBKDF2_params.tag == DerValue.tag_Sequence) {
-                DerValue prf = pBKDF2_params.data.getDerValue();
-                kdfAlgo_OID = prf.data.getOID();
-                if (hmacWithSHA1_OID.equals(kdfAlgo_OID)) {
-                    kdfAlgo = "HmacSHA1";
-                } else if (hmacWithSHA224_OID.equals(kdfAlgo_OID)) {
-                    kdfAlgo = "HmacSHA224";
-                } else if (hmacWithSHA256_OID.equals(kdfAlgo_OID)) {
-                    kdfAlgo = "HmacSHA256";
-                } else if (hmacWithSHA384_OID.equals(kdfAlgo_OID)) {
-                    kdfAlgo = "HmacSHA384";
-                } else if (hmacWithSHA512_OID.equals(kdfAlgo_OID)) {
-                    kdfAlgo = "HmacSHA512";
-                } else {
-                    throw new IOException("PBE parameter parsing error: "
-                            + "expecting the object identifier for a HmacSHA key "
-                            + "derivation function");
-                }
-                if (prf.data.available() != 0) {
-                    // parameter is 'NULL' for all HmacSHA KDFs
-                    DerValue parameter = prf.data.getDerValue();
-                    if (parameter.tag != DerValue.tag_Null) {
-                        throw new IOException("PBE parameter parsing error: "
-                                + "not an ASN.1 NULL tag");
-                    }
-                }
-            }
+        var ksDer = pBKDF2_params.data.getOptional(DerValue.tag_Integer);
+        if (ksDer.isPresent()) {
+            keysize = ksDer.get().getInteger() * 8; // keysize (in bits)
         }
 
+        // prf AlgorithmIdentifier {{PBKDF2-PRFs}} DEFAULT algid-hmacWithSHA1
+        String kdfAlgo;
+        var prfDer = pBKDF2_params.data.getOptional(DerValue.tag_Sequence);
+        if (prfDer.isPresent()) {
+            DerValue prf = prfDer.get();
+            kdfAlgo_OID = prf.data.getOID();
+            KnownOIDs o = KnownOIDs.findMatch(kdfAlgo_OID.toString());
+            if (o == null || (!o.stdName().equals("HmacSHA1") &&
+                    !o.stdName().equals("HmacSHA224") &&
+                    !o.stdName().equals("HmacSHA256") &&
+                    !o.stdName().equals("HmacSHA384") &&
+                    !o.stdName().equals("HmacSHA512") &&
+                    !o.stdName().equals("HmacSHA512/224") &&
+                    !o.stdName().equals("HmacSHA512/256"))) {
+                throw new IOException("PBE parameter parsing error: "
+                        + "expecting the object identifier for a HmacSHA key "
+                        + "derivation function");
+            }
+            kdfAlgo = o.stdName();
+            prf.data.getOptional(DerValue.tag_Null);
+            prf.data.atEnd();
+        } else {
+            kdfAlgo = "HmacSHA1";
+        }
         return kdfAlgo;
     }
 
     @SuppressWarnings("deprecation")
     private String parseES(DerValue encryptionScheme) throws IOException {
-        String cipherAlgo = null;
+        String cipherAlgo;
 
         cipherAlgo_OID = encryptionScheme.data.getOID();
         if (aes128CBC_OID.equals(cipherAlgo_OID)) {
@@ -379,7 +334,7 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
             T engineGetParameterSpec(Class<T> paramSpec)
         throws InvalidParameterSpecException
     {
-        if (PBEParameterSpec.class.isAssignableFrom(paramSpec)) {
+        if (paramSpec.isAssignableFrom(PBEParameterSpec.class)) {
             return paramSpec.cast(
                 new PBEParameterSpec(this.salt, this.iCount, this.cipherParam));
         } else {
@@ -405,7 +360,7 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
         }
 
         DerOutputStream prf = new DerOutputStream();
-        // algorithm is id-hmacWithSHA1/SHA224/SHA256/SHA384/SHA512
+        // algorithm is id-hmacWith<MD>
         prf.putOID(kdfAlgo_OID);
         // parameters is 'NULL'
         prf.putNull();
@@ -440,9 +395,10 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
     /*
      * Returns a formatted string describing the parameters.
      *
-     * The algorithn name pattern is: "PBEWith<prf>And<encryption>"
+     * The algorithm name pattern is: "PBEWith<prf>And<encryption>"
      * where <prf> is one of: HmacSHA1, HmacSHA224, HmacSHA256, HmacSHA384,
-     * or HmacSHA512, and <encryption> is AES with a keysize suffix.
+     * HmacSHA512, HmacSHA512/224, or HmacSHA512/256 and <encryption> is
+     * AES with a keysize suffix.
      */
     protected String engineToString() {
         return pbes2AlgorithmName;
@@ -484,6 +440,18 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
         }
     }
 
+    public static final class HmacSHA512_224AndAES_128 extends PBES2Parameters {
+        public HmacSHA512_224AndAES_128() throws NoSuchAlgorithmException {
+            super("PBEWithHmacSHA512/224AndAES_128");
+        }
+    }
+
+    public static final class HmacSHA512_256AndAES_128 extends PBES2Parameters {
+        public HmacSHA512_256AndAES_128() throws NoSuchAlgorithmException {
+            super("PBEWithHmacSHA512/256AndAES_128");
+        }
+    }
+
     public static final class HmacSHA1AndAES_256 extends PBES2Parameters {
         public HmacSHA1AndAES_256() throws NoSuchAlgorithmException {
             super("PBEWithHmacSHA1AndAES_256");
@@ -511,6 +479,18 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
     public static final class HmacSHA512AndAES_256 extends PBES2Parameters {
         public HmacSHA512AndAES_256() throws NoSuchAlgorithmException {
             super("PBEWithHmacSHA512AndAES_256");
+        }
+    }
+
+    public static final class HmacSHA512_224AndAES_256 extends PBES2Parameters {
+        public HmacSHA512_224AndAES_256() throws NoSuchAlgorithmException {
+            super("PBEWithHmacSHA512/224AndAES_256");
+        }
+    }
+
+    public static final class HmacSHA512_256AndAES_256 extends PBES2Parameters {
+        public HmacSHA512_256AndAES_256() throws NoSuchAlgorithmException {
+            super("PBEWithHmacSHA512/256AndAES_256");
         }
     }
 }

@@ -24,10 +24,8 @@
  */
 package com.sun.tools.javac.code;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-
+import java.util.HashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
 
 import com.sun.tools.javac.code.Kinds.Kind;
 import com.sun.tools.javac.code.Scope.WriteableScope;
@@ -64,7 +62,7 @@ public class DeferredCompletionFailureHandler {
     }
 
     public final Handler userCodeHandler = new Handler() {
-        private final Map<ClassSymbol, FlipSymbolDescription> class2Flip = new WeakHashMap<>();
+        private final Map<ClassSymbol, FlipSymbolDescription> class2Flip = new HashMap<>();
 
         public void install() {
             class2Flip.values().forEach(f -> f.flip());
@@ -80,8 +78,31 @@ public class DeferredCompletionFailureHandler {
                 }
             }));
         }
+        public void classSymbolRemoved(ClassSymbol sym) {
+            class2Flip.remove(sym);
+        }
         public void uninstall() {
             class2Flip.values().forEach(f -> f.flip());
+        }
+    };
+
+    public final Handler speculativeCodeHandler = new Handler() {
+        private final Map<ClassSymbol, FlipSymbolDescription> class2Flip = new HashMap<>();
+
+        public void install() {
+        }
+        public void handleAPICompletionFailure(CompletionFailure cf) {
+            throw cf;
+        }
+        public void classSymbolCompleteFailed(ClassSymbol sym, Completer origCompleter) {
+            class2Flip.put(sym, new FlipSymbolDescription(sym, new DeferredCompleter(origCompleter)));
+        }
+        public void classSymbolRemoved(ClassSymbol sym) {
+            class2Flip.remove(sym);
+        }
+        public void uninstall() {
+            class2Flip.values().forEach(f -> f.flip());
+            class2Flip.clear();
         }
     };
 
@@ -92,12 +113,14 @@ public class DeferredCompletionFailureHandler {
             throw cf;
         }
         public void classSymbolCompleteFailed(ClassSymbol sym, Completer origCompleter) {}
+        public void classSymbolRemoved(ClassSymbol sym) {}
         public void uninstall() {
         }
     };
 
     private Handler handler = javacCodeHandler;
 
+    @SuppressWarnings("this-escape")
     protected DeferredCompletionFailureHandler(Context context) {
         context.put(deferredCompletionFailureHandlerKey, this);
     }
@@ -120,6 +143,10 @@ public class DeferredCompletionFailureHandler {
         handler.classSymbolCompleteFailed(sym, origCompleter);
     }
 
+    public void classSymbolRemoved(ClassSymbol sym) {
+        handler.classSymbolRemoved(sym);
+    }
+
     public boolean isDeferredCompleter(Completer c) {
         return c instanceof DeferredCompleter;
     }
@@ -128,10 +155,10 @@ public class DeferredCompletionFailureHandler {
         public void install();
         public void handleAPICompletionFailure(CompletionFailure cf);
         public void classSymbolCompleteFailed(ClassSymbol sym, Completer origCompleter);
+        public void classSymbolRemoved(ClassSymbol sym);
         public void uninstall();
     }
 
-    @UsesObjectEquals
     private class DeferredCompleter implements Completer {
 
         private final Completer origCompleter;

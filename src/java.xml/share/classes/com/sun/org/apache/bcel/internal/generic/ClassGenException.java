@@ -22,19 +22,14 @@
 package com.sun.org.apache.bcel.internal.generic;
 
 /**
- * Thrown on internal errors. Extends RuntimeException so it hasn't to be declared
- * in the throws clause every time.
- *
- * @version $Id: ClassGenException.java 1747278 2016-06-07 17:28:43Z britter $
+ * Thrown on internal exceptions.
  */
 public class ClassGenException extends RuntimeException {
 
     private static final long serialVersionUID = 7247369755051242791L;
 
     public ClassGenException() {
-        super();
     }
-
 
     public ClassGenException(final String s) {
         super(s);

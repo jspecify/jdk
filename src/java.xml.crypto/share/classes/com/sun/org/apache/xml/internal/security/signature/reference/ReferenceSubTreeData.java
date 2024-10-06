@@ -21,10 +21,7 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id$
+ * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
  */
 package com.sun.org.apache.xml.internal.security.signature.reference;
 
@@ -33,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
+
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 
@@ -54,6 +52,7 @@ public class ReferenceSubTreeData implements ReferenceNodeSetData {
         this.excludeComments = excludeComments;
     }
 
+    @Override
     public Iterator<Node> iterator() {
         return new DelayedNodeIterator(root, excludeComments);
     }
@@ -81,6 +80,7 @@ public class ReferenceSubTreeData implements ReferenceNodeSetData {
             this.withComments = !excludeComments;
         }
 
+        @Override
         public boolean hasNext() {
             if (nodeSet == null) {
                 nodeSet = dereferenceSameDocumentURI(root);
@@ -89,6 +89,7 @@ public class ReferenceSubTreeData implements ReferenceNodeSetData {
             return li.hasNext();
         }
 
+        @Override
         public Node next() {
             if (nodeSet == null) {
                 nodeSet = dereferenceSameDocumentURI(root);
@@ -101,6 +102,7 @@ public class ReferenceSubTreeData implements ReferenceNodeSetData {
             }
         }
 
+        @Override
         public void remove() {
             throw new UnsupportedOperationException();
         }
@@ -127,7 +129,7 @@ public class ReferenceSubTreeData implements ReferenceNodeSetData {
          *
          * @param node the node to traverse
          * @param nodeSet the set of nodes traversed so far
-         * @param the previous sibling node
+         * @param prevSibling the previous sibling node
          */
         @SuppressWarnings("fallthrough")
         private void nodeSetMinusCommentNodes(Node node, List<Node> nodeSet,

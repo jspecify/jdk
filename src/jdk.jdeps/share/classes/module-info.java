@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,18 @@
  * questions.
  */
 
+import jdk.internal.javac.ParticipatesInPreview;
+
 /**
  * Defines tools for analysing dependencies in Java libraries and programs,
  * including the <em>{@index jdeps jdeps tool}</em>,
- * <em>{@index javap javap tool}</em>, and
- * <em>{@index jdeprscan jdeprscan tool}</em> tools.
+ * <em>{@index javap javap tool}</em>,
+ * <em>{@index jdeprscan jdeprscan tool}</em>, and
+ * <em>{@index jnativescan jnativescan tool}</em> tools.
  *
  * <p>
  * This module provides the equivalent of command-line access to the
- * <em>javap</em> and <em>jdeps</em> tools via the
+ * <em>javap</em>, <em>jdeps</em>, and <em>jnativescan</em> tools via the
  * {@link java.util.spi.ToolProvider ToolProvider} service provider
  * interface (SPI)</p>
  *
@@ -44,25 +47,33 @@
  * <em>jdeprscan</em> only exists as a command line tool, and does not provide
  * any direct API.
  *
- * <dl style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">
- * <dt class="simpleTagLabel">Tool Guides:
- * <dd>{@extLink javap_tool_reference javap},
- *     {@extLink jdeprscan_tool_reference jdeprscan},
- *     {@extLink jdeps_tool_reference jdeps}
- * </dl>
+ * @toolGuide javap
+ * @toolGuide jdeprscan
+ * @toolGuide jdeps
+ * @toolGuide jnativescan
  *
  * @provides java.util.spi.ToolProvider
+ *     Use {@link java.util.spi.ToolProvider#findFirst ToolProvider.findFirst("javap")},
+ *     {@link java.util.spi.ToolProvider#findFirst ToolProvider.findFirst("jdeps")},
+ *     or {@link java.util.spi.ToolProvider#findFirst ToolProvider.findFirst("jnativescan")}
+ *     to obtain an instance of a {@code ToolProvider} that provides the equivalent
+ *     of command-line access to the {@code javap}, {@code jdeps}, {@code jnativescan} tool.
  *
  * @moduleGraph
  * @since 9
  */
+@ParticipatesInPreview
 module jdk.jdeps {
     requires java.compiler;
     requires jdk.compiler;
+    requires jdk.internal.opt;
+
+    uses com.sun.tools.javac.platform.PlatformProvider;
 
     exports com.sun.tools.classfile to jdk.jlink;
 
     provides java.util.spi.ToolProvider with
         com.sun.tools.javap.Main.JavapToolProvider,
-        com.sun.tools.jdeps.Main.JDepsToolProvider;
+        com.sun.tools.jdeps.Main.JDepsToolProvider,
+        com.sun.tools.jnativescan.Main.Provider;
 }

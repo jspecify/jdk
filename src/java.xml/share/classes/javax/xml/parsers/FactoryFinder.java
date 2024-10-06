@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,9 @@
 
 package javax.xml.parsers;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
-
-import java.io.File;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Iterator;
-import java.util.Properties;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.function.Supplier;
@@ -46,24 +41,12 @@ import jdk.xml.internal.SecuritySupport;
  *
  * @author Santiago PericasGeertsen
  */
-@NullMarked
 class FactoryFinder {
     private static final String DEFAULT_PACKAGE = "com.sun.org.apache.xerces.internal";
     /**
      * Internal debug flag.
      */
     private static boolean debug = false;
-
-    /**
-     * Cache for properties in java.home/conf/jaxp.properties
-     */
-    private static final Properties cacheProps = new Properties();
-
-    /**
-     * Flag indicating if properties from java.home/conf/jaxp.properties
-     * have been cached.
-     */
-    static volatile boolean firstTime = true;
 
     // Define system property "jaxp.debug" to get output
     static {
@@ -96,7 +79,7 @@ class FactoryFinder {
      *
      * Use bootstrap classLoader if cl = null and useBSClsLoader is true
      */
-    static private Class<?> getProviderClass(String className, @Nullable ClassLoader cl,
+    static private Class<?> getProviderClass(String className, ClassLoader cl,
             boolean doFallback, boolean useBSClsLoader) throws ClassNotFoundException
     {
         try {
@@ -144,7 +127,7 @@ class FactoryFinder {
      * @param doFallback True if the current ClassLoader should be tried as
      * a fallback if the class is not found using cl
      */
-    static <T extends @Nullable Object> T newInstance(Class<T> type, String className, @Nullable ClassLoader cl,
+    static <T> T newInstance(Class<T> type, String className, ClassLoader cl,
                              boolean doFallback)
         throws FactoryConfigurationError
     {
@@ -170,7 +153,8 @@ class FactoryFinder {
      * @param useBSClsLoader True if cl=null actually meant bootstrap classLoader. This parameter
      * is needed since DocumentBuilderFactory/SAXParserFactory defined null as context classLoader.
      */
-    static <T extends @Nullable Object> T newInstance(Class<T> type, String className, @Nullable ClassLoader cl,
+    @SuppressWarnings("removal")
+    static <T> T newInstance(Class<T> type, String className, ClassLoader cl,
                              boolean doFallback, boolean useBSClsLoader)
         throws FactoryConfigurationError
     {
@@ -216,7 +200,7 @@ class FactoryFinder {
      *
      * Package private so this code can be shared.
      */
-    static <T extends @Nullable Object> T find(Class<T> type, @Nullable String fallbackClassName)
+    static <T> T find(Class<T> type, String fallbackClassName)
         throws FactoryConfigurationError
     {
         final String factoryId = type.getName();
@@ -234,31 +218,10 @@ class FactoryFinder {
             if (debug) se.printStackTrace();
         }
 
-        // try to read from $java.home/conf/jaxp.properties
-        try {
-            if (firstTime) {
-                synchronized (cacheProps) {
-                    if (firstTime) {
-                        String configFile = SecuritySupport.getSystemProperty("java.home") + File.separator +
-                            "conf" + File.separator + "jaxp.properties";
-                        File f = new File(configFile);
-                        firstTime = false;
-                        if (SecuritySupport.doesFileExist(f)) {
-                            dPrint(()->"Read properties file "+f);
-                            cacheProps.load(SecuritySupport.getFileInputStream(f));
-                        }
-                    }
-                }
-            }
-            final String factoryClassName = cacheProps.getProperty(factoryId);
-
-            if (factoryClassName != null) {
-                dPrint(()->"found in ${java.home}/conf/jaxp.properties, value=" + factoryClassName);
-                return newInstance(type, factoryClassName, null, true);
-            }
-        }
-        catch (Exception ex) {
-            if (debug) ex.printStackTrace();
+        // try to read from the configuration file
+        String factoryClassName = SecuritySupport.readConfig(factoryId);
+        if (factoryClassName != null) {
+            return newInstance(type, factoryClassName, null, true);
         }
 
         // Try Jar Service Provider Mechanism
@@ -282,10 +245,10 @@ class FactoryFinder {
      *
      * @return instance of provider class if found or null
      */
-    
-    private static <T extends @Nullable Object> @Nullable T findServiceProvider(final Class<T> type) {
+    @SuppressWarnings("removal")
+    private static <T> T findServiceProvider(final Class<T> type) {
         try {
-            return AccessController.doPrivileged(new PrivilegedAction</*@ Nullable*/ T>() {
+            return AccessController.doPrivileged(new PrivilegedAction<T>() {
                 public T run() {
                     final ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
                     final Iterator<T> iterator = serviceLoader.iterator();
@@ -306,8 +269,6 @@ class FactoryFinder {
             // compatibility issues down the road.
             final RuntimeException x = new RuntimeException(
                     "Provider for " + type + " cannot be created", e);
-            
-            @SuppressWarnings("nullness")
             final FactoryConfigurationError error =
                     new FactoryConfigurationError(x, x.getMessage());
             throw error;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,7 +75,7 @@ import javax.accessibility.*;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -274,7 +274,7 @@ public class JWindow extends Window implements Accessible,
         JRootPane rp = new JRootPane();
         // NOTE: this uses setOpaque vs LookAndFeel.installProperty as there
         // is NO reason for the RootPane not to be opaque. For painting to
-        // work the contentPane must be opaque, therefor the RootPane can
+        // work the contentPane must be opaque, therefore the RootPane can
         // also be opaque.
         rp.setOpaque(true);
         return rp;
@@ -313,7 +313,7 @@ public class JWindow extends Window implements Accessible,
      * are currently typed to {@code JComponent}.
      * <p>
      * Please see
-     * <a href="http://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
      * How to Use Drag and Drop and Data Transfer</a>, a section in
      * <em>The Java Tutorial</em>, for more information.
      *
@@ -387,10 +387,10 @@ public class JWindow extends Window implements Accessible,
      * @param comp the component to be enhanced
      * @param constraints the constraints to be respected
      * @param index the index
-     * @exception IllegalArgumentException if <code>index</code> is invalid
-     * @exception IllegalArgumentException if adding the container's parent
+     * @throws IllegalArgumentException if <code>index</code> is invalid
+     * @throws IllegalArgumentException if adding the container's parent
      *                  to itself
-     * @exception IllegalArgumentException if adding a window to a container
+     * @throws IllegalArgumentException if adding a window to a container
      *
      * @see #setRootPaneCheckingEnabled
      * @see javax.swing.RootPaneContainer
@@ -504,7 +504,7 @@ public class JWindow extends Window implements Accessible,
      *
      * @param contentPane the new <code>contentPane</code>
      *
-     * @exception IllegalComponentStateException (a runtime
+     * @throws IllegalComponentStateException (a runtime
      *            exception) if the content pane parameter is <code>null</code>
      * @see #getContentPane
      * @see RootPaneContainer#setContentPane
@@ -532,7 +532,7 @@ public class JWindow extends Window implements Accessible,
      *
      * @param layeredPane the new <code>layeredPane</code> object
      *
-     * @exception IllegalComponentStateException (a runtime
+     * @throws IllegalComponentStateException (a runtime
      *            exception) if the content pane parameter is <code>null</code>
      * @see #getLayeredPane
      * @see RootPaneContainer#setLayeredPane
@@ -654,6 +654,10 @@ public class JWindow extends Window implements Accessible,
     @SuppressWarnings("serial")
     protected class AccessibleJWindow extends AccessibleAWTWindow {
         // everything is in the new parent, AccessibleAWTWindow
+        /**
+         * Constructs an {@code AccessibleJWindow}.
+         */
+        protected AccessibleJWindow() {}
     }
 
 }

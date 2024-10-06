@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,9 @@
 package java.awt.dnd;
 
 import java.awt.Point;
-
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
-
+import java.io.Serial;
 import java.util.List;
 
 /**
@@ -72,6 +71,10 @@ import java.util.List;
 
 public class DropTargetDragEvent extends DropTargetEvent {
 
+    /**
+     * Use serialVersionUID from JDK 1.4 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = -8422265619058953682L;
 
     /**
@@ -151,14 +154,13 @@ public class DropTargetDragEvent extends DropTargetEvent {
     }
 
     /**
-     * This method returns a {@code boolean} indicating
-     * if the specified {@code DataFlavor} is supported.
+     * This method returns a {@code boolean} indicating if the specified
+     * {@code DataFlavor} is supported.
      *
-     * @param df the {@code DataFlavor} to test
-     *
-     * @return if a particular DataFlavor is supported
+     * @param  df the {@code DataFlavor} to test
+     * @return {@code true} if a particular {@code DataFlavor} is supported,
+     *         otherwise {@code false}
      */
-
     public boolean isDataFlavorSupported(DataFlavor df) {
         return getDropTargetContext().isDataFlavorSupported(df);
     }

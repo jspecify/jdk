@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@
 #include <sun_awt_windows_WMenuItemPeer.h>
 #include <java_awt_Menu.h>
 #include <sun_awt_windows_WMenuPeer.h>
-#include <java_awt_MenuComponent.h>
 #include <java_awt_FontMetrics.h>
 
 class AwtMenu;
@@ -45,9 +44,6 @@ class AwtMenu;
 
 class AwtMenuItem : public AwtObject {
 public:
-    /* java.awt.MenuComponent fields */
-    static jfieldID fontID;
-    static jfieldID appContextID;
 
     /* java.awt.MenuItem fields */
     static jfieldID labelID;
@@ -136,7 +132,7 @@ public:
     virtual BOOL IsTopMenu();
     void DrawCheck(HDC hDC, RECT rect);
 
-    void SetLabel(LPCTSTR sb);
+    void SetLabel();
     virtual void Enable(BOOL isEnabled);
     virtual void UpdateContainerLayout();
     virtual void RedrawMenuBar();

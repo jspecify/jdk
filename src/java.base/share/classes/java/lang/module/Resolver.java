@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ package java.lang.module;
 import java.io.PrintStream;
 import java.lang.module.ModuleDescriptor.Provides;
 import java.lang.module.ModuleDescriptor.Requires.Modifier;
-import java.net.URI;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +35,7 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +45,7 @@ import java.util.stream.Collectors;
 
 import jdk.internal.module.ModuleHashes;
 import jdk.internal.module.ModuleReferenceImpl;
+import jdk.internal.module.ModuleResolution;
 import jdk.internal.module.ModuleTarget;
 
 /**
@@ -215,15 +216,32 @@ final class Resolver {
      * service-use relation.
      */
     Resolver bind() {
+        return bind(/*bindIncubatorModules*/true);
+    }
 
+    /**
+     * Augments the set of resolved modules with modules induced by the
+     * service-use relation.
+     *
+     * @param bindIncubatorModules true if incubator modules are candidates to
+     *        add to the module graph
+     */
+    Resolver bind(boolean bindIncubatorModules) {
         // Scan the finders for all available service provider modules. As
         // java.base uses services then the module finders will be scanned
         // anyway.
         Map<String, Set<ModuleReference>> availableProviders = new HashMap<>();
         for (ModuleReference mref : findAll()) {
             ModuleDescriptor descriptor = mref.descriptor();
-            if (!descriptor.provides().isEmpty()) {
 
+            boolean candidate;
+            if (!bindIncubatorModules && (mref instanceof ModuleReferenceImpl)) {
+                ModuleResolution mres = ((ModuleReferenceImpl) mref).moduleResolution();
+                candidate = (mres == null) || (mres.hasIncubatingWarning() == false);
+            } else {
+                candidate = true;
+            }
+            if (candidate && !descriptor.provides().isEmpty()) {
                 for (Provides provides :  descriptor.provides()) {
                     String sn = provides.service();
 
@@ -458,24 +476,16 @@ final class Resolver {
                     if (actualHash == null)
                         findFail("Unable to compute the hash of module %s", dn);
                     if (!Arrays.equals(recordedHash, actualHash)) {
+                        HexFormat hex = HexFormat.of();
                         findFail("Hash of %s (%s) differs to expected hash (%s)" +
-                                 " recorded in %s", dn, toHexString(actualHash),
-                                 toHexString(recordedHash), descriptor.name());
+                                 " recorded in %s", dn, hex.formatHex(actualHash),
+                                hex.formatHex(recordedHash), descriptor.name());
                     }
                 }
             }
 
         }
     }
-
-    private static String toHexString(byte[] ba) {
-        StringBuilder sb = new StringBuilder(ba.length * 2);
-        for (byte b: ba) {
-            sb.append(String.format("%02x", b & 0xff));
-        }
-        return sb.toString();
-    }
-
 
     /**
      * Computes the readability graph for the modules in the given Configuration.
@@ -487,13 +497,11 @@ final class Resolver {
      * and m2 reads m3.
      */
     private Map<ResolvedModule, Set<ResolvedModule>> makeGraph(Configuration cf) {
-
-        // initial capacity of maps to avoid resizing
-        int capacity = 1 + (4 * nameToReference.size())/ 3;
+        int moduleCount = nameToReference.size();
 
         // the "reads" graph starts as a module dependence graph and
         // is iteratively updated to be the readability graph
-        Map<ResolvedModule, Set<ResolvedModule>> g1 = new HashMap<>(capacity);
+        Map<ResolvedModule, Set<ResolvedModule>> g1 = HashMap.newHashMap(moduleCount);
 
         // the "requires transitive" graph, contains requires transitive edges only
         Map<ResolvedModule, Set<ResolvedModule>> g2;
@@ -502,7 +510,7 @@ final class Resolver {
         // as there may be selected modules that have a dependency on modules in
         // the parent configuration.
         if (ModuleLayer.boot() == null) {
-            g2 = new HashMap<>(capacity);
+            g2 = HashMap.newHashMap(moduleCount);
         } else {
             g2 = parents.stream()
                 .flatMap(Configuration::configurations)
@@ -528,9 +536,7 @@ final class Resolver {
         }
 
         // populate g1 and g2 with the dependences from the selected modules
-
-        Map<String, ResolvedModule> nameToResolved = new HashMap<>(capacity);
-
+        Map<String, ResolvedModule> nameToResolved = HashMap.newHashMap(moduleCount);
         for (ModuleReference mref : nameToReference.values()) {
             ModuleDescriptor descriptor = mref.descriptor();
             String name = descriptor.name();
@@ -543,7 +549,7 @@ final class Resolver {
             for (ModuleDescriptor.Requires requires : descriptor.requires()) {
                 String dn = requires.name();
 
-                ResolvedModule m2 = null;
+                ResolvedModule m2;
                 ModuleReference mref2 = nameToReference.get(dn);
                 if (mref2 != null) {
                     // same configuration
@@ -554,6 +560,14 @@ final class Resolver {
                     if (m2 == null) {
                         assert requires.modifiers().contains(Modifier.STATIC);
                         continue;
+                    }
+
+                    // m2 is automatic module in parent configuration => m1 reads
+                    // all automatic modules that m2 reads.
+                    if (m2.descriptor().isAutomatic()) {
+                        m2.reads().stream()
+                                .filter(d -> d.descriptor().isAutomatic())
+                                .forEach(reads::add);
                     }
                 }
 
@@ -578,8 +592,7 @@ final class Resolver {
                     String name2 = descriptor2.name();
 
                     if (!name.equals(name2)) {
-                        ResolvedModule m2
-                            = computeIfAbsent(nameToResolved, name2, cf, mref2);
+                        ResolvedModule m2 = computeIfAbsent(nameToResolved, name2, cf, mref2);
                         reads.add(m2);
                         if (descriptor2.isAutomatic())
                             requiresTransitive.add(m2);
@@ -605,29 +618,33 @@ final class Resolver {
             g2.put(m1, requiresTransitive);
         }
 
-        // Iteratively update g1 until there are no more requires transitive
-        // to propagate
+        // Iteratively update g1 until there are no more requires transitive to propagate
         boolean changed;
         List<ResolvedModule> toAdd = new ArrayList<>();
         do {
             changed = false;
-            for (Set<ResolvedModule> m1Reads : g1.values()) {
-                for (ResolvedModule m2 : m1Reads) {
-                    Set<ResolvedModule> m2RequiresTransitive = g2.get(m2);
-                    if (m2RequiresTransitive != null) {
-                        for (ResolvedModule m3 : m2RequiresTransitive) {
-                            if (!m1Reads.contains(m3)) {
-                                // m1 reads m2, m2 requires transitive m3
-                                // => need to add m1 reads m3
-                                toAdd.add(m3);
+            for (Map.Entry<ResolvedModule, Set<ResolvedModule>> e : g1.entrySet()) {
+                ResolvedModule m1 = e.getKey();
+                // automatic module already reads all selected modules so nothing to propagate
+                if (!m1.descriptor().isAutomatic()) {
+                    Set<ResolvedModule> m1Reads = e.getValue();
+                    for (ResolvedModule m2 : m1Reads) {
+                        Set<ResolvedModule> m2RequiresTransitive = g2.get(m2);
+                        if (m2RequiresTransitive != null) {
+                            for (ResolvedModule m3 : m2RequiresTransitive) {
+                                if (!m1Reads.contains(m3)) {
+                                    // m1 reads m2, m2 requires transitive m3
+                                    // => need to add m1 reads m3
+                                    toAdd.add(m3);
+                                }
                             }
                         }
                     }
-                }
-                if (!toAdd.isEmpty()) {
-                    m1Reads.addAll(toAdd);
-                    toAdd.clear();
-                    changed = true;
+                    if (!toAdd.isEmpty()) {
+                        m1Reads.addAll(toAdd);
+                        toAdd.clear();
+                        changed = true;
+                    }
                 }
             }
         } while (changed);
@@ -659,7 +676,7 @@ final class Resolver {
      * Checks the readability graph to ensure that
      * <ol>
      *   <li><p> A module does not read two or more modules with the same name.
-     *   This includes the case where a module reads another another with the
+     *   This includes the case where a module reads another module with the
      *   same name as itself. </p></li>
      *   <li><p> Two or more modules in the configuration don't export the same
      *   package to a module that reads both. This includes the case where a
@@ -821,9 +838,7 @@ final class Resolver {
      * Invokes the beforeFinder to find method to find the given module.
      */
     private ModuleReference findWithBeforeFinder(String mn) {
-
         return beforeFinder.find(mn).orElse(null);
-
     }
 
     /**
@@ -852,7 +867,7 @@ final class Resolver {
         Set<ModuleReference> result = new HashSet<>(beforeModules);
         for (ModuleReference mref : afterModules) {
             String name = mref.descriptor().name();
-            if (!beforeFinder.find(name).isPresent()
+            if (beforeFinder.find(name).isEmpty()
                     && findInParent(name) == null) {
                 result.add(mref);
             }

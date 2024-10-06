@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,8 @@ package sun.java2d.xr;
 import java.awt.*;
 import java.awt.geom.*;
 import sun.awt.SunToolkit;
-import sun.java2d.InvalidPipeException;
 import sun.java2d.SunGraphics2D;
+import sun.java2d.SurfaceData;
 import sun.java2d.loops.*;
 import sun.java2d.pipe.Region;
 import sun.java2d.pipe.PixelDrawPipe;
@@ -43,7 +43,7 @@ import static sun.java2d.xr.XRUtils.clampToShort;
 import static sun.java2d.xr.XRUtils.clampToUShort;
 
 /**
- * XRender provides only accalerated rectangles. To emulate higher "order"
+ * XRender provides only accelerated rectangles. To emulate higher "order"
  *  geometry we have to pass everything else to DoPath/FillSpans.
  *
  * TODO: DrawRect could be instrified
@@ -70,12 +70,8 @@ public class XRRenderer implements PixelDrawPipe, PixelFillPipe, ShapeDrawPipe {
      * destination context.
      */
     private void validateSurface(SunGraphics2D sg2d) {
-        XRSurfaceData xrsd;
-        try {
-            xrsd = (XRSurfaceData) sg2d.surfaceData;
-        } catch (ClassCastException e) {
-            throw new InvalidPipeException("wrong surface data type: " + sg2d.surfaceData);
-        }
+        XRSurfaceData xrsd = SurfaceData.convertTo(XRSurfaceData.class,
+                                                   sg2d.surfaceData);
         xrsd.validateAsDestination(sg2d, sg2d.getCompClip());
         xrsd.maskBuffer.validateCompositeState(sg2d.composite, sg2d.transform,
                                                sg2d.paint, sg2d);
@@ -106,7 +102,7 @@ public class XRRenderer implements PixelDrawPipe, PixelFillPipe, ShapeDrawPipe {
     }
 
     public void drawPolyline(SunGraphics2D sg2d,
-                             int xpoints[], int ypoints[], int npoints) {
+                             int[] xpoints, int[] ypoints, int npoints) {
         Path2D.Float p2d = new Path2D.Float();
         if (npoints > 1) {
             p2d.moveTo(xpoints[0], ypoints[0]);
@@ -119,7 +115,7 @@ public class XRRenderer implements PixelDrawPipe, PixelFillPipe, ShapeDrawPipe {
     }
 
     public void drawPolygon(SunGraphics2D sg2d,
-                            int xpoints[], int ypoints[], int npoints) {
+                            int[] xpoints, int[] ypoints, int npoints) {
         draw(sg2d, new Polygon(xpoints, ypoints, npoints));
     }
 
@@ -163,7 +159,7 @@ public class XRRenderer implements PixelDrawPipe, PixelFillPipe, ShapeDrawPipe {
     }
 
     public void fillPolygon(SunGraphics2D sg2d,
-                            int xpoints[], int ypoints[], int npoints) {
+                            int[] xpoints, int[] ypoints, int npoints) {
         fill(sg2d, new Polygon(xpoints, ypoints, npoints));
     }
 

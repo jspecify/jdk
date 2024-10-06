@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @bug 8009977 8186884 8194486 8201627
  * @summary A test to launch multiple Java processes using either Java GSS
  *          or native GSS
- * @library ../../../../java/security/testlibrary/ /test/lib
+ * @library /test/lib
  * @compile -XDignore.symbol.file BasicProc.java
  * @run main jdk.test.lib.FileInstaller TestHosts TestHosts
  * @run main/othervm -Djdk.net.hosts.file=TestHosts BasicProc launcher
@@ -41,6 +41,7 @@ import java.util.Set;
 
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Platform;
+import jdk.test.lib.process.Proc;
 import org.ietf.jgss.Oid;
 import sun.security.krb5.Config;
 
@@ -307,8 +308,7 @@ public class BasicProc {
                     .prop("sun.security.nativegss.debug", "true");
             int pos = lib.lastIndexOf('/');
             if (pos > 0) {
-                p.env("LD_LIBRARY_PATH", lib.substring(0, pos));
-                p.env("DYLD_LIBRARY_PATH", lib.substring(0, pos));
+                p.env(Platform.sharedLibraryPathVariableName(), lib.substring(0, pos));
             }
         } else {
             p.perm(new java.util.PropertyPermission(

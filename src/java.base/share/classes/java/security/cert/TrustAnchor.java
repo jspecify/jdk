@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,16 @@
 
 package java.security.cert;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.security.PublicKey;
 
 import javax.security.auth.x500.X500Principal;
 
+import sun.security.util.AnchorCertificates;
 import sun.security.x509.NameConstraintsExtension;
-import sun.security.x509.X500Name;
 
 /**
  * A trust anchor or most-trusted Certification Authority (CA).
@@ -63,8 +63,8 @@ import sun.security.x509.X500Name;
  * @since       1.4
  * @author      Sean Mullan
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class TrustAnchor {
+@NullMarked
+public class TrustAnchor {
 
     private final PublicKey pubKey;
     private final String caName;
@@ -72,6 +72,12 @@ public @UsesObjectEquals class TrustAnchor {
     private final X509Certificate trustedCert;
     private byte[] ncBytes;
     private NameConstraintsExtension nc;
+    private boolean jdkCA;
+    private boolean hasJdkCABeenChecked;
+
+    static {
+        CertPathHelperImpl.initialize();
+    }
 
     /**
      * Creates an instance of {@code TrustAnchor} with the specified
@@ -82,7 +88,7 @@ public @UsesObjectEquals class TrustAnchor {
      * The name constraints are specified as a byte array. This byte array
      * should contain the DER encoded form of the name constraints, as they
      * would appear in the NameConstraints structure defined in
-     * <a href="http://tools.ietf.org/html/rfc5280">RFC 5280</a>
+     * <a href="https://tools.ietf.org/html/rfc5280">RFC 5280</a>
      * and X.509. The ASN.1 definition of this structure appears below.
      *
      * <pre>{@code
@@ -124,7 +130,7 @@ public @UsesObjectEquals class TrustAnchor {
      * @throws NullPointerException if the specified
      * {@code X509Certificate} is {@code null}
      */
-    public TrustAnchor(X509Certificate trustedCert, byte[] nameConstraints)
+    public TrustAnchor(X509Certificate trustedCert, byte @Nullable [] nameConstraints)
     {
         if (trustedCert == null)
             throw new NullPointerException("the trustedCert parameter must " +
@@ -164,7 +170,7 @@ public @UsesObjectEquals class TrustAnchor {
      * @since 1.5
      */
     public TrustAnchor(X500Principal caPrincipal, PublicKey pubKey,
-            byte[] nameConstraints) {
+            byte @Nullable [] nameConstraints) {
         if ((caPrincipal == null) || (pubKey == null)) {
             throw new NullPointerException();
         }
@@ -206,7 +212,7 @@ public @UsesObjectEquals class TrustAnchor {
      * @throws NullPointerException if the specified {@code caName} or
      * {@code pubKey} parameter is {@code null}
      */
-    public TrustAnchor(String caName, PublicKey pubKey, byte[] nameConstraints)
+    public TrustAnchor(String caName, PublicKey pubKey, byte @Nullable [] nameConstraints)
     {
         if (pubKey == null)
             throw new NullPointerException("the pubKey parameter must be " +
@@ -214,7 +220,7 @@ public @UsesObjectEquals class TrustAnchor {
         if (caName == null)
             throw new NullPointerException("the caName parameter must be " +
                 "non-null");
-        if (caName.length() == 0)
+        if (caName.isEmpty())
             throw new IllegalArgumentException("the caName " +
                 "parameter must be a non-empty String");
         // check if caName is formatted correctly
@@ -231,7 +237,7 @@ public @UsesObjectEquals class TrustAnchor {
      * @return a trusted {@code X509Certificate} or {@code null}
      * if the trust anchor was not specified as a trusted certificate
      */
-    public final X509Certificate getTrustedCert() {
+    public final @Nullable X509Certificate getTrustedCert() {
         return this.trustedCert;
     }
 
@@ -243,7 +249,7 @@ public @UsesObjectEquals class TrustAnchor {
      * public key and name or X500Principal pair
      * @since 1.5
      */
-    public final X500Principal getCA() {
+    public final @Nullable X500Principal getCA() {
         return this.caPrincipal;
     }
 
@@ -255,7 +261,7 @@ public @UsesObjectEquals class TrustAnchor {
      * {@code null} if the trust anchor was not specified as a trusted
      * public key and name or X500Principal pair
      */
-    public final String getCAName() {
+    public final @Nullable String getCAName() {
         return this.caName;
     }
 
@@ -266,7 +272,7 @@ public @UsesObjectEquals class TrustAnchor {
      * if the trust anchor was not specified as a trusted public key and name
      * or X500Principal pair
      */
-    public final PublicKey getCAPublicKey() {
+    public final @Nullable PublicKey getCAPublicKey() {
         return this.pubKey;
     }
 
@@ -283,10 +289,7 @@ public @UsesObjectEquals class TrustAnchor {
             try {
                 nc = new NameConstraintsExtension(Boolean.FALSE, bytes);
             } catch (IOException ioe) {
-                IllegalArgumentException iae =
-                    new IllegalArgumentException(ioe.getMessage());
-                iae.initCause(ioe);
-                throw iae;
+                throw new IllegalArgumentException(ioe.getMessage(), ioe);
             }
         }
     }
@@ -311,7 +314,7 @@ public @UsesObjectEquals class TrustAnchor {
      *         a NameConstraints extension used for checking name constraints,
      *         or {@code null} if not set.
      */
-    public final byte [] getNameConstraints() {
+    public final byte @Nullable [] getNameConstraints() {
         return ncBytes == null ? null : ncBytes.clone();
     }
 
@@ -324,14 +327,27 @@ public @UsesObjectEquals class TrustAnchor {
         StringBuilder sb = new StringBuilder();
         sb.append("[\n");
         if (pubKey != null) {
-            sb.append("  Trusted CA Public Key: " + pubKey.toString() + "\n");
-            sb.append("  Trusted CA Issuer Name: "
-                + String.valueOf(caName) + "\n");
+            sb.append("  Trusted CA Public Key: " + pubKey + "\n");
+            sb.append("  Trusted CA Issuer Name: " + caName + "\n");
         } else {
-            sb.append("  Trusted CA cert: " + trustedCert.toString() + "\n");
+            sb.append("  Trusted CA cert: " + trustedCert + "\n");
         }
         if (nc != null)
-            sb.append("  Name Constraints: " + nc.toString() + "\n");
+            sb.append("  Name Constraints: " + nc + "\n");
         return sb.toString();
+    }
+
+    /**
+     * Returns true if anchor is a JDK CA (a root CA that is included by
+     * default in the cacerts keystore).
+     */
+    synchronized boolean isJdkCA() {
+        if (!hasJdkCABeenChecked) {
+            if (trustedCert != null) {
+                jdkCA = AnchorCertificates.contains(trustedCert);
+            }
+            hasJdkCABeenChecked = true;
+        }
+        return jdkCA;
     }
 }

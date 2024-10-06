@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,11 @@ import static sun.swing.SwingUtilities2.getFontCharsWidth;
  * @author  Timothy Prinzing
  */
 public class Utilities {
+    /**
+     * Constructs a {@code Utilities}.
+     */
+    public Utilities() {}
+
     /**
      * If <code>view</code>'s container is a <code>JComponent</code> it
      * is returned, after casting.
@@ -135,7 +140,7 @@ public class Utilities {
     // In addition to the previous method it can extend spaces for
     // justification.
     //
-    // all params are the same as in the preious method except the last
+    // all params are the same as in the previous method except the last
     // one:
     // @param justificationData justificationData for the row.
     // if null not justification is needed
@@ -270,7 +275,7 @@ public class Utilities {
     // In addition to the previous method it can extend spaces for
     // justification.
     //
-    // all params are the same as in the preious method except the last
+    // all params are the same as in the previous method except the last
     // one:
     // @param justificationData justificationData for the row.
     // if null not justification is needed
@@ -398,6 +403,14 @@ public class Utilities {
                                    justificationData, false);
     }
 
+    static final int getTabbedTextOffset(View view, Segment s, FontMetrics metrics,
+                                         float x0, float x, TabExpander e,
+                                         int startOffset,
+                                         int[] justificationData) {
+        return getTabbedTextOffset(view, s, metrics, x0, x, e, startOffset, true,
+                justificationData, true);
+    }
+
     /**
      * Determines the relative offset into the given text that
      * best represents the given span in the view coordinate
@@ -462,7 +475,7 @@ public class Utilities {
     // In addition to the previous method it can extend spaces for
     // justification.
     //
-    // all params are the same as in the preious method except the last
+    // all params are the same as in the previous method except the last
     // one:
     // @param justificationData justificationData for the row.
     // if null not justification is needed
@@ -657,7 +670,7 @@ public class Utilities {
     public static final int getBreakLocation(Segment s, FontMetrics metrics,
                                              float x0, float x, TabExpander e,
                                              int startOffset) {
-        return getBreakLocation(s, metrics, x0, x, e, startOffset, false);
+        return getBreakLocation(s, metrics, x0, x, e, startOffset, true);
     }
 
     /**
@@ -670,7 +683,7 @@ public class Utilities {
      * @param offs the offset in the document &gt;= 0
      * @return the position &gt;= 0 if the request can be computed, otherwise
      *  a value of -1 will be returned.
-     * @exception BadLocationException if the offset is out of range
+     * @throws BadLocationException if the offset is out of range
      */
     @SuppressWarnings("deprecation")
     public static final int getRowStart(JTextComponent c, int offs) throws BadLocationException {
@@ -701,7 +714,7 @@ public class Utilities {
      * @param offs the offset in the document &gt;= 0
      * @return the position &gt;= 0 if the request can be computed, otherwise
      *  a value of -1 will be returned.
-     * @exception BadLocationException if the offset is out of range
+     * @throws BadLocationException if the offset is out of range
      */
     @SuppressWarnings("deprecation")
     public static final int getRowEnd(JTextComponent c, int offs) throws BadLocationException {
@@ -734,7 +747,7 @@ public class Utilities {
      * @param x the X coordinate &gt;= 0
      * @return the position &gt;= 0 if the request can be computed, otherwise
      *  a value of -1 will be returned.
-     * @exception BadLocationException if the offset is out of range
+     * @throws BadLocationException if the offset is out of range
      *
      * @deprecated replaced by
      *     {@link #getPositionAbove(JTextComponent, int, float)}
@@ -789,7 +802,7 @@ public class Utilities {
      * @param x the X coordinate {@code >= 0}
      * @return the position {@code >= 0} if the request can be computed, otherwise
      *  a value of -1 will be returned.
-     * @exception BadLocationException if the offset is out of range
+     * @throws BadLocationException if the offset is out of range
      *
      * @since 9
      */
@@ -809,7 +822,7 @@ public class Utilities {
      * @param x the X coordinate &gt;= 0
      * @return the position &gt;= 0 if the request can be computed, otherwise
      *  a value of -1 will be returned.
-     * @exception BadLocationException if the offset is out of range
+     * @throws BadLocationException if the offset is out of range
      *
      * @deprecated replaced by
      *     {@link #getPositionBelow(JTextComponent, int, float)}
@@ -865,7 +878,7 @@ public class Utilities {
      * @param x the X coordinate {@code >= 0}
      * @return the position {@code >= 0} if the request can be computed, otherwise
      *  a value of -1 will be returned.
-     * @exception BadLocationException if the offset is out of range
+     * @throws BadLocationException if the offset is out of range
      *
      * @since 9
      */
@@ -881,7 +894,7 @@ public class Utilities {
      * @param c the editor
      * @param offs the offset in the document &gt;= 0
      * @return the location in the model of the word start &gt;= 0
-     * @exception BadLocationException if the offset is out of range
+     * @throws BadLocationException if the offset is out of range
      */
     public static final int getWordStart(JTextComponent c, int offs) throws BadLocationException {
         Document doc = c.getDocument();
@@ -915,7 +928,7 @@ public class Utilities {
      * @param c the editor
      * @param offs the offset in the document &gt;= 0
      * @return the location in the model of the word end &gt;= 0
-     * @exception BadLocationException if the offset is out of range
+     * @throws BadLocationException if the offset is out of range
      */
     public static final int getWordEnd(JTextComponent c, int offs) throws BadLocationException {
         Document doc = c.getDocument();
@@ -948,7 +961,7 @@ public class Utilities {
      * @param c the editor
      * @param offs the offset in the document &gt;= 0
      * @return the location in the model of the word start &gt;= 0
-     * @exception BadLocationException if the offset is out of range
+     * @throws BadLocationException if the offset is out of range
      */
     public static final int getNextWord(JTextComponent c, int offs) throws BadLocationException {
         int nextWord;
@@ -1026,7 +1039,7 @@ public class Utilities {
      * @param c the editor
      * @param offs the offset in the document &gt;= 0
      * @return the location in the model of the word start &gt;= 0
-     * @exception BadLocationException if the offset is out of range
+     * @throws BadLocationException if the offset is out of range
      */
     public static final int getPreviousWord(JTextComponent c, int offs) throws BadLocationException {
         int prevWord;
@@ -1235,7 +1248,7 @@ public class Utilities {
      * they might not be in the same order found in the model, or they just
      * might not allow access to some of the locations in the model.
      * <p>
-     * This implementation assumes the views are layed out in a logical
+     * This implementation assumes the views are laid out in a logical
      * manner. That is, that the view at index x + 1 is visually after
      * the View at index x, and that the View at index x - 1 is visually
      * before the View at x. There is support for reversing this behavior
@@ -1258,8 +1271,8 @@ public class Utilities {
      * @param biasRet an array contain the bias that was checked
      * @return the location within the model that best represents the next
      *  location visual position
-     * @exception BadLocationException
-     * @exception IllegalArgumentException if <code>direction</code> is invalid
+     * @throws BadLocationException
+     * @throws IllegalArgumentException if <code>direction</code> is invalid
      */
     static int getNextVisualPositionFrom(View v, int pos, Position.Bias b,
                                           Shape alloc, int direction,

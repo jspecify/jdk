@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,23 @@
  * @test
  * @bug      8048628 8174715 8182765
  * @summary  Verify html inline tags are removed correctly in the first sentence.
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestNonInlineHtmlTagRemoval
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestNonInlineHtmlTagRemoval extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestNonInlineHtmlTagRemoval tester = new TestNonInlineHtmlTagRemoval();
+        var tester = new TestNonInlineHtmlTagRemoval();
         tester.runTests();
     }
 
     @Test
-    void testPositive() {
+    public void testPositive() {
         javadoc("-d", "out1",
                 "-sourcepath", testSrc,
                 testSrc("C.java"));
@@ -50,36 +52,39 @@ public class TestNonInlineHtmlTagRemoval extends JavadocTester {
                 "attribute not supported in HTML5: type");
 
         checkOutput("C.html", true,
-                "<div class=\"block\">case1   end of sentence.</div>",
-                "<div class=\"block\">case2   end of sentence.</div>",
-                "<div class=\"block\">case3   end of sentence.</div>",
-                "<div class=\"block\">case4   end of sentence.</div>",
-                "<div class=\"block\">case5   end of sentence.</div>",
-                "<div class=\"block\">case6   end of sentence.</div>",
-                "<div class=\"block\">case7   end of sentence.</div>",
-                "<div class=\"block\">case8   end of sentence.</div>",
-                "<div class=\"block\">case9   end of sentence.</div>",
-                "<div class=\"block\">caseA   end of sentence.</div>",
-                "<div class=\"block\">caseB A block quote example:</div>");
+                """
+                    <div class="block">case1   end of sentence.</div>""",
+                """
+                    <div class="block">case2   end of sentence.</div>""",
+                """
+                    <div class="block">case3   end of sentence.</div>""",
+                """
+                    <div class="block">case4   end of sentence.</div>""",
+                """
+                    <div class="block">case5   end of sentence.</div>""",
+                """
+                    <div class="block">case6   end of sentence.</div>""",
+                """
+                    <div class="block">case7   end of sentence.</div>""",
+                """
+                    <div class="block">case8   end of sentence.</div>""",
+                """
+                    <div class="block">case9   end of sentence.</div>""",
+                """
+                    <div class="block">caseA   end of sentence.</div>""",
+                """
+                    <div class="block">caseB A block quote example:</div>""");
     }
 
     @Test
-    void testPositive_html4() {
-        javadoc("-d", "out1-html4",
-                "-html4",
-                "-sourcepath", testSrc,
-                testSrc("C.java"));
-        checkExit(Exit.OK);
-    }
-
-    @Test
-    void testNegative() {
+    public void testNegative() {
         javadoc("-d", "out2",
                 "-sourcepath", testSrc,
                 testSrc("Negative.java"));
         checkExit(Exit.ERROR);
 
         checkOutput("Negative.html", true,
-                "<div class=\"block\">case1: A hanging &lt;  : xx<</div>");
+                """
+                    <div class="block">case1: A hanging &lt;  : xx<span class="invalid-tag">invalid input: '&lt;'</span></div>""");
     }
 }

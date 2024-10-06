@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,6 +73,7 @@ public @UsesObjectEquals class Statement {
         }
     };
 
+    @SuppressWarnings("removal")
     private final AccessControlContext acc = AccessController.getContext();
     private final Object target;
     private final String methodName;
@@ -179,6 +180,7 @@ public @UsesObjectEquals class Statement {
         invoke();
     }
 
+    @SuppressWarnings("removal")
     Object invoke() throws Exception {
         AccessControlContext acc = this.acc;
         if ((acc == null) && (System.getSecurityManager() != null)) {
@@ -236,7 +238,7 @@ public @UsesObjectEquals class Statement {
         AccessibleObject m = null;
         if (target instanceof Class) {
             /*
-            For class methods, simluate the effect of a meta class
+            For class methods, simulate the effect of a meta class
             by taking the union of the static methods of the
             actual class, with the instance methods of "Class.class"
             and the overloaded "newInstance" methods defined by the
@@ -283,7 +285,7 @@ public @UsesObjectEquals class Statement {
         else {
             /*
             This special casing of arrays is not necessary, but makes files
-            involving arrays much shorter and simplifies the archiving infrastrcure.
+            involving arrays much shorter and simplifies the archiving infrastructure.
             The Array.set() method introduces an unusual idea - that of a static method
             changing the state of an instance. Normally statements with side
             effects on objects are instance methods of the objects themselves
@@ -317,7 +319,7 @@ public @UsesObjectEquals class Statement {
                                     iae);
             }
             catch (InvocationTargetException ite) {
-                Throwable te = ite.getTargetException();
+                Throwable te = ite.getCause();
                 if (te instanceof Exception) {
                     throw (Exception)te;
                 }

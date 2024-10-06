@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import java.io.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.BiFunction;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * This class implements a hash table, which maps keys to values. Any
@@ -177,6 +177,7 @@ public class Hashtable<K,V>
     private transient int modCount = 0;
 
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
+    @java.io.Serial
     private static final long serialVersionUID = 1421746759512286392L;
 
     /**
@@ -185,7 +186,7 @@ public class Hashtable<K,V>
      *
      * @param      initialCapacity   the initial capacity of the hashtable.
      * @param      loadFactor        the load factor of the hashtable.
-     * @exception  IllegalArgumentException  if the initial capacity is less
+     * @throws     IllegalArgumentException  if the initial capacity is less
      *             than zero, or if the load factor is nonpositive.
      */
     public Hashtable( int initialCapacity, float loadFactor) {
@@ -207,7 +208,7 @@ public class Hashtable<K,V>
      * and default load factor (0.75).
      *
      * @param     initialCapacity   the initial capacity of the hashtable.
-     * @exception IllegalArgumentException if the initial capacity is less
+     * @throws    IllegalArgumentException if the initial capacity is less
      *              than zero.
      */
     public Hashtable( int initialCapacity) {
@@ -231,6 +232,7 @@ public class Hashtable<K,V>
      * @throws NullPointerException if the specified map is null.
      * @since   1.2
      */
+    @SuppressWarnings("this-escape")
     public Hashtable(Map<? extends K, ? extends V> t) {
         this(Math.max(2*t.size(), 11), 0.75f);
         putAll(t);
@@ -311,7 +313,7 @@ public class Hashtable<K,V>
      *             {@code value} argument in this hashtable as
      *             determined by the {@code equals} method;
      *             {@code false} otherwise.
-     * @exception  NullPointerException  if the value is {@code null}
+     * @throws     NullPointerException  if the value is {@code null}
      */
     
     public synchronized boolean contains( Object value) {
@@ -477,7 +479,7 @@ public class Hashtable<K,V>
      * @param      value   the value
      * @return     the previous value of the specified key in this hashtable,
      *             or {@code null} if it did not have one
-     * @exception  NullPointerException  if the key or value is
+     * @throws     NullPointerException  if the key or value is
      *               {@code null}
      * @see     Object#equals(Object)
      * @see     #get(Object)
@@ -733,9 +735,8 @@ public class Hashtable<K,V>
         }
 
         public boolean contains(Object o) {
-            if (!(o instanceof Map.Entry))
+            if (!(o instanceof Map.Entry<?, ?> entry))
                 return false;
-            Map.Entry<?,?> entry = (Map.Entry<?,?>)o;
             Object key = entry.getKey();
             Entry<?,?>[] tab = table;
             int hash = key.hashCode();
@@ -748,9 +749,8 @@ public class Hashtable<K,V>
         }
 
         public boolean remove(Object o) {
-            if (!(o instanceof Map.Entry))
+            if (!(o instanceof Map.Entry<?, ?> entry))
                 return false;
-            Map.Entry<?,?> entry = (Map.Entry<?,?>) o;
             Object key = entry.getKey();
             Entry<?,?>[] tab = table;
             int hash = key.hashCode();
@@ -840,9 +840,8 @@ public class Hashtable<K,V>
         if (o == this)
             return true;
 
-        if (!(o instanceof Map))
+        if (!(o instanceof Map<?, ?> t))
             return false;
-        Map<?,?> t = (Map<?,?>) o;
         if (t.size() != size())
             return false;
 
@@ -858,9 +857,7 @@ public class Hashtable<K,V>
                         return false;
                 }
             }
-        } catch (ClassCastException unused)   {
-            return false;
-        } catch (NullPointerException unused) {
+        } catch (ClassCastException | NullPointerException unused) {
             return false;
         }
 
@@ -1228,6 +1225,7 @@ public class Hashtable<K,V>
      *             for each key-value mapping represented by the Hashtable
      *             The key-value mappings are emitted in no particular order.
      */
+    @java.io.Serial
     private void writeObject(java.io.ObjectOutputStream s)
             throws IOException {
         writeHashtable(s);
@@ -1281,7 +1279,8 @@ public class Hashtable<K,V>
     /**
      * Reconstitute the Hashtable from a stream (i.e., deserialize it).
      */
-    private void readObject(java.io.ObjectInputStream s)
+    @java.io.Serial
+    private void readObject(ObjectInputStream s)
             throws IOException, ClassNotFoundException {
         readHashtable(s);
     }
@@ -1290,14 +1289,16 @@ public class Hashtable<K,V>
      * Perform deserialization of the Hashtable from an ObjectInputStream.
      * The Properties class overrides this method.
      */
-    void readHashtable(java.io.ObjectInputStream s)
+    void readHashtable(ObjectInputStream s)
             throws IOException, ClassNotFoundException {
-        // Read in the threshold and loadFactor
-        s.defaultReadObject();
 
-        // Validate loadFactor (ignore threshold - it will be re-computed)
-        if (loadFactor <= 0 || Float.isNaN(loadFactor))
-            throw new StreamCorruptedException("Illegal Load: " + loadFactor);
+        ObjectInputStream.GetField fields = s.readFields();
+
+        // Read and validate loadFactor (ignore threshold - it will be re-computed)
+        float lf = fields.get("loadFactor", 0.75f);
+        if (lf <= 0 || Float.isNaN(lf))
+            throw new StreamCorruptedException("Illegal load factor: " + lf);
+        lf = Math.clamp(lf, 0.25f, 4.0f);
 
         // Read the original length of the array and number of elements
         int origlength = s.readInt();
@@ -1309,13 +1310,13 @@ public class Hashtable<K,V>
 
         // Clamp original length to be more than elements / loadFactor
         // (this is the invariant enforced with auto-growth)
-        origlength = Math.max(origlength, (int)(elements / loadFactor) + 1);
+        origlength = Math.max(origlength, (int)(elements / lf) + 1);
 
         // Compute new length with a bit of room 5% + 3 to grow but
         // no larger than the clamped original length.  Make the length
         // odd if it's large enough, this helps distribute the entries.
         // Guard against the length ending up zero, that's not valid.
-        int length = (int)((elements + elements / 20) / loadFactor) + 3;
+        int length = (int)(elements * 1.05f / lf) + 3;
         if (length > elements && (length & 1) == 0)
             length--;
         length = Math.min(length, origlength);
@@ -1327,8 +1328,9 @@ public class Hashtable<K,V>
         // Check Map.Entry[].class since it's the nearest public type to
         // what we're actually creating.
         SharedSecrets.getJavaObjectInputStreamAccess().checkArray(s, Map.Entry[].class, length);
+        Hashtable.UnsafeHolder.putLoadFactor(this, lf);
         table = new Entry<?,?>[length];
-        threshold = (int)Math.min(length * loadFactor, MAX_ARRAY_SIZE + 1);
+        threshold = (int)Math.min(length * lf, MAX_ARRAY_SIZE + 1);
         count = 0;
 
         // Read the number of elements and then all the key/value objects
@@ -1339,6 +1341,18 @@ public class Hashtable<K,V>
                 V value = (V)s.readObject();
             // sync is eliminated for performance
             reconstitutionPut(table, key, value);
+        }
+    }
+
+    // Support for resetting final field during deserializing
+    private static final class UnsafeHolder {
+        private UnsafeHolder() { throw new InternalError(); }
+        private static final jdk.internal.misc.Unsafe unsafe
+                = jdk.internal.misc.Unsafe.getUnsafe();
+        private static final long LF_OFFSET
+                = unsafe.objectFieldOffset(Hashtable.class, "loadFactor");
+        static void putLoadFactor(Hashtable<?, ?> table, float lf) {
+            unsafe.putFloat(table, LF_OFFSET, lf);
         }
     }
 
@@ -1418,9 +1432,8 @@ public class Hashtable<K,V>
         }
 
         public boolean equals(Object o) {
-            if (!(o instanceof Map.Entry))
+            if (!(o instanceof Map.Entry<?, ?> e))
                 return false;
-            Map.Entry<?,?> e = (Map.Entry<?,?>)o;
 
             return (key==null ? e.getKey()==null : key.equals(e.getKey())) &&
                (value==null ? e.getValue()==null : value.equals(e.getValue()));

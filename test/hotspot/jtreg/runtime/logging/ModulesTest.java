@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,23 +24,29 @@
 /*
  * @test
  * @summary -Xlog:module should emit logging output
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main ModulesTest
+ * @run driver ModulesTest
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
 public class ModulesTest {
+    // If modules in the system image have been archived in CDS, no Modules will
+    // be dynamically created at runtime. Disable CDS so all of the expected messages
+    // are printed.
+    private static String XSHARE_OFF = "-Xshare:off";
+
     public static void main(String[] args) throws Exception {
-        testModuleTrace("-Xlog:module=trace", "-version");
-        testModuleLoad("-Xlog:module+load", "-version");
-        testModuleUnload("-Xlog:module+unload", "-version");
+        testModuleTrace("-Xlog:module=trace", XSHARE_OFF, "-version");
+        testModuleLoad("-Xlog:module+load", XSHARE_OFF, "-version");
+        testModuleUnload("-Xlog:module+unload", XSHARE_OFF, "-version");
 
         // same as -Xlog:module+load -Xlog:module+unload
-        testModuleLoad("-verbose:module", "-version");
+        testModuleLoad("-verbose:module", XSHARE_OFF, "-version");
     }
 
     static void testModuleTrace(String... args) throws Exception {
@@ -69,7 +75,7 @@ public class ModulesTest {
     }
 
     static OutputAnalyzer run(String... args) throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(args);
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(args);
         return new OutputAnalyzer(pb.start());
     }
 }

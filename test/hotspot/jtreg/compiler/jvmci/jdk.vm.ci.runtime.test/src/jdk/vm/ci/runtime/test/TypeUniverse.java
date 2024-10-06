@@ -22,14 +22,8 @@
  */
 package jdk.vm.ci.runtime.test;
 
-import jdk.internal.misc.Unsafe;
-import jdk.vm.ci.meta.ConstantReflectionProvider;
-import jdk.vm.ci.meta.JavaConstant;
-import jdk.vm.ci.meta.MetaAccessProvider;
-import jdk.vm.ci.meta.ResolvedJavaField;
-import jdk.vm.ci.meta.ResolvedJavaType;
-import jdk.vm.ci.runtime.JVMCI;
-import org.junit.Test;
+import static java.lang.reflect.Modifier.isFinal;
+import static java.lang.reflect.Modifier.isStatic;
 
 import java.io.Serializable;
 import java.lang.reflect.Array;
@@ -51,10 +45,19 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static java.lang.reflect.Modifier.isFinal;
-import static java.lang.reflect.Modifier.isStatic;
+import org.junit.Test;
+
+import jdk.internal.misc.Unsafe;
+import jdk.internal.misc.ScopedMemoryAccess;
+import jdk.vm.ci.meta.ConstantReflectionProvider;
+import jdk.vm.ci.meta.JavaConstant;
+import jdk.vm.ci.meta.MetaAccessProvider;
+import jdk.vm.ci.meta.ResolvedJavaField;
+import jdk.vm.ci.meta.ResolvedJavaType;
+import jdk.vm.ci.runtime.JVMCI;
 
 /**
  * Context for type related tests.
@@ -68,6 +71,7 @@ public class TypeUniverse {
     public static final ConstantReflectionProvider constantReflection = JVMCI.getRuntime().getHostJVMCIBackend().getConstantReflection();
     public static final Collection<Class<?>> classes = new HashSet<>();
     public static final Set<ResolvedJavaType> javaTypes;
+    public static final ResolvedJavaType predicateType;
     public static final Map<Class<?>, Class<?>> arrayClasses = new HashMap<>();
 
     private static List<ConstantValue> constants;
@@ -112,10 +116,13 @@ public class TypeUniverse {
                         byte[][].class, short[][].class, char[][].class, int[][].class, float[][].class, long[][].class, double[][].class, Object[][].class, Class[][].class, List[][].class,
                         ClassLoader.class, String.class, Serializable.class, Cloneable.class, Test.class, TestMetaAccessProvider.class, List.class, Collection.class, Map.class, Queue.class,
                         HashMap.class, LinkedHashMap.class, IdentityHashMap.class, AbstractCollection.class, AbstractList.class, ArrayList.class, InnerClass.class, InnerStaticClass.class,
-                        InnerStaticFinalClass.class, PrivateInnerClass.class, ProtectedInnerClass.class};
+                        InnerStaticFinalClass.class, PrivateInnerClass.class, ProtectedInnerClass.class, ScopedMemoryAccess.class};
         for (Class<?> c : initialClasses) {
             addClass(c);
         }
+        Predicate<String> predicate = s -> s.length() == 1;
+        addClass(predicate.getClass());
+        predicateType = metaAccess.lookupJavaType(predicate.getClass());
 
         javaTypes = Collections.unmodifiableSet(classes.stream().map(c -> metaAccess.lookupJavaType(c)).collect(Collectors.toSet()));
     }

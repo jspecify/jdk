@@ -38,7 +38,7 @@ import javax.swing.table.*;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -88,12 +88,12 @@ public class TableColumnModelEvent extends java.util.EventObject
      *
      * @return int value for index from which the column was moved or removed
      */
-    public int getFromIndex() { return fromIndex; };
+    public int getFromIndex() { return fromIndex; }
 
     /**
      * Returns the toIndex.  Valid for add and moved events
      *
      * @return int value of column's new index
      */
-    public int getToIndex() { return toIndex; };
+    public int getToIndex() { return toIndex; }
 }

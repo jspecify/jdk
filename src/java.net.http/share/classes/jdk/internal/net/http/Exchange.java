@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,21 @@
 package jdk.internal.net.http;
 
 import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
+import java.net.ProtocolException;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLPermission;
 import java.security.AccessControlContext;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -76,10 +80,12 @@ final class Exchange<T> {
     // used to record possible cancellation raised before the exchImpl
     // has been established.
     private volatile IOException failed;
+    @SuppressWarnings("removal")
     final AccessControlContext acc;
     final MultiExchange<T> multi;
     final Executor parentExecutor;
-    boolean upgrading; // to HTTP/2
+    volatile boolean upgrading; // to HTTP/2
+    volatile boolean upgraded;  // to HTTP/2
     final PushGroup<T> pushGroup;
     final String dbgTag;
 
@@ -101,7 +107,7 @@ final class Exchange<T> {
     /* If different AccessControlContext to be used  */
     Exchange(HttpRequestImpl request,
              MultiExchange<T> multi,
-             AccessControlContext acc)
+             @SuppressWarnings("removal") AccessControlContext acc)
     {
         this.request = request;
         this.acc = acc;
@@ -125,6 +131,10 @@ final class Exchange<T> {
         return request;
     }
 
+    public Optional<Duration> remainingConnectTimeout() {
+        return multi.remainingConnectTimeout();
+    }
+
     HttpClientImpl client() {
         return client;
     }
@@ -133,22 +143,72 @@ final class Exchange<T> {
     // exchange so that it can be aborted/timed out mid setup.
     static final class ConnectionAborter {
         private volatile HttpConnection connection;
+        private volatile boolean closeRequested;
+        private volatile Throwable cause;
 
         void connection(HttpConnection connection) {
-            this.connection = connection;
+            boolean closeRequested;
+            synchronized (this) {
+                // check whether this new connection should be
+                // closed
+                closeRequested = this.closeRequested;
+                if (!closeRequested) {
+                    this.connection = connection;
+                } else {
+                    // assert this.connection == null
+                    this.closeRequested = false;
+                }
+            }
+            if (closeRequested) closeConnection(connection, cause);
         }
 
-        void closeConnection() {
-            HttpConnection connection = this.connection;
-            this.connection = null;
+        void closeConnection(Throwable error) {
+            HttpConnection connection;
+            Throwable cause;
+            synchronized (this) {
+                cause = this.cause;
+                if (cause == null) {
+                    cause = error;
+                }
+                connection = this.connection;
+                if (connection == null) {
+                    closeRequested = true;
+                    this.cause = cause;
+                } else {
+                    this.connection = null;
+                    this.cause = null;
+                }
+            }
+            closeConnection(connection, cause);
+        }
+
+        HttpConnection disable() {
+            HttpConnection connection;
+            synchronized (this) {
+                connection = this.connection;
+                this.connection = null;
+                this.closeRequested = false;
+                this.cause = null;
+            }
+            return connection;
+        }
+
+        private static void closeConnection(HttpConnection connection, Throwable cause) {
             if (connection != null) {
                 try {
-                    connection.close();
+                    connection.close(cause);
                 } catch (Throwable t) {
                     // ignore
                 }
             }
         }
+    }
+
+    // Called for 204 response - when no body is permitted
+    // This is actually only needed for HTTP/1.1 in order
+    // to return the connection to the pool (or close it)
+    void nullBody(HttpResponse<T> resp, Throwable t) {
+        exchImpl.nullBody(resp, t);
     }
 
     public CompletableFuture<T> readBodyAsync(HttpResponse.BodyHandler<T> handler) {
@@ -215,11 +275,19 @@ final class Exchange<T> {
             impl.cancel(cause);
         } else {
             // no impl yet. record the exception
-            failed = cause;
+            IOException failed = this.failed;
+            if (failed == null) {
+                synchronized (this) {
+                    failed = this.failed;
+                    if (failed == null) {
+                        failed = this.failed = cause;
+                    }
+                }
+            }
 
             // abort/close the connection if setting up the exchange. This can
             // be important when setting up HTTP/2
-            connectionAborter.closeConnection();
+            connectionAborter.closeConnection(failed);
 
             // now call checkCancelled to recheck the impl.
             // if the failed state is set and the impl is not null, reset
@@ -239,7 +307,7 @@ final class Exchange<T> {
         IOException cause = null;
         CompletableFuture<? extends ExchangeImpl<T>> cf = null;
         if (failed != null) {
-            synchronized(this) {
+            synchronized (this) {
                 cause = failed;
                 impl = exchImpl;
                 cf = exchangeCF;
@@ -265,6 +333,30 @@ final class Exchange<T> {
         }
     }
 
+    <T> CompletableFuture<T> checkCancelled(CompletableFuture<T> cf, HttpConnection connection) {
+        return cf.handle((r,t) -> {
+            if (t == null) {
+                if (multi.requestCancelled()) {
+                    // if upgraded, we don't close the connection.
+                    // cancelling will be handled by the HTTP/2 exchange
+                    // in its own time.
+                    if (!upgraded) {
+                        t = getCancelCause();
+                        if (t == null) t = new IOException("Request cancelled");
+                        if (debug.on()) debug.log("exchange cancelled during connect: " + t);
+                        try {
+                            connection.close();
+                        } catch (Throwable x) {
+                            if (debug.on()) debug.log("Failed to close connection", x);
+                        }
+                        return MinimalFuture.<T>failedFuture(t);
+                    }
+                }
+            }
+            return cf;
+        }).thenCompose(Function.identity());
+    }
+
     public void h2Upgrade() {
         upgrading = true;
         request.setH2Upgrade(client.client2());
@@ -286,7 +378,10 @@ final class Exchange<T> {
         Throwable t = getCancelCause();
         checkCancelled();
         if (t != null) {
-            return MinimalFuture.failedFuture(t);
+            if (debug.on()) {
+                debug.log("exchange was cancelled: returned failed cf (%s)", String.valueOf(t));
+            }
+            return exchangeCF = MinimalFuture.failedFuture(t);
         }
 
         CompletableFuture<? extends ExchangeImpl<T>> cf, res;
@@ -295,7 +390,7 @@ final class Exchange<T> {
         // instead - as we need CAS semantics.
         synchronized (this) { exchangeCF = cf; };
         res = cf.whenComplete((r,x) -> {
-            synchronized(Exchange.this) {
+            synchronized (Exchange.this) {
                 if (exchangeCF == cf) exchangeCF = null;
             }
         });
@@ -360,32 +455,55 @@ final class Exchange<T> {
     // for the 100-Continue response
     private CompletableFuture<Response> expectContinue(ExchangeImpl<T> ex) {
         assert request.expectContinue();
+
+        long responseTimeoutMillis = 5000;
+        if (request.timeout().isPresent()) {
+            final long timeoutMillis = request.timeout().get().toMillis();
+            responseTimeoutMillis = Math.min(responseTimeoutMillis, timeoutMillis);
+        }
+
         return ex.getResponseAsync(parentExecutor)
+                .completeOnTimeout(null, responseTimeoutMillis, TimeUnit.MILLISECONDS)
                 .thenCompose((Response r1) -> {
-            Log.logResponse(r1::toString);
-            int rcode = r1.statusCode();
-            if (rcode == 100) {
-                Log.logTrace("Received 100-Continue: sending body");
-                if (debug.on()) debug.log("Received 100-Continue for %s", r1);
-                CompletableFuture<Response> cf =
-                        exchImpl.sendBodyAsync()
-                                .thenCompose(exIm -> exIm.getResponseAsync(parentExecutor));
-                cf = wrapForUpgrade(cf);
-                cf = wrapForLog(cf);
-                return cf;
-            } else {
-                Log.logTrace("Expectation failed: Received {0}",
-                        rcode);
-                if (debug.on()) debug.log("Expect-Continue failed (%d) for: %s", rcode, r1);
-                if (upgrading && rcode == 101) {
-                    IOException failed = new IOException(
-                            "Unable to handle 101 while waiting for 100");
-                    return MinimalFuture.failedFuture(failed);
-                }
-                return exchImpl.readBodyAsync(this::ignoreBody, false, parentExecutor)
-                        .thenApply(v ->  r1);
-            }
-        });
+                    // The response will only be null if there was a timeout
+                    // send body regardless
+                    if (r1 == null) {
+                        if (debug.on())
+                            debug.log("Setting ExpectTimeoutRaised and sending request body");
+                        exchImpl.setExpectTimeoutRaised();
+                        CompletableFuture<Response> cf =
+                                exchImpl.sendBodyAsync()
+                                        .thenCompose(exIm -> exIm.getResponseAsync(parentExecutor));
+                        cf = wrapForUpgrade(cf);
+                        cf = wrapForLog(cf);
+                        return cf;
+                    }
+
+                    Log.logResponse(r1::toString);
+                    int rcode = r1.statusCode();
+                    if (rcode == 100) {
+                        Log.logTrace("Received 100-Continue: sending body");
+                        if (debug.on())
+                            debug.log("Received 100-Continue for %s", r1);
+                        CompletableFuture<Response> cf =
+                                exchImpl.sendBodyAsync()
+                                        .thenCompose(exIm -> exIm.getResponseAsync(parentExecutor));
+                        cf = wrapForUpgrade(cf);
+                        cf = wrapForLog(cf);
+                        return cf;
+                    } else {
+                        Log.logTrace("Expectation failed: Received {0}", rcode);
+                        if (debug.on())
+                            debug.log("Expect-Continue failed (%d) for: %s", rcode, r1);
+                        if (upgrading && rcode == 101) {
+                            IOException failed = new IOException(
+                                    "Unable to handle 101 while waiting for 100");
+                            return MinimalFuture.failedFuture(failed);
+                        }
+                        exchImpl.expectContinueFailed(rcode);
+                        return MinimalFuture.completedFuture(r1);
+                    }
+                });
     }
 
     // After sending the request headers, if no ProxyAuthorizationRequired
@@ -397,15 +515,67 @@ final class Exchange<T> {
         CompletableFuture<Response> cf = ex.sendBodyAsync()
                 .thenCompose(exIm -> exIm.getResponseAsync(parentExecutor));
         cf = wrapForUpgrade(cf);
+        // after 101 is handled we check for other 1xx responses
+        cf = cf.thenCompose(this::ignore1xxResponse);
         cf = wrapForLog(cf);
         return cf;
+    }
+
+    /**
+     * Checks whether the passed Response has a status code between 102 and 199 (both inclusive).
+     * If so, then that {@code Response} is considered intermediate informational response and is
+     * ignored by the client. This method then creates a new {@link CompletableFuture} which
+     * completes when a subsequent response is sent by the server. Such newly constructed
+     * {@link CompletableFuture} will not complete till a "final" response (one which doesn't have
+     * a response code between 102 and 199 inclusive) is sent by the server. The returned
+     * {@link CompletableFuture} is thus capable of handling multiple subsequent intermediate
+     * informational responses from the server.
+     * <p>
+     * If the passed Response doesn't have a status code between 102 and 199 (both inclusive) then
+     * this method immediately returns back a completed {@link CompletableFuture} with the passed
+     * {@code Response}.
+     * </p>
+     *
+     * @param rsp The response
+     * @return A {@code CompletableFuture} with the final response from the server
+     */
+    private CompletableFuture<Response> ignore1xxResponse(final Response rsp) {
+        final int statusCode = rsp.statusCode();
+        // we ignore any response code which is 1xx.
+        // For 100 (with the request configured to expect-continue) and 101, we handle it
+        // specifically as defined in the RFC-9110, outside of this method.
+        // As noted in RFC-9110, section 15.2.1, if response code is 100 and if the request wasn't
+        // configured with expectContinue, then we ignore the 100 response and wait for the final
+        // response (just like any other 1xx response).
+        // Any other response code between 102 and 199 (both inclusive) aren't specified in the
+        // "HTTP semantics" RFC-9110. The spec states that these 1xx response codes are informational
+        // and interim and the client can choose to ignore them and continue to wait for the
+        // final response (headers)
+        if ((statusCode >= 102 && statusCode <= 199)
+                || (statusCode == 100 && !request.expectContinue)) {
+            Log.logTrace("Ignoring (1xx informational) response code {0}", rsp.statusCode());
+            if (debug.on()) {
+                debug.log("Ignoring (1xx informational) response code "
+                        + rsp.statusCode());
+            }
+            assert exchImpl != null : "Illegal state - current exchange isn't set";
+            // ignore this Response and wait again for the subsequent response headers
+            final CompletableFuture<Response> cf = exchImpl.getResponseAsync(parentExecutor);
+            // we recompose the CF again into the ignore1xxResponse check/function because
+            // the 1xx response is allowed to be sent multiple times for a request, before
+            // a final response arrives
+            return cf.thenCompose(this::ignore1xxResponse);
+        } else {
+            // return the already completed future
+            return MinimalFuture.completedFuture(rsp);
+        }
     }
 
     CompletableFuture<Response> responseAsyncImpl0(HttpConnection connection) {
         Function<ExchangeImpl<T>, CompletableFuture<Response>> after407Check;
         bodyIgnored = null;
         if (request.expectContinue()) {
-            request.addSystemHeader("Expect", "100-Continue");
+            request.setSystemHeader("Expect", "100-Continue");
             Log.logTrace("Sending Expect: 100-Continue");
             // wait for 100-Continue before sending body
             after407Check = this::expectContinue;
@@ -431,7 +601,30 @@ final class Exchange<T> {
         if (upgrading) {
             return cf.thenCompose(r -> checkForUpgradeAsync(r, exchImpl));
         }
-        return cf;
+        // websocket requests use "Connection: Upgrade" and "Upgrade: websocket" headers.
+        // however, the "upgrading" flag we maintain in this class only tracks a h2 upgrade
+        // that we internally triggered. So it will be false in the case of websocket upgrade, hence
+        // this additional check. If it's a websocket request we allow 101 responses and we don't
+        // require any additional checks when a response arrives.
+        if (request.isWebSocket()) {
+            return cf;
+        }
+        // not expecting an upgrade, but if the server sends a 101 response then we fail the
+        // request and also let the ExchangeImpl deal with it as a protocol error
+        return cf.thenCompose(r -> {
+            if (r.statusCode == 101) {
+                final ProtocolException protoEx = new ProtocolException("Unexpected 101 " +
+                        "response, when not upgrading");
+                assert exchImpl != null : "Illegal state - current exchange isn't set";
+                try {
+                    exchImpl.onProtocolError(protoEx);
+                } catch (Throwable ignore){
+                    // ignored
+                }
+                return MinimalFuture.failedFuture(protoEx);
+            }
+            return MinimalFuture.completedFuture(r);
+        });
     }
 
     private CompletableFuture<Response> wrapForLog(CompletableFuture<Response> cf) {
@@ -468,12 +661,18 @@ final class Exchange<T> {
                     debug.log("Ignored body");
                     // we pass e::getBuffer to allow the ByteBuffers to accumulate
                     // while we build the Http2Connection
+                    ex.upgraded();
+                    upgraded = true;
                     return Http2Connection.createAsync(e.connection(),
                                                  client.client2(),
                                                  this, e::drainLeftOverBytes)
                         .thenCompose((Http2Connection c) -> {
+                            HttpConnection connection = connectionAborter.disable();
                             boolean cached = c.offerConnection();
-                            Stream<T> s = c.getStream(1);
+                            if (!cached && connection != null) {
+                                connectionAborter.connection(connection);
+                            }
+                            Stream<T> s = c.getInitialStream();
 
                             if (s == null) {
                                 // s can be null if an exception occurred
@@ -507,11 +706,12 @@ final class Exchange<T> {
                             }
                             // Check whether the HTTP/1.1 was cancelled.
                             if (t == null) t = e.getCancelCause();
-                            // if HTTP/1.1 exchange was timed out, don't
-                            // try to go further.
-                            if (t instanceof HttpTimeoutException) {
-                                 s.cancelImpl(t);
-                                 return MinimalFuture.failedFuture(t);
+                            // if HTTP/1.1 exchange was timed out, or the request
+                            // was cancelled don't try to go further.
+                            if (t instanceof HttpTimeoutException || multi.requestCancelled()) {
+                                if (t == null) t = new IOException("Request cancelled");
+                                s.cancelImpl(t);
+                                return MinimalFuture.failedFuture(t);
                             }
                             if (debug.on())
                                 debug.log("Getting response async %s", s);
@@ -568,6 +768,7 @@ final class Exchange<T> {
      */
     private SecurityException checkPermissions() {
         String method = request.method();
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm == null || method.equals("CONNECT")) {
             // tunneling will have a null acc, which is fine. The proxy
@@ -585,6 +786,19 @@ final class Exchange<T> {
         } catch (SecurityException e) {
             return e;
         }
+        String hostHeader = userHeaders.firstValue("Host").orElse(null);
+        if (hostHeader != null && !hostHeader.equalsIgnoreCase(u.getHost())) {
+            // user has set a Host header different to request URI
+            // must check that for URLPermission also
+            URI u1 = replaceHostInURI(u, hostHeader);
+            URLPermission p1 = permissionForServer(u1, method, userHeaders.map());
+            try {
+                assert acc != null;
+                sm.checkPermission(p1, acc);
+            } catch (SecurityException e) {
+                return e;
+            }
+        }
         ProxySelector ps = client.proxySelector();
         if (ps != null) {
             if (!method.equals("CONNECT")) {
@@ -600,6 +814,15 @@ final class Exchange<T> {
             }
         }
         return null;
+    }
+
+    private static URI replaceHostInURI(URI u, String hostPort) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(u.getScheme())
+                .append("://")
+                .append(hostPort)
+                .append(u.getRawPath());
+        return URI.create(sb.toString());
     }
 
     HttpClient.Version version() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,21 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_OSTHREAD_HPP
-#define SHARE_VM_RUNTIME_OSTHREAD_HPP
+#ifndef SHARE_RUNTIME_OSTHREAD_HPP
+#define SHARE_RUNTIME_OSTHREAD_HPP
 
 #include "runtime/frame.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/javaFrameAnchor.hpp"
 #include "runtime/objectMonitor.hpp"
+#include "runtime/suspendedThreadTask.hpp"
 #include "utilities/macros.hpp"
+
+#if defined(LINUX) || defined(AIX) || defined(BSD)
+#include "suspendResume_posix.hpp"
+#endif
+
+class Monitor;
 
 // The OSThread class holds OS-specific thread information.  It is equivalent
 // to the sys_thread_t structure of the classic JVM implementation.
@@ -53,50 +60,30 @@ enum ThreadState {
   ZOMBIE                        // All done, but not reclaimed yet
 };
 
+typedef int (*OSThreadStartFunc)(void*);
+
 class OSThread: public CHeapObj<mtThread> {
   friend class VMStructs;
   friend class JVMCIVMStructs;
  private:
-  OSThreadStartFunc _start_proc;  // Thread start routine
-  void* _start_parm;              // Thread start routine parameter
   volatile ThreadState _state;    // Thread state *hint*
-  volatile jint _interrupted;     // Thread.isInterrupted state
-
-  // Note:  _interrupted must be jint, so that Java intrinsics can access it.
-  // The value stored there must be either 0 or 1.  It must be possible
-  // for Java to emulate Thread.currentThread().isInterrupted() by performing
-  // the double indirection Thread::current()->_osthread->_interrupted.
 
   // Methods
  public:
   void set_state(ThreadState state)                { _state = state; }
   ThreadState get_state()                          { return _state; }
 
-  OSThread(OSThreadStartFunc start_proc, void* start_parm);
+  OSThread();
   ~OSThread();
-
-  // Accessors
-  OSThreadStartFunc start_proc() const              { return _start_proc; }
-  void set_start_proc(OSThreadStartFunc start_proc) { _start_proc = start_proc; }
-  void* start_parm() const                          { return _start_parm; }
-  void set_start_parm(void* start_parm)             { _start_parm = start_parm; }
-
-  volatile bool interrupted() const                 { return _interrupted != 0; }
-  void set_interrupted(bool z)                      { _interrupted = z ? 1 : 0; }
 
   // Printing
   void print_on(outputStream* st) const;
-  void print() const                                { print_on(tty); }
-
-  // For java intrinsics:
-  static ByteSize interrupted_offset()            { return byte_offset_of(OSThread, _interrupted); }
+  void print() const;
 
   // Platform dependent stuff
 #include OS_HEADER(osThread)
 
  public:
-  static ByteSize thread_id_offset()              { return byte_offset_of(OSThread, _thread_id); }
-  static size_t thread_id_size()                  { return sizeof(thread_id_t); }
 
   thread_id_t thread_id() const                   { return _thread_id; }
 
@@ -145,4 +132,4 @@ class OSThreadContendState : public StackObj {
   }
 };
 
-#endif // SHARE_VM_RUNTIME_OSTHREAD_HPP
+#endif // SHARE_RUNTIME_OSTHREAD_HPP

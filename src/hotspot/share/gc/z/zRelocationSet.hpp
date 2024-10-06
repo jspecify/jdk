@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,50 +24,50 @@
 #ifndef SHARE_GC_Z_ZRELOCATIONSET_HPP
 #define SHARE_GC_Z_ZRELOCATIONSET_HPP
 
-#include "memory/allocation.hpp"
+#include "gc/z/zArray.hpp"
+#include "gc/z/zForwardingAllocator.hpp"
+#include "gc/z/zLock.hpp"
 
+class ZForwarding;
+class ZGeneration;
 class ZPage;
+class ZPageAllocator;
+class ZRelocationSetSelector;
+class ZWorkers;
 
 class ZRelocationSet {
   template <bool> friend class ZRelocationSetIteratorImpl;
 
 private:
-  ZPage** _pages;
-  size_t  _npages;
+  ZGeneration*         _generation;
+  ZForwardingAllocator _allocator;
+  ZForwarding**        _forwardings;
+  size_t               _nforwardings;
+  ZLock                _promotion_lock;
+  ZArray<ZPage*>       _flip_promoted_pages;
+  ZArray<ZPage*>       _in_place_relocate_promoted_pages;
+
+  ZWorkers* workers() const;
 
 public:
-  ZRelocationSet();
+  ZRelocationSet(ZGeneration* generation);
 
-  void populate(const ZPage* const* group0, size_t ngroup0,
-                const ZPage* const* group1, size_t ngroup1);
+  void install(const ZRelocationSetSelector* selector);
+  void reset(ZPageAllocator* page_allocator);
+  ZGeneration* generation() const;
+  ZArray<ZPage*>* flip_promoted_pages();
+
+  void register_flip_promoted(const ZArray<ZPage*>& pages);
+  void register_in_place_relocate_promoted(ZPage* page);
 };
 
-template <bool parallel>
-class ZRelocationSetIteratorImpl : public StackObj {
-private:
-  ZRelocationSet* const _relocation_set;
-  size_t                _next;
-
+template <bool Parallel>
+class ZRelocationSetIteratorImpl : public ZArrayIteratorImpl<ZForwarding*, Parallel> {
 public:
   ZRelocationSetIteratorImpl(ZRelocationSet* relocation_set);
-
-  bool next(ZPage** page);
 };
 
-// Iterator types
-#define ZRELOCATIONSET_SERIAL      false
-#define ZRELOCATIONSET_PARALLEL    true
-
-class ZRelocationSetIterator : public ZRelocationSetIteratorImpl<ZRELOCATIONSET_SERIAL> {
-public:
-  ZRelocationSetIterator(ZRelocationSet* relocation_set) :
-      ZRelocationSetIteratorImpl<ZRELOCATIONSET_SERIAL>(relocation_set) {}
-};
-
-class ZRelocationSetParallelIterator : public ZRelocationSetIteratorImpl<ZRELOCATIONSET_PARALLEL> {
-public:
-  ZRelocationSetParallelIterator(ZRelocationSet* relocation_set) :
-      ZRelocationSetIteratorImpl<ZRELOCATIONSET_PARALLEL>(relocation_set) {}
-};
+using ZRelocationSetIterator = ZRelocationSetIteratorImpl<false /* Parallel */>;
+using ZRelocationSetParallelIterator = ZRelocationSetIteratorImpl<true /* Parallel */>;
 
 #endif // SHARE_GC_Z_ZRELOCATIONSET_HPP

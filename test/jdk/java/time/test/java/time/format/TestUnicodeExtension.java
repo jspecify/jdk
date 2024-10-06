@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8176841 8202537
+ * @bug 8176841 8202537 8244245 8265315 8284840 8296248 8306116
  * @summary Tests java.time classes deals with Unicode extensions
  *      correctly.
  * @modules jdk.localedata
@@ -47,6 +47,7 @@ import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.stream.Stream;
 
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
@@ -62,6 +63,7 @@ public class TestUnicodeExtension {
 
     private static final Chronology JAPANESE = JapaneseChronology.INSTANCE;
     private static final Chronology HIJRAH = HijrahChronology.INSTANCE;
+    private static final Chronology ISO = IsoChronology.INSTANCE;
 
     private static final ZoneId ASIATOKYO = ZoneId.of("Asia/Tokyo");
     private static final ZoneId AMLA = ZoneId.of("America/Los_Angeles");
@@ -100,56 +102,87 @@ public class TestUnicodeExtension {
         return new Object[][] {
             // Locale, Chrono override, Zone override, Expected Chrono, Expected Zone,
             // Expected formatted string
-            {Locale.JAPAN, null, null, null, null,
-            "2017\u5e748\u670810\u65e5\u6728\u66dc\u65e5 15\u664215\u520600\u79d2 \u30a2\u30e1\u30ea\u30ab\u592a\u5e73\u6d0b\u590f\u6642\u9593"
+            {Locale.JAPAN, null, null, ISO, null,
+            "2017\u5e748\u670810\u65e5\u6728\u66dc\u65e5 15\u664215\u520600\u79d2 " +
+            "\u30a2\u30e1\u30ea\u30ab\u592a\u5e73\u6d0b\u590f\u6642\u9593"
             },
-            {Locale.JAPAN, JAPANESE, null, JAPANESE, null,
-            "\u5e73\u621029\u5e748\u670810\u65e5\u6728\u66dc\u65e5 15\u664215\u520600\u79d2 \u30a2\u30e1\u30ea\u30ab\u592a\u5e73\u6d0b\u590f\u6642\u9593"
+            {Locale.JAPAN, JAPANESE, null, ISO, null,
+            "2017\u5e748\u670810\u65e5\u6728\u66dc\u65e5 15\u664215\u520600\u79d2 " +
+            "\u30a2\u30e1\u30ea\u30ab\u592a\u5e73\u6d0b\u590f\u6642\u9593"
             },
-            {Locale.JAPAN, JAPANESE, ASIATOKYO, JAPANESE, ASIATOKYO,
-            "\u5e73\u621029\u5e748\u670811\u65e5\u91d1\u66dc\u65e5 7\u664215\u520600\u79d2 \u65e5\u672c\u6a19\u6e96\u6642"
+            {Locale.JAPAN, JAPANESE, ASIATOKYO, ISO, ASIATOKYO,
+            "2017\u5e748\u670811\u65e5\u91d1\u66dc\u65e5 7\u664215\u520600\u79d2 " +
+            "\u65e5\u672c\u6a19\u6e96\u6642"
             },
 
             {JCAL, null, null, JAPANESE, null,
-            "Thursday, August 10, 29 Heisei at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 29 Heisei, 3:15:00\u202fPM Pacific Daylight Time"
             },
             {JCAL, HIJRAH, null, JAPANESE, null,
-            "Thursday, August 10, 29 Heisei at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 29 Heisei, 3:15:00\u202fPM Pacific Daylight Time"
             },
             {HCAL, JAPANESE, null, HIJRAH, null,
-            "Thursday, Dhu\u02bbl-Qi\u02bbdah 18, 1438 AH at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, Dhu\u02bbl-Qi\u02bbdah 18, 1438 AH, 3:15:00\u202fPM Pacific Daylight Time"
             },
 
 
-            {JPTYO, null, null, null, ASIATOKYO,
-            "Friday, August 11, 2017 at 7:15:00 AM Japan Standard Time"
+            {JPTYO, null, null, ISO, ASIATOKYO,
+            "Friday, August 11, 2017, 7:15:00\u202fAM Japan Standard Time"
             },
-            {JPTYO, null, AMLA, null, ASIATOKYO,
-            "Friday, August 11, 2017 at 7:15:00 AM Japan Standard Time"
+            {JPTYO, null, AMLA, ISO, ASIATOKYO,
+            "Friday, August 11, 2017, 7:15:00\u202fAM Japan Standard Time"
             },
             // invalid tz
-            {Locale.forLanguageTag("en-US-u-tz-jpzzz"), null, null, null, null,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            {Locale.forLanguageTag("en-US-u-tz-jpzzz"), null, null, ISO, null,
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
             },
-            {Locale.forLanguageTag("en-US-u-tz-jpzzz"), null, AMLA, null, AMLA,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            {Locale.forLanguageTag("en-US-u-tz-jpzzz"), null, AMLA, ISO, AMLA,
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
             },
 
-            {RG_GB, null, null, null, null,
-            "Thursday, 10 August 2017 at 15:15:00 Pacific Daylight Time"
+            {RG_GB, null, null, ISO, null,
+            "Thursday 10 August 2017, 15:15:00 Pacific Daylight Time"
             },
 
             // DecimalStyle
-            {Locale.forLanguageTag("en-US-u-nu-thai"), null, null, null, null,
-            "Thursday, August \u0e51\u0e50, \u0e52\u0e50\u0e51\u0e57 at \u0e53:\u0e51\u0e55:\u0e50\u0e50 PM Pacific Daylight Time"
+            {Locale.forLanguageTag("en-US-u-nu-thai"), null, null, ISO, null,
+            "Thursday, August \u0e51\u0e50, \u0e52\u0e50\u0e51\u0e57, \u0e53:\u0e51\u0e55:" +
+            "\u0e50\u0e50\u202fPM Pacific Daylight Time"
             },
             // DecimalStyle, "nu" vs "rg"
-            {Locale.forLanguageTag("en-US-u-nu-thai-rg-uszzzz"), null, null, null, null,
-            "Thursday, August \u0e51\u0e50, \u0e52\u0e50\u0e51\u0e57 at \u0e53:\u0e51\u0e55:\u0e50\u0e50 PM Pacific Daylight Time"
+            {Locale.forLanguageTag("en-US-u-nu-thai-rg-uszzzz"), null, null, ISO, null,
+            "Thursday, August \u0e51\u0e50, \u0e52\u0e50\u0e51\u0e57, \u0e53:\u0e51\u0e55:" +
+            "\u0e50\u0e50\u202fPM Pacific Daylight Time"
             },
             // DecimalStyle, invalid
-            {Locale.forLanguageTag("en-US-u-nu-foo"), null, null, null, null,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            {Locale.forLanguageTag("en-US-u-nu-foo"), null, null, ISO, null,
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
+            },
+            // DecimalStyle, locale default
+            // Farsi uses Extended Arabic-Indic numbering system
+            {Locale.forLanguageTag("fa"), null, null, ISO, null,
+            "\u067e\u0646\u062c\u0634\u0646\u0628\u0647 \u06f1\u06f0 \u0627\u0648\u062a " +
+            "\u06f2\u06f0\u06f1\u06f7\u060c \u0633\u0627\u0639\u062a \u06f1\u06f5:\u06f1\u06f5:" +
+            "\u06f0\u06f0 (\u0648\u0642\u062a \u062a\u0627\u0628\u0633\u062a\u0627\u0646\u06cc " +
+            "\u063a\u0631\u0628 \u0627\u0645\u0631\u06cc\u06a9\u0627)"
+            },
+            // Farsi uses Extended Arabic-Indic numbering system
+            // (should not be overridden with it, as "latn" is explicitly specified)
+            {Locale.forLanguageTag("fa-u-nu-latn"), null, null, ISO, null,
+            "\u067e\u0646\u062c\u0634\u0646\u0628\u0647 10 \u0627\u0648\u062a 2017\u060c " +
+            "\u0633\u0627\u0639\u062a 15:15:00 (\u0648\u0642\u062a \u062a\u0627\u0628\u0633" +
+            "\u062a\u0627\u0646\u06cc \u063a\u0631\u0628 \u0627\u0645\u0631\u06cc\u06a9\u0627)"
+            },
+            // Dzongkha uses Tibetan numbering system
+            {Locale.forLanguageTag("dz"), null, null, ISO, null,
+            "\u0f42\u0f5f\u0f60\u0f0b\u0f54\u0f0b\u0f66\u0f44\u0f66\u0f0b, \u0f66\u0fa4\u0fb1" +
+            "\u0f72\u0f0b\u0f63\u0f7c\u0f0b\u0f22\u0f20\u0f21\u0f27 \u0f5f\u0fb3\u0f0b\u0f56" +
+            "\u0f62\u0f92\u0fb1\u0f51\u0f0b\u0f54\u0f0b \u0f5a\u0f7a\u0f66\u0f0b\u0f21\u0f20 " +
+            "\u0f46\u0f74\u0f0b\u0f5a\u0f7c\u0f51\u0f0b \u0f23 \u0f66\u0f90\u0f62\u0f0b\u0f58" +
+            "\u0f0b \u0f21\u0f25:\u0f20\u0f20 \u0f55\u0fb1\u0f72\u0f0b\u0f46\u0f0b \u0f56\u0fb1" +
+            "\u0f44\u0f0b\u0f68\u0f0b\u0f58\u0f72\u0f0b\u0f62\u0f72\u0f0b\u0f40\u0f0b\u0f54\u0f7a" +
+            "\u0f0b\u0f66\u0f72\u0f0b\u0f55\u0f72\u0f42\u0f0b\u0f49\u0f72\u0f53\u0f0b\u0f66\u0fb2" +
+            "\u0f74\u0f44\u0f0b\u0f46\u0f74\u0f0b\u0f5a\u0f7c\u0f51"
             },
         };
     }
@@ -160,55 +193,85 @@ public class TestUnicodeExtension {
             // Locale, Chrono override, Zone override, Expected Chrono, Expected Zone,
             // Expected formatted string
             {Locale.JAPAN, null, null, null, null,
-            "2017\u5e748\u670810\u65e5\u6728\u66dc\u65e5 15\u664215\u520600\u79d2 \u30a2\u30e1\u30ea\u30ab\u592a\u5e73\u6d0b\u590f\u6642\u9593"
+            "2017\u5e748\u670810\u65e5\u6728\u66dc\u65e5 15\u664215\u520600\u79d2 " +
+            "\u30a2\u30e1\u30ea\u30ab\u592a\u5e73\u6d0b\u590f\u6642\u9593"
             },
             {Locale.JAPAN, JAPANESE, null, JAPANESE, null,
-            "\u5e73\u621029\u5e748\u670810\u65e5\u6728\u66dc\u65e5 15\u664215\u520600\u79d2 \u30a2\u30e1\u30ea\u30ab\u592a\u5e73\u6d0b\u590f\u6642\u9593"
+            "\u5e73\u621029\u5e748\u670810\u65e5\u6728\u66dc\u65e5 15\u664215\u520600\u79d2 " +
+            "\u30a2\u30e1\u30ea\u30ab\u592a\u5e73\u6d0b\u590f\u6642\u9593"
             },
             {Locale.JAPAN, JAPANESE, ASIATOKYO, JAPANESE, ASIATOKYO,
-            "\u5e73\u621029\u5e748\u670811\u65e5\u91d1\u66dc\u65e5 7\u664215\u520600\u79d2 \u65e5\u672c\u6a19\u6e96\u6642"
+            "\u5e73\u621029\u5e748\u670811\u65e5\u91d1\u66dc\u65e5 7\u664215\u520600\u79d2 " +
+            "\u65e5\u672c\u6a19\u6e96\u6642"
             },
 
             {JCAL, null, null, null, null,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
             },
             {JCAL, HIJRAH, null, HIJRAH, null,
-            "Thursday, Dhu\u02bbl-Qi\u02bbdah 18, 1438 AH at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, Dhu\u02bbl-Qi\u02bbdah 18, 1438 AH, 3:15:00\u202fPM Pacific Daylight Time"
             },
             {HCAL, JAPANESE, null, JAPANESE, null,
-            "Thursday, August 10, 29 Heisei at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 29 Heisei, 3:15:00\u202fPM Pacific Daylight Time"
             },
 
 
             {JPTYO, null, null, null, null,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
             },
             {JPTYO, null, AMLA, null, AMLA,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
             },
             // invalid tz
             {Locale.forLanguageTag("en-US-u-tz-jpzzz"), null, null, null, null,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
             },
             {Locale.forLanguageTag("en-US-u-tz-jpzzz"), null, null, null, null,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
             },
 
             {RG_GB, null, null, null, null,
-            "Thursday, 10 August 2017 at 15:15:00 Pacific Daylight Time"
+            "Thursday 10 August 2017, 15:15:00 Pacific Daylight Time"
             },
 
             // DecimalStyle
             {Locale.forLanguageTag("en-US-u-nu-thai"), null, null, null, null,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
             },
             // DecimalStyle, "nu" vs "rg"
             {Locale.forLanguageTag("en-US-u-nu-thai-rg-uszzzz"), null, null, null, null,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
             },
             // DecimalStyle, invalid
             {Locale.forLanguageTag("en-US-u-nu-foo"), null, null, null, null,
-            "Thursday, August 10, 2017 at 3:15:00 PM Pacific Daylight Time"
+            "Thursday, August 10, 2017, 3:15:00\u202fPM Pacific Daylight Time"
+            },
+            // DecimalStyle, locale default
+            // Farsi uses Extended Arabic-Indic numbering system
+            // (should not be overridden with it)
+            {Locale.forLanguageTag("fa"), null, null, null, null,
+            "\u067e\u0646\u062c\u0634\u0646\u0628\u0647 10 \u0627\u0648\u062a 2017\u060c " +
+            "\u0633\u0627\u0639\u062a 15:15:00 (\u0648\u0642\u062a \u062a\u0627\u0628\u0633" +
+            "\u062a\u0627\u0646\u06cc \u063a\u0631\u0628 \u0627\u0645\u0631\u06cc\u06a9\u0627)"
+            },
+            // Farsi uses Extended Arabic-Indic numbering system
+            // (should not be overridden with it)
+            {Locale.forLanguageTag("fa-u-nu-latn"), null, null, null, null,
+            "\u067e\u0646\u062c\u0634\u0646\u0628\u0647 10 \u0627\u0648\u062a 2017\u060c " +
+            "\u0633\u0627\u0639\u062a 15:15:00 (\u0648\u0642\u062a \u062a\u0627\u0628\u0633" +
+            "\u062a\u0627\u0646\u06cc \u063a\u0631\u0628 \u0627\u0645\u0631\u06cc\u06a9\u0627)"
+            },
+            // Dzongkha uses Tibetan numbering system
+            // (should not be overridden with it)
+            {Locale.forLanguageTag("dz"), null, null, null, null,
+            "\u0f42\u0f5f\u0f60\u0f0b\u0f54\u0f0b\u0f66\u0f44\u0f66\u0f0b, \u0f66\u0fa4\u0fb1" +
+            "\u0f72\u0f0b\u0f63\u0f7c\u0f0b2017 \u0f5f\u0fb3\u0f0b\u0f56\u0f62\u0f92\u0fb1" +
+            "\u0f51\u0f0b\u0f54\u0f0b \u0f5a\u0f7a\u0f66\u0f0b10 \u0f46\u0f74\u0f0b\u0f5a" +
+            "\u0f7c\u0f51\u0f0b 3 \u0f66\u0f90\u0f62\u0f0b\u0f58\u0f0b 15:00 \u0f55\u0fb1" +
+            "\u0f72\u0f0b\u0f46\u0f0b \u0f56\u0fb1\u0f44\u0f0b\u0f68\u0f0b\u0f58\u0f72\u0f0b" +
+            "\u0f62\u0f72\u0f0b\u0f40\u0f0b\u0f54\u0f7a\u0f0b\u0f66\u0f72\u0f0b\u0f55\u0f72" +
+            "\u0f42\u0f0b\u0f49\u0f72\u0f53\u0f0b\u0f66\u0fb2\u0f74\u0f44\u0f0b\u0f46\u0f74" +
+            "\u0f0b\u0f5a\u0f7c\u0f51"
             },
         };
     }
@@ -277,11 +340,11 @@ public class TestUnicodeExtension {
 
         };
     }
-
     @DataProvider(name="shortTZID")
     Object[][] shortTZID() {
         return new Object[][] {
             // LDML's short ID, Expected Zone,
+            // Based on timezone.xml from CLDR v44
             {"adalv", "Europe/Andorra"},
             {"aedxb", "Asia/Dubai"},
             {"afkbl", "Asia/Kabul"},
@@ -321,7 +384,6 @@ public class TestUnicodeExtension {
             {"audrw", "Australia/Darwin"},
             {"aueuc", "Australia/Eucla"},
             {"auhba", "Australia/Hobart"},
-            {"aukns", "Australia/Currie"},
             {"auldc", "Australia/Lindeman"},
             {"auldh", "Australia/Lord_Howe"},
             {"aumel", "Australia/Melbourne"},
@@ -366,19 +428,15 @@ public class TestUnicodeExtension {
             {"bzbze", "America/Belize"},
             {"cacfq", "America/Creston"},
             {"caedm", "America/Edmonton"},
-            {"caffs", "America/Rainy_River"},
             {"cafne", "America/Fort_Nelson"},
             {"caglb", "America/Glace_Bay"},
             {"cagoo", "America/Goose_Bay"},
             {"cahal", "America/Halifax"},
             {"caiql", "America/Iqaluit"},
             {"camon", "America/Moncton"},
-            {"capnt", "America/Pangnirtung"},
             {"careb", "America/Resolute"},
             {"careg", "America/Regina"},
             {"casjf", "America/St_Johns"},
-            {"canpg", "America/Nipigon"},
-            {"cathu", "America/Thunder_Bay"},
             {"cator", "America/Toronto"},
             {"cavan", "America/Vancouver"},
             {"cawnp", "America/Winnipeg"},
@@ -390,7 +448,6 @@ public class TestUnicodeExtension {
             {"cayev", "America/Inuvik"},
             {"cayxy", "America/Whitehorse"},
             {"cayyn", "America/Swift_Current"},
-            {"cayzf", "America/Yellowknife"},
             {"cayzs", "America/Coral_Harbour"},
             {"cccck", "Indian/Cocos"},
             {"cdfbm", "Africa/Lubumbashi"},
@@ -401,6 +458,7 @@ public class TestUnicodeExtension {
             {"ciabj", "Africa/Abidjan"},
             {"ckrar", "Pacific/Rarotonga"},
             {"clipc", "Pacific/Easter"},
+            {"clpuq", "America/Punta_Arenas"},
             {"clscl", "America/Santiago"},
             {"cmdla", "Africa/Douala"},
             {"cnsha", "Asia/Shanghai"},
@@ -411,6 +469,7 @@ public class TestUnicodeExtension {
             {"cuhav", "America/Havana"},
             {"cvrai", "Atlantic/Cape_Verde"},
             {"cxxch", "Indian/Christmas"},
+            {"cyfmg", "Asia/Famagusta"},
             {"cynic", "Asia/Nicosia"},
             {"czprg", "Europe/Prague"},
             {"deber", "Europe/Berlin"},
@@ -441,7 +500,7 @@ public class TestUnicodeExtension {
             {"fotho", "Atlantic/Faeroe"},
             {"frpar", "Europe/Paris"},
             {"galbv", "Africa/Libreville"},
-            {"gaza", "Asia/Gaza"},
+            {"gazastrp", "Asia/Gaza"},
             {"gblon", "Europe/London"},
             {"gdgnd", "America/Grenada"},
             {"getbs", "Asia/Tbilisi"},
@@ -454,6 +513,7 @@ public class TestUnicodeExtension {
             {"globy", "America/Scoresbysund"},
             {"glthu", "America/Thule"},
             {"gmbjl", "Africa/Banjul"},
+            {"gmt", "Etc/GMT"},
             {"gncky", "Africa/Conakry"},
             {"gpbbr", "America/Guadeloupe"},
             {"gpmsb", "America/Marigot"},
@@ -503,6 +563,8 @@ public class TestUnicodeExtension {
             {"kzaau", "Asia/Aqtau"},
             {"kzakx", "Asia/Aqtobe"},
             {"kzala", "Asia/Almaty"},
+            {"kzguw", "Asia/Atyrau"},
+            {"kzksn", "Asia/Qostanay"},
             {"kzkzo", "Asia/Qyzylorda"},
             {"kzura", "Asia/Oral"},
             {"lavte", "Asia/Vientiane"},
@@ -541,6 +603,7 @@ public class TestUnicodeExtension {
             {"mwblz", "Africa/Blantyre"},
             {"mxchi", "America/Chihuahua"},
             {"mxcun", "America/Cancun"},
+            {"mxcjs", "America/Ciudad_Juarez"},
             {"mxhmo", "America/Hermosillo"},
             {"mxmam", "America/Matamoros"},
             {"mxmex", "America/Mexico_City"},
@@ -549,7 +612,6 @@ public class TestUnicodeExtension {
             {"mxmzt", "America/Mazatlan"},
             {"mxoji", "America/Ojinaga"},
             {"mxpvr", "America/Bahia_Banderas"},
-            {"mxstis", "America/Santa_Isabel"},
             {"mxtij", "America/Tijuana"},
             {"mykch", "Asia/Kuching"},
             {"mykul", "Asia/Kuala_Lumpur"},
@@ -591,6 +653,8 @@ public class TestUnicodeExtension {
             {"rereu", "Indian/Reunion"},
             {"robuh", "Europe/Bucharest"},
             {"rsbeg", "Europe/Belgrade"},
+            {"ruasf", "Europe/Astrakhan"},
+            {"rubax", "Asia/Barnaul"},
             {"ruchita", "Asia/Chita"},
             {"rudyr", "Asia/Anadyr"},
             {"rugdx", "Asia/Magadan"},
@@ -599,12 +663,16 @@ public class TestUnicodeExtension {
             {"rukhndg", "Asia/Khandyga"},
             {"rukra", "Asia/Krasnoyarsk"},
             {"rukuf", "Europe/Samara"},
+            {"rukvx", "Europe/Kirov"},
             {"rumow", "Europe/Moscow"},
             {"runoz", "Asia/Novokuznetsk"},
             {"ruoms", "Asia/Omsk"},
             {"ruovb", "Asia/Novosibirsk"},
             {"rupkc", "Asia/Kamchatka"},
+            {"rurtw", "Europe/Saratov"},
             {"rusred", "Asia/Srednekolymsk"},
+            {"rutof", "Asia/Tomsk"},
+            {"ruuly", "Europe/Ulyanovsk"},
             {"ruunera", "Asia/Ust-Nera"},
             {"ruuus", "Asia/Sakhalin"},
             {"ruvog", "Europe/Volgograd"},
@@ -650,14 +718,10 @@ public class TestUnicodeExtension {
             {"twtpe", "Asia/Taipei"},
             {"tzdar", "Africa/Dar_es_Salaam"},
             {"uaiev", "Europe/Kiev"},
-            {"uaozh", "Europe/Zaporozhye"},
             {"uasip", "Europe/Simferopol"},
-            {"uauzh", "Europe/Uzhgorod"},
             {"ugkla", "Africa/Kampala"},
             {"umawk", "Pacific/Wake"},
-            {"umjon", "Pacific/Johnston"},
             {"ummdy", "Pacific/Midway"},
-//            {"unk", "Etc/Unknown"},
             {"usadk", "America/Adak"},
             {"usaeg", "America/Indiana/Marengo"},
             {"usanc", "America/Anchorage"},
@@ -731,7 +795,6 @@ public class TestUnicodeExtension {
             {"zajnb", "Africa/Johannesburg"},
             {"zmlun", "Africa/Lusaka"},
             {"zwhre", "Africa/Harare"},
-
         };
     }
 
@@ -739,12 +802,12 @@ public class TestUnicodeExtension {
     Object[][] getLocalizedDateTimePattern() {
         return new Object[][] {
             // Locale, Expected pattern,
-            {Locale.US, FormatStyle.FULL, "EEEE, MMMM d, y 'at' h:mm:ss a zzzz"},
-            {Locale.US, FormatStyle.LONG, "MMMM d, y 'at' h:mm:ss a z"},
-            {Locale.US, FormatStyle.MEDIUM, "MMM d, y, h:mm:ss a"},
-            {Locale.US, FormatStyle.SHORT, "M/d/yy, h:mm a"},
-            {RG_GB, FormatStyle.FULL, "EEEE, d MMMM y 'at' HH:mm:ss zzzz"},
-            {RG_GB, FormatStyle.LONG, "d MMMM y 'at' HH:mm:ss z"},
+            {Locale.US, FormatStyle.FULL, "EEEE, MMMM d, y, h:mm:ss\u202fa zzzz"},
+            {Locale.US, FormatStyle.LONG, "MMMM d, y, h:mm:ss\u202fa z"},
+            {Locale.US, FormatStyle.MEDIUM, "MMM d, y, h:mm:ss\u202fa"},
+            {Locale.US, FormatStyle.SHORT, "M/d/yy, h:mm\u202fa"},
+            {RG_GB, FormatStyle.FULL, "EEEE d MMMM y, HH:mm:ss zzzz"},
+            {RG_GB, FormatStyle.LONG, "d MMMM y, HH:mm:ss z"},
             {RG_GB, FormatStyle.MEDIUM, "d MMM y, HH:mm:ss"},
             {RG_GB, FormatStyle.SHORT, "dd/MM/y, HH:mm"},
         };
@@ -763,15 +826,26 @@ public class TestUnicodeExtension {
     public void test_localizedBy(Locale locale, Chronology chrono, ZoneId zone,
                                 Chronology chronoExpected, ZoneId zoneExpected,
                                 String formatExpected) {
-        DateTimeFormatter dtf =
-            DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL, FormatStyle.FULL)
-                .withChronology(chrono).withZone(zone).localizedBy(locale);
-        assertEquals(dtf.getChronology(), chronoExpected);
-        assertEquals(dtf.getZone(), zoneExpected);
-        String formatted = dtf.format(ZDT);
-        assertEquals(formatted, formatExpected);
-        assertEquals(dtf.parse(formatted, ZonedDateTime::from),
-            zoneExpected != null ? ZDT.withZoneSameInstant(zoneExpected) : ZDT);
+        // try this test both with the implicit default locale, and explicit default locale ja-JP
+        Locale def = Locale.getDefault();
+        try {
+            Stream.of(def, Locale.JAPAN).forEach(l -> {
+                System.out.println("    Testing with the default locale: " + l);
+                Locale.setDefault(l);
+
+                DateTimeFormatter dtf =
+                        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL, FormatStyle.FULL)
+                                .withChronology(chrono).withZone(zone).localizedBy(locale);
+                assertEquals(dtf.getChronology(), chronoExpected);
+                assertEquals(dtf.getZone(), zoneExpected);
+                String formatted = dtf.format(ZDT);
+                assertEquals(formatted, formatExpected);
+                assertEquals(dtf.parse(formatted, ZonedDateTime::from),
+                        zoneExpected != null ? ZDT.withZoneSameInstant(zoneExpected) : ZDT);
+            });
+        } finally {
+            Locale.setDefault(def);
+        }
     }
 
     @Test(dataProvider="withLocale")

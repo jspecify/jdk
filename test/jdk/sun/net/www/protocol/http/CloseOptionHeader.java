@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,16 +24,24 @@
 /**
  * @test
  * @bug 6189206
- * @modules java.base/sun.net.www
+ * @library /test/lib
  * @run main/othervm -Dhttp.keepAlive=false CloseOptionHeader
  * @summary  HTTP client should set "Connection: close" header in request when keepalive is disabled
  */
 
-import java.net.*;
-import java.util.*;
-import java.io.*;
-import sun.net.www.MessageHeader;
+import java.io.BufferedOutputStream;
+import java.io.InputStream;
+import java.io.PrintStream;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.URL;
+import java.util.List;
 
+import jdk.test.lib.net.HttpHeaderParser;
+import jdk.test.lib.net.URIBuilder;
 
 public class CloseOptionHeader implements Runnable {
     static ServerSocket ss;
@@ -48,10 +56,15 @@ public class CloseOptionHeader implements Runnable {
 
             /* check the request to find close connection option header */
             InputStream is = s.getInputStream ();
-            MessageHeader mh = new MessageHeader(is);
-            String connHeader = mh.findValue("Connection");
-            if (connHeader != null && connHeader.equalsIgnoreCase("close")) {
-                hasCloseHeader = true;
+            HttpHeaderParser mh = new HttpHeaderParser(is);
+            List <String> connHeader = mh.getHeaderValue("Connection");
+            if (connHeader != null) {
+                for(String value : connHeader) {
+                    if (value.equalsIgnoreCase("close")) {
+                        hasCloseHeader = true;
+                        break;
+                    }
+                }
             }
 
             PrintStream out = new PrintStream(
@@ -79,14 +92,20 @@ public class CloseOptionHeader implements Runnable {
         Thread tester = new Thread(new CloseOptionHeader());
 
         /* start the server */
-        ss = new ServerSocket(0);
+        InetAddress loopback = InetAddress.getLoopbackAddress();
+        ss = new ServerSocket();
+        ss.bind(new InetSocketAddress(loopback, 0));
         tester.start();
 
         /* connect to the server just started
          * server then check the request to see whether
          * there is a close connection option header in it
          */
-        URL url = new URL("http://localhost:" + ss.getLocalPort());
+        URL url = URIBuilder.newBuilder()
+            .scheme("http")
+            .host(ss.getInetAddress())
+            .port(ss.getLocalPort())
+            .toURL();
         HttpURLConnection huc = (HttpURLConnection)url.openConnection();
         huc.connect();
         huc.getResponseCode();

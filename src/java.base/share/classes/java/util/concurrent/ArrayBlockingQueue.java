@@ -104,6 +104,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
     private static final long serialVersionUID = -817911632652898426L;
 
     /** The queued items */
+    @SuppressWarnings("serial") // Conditionally serializable
     final Object[] items;
 
     /** items index for next take, poll, peek or remove */
@@ -124,9 +125,11 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
     final ReentrantLock lock;
 
     /** Condition for waiting takes */
+    @SuppressWarnings("serial")  // Classes implementing Condition may be serializable.
     private final Condition notEmpty;
 
     /** Condition for waiting puts */
+    @SuppressWarnings("serial")  // Classes implementing Condition may be serializable.
     private final Condition notFull;
 
     /**
@@ -678,7 +681,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
     }
 
     /**
-     * Nulls out slots starting at array index i, upto index end.
+     * Nulls out slots starting at array index i, up to index end.
      * Condition i == end means "full" - the entire array is cleared.
      */
     private static void circularClear(Object[] items, int i, int end) {

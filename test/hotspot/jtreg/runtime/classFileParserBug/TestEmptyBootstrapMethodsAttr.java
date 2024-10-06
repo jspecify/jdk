@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,27 +26,21 @@
  * @bug 8041918
  * @library /test/lib
  * @summary Test empty bootstrap_methods table within BootstrapMethods attribute
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @compile TestEmptyBootstrapMethodsAttr.java
- * @run main TestEmptyBootstrapMethodsAttr
+ * @compile emptynumbootstrapmethods1.jcod emptynumbootstrapmethods2.jcod
+ * @run driver TestEmptyBootstrapMethodsAttr
  */
 
 import java.io.File;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.JDKToolFinder;
 
 public class TestEmptyBootstrapMethodsAttr {
 
     public static void main(String args[]) throws Throwable {
         System.out.println("Regression test for bug 8041918");
-        String jarFile = System.getProperty("test.src") + File.separator + "emptynumbootstrapmethods.jar";
-
-        // ====== extract the test case
-        ProcessBuilder pb = new ProcessBuilder(new String[] { JDKToolFinder.getJDKTool("jar"), "xvf", jarFile } );
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        output.shouldHaveExitValue(0);
 
         // Test case #1:
         // Try loading class with empty bootstrap_methods table where no
@@ -56,8 +50,9 @@ public class TestEmptyBootstrapMethodsAttr {
         // ======= execute test case #1
         // Expect a lack of main method, this implies that the class loaded correctly
         // with an empty bootstrap_methods and did not generate a ClassFormatError.
-        pb = ProcessTools.createJavaProcessBuilder("-cp", ".", className);
-        output = new OutputAnalyzer(pb.start());
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
+                "-Duser.language=en", "-Duser.country=US", className);
+        OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldNotContain("java.lang.ClassFormatError");
         output.shouldContain("Main method not found in class " + className);
         output.shouldHaveExitValue(1);
@@ -70,7 +65,8 @@ public class TestEmptyBootstrapMethodsAttr {
         // ======= execute test case #2
         // Expect a lack of main method, this implies that the class loaded correctly
         // with an empty bootstrap_methods and did not generate ClassFormatError.
-        pb = ProcessTools.createJavaProcessBuilder("-cp", ".", className);
+        pb = ProcessTools.createLimitedTestJavaProcessBuilder(
+                "-Duser.language=en", "-Duser.country=US", className);
         output = new OutputAnalyzer(pb.start());
         output.shouldNotContain("java.lang.ClassFormatError");
         output.shouldContain("Main method not found in class " + className);

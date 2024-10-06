@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package sun.rmi.server;
 
 import java.io.IOException;
 import java.io.ObjectInput;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.lang.reflect.Method;
 import java.rmi.MarshalException;
@@ -39,6 +40,8 @@ import java.rmi.server.RemoteObject;
 import java.rmi.server.RemoteRef;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+
+import jdk.internal.access.SharedSecrets;
 import sun.rmi.runtime.Log;
 import sun.rmi.transport.Connection;
 import sun.rmi.transport.LiveRef;
@@ -61,12 +64,14 @@ public class UnicastRef implements RemoteRef {
     /**
      * Client-side call log.
      */
+    @SuppressWarnings("removal")
     public static final Log clientCallLog =
         Log.getLog("sun.rmi.client.call", "RMI",
                    AccessController.doPrivileged((PrivilegedAction<Boolean>) () ->
                        Boolean.getBoolean("sun.rmi.client.logCalls")));
     private static final long serialVersionUID = 8258372400816541186L;
 
+    @SuppressWarnings("serial") // Type of field is not Serializable
     protected LiveRef ref;
 
     /**
@@ -318,6 +323,8 @@ public class UnicastRef implements RemoteRef {
             } else {
                 throw new Error("Unrecognized primitive type: " + type);
             }
+        } else if (type == String.class && in instanceof ObjectInputStream) {
+            return SharedSecrets.getJavaObjectInputStreamReadString().readString((ObjectInputStream)in);
         } else {
             return in.readObject();
         }
@@ -393,7 +400,7 @@ public class UnicastRef implements RemoteRef {
         } catch (RuntimeException e) {
             /*
              * REMIND: Since runtime exceptions are no longer wrapped,
-             * we can't assue that the connection was left in
+             * we can't assume that the connection was left in
              * a reusable state. Is this okay?
              */
             clientRefLog.log(Log.BRIEF, "exception: ", e);

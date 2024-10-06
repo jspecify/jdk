@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_GCNOTIFIER_HPP
-#define SHARE_VM_SERVICES_GCNOTIFIER_HPP
+#ifndef SHARE_SERVICES_GCNOTIFIER_HPP
+#define SHARE_SERVICES_GCNOTIFIER_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "services/memoryPool.hpp"
 #include "services/memoryService.hpp"
 #include "services/memoryManager.hpp"
@@ -40,7 +40,7 @@ class GCNotificationRequest : public CHeapObj<mtInternal> {
   GCStatInfo *gcStatInfo;
 public:
   GCNotificationRequest(jlong ts, GCMemoryManager *manager, const char*action, const char *cause,GCStatInfo *info) {
-    next = NULL;
+    next = nullptr;
     timestamp = ts;
     gcManager = manager;
     gcAction = action;
@@ -67,4 +67,4 @@ public:
   static void sendNotification(TRAPS);
 };
 
-#endif // SHARE_VM_SERVICES_GCNOTIFIER_HPP
+#endif // SHARE_SERVICES_GCNOTIFIER_HPP

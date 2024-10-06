@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,16 +28,17 @@ package sun.net.ftp;
  * Thrown to indicate that the FTP server reported an error.
  * For instance that the requested file doesn't exist or
  * that a command isn't supported.
- * <p>The specific error code can be retreived with {@link #getReplyCode() }.</p>
+ * <p>The specific error code can be retrieved with {@link #getReplyCode() }.</p>
  * @author      Jonathan Payne
  */
 public class FtpProtocolException extends Exception {
+    @java.io.Serial
     private static final long serialVersionUID = 5978077070276545054L;
     private final FtpReplyCode code;
 
     /**
      * Constructs a new {@code FtpProtocolException} from the
-     * specified detail message. The reply code is set to unknow error.
+     * specified detail message. The reply code is set to unknown error.
      *
      * @param   detail   the detail message.
      */

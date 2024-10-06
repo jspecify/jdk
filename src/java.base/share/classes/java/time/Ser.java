@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,6 +61,7 @@ import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.io.Serializable;
 import java.io.StreamCorruptedException;
 
 /**
@@ -91,6 +92,7 @@ final class Ser implements Externalizable {
     /**
      * Serialization version.
      */
+    @java.io.Serial
     private static final long serialVersionUID = -7683839454370182990L;
 
     static final byte DURATION_TYPE = 1;
@@ -111,7 +113,7 @@ final class Ser implements Externalizable {
     /** The type being serialized. */
     private byte type;
     /** The object being serialized. */
-    private Object object;
+    private Serializable object;
 
     /**
      * Constructor for deserialization.
@@ -125,7 +127,7 @@ final class Ser implements Externalizable {
      * @param type  the type
      * @param object  the object
      */
-    Ser(byte type, Object object) {
+    Ser(byte type, Serializable object) {
         this.type = type;
         this.object = object;
     }
@@ -139,20 +141,20 @@ final class Ser implements Externalizable {
      * in the stream.  Refer to each class {@code writeReplace}
      * serialized form for the value of the type and sequence of values for the type.
      * <ul>
-     * <li><a href="../../serialized-form.html#java.time.Duration">Duration.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.Instant">Instant.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.LocalDate">LocalDate.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.LocalDateTime">LocalDateTime.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.LocalTime">LocalTime.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.MonthDay">MonthDay.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.OffsetTime">OffsetTime.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.OffsetDateTime">OffsetDateTime.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.Period">Period.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.Year">Year.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.YearMonth">YearMonth.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.ZoneId">ZoneId.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.ZoneOffset">ZoneOffset.writeReplace</a>
-     * <li><a href="../../serialized-form.html#java.time.ZonedDateTime">ZonedDateTime.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.Duration">Duration.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.Instant">Instant.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.LocalDate">LocalDate.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.LocalDateTime">LocalDateTime.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.LocalTime">LocalTime.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.MonthDay">MonthDay.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.OffsetTime">OffsetTime.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.OffsetDateTime">OffsetDateTime.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.Period">Period.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.Year">Year.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.YearMonth">YearMonth.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.ZoneId">ZoneId.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.ZoneOffset">ZoneOffset.writeReplace</a>
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.ZonedDateTime">ZonedDateTime.writeReplace</a>
      * </ul>
      *
      * @param out  the data stream to write to, not null
@@ -165,50 +167,21 @@ final class Ser implements Externalizable {
     static void writeInternal(byte type, Object object, ObjectOutput out) throws IOException {
         out.writeByte(type);
         switch (type) {
-            case DURATION_TYPE:
-                ((Duration) object).writeExternal(out);
-                break;
-            case INSTANT_TYPE:
-                ((Instant) object).writeExternal(out);
-                break;
-            case LOCAL_DATE_TYPE:
-                ((LocalDate) object).writeExternal(out);
-                break;
-            case LOCAL_DATE_TIME_TYPE:
-                ((LocalDateTime) object).writeExternal(out);
-                break;
-            case LOCAL_TIME_TYPE:
-                ((LocalTime) object).writeExternal(out);
-                break;
-            case ZONE_REGION_TYPE:
-                ((ZoneRegion) object).writeExternal(out);
-                break;
-            case ZONE_OFFSET_TYPE:
-                ((ZoneOffset) object).writeExternal(out);
-                break;
-            case ZONE_DATE_TIME_TYPE:
-                ((ZonedDateTime) object).writeExternal(out);
-                break;
-            case OFFSET_TIME_TYPE:
-                ((OffsetTime) object).writeExternal(out);
-                break;
-            case OFFSET_DATE_TIME_TYPE:
-                ((OffsetDateTime) object).writeExternal(out);
-                break;
-            case YEAR_TYPE:
-                ((Year) object).writeExternal(out);
-                break;
-            case YEAR_MONTH_TYPE:
-                ((YearMonth) object).writeExternal(out);
-                break;
-            case MONTH_DAY_TYPE:
-                ((MonthDay) object).writeExternal(out);
-                break;
-            case PERIOD_TYPE:
-                ((Period) object).writeExternal(out);
-                break;
-            default:
-                throw new InvalidClassException("Unknown serialized type");
+            case DURATION_TYPE         -> ((Duration) object).writeExternal(out);
+            case INSTANT_TYPE          -> ((Instant) object).writeExternal(out);
+            case LOCAL_DATE_TYPE       -> ((LocalDate) object).writeExternal(out);
+            case LOCAL_DATE_TIME_TYPE  -> ((LocalDateTime) object).writeExternal(out);
+            case LOCAL_TIME_TYPE       -> ((LocalTime) object).writeExternal(out);
+            case ZONE_REGION_TYPE      -> ((ZoneRegion) object).writeExternal(out);
+            case ZONE_OFFSET_TYPE      -> ((ZoneOffset) object).writeExternal(out);
+            case ZONE_DATE_TIME_TYPE   -> ((ZonedDateTime) object).writeExternal(out);
+            case OFFSET_TIME_TYPE      -> ((OffsetTime) object).writeExternal(out);
+            case OFFSET_DATE_TIME_TYPE -> ((OffsetDateTime) object).writeExternal(out);
+            case YEAR_TYPE             -> ((Year) object).writeExternal(out);
+            case YEAR_MONTH_TYPE       -> ((YearMonth) object).writeExternal(out);
+            case MONTH_DAY_TYPE        -> ((MonthDay) object).writeExternal(out);
+            case PERIOD_TYPE           -> ((Period) object).writeExternal(out);
+            default -> throw new InvalidClassException("Unknown serialized type");
         }
     }
 
@@ -223,20 +196,35 @@ final class Ser implements Externalizable {
      * {@code Ser} object.
      *
      * <ul>
-     * <li><a href="../../serialized-form.html#java.time.Duration">Duration</a> - {@code Duration.ofSeconds(seconds, nanos);}
-     * <li><a href="../../serialized-form.html#java.time.Instant">Instant</a> - {@code Instant.ofEpochSecond(seconds, nanos);}
-     * <li><a href="../../serialized-form.html#java.time.LocalDate">LocalDate</a> - {@code LocalDate.of(year, month, day);}
-     * <li><a href="../../serialized-form.html#java.time.LocalDateTime">LocalDateTime</a> - {@code LocalDateTime.of(date, time);}
-     * <li><a href="../../serialized-form.html#java.time.LocalTime">LocalTime</a> - {@code LocalTime.of(hour, minute, second, nano);}
-     * <li><a href="../../serialized-form.html#java.time.MonthDay">MonthDay</a> - {@code MonthDay.of(month, day);}
-     * <li><a href="../../serialized-form.html#java.time.OffsetTime">OffsetTime</a> - {@code OffsetTime.of(time, offset);}
-     * <li><a href="../../serialized-form.html#java.time.OffsetDateTime">OffsetDateTime</a> - {@code OffsetDateTime.of(dateTime, offset);}
-     * <li><a href="../../serialized-form.html#java.time.Period">Period</a> - {@code Period.of(years, months, days);}
-     * <li><a href="../../serialized-form.html#java.time.Year">Year</a> - {@code Year.of(year);}
-     * <li><a href="../../serialized-form.html#java.time.YearMonth">YearMonth</a> - {@code YearMonth.of(year, month);}
-     * <li><a href="../../serialized-form.html#java.time.ZonedDateTime">ZonedDateTime</a> - {@code ZonedDateTime.ofLenient(dateTime, offset, zone);}
-     * <li><a href="../../serialized-form.html#java.time.ZoneId">ZoneId</a> - {@code ZoneId.of(id);}
-     * <li><a href="../../serialized-form.html#java.time.ZoneOffset">ZoneOffset</a> - {@code (offsetByte == 127 ? ZoneOffset.ofTotalSeconds(in.readInt()) : ZoneOffset.ofTotalSeconds(offsetByte * 900));}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.Duration">Duration</a> -
+     *          {@code Duration.ofSeconds(seconds, nanos);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.Instant">Instant</a> -
+     *          {@code Instant.ofEpochSecond(seconds, nanos);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.LocalDate">LocalDate</a> -
+     *          {@code LocalDate.of(year, month, day);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.LocalDateTime">LocalDateTime</a> -
+     *          {@code LocalDateTime.of(date, time);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.LocalTime">LocalTime</a> -
+     *          {@code LocalTime.of(hour, minute, second, nano);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.MonthDay">MonthDay</a> -
+     *          {@code MonthDay.of(month, day);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.OffsetTime">OffsetTime</a> -
+     *          {@code OffsetTime.of(time, offset);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.OffsetDateTime">OffsetDateTime</a> -
+     *          {@code OffsetDateTime.of(dateTime, offset);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.Period">Period</a> -
+     *          {@code Period.of(years, months, days);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.Year">Year</a> -
+     *          {@code Year.of(year);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.YearMonth">YearMonth</a> -
+     *          {@code YearMonth.of(year, month);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.ZonedDateTime">ZonedDateTime</a> -
+     *          {@code ZonedDateTime.ofLenient(dateTime, offset, zone);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.ZoneId">ZoneId</a> -
+     *          {@code ZoneId.of(id);}
+     * <li><a href="{@docRoot}/serialized-form.html#java.time.ZoneOffset">ZoneOffset</a> -
+     *          {@code (offsetByte == 127 ? ZoneOffset.ofTotalSeconds(in.readInt()) :
+     *          ZoneOffset.ofTotalSeconds(offsetByte * 900));}
      * </ul>
      *
      * @param in  the data to read, not null
@@ -246,30 +234,30 @@ final class Ser implements Externalizable {
         object = readInternal(type, in);
     }
 
-    static Object read(ObjectInput in) throws IOException, ClassNotFoundException {
+    static Serializable read(ObjectInput in) throws IOException, ClassNotFoundException {
         byte type = in.readByte();
         return readInternal(type, in);
     }
 
-    private static Object readInternal(byte type, ObjectInput in) throws IOException, ClassNotFoundException {
-        switch (type) {
-            case DURATION_TYPE: return Duration.readExternal(in);
-            case INSTANT_TYPE: return Instant.readExternal(in);
-            case LOCAL_DATE_TYPE: return LocalDate.readExternal(in);
-            case LOCAL_DATE_TIME_TYPE: return LocalDateTime.readExternal(in);
-            case LOCAL_TIME_TYPE: return LocalTime.readExternal(in);
-            case ZONE_DATE_TIME_TYPE: return ZonedDateTime.readExternal(in);
-            case ZONE_OFFSET_TYPE: return ZoneOffset.readExternal(in);
-            case ZONE_REGION_TYPE: return ZoneRegion.readExternal(in);
-            case OFFSET_TIME_TYPE: return OffsetTime.readExternal(in);
-            case OFFSET_DATE_TIME_TYPE: return OffsetDateTime.readExternal(in);
-            case YEAR_TYPE: return Year.readExternal(in);
-            case YEAR_MONTH_TYPE: return YearMonth.readExternal(in);
-            case MONTH_DAY_TYPE: return MonthDay.readExternal(in);
-            case PERIOD_TYPE: return Period.readExternal(in);
-            default:
-                throw new StreamCorruptedException("Unknown serialized type");
-        }
+    private static Serializable readInternal(byte type, ObjectInput in)
+            throws IOException, ClassNotFoundException {
+        return switch (type) {
+            case DURATION_TYPE         -> Duration.readExternal(in);
+            case INSTANT_TYPE          -> Instant.readExternal(in);
+            case LOCAL_DATE_TYPE       -> LocalDate.readExternal(in);
+            case LOCAL_DATE_TIME_TYPE  -> LocalDateTime.readExternal(in);
+            case LOCAL_TIME_TYPE       -> LocalTime.readExternal(in);
+            case ZONE_DATE_TIME_TYPE   -> ZonedDateTime.readExternal(in);
+            case ZONE_OFFSET_TYPE      -> ZoneOffset.readExternal(in);
+            case ZONE_REGION_TYPE      -> ZoneRegion.readExternal(in);
+            case OFFSET_TIME_TYPE      -> OffsetTime.readExternal(in);
+            case OFFSET_DATE_TIME_TYPE -> OffsetDateTime.readExternal(in);
+            case YEAR_TYPE             -> Year.readExternal(in);
+            case YEAR_MONTH_TYPE       -> YearMonth.readExternal(in);
+            case MONTH_DAY_TYPE        -> MonthDay.readExternal(in);
+            case PERIOD_TYPE           -> Period.readExternal(in);
+            default -> throw new StreamCorruptedException("Unknown serialized type");
+        };
     }
 
     /**
@@ -277,6 +265,7 @@ final class Ser implements Externalizable {
      *
      * @return the read object, should never be null
      */
+    @java.io.Serial
     private Object readResolve() {
          return object;
     }

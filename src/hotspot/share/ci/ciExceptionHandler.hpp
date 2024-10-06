@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIEXCEPTIONHANDLER_HPP
-#define SHARE_VM_CI_CIEXCEPTIONHANDLER_HPP
+#ifndef SHARE_CI_CIEXCEPTIONHANDLER_HPP
+#define SHARE_CI_CIEXCEPTIONHANDLER_HPP
 
 #include "ci/ciClassList.hpp"
 #include "ci/ciInstanceKlass.hpp"
@@ -31,7 +31,7 @@
 // ciExceptionHandler
 //
 // This class represents an exception handler for a method.
-class ciExceptionHandler : public ResourceObj {
+class ciExceptionHandler : public AnyObj {
 private:
   friend class ciMethod;
 
@@ -57,7 +57,7 @@ public:
     _limit  = limit;
     _handler_bci = handler_bci;
     _catch_klass_index = klass_index;
-    _catch_klass = NULL;
+    _catch_klass = nullptr;
   }
 
   int       start()             { return _start; }
@@ -72,12 +72,9 @@ public:
   bool      is_in_range(int bci) {
     return start() <= bci && bci < limit();
   }
-  bool      catches(ciInstanceKlass *exc) {
-    return is_catch_all() || exc->is_subtype_of(catch_klass());
-  }
   bool      is_rethrow() { return handler_bci() == -1; }
 
   void      print();
 };
 
-#endif // SHARE_VM_CI_CIEXCEPTIONHANDLER_HPP
+#endif // SHARE_CI_CIEXCEPTIONHANDLER_HPP

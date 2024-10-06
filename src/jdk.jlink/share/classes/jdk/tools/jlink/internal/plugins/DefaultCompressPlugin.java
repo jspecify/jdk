@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@ import java.util.function.Function;
 import jdk.tools.jlink.internal.ResourcePoolManager.ResourcePoolImpl;
 import jdk.tools.jlink.plugin.ResourcePool;
 import jdk.tools.jlink.plugin.ResourcePoolBuilder;
-import jdk.tools.jlink.plugin.Plugin;
 import jdk.tools.jlink.internal.ImagePluginStack;
 import jdk.tools.jlink.internal.ResourcePoolManager;
 import jdk.tools.jlink.internal.ResourcePrevisitor;
@@ -40,8 +39,7 @@ import jdk.tools.jlink.internal.StringTable;
  *
  * ZIP and String Sharing compression plugin
  */
-public final class DefaultCompressPlugin implements Plugin, ResourcePrevisitor {
-    public static final String NAME = "compress";
+public final class DefaultCompressPlugin extends AbstractPlugin implements ResourcePrevisitor {
     public static final String FILTER = "filter";
     public static final String LEVEL_0 = "0";
     public static final String LEVEL_1 = "1";
@@ -50,9 +48,8 @@ public final class DefaultCompressPlugin implements Plugin, ResourcePrevisitor {
     private StringSharingPlugin ss;
     private ZipPlugin zip;
 
-    @Override
-    public String getName() {
-        return NAME;
+    public DefaultCompressPlugin() {
+        super("compress");
     }
 
     @Override
@@ -84,37 +81,37 @@ public final class DefaultCompressPlugin implements Plugin, ResourcePrevisitor {
     }
 
     @Override
-    public String getDescription() {
-        return PluginsResourceBundle.getDescription(NAME);
-    }
-
-    @Override
     public boolean hasArguments() {
         return true;
     }
 
     @Override
-    public String getArgumentsDescription() {
-       return PluginsResourceBundle.getArgument(NAME);
-    }
-
-    @Override
     public void configure(Map<String, String> config) {
         ResourceFilter resFilter = ResourceFilter.includeFilter(config.get(FILTER));
-        String level = config.get(NAME);
+        String level = config.get(getName());
         if (level != null) {
             switch (level) {
                 case LEVEL_0:
+                    System.err.println(getMessage("compress.warn.argumentdeprecated", LEVEL_0));
                     ss = null;
                     zip = null;
                     break;
                 case LEVEL_1:
+                    System.err.println(getMessage("compress.warn.argumentdeprecated", LEVEL_1));
                     ss = new StringSharingPlugin(resFilter);
                     break;
                 case LEVEL_2:
+                    System.err.println(getMessage("compress.warn.argumentdeprecated", LEVEL_2));
                     zip = new ZipPlugin(resFilter);
                     break;
                 default:
+                    if (level.length() == 5 && level.startsWith("zip-")) {
+                        try {
+                            int zipLevel = Integer.parseInt(level.substring(4));
+                            zip = new ZipPlugin(resFilter, zipLevel);
+                            break;
+                        } catch (NumberFormatException ignored) {}
+                    }
                     throw new IllegalArgumentException("Invalid compression level " + level);
             }
         } else {

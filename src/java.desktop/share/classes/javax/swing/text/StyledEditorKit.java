@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -243,7 +243,7 @@ public class StyledEditorKit extends DefaultEditorKit {
             currentParagraph = doc.getParagraphElement(start);
             if (currentParagraph.getStartOffset() == start || dot != mark) {
                 // Get the attributes from the character at the selection
-                // if in a different paragrah!
+                // if in a different paragraph!
                 run = doc.getCharacterElement(start);
             }
             else {
@@ -376,7 +376,7 @@ public class StyledEditorKit extends DefaultEditorKit {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -411,7 +411,7 @@ public class StyledEditorKit extends DefaultEditorKit {
          *
          * @param e the editor
          * @return the document
-         * @exception IllegalArgumentException for the wrong document type
+         * @throws IllegalArgumentException for the wrong document type
          */
         protected final StyledDocument getStyledDocument(JEditorPane e) {
             Document d = e.getDocument();
@@ -426,7 +426,7 @@ public class StyledEditorKit extends DefaultEditorKit {
          *
          * @param e the editor pane
          * @return the kit
-         * @exception IllegalArgumentException for the wrong document type
+         * @throws IllegalArgumentException for the wrong document type
          */
         protected final StyledEditorKit getStyledEditorKit(JEditorPane e) {
             EditorKit k = e.getEditorKit();
@@ -496,7 +496,7 @@ public class StyledEditorKit extends DefaultEditorKit {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -553,7 +553,7 @@ public class StyledEditorKit extends DefaultEditorKit {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -621,7 +621,7 @@ public class StyledEditorKit extends DefaultEditorKit {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -688,7 +688,7 @@ public class StyledEditorKit extends DefaultEditorKit {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -739,7 +739,7 @@ public class StyledEditorKit extends DefaultEditorKit {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -779,7 +779,7 @@ public class StyledEditorKit extends DefaultEditorKit {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -819,7 +819,7 @@ public class StyledEditorKit extends DefaultEditorKit {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */

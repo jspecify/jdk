@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 import java.io.FilterInputStream;
 import java.io.InputStream;
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Implements an input stream filter for compressing data in the "deflate"
@@ -82,7 +83,7 @@ public class DeflaterInputStream extends FilterInputStream {
      * @throws NullPointerException if {@code in} is null
      */
     public DeflaterInputStream(InputStream in) {
-        this(in, new Deflater());
+        this(in, in != null ? new Deflater() : null);
         usesDefaultDeflater = true;
     }
 
@@ -171,6 +172,7 @@ public class DeflaterInputStream extends FilterInputStream {
      * @param len maximum number of compressed bytes to read into {@code b}
      * @return the actual number of bytes read, or -1 if the end of the
      * uncompressed input stream is reached
+     * @throws NullPointerException if {@code b} is null
      * @throws IndexOutOfBoundsException  if {@code len > b.length - off}
      * @throws IOException if an I/O error occurs or if this input stream is
      * already closed
@@ -180,9 +182,9 @@ public class DeflaterInputStream extends FilterInputStream {
         ensureOpen();
         if (b == null) {
             throw new NullPointerException("Null buffer for read");
-        } else if (off < 0 || len < 0 || len > b.length - off) {
-            throw new IndexOutOfBoundsException();
-        } else if (len == 0) {
+        }
+        Objects.checkFromIndexSize(off, len, b.length);
+        if (len == 0) {
             return 0;
         }
 
@@ -218,15 +220,17 @@ public class DeflaterInputStream extends FilterInputStream {
 
     /**
      * Skips over and discards data from the input stream.
-     * This method may block until the specified number of bytes are read and
-     * skipped. <em>Note:</em> While {@code n} is given as a {@code long},
-     * the maximum number of bytes which can be skipped is
-     * {@code Integer.MAX_VALUE}.
+     * This method may block until the specified number of bytes are skipped
+     * or end of stream is reached.
      *
-     * @param n number of bytes to be skipped
-     * @return the actual number of bytes skipped
+     * @implNote
+     * This method skips at most {@code Integer.MAX_VALUE} bytes.
+     *
+     * @param n number of bytes to be skipped. If {@code n} is zero then no bytes are skipped.
+     * @return the actual number of bytes skipped, which might be zero
      * @throws IOException if an I/O error occurs or if this stream is
-     * already closed
+     *                     already closed
+     * @throws IllegalArgumentException if {@code n < 0}
      */
     public long skip(long n) throws IOException {
         if (n < 0) {

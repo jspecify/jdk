@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,8 @@ import java.io.*;
 import java.net.*;
 import sun.security.util.IOUtils;
 
+import static sun.security.krb5.internal.Krb5.DEBUG;
+
 public abstract class NetClient implements AutoCloseable {
     public static NetClient getInstance(String protocol, String hostname, int port,
             int timeout) throws IOException {
@@ -45,9 +47,9 @@ public abstract class NetClient implements AutoCloseable {
         }
     }
 
-    abstract public void send(byte[] data) throws IOException;
-    abstract public byte[] receive() throws IOException;
-    abstract public void close() throws IOException;
+    public abstract void send(byte[] data) throws IOException;
+    public abstract byte[] receive() throws IOException;
+    public abstract void close() throws IOException;
 }
 
 class TCPClient extends NetClient {
@@ -81,31 +83,31 @@ class TCPClient extends NetClient {
         int count = readFully(lenField, 4);
 
         if (count != 4) {
-            if (Krb5.DEBUG) {
-                System.out.println(
+            if (DEBUG != null) {
+                DEBUG.println(
                     ">>>DEBUG: TCPClient could not read length field");
             }
             return null;
         }
 
         int len = networkByteOrderToInt(lenField, 0, 4);
-        if (Krb5.DEBUG) {
-            System.out.println(
+        if (DEBUG != null) {
+            DEBUG.println(
                 ">>>DEBUG: TCPClient reading " + len + " bytes");
         }
         if (len <= 0) {
-            if (Krb5.DEBUG) {
-                System.out.println(
+            if (DEBUG != null) {
+                DEBUG.println(
                     ">>>DEBUG: TCPClient zero or negative length field: "+len);
             }
             return null;
         }
 
         try {
-            return IOUtils.readFully(in, len, true);
+            return IOUtils.readExactlyNBytes(in, len);
         } catch (IOException ioe) {
-            if (Krb5.DEBUG) {
-                System.out.println(
+            if (DEBUG != null) {
+                DEBUG.println(
                     ">>>DEBUG: TCPClient could not read complete packet (" +
                     len + "/" + count + ")");
             }

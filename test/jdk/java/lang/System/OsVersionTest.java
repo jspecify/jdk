@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 SAP SE. All rights reserved.
+ * Copyright (c) 2015, 2021 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,16 @@
  */
 
 import jdk.test.lib.Platform;
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jtreg.SkippedException;
 
 /*
  * @test
  * @bug 8132374
  * @summary Check that the value of the os.version property is equal
  *          to the value of the corresponding OS provided tools.
- * @library /lib/testlibrary /test/lib
- * @build jdk.test.lib.Platform
+ * @library /test/lib
  * @run main OsVersionTest
  * @author Volker Simonis
  */
@@ -42,7 +42,7 @@ public class OsVersionTest {
         if (osVersion == null) {
             throw new Error("Cant query 'os.version' property!");
         }
-        if (Platform.isLinux() || Platform.isSolaris()) {
+        if (Platform.isLinux()) {
             OutputAnalyzer output = ProcessTools.executeProcess("uname", "-r");
             if (!osVersion.equals(output.getOutput().trim())) {
                 throw new Error(osVersion + " != " + output.getOutput().trim());
@@ -50,8 +50,14 @@ public class OsVersionTest {
         }
         else if (Platform.isOSX()) {
             OutputAnalyzer output = ProcessTools.executeProcess("sw_vers", "-productVersion");
-            if (!osVersion.equals(output.getOutput().trim())) {
-                throw new Error(osVersion + " != " + output.getOutput().trim());
+            String swVersOutput = output.getOutput().trim();
+            if (!osVersion.equals(swVersOutput)) {
+                // This section can be removed if minimum build SDK is xcode 12+
+                if (swVersOutput.startsWith(osVersion)) {
+                    throw new SkippedException("MacOS version only matches in parts, this is expected when " +
+                                               "JDK was built with Xcode < 12 and MacOS version patch is > 0");
+                }
+                throw new Error(osVersion + " != " + swVersOutput);
             }
         }
         else if (Platform.isAix()) {

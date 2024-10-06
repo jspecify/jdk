@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,7 +72,10 @@ public class invokemethod008 {
     }
 
     public static void main(String argv[]) {
-        System.exit(Consts.JCK_STATUS_BASE + run(argv, System.out));
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run(String argv[], PrintStream out) {
@@ -192,11 +195,11 @@ public class invokemethod008 {
             try {
                 retValue = testedClass.invokeMethod(thread, method, params, 0);
                 if ( ((PrimitiveValue )retValue).intValue() == Consts.TEST_FAILED ) {
-                    complain("VMDisconnectException is not thrown");
+                    complain("VMDisconnectedException is not thrown");
                     exitStatus = Consts.TEST_FAILED;
                 }
             } catch(VMDisconnectedException e) {
-                display("!!!expected VMDisconnectException");
+                display("!!!expected VMDisconnectedException");
                 notifyVMDisconnect();
             } catch(Exception e) {
                 complain("Unexpected " + e);

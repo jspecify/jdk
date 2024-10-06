@@ -26,7 +26,7 @@
 #define SHARE_GC_SHARED_GCCONFIG_HPP
 
 #include "gc/shared/collectedHeap.hpp"
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 
 class GCArguments;
 
@@ -35,7 +35,7 @@ private:
   static GCArguments* _arguments;
   static bool         _gc_selected_ergonomically;
 
-  static void fail_if_unsupported_gc_is_selected();
+  static void fail_if_non_included_gc_is_selected();
   static bool is_no_gc_selected();
   static bool is_exactly_one_gc_selected();
 

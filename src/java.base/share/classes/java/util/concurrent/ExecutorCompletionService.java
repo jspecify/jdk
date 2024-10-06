@@ -101,6 +101,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *     use(result);
  * }}</pre>
  *
+ * @param <V> the type of values the tasks of this service produce and consume
+ *
  * @since 1.5
  */
 @AnnotatedFor({"interning"})

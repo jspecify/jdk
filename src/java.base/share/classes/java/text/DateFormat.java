@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,13 +60,15 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
  * formats and parses dates or time in a language-independent manner.
  * The date/time formatting subclass, such as {@link SimpleDateFormat}, allows for
  * formatting (i.e., date &rarr; text), parsing (text &rarr; date), and
- * normalization.  The date is represented as a <code>Date</code> object or
+ * normalization.  The date is represented as a {@code Date} object or
  * as the milliseconds since January 1, 1970, 00:00:00 GMT.
  *
- * <p>{@code DateFormat} provides many class methods for obtaining default date/time
+ * <p>{@code DateFormat} provides static factory methods for obtaining default date/time
  * formatters based on the default or a given locale and a number of formatting
- * styles. The formatting styles include {@link #FULL}, {@link #LONG}, {@link #MEDIUM}, and {@link #SHORT}. More
- * detail and examples of using these styles are provided in the method
+ * styles. The formatting styles include {@link #FULL}, {@link #LONG}, {@link #MEDIUM}, and {@link #SHORT}.
+ * For any of the factory methods with the parameter <i>style</i>, an {@code
+ * IllegalArgumentException} will be thrown if <i>style</i> is not equal to any
+ * of the defined formatting styles. More detail and examples of using these styles are provided in the method
  * descriptions.
  *
  * <p>{@code DateFormat} helps you to format and parse dates for any locale.
@@ -76,28 +78,28 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
  * <p>To format a date for the current Locale, use one of the
  * static factory methods:
  * <blockquote>
- * <pre>{@code
+ * {@snippet lang=java :
  * myString = DateFormat.getDateInstance().format(myDate);
- * }</pre>
+ * }
  * </blockquote>
  * <p>If you are formatting multiple dates, it is
  * more efficient to get the format and use it multiple times so that
  * the system doesn't have to fetch the information about the local
  * language and country conventions multiple times.
  * <blockquote>
- * <pre>{@code
+ * {@snippet lang=java :
  * DateFormat df = DateFormat.getDateInstance();
- * for (int i = 0; i < myDate.length; ++i) {
- *     output.println(df.format(myDate[i]) + "; ");
+ * for (Date myDate : dates) {
+ *     output.println(df.format(myDate) + "; ");
  * }
- * }</pre>
+ * }
  * </blockquote>
  * <p>To format a date for a different Locale, specify it in the
  * call to {@link #getDateInstance(int, Locale) getDateInstance()}.
  * <blockquote>
- * <pre>{@code
+ * {@snippet lang=java :
  * DateFormat df = DateFormat.getDateInstance(DateFormat.LONG, Locale.FRANCE);
- * }</pre>
+ * }
  * </blockquote>
  *
  * <p>If the specified locale contains "ca" (calendar), "rg" (region override),
@@ -108,9 +110,9 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
  *
  * <p>You can use a DateFormat to parse also.
  * <blockquote>
- * <pre>{@code
+ * {@snippet lang=java :
  * myDate = df.parse(myString);
- * }</pre>
+ * }
  * </blockquote>
  * <p>Use {@code getDateInstance} to get the normal date format for that country.
  * There are other static factory methods available.
@@ -119,12 +121,14 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
  * different options to these factory methods to control the length of the
  * result; from {@link #SHORT} to {@link #MEDIUM} to {@link #LONG} to {@link #FULL}. The exact result depends
  * on the locale, but generally:
- * <ul><li>{@link #SHORT} is completely numeric, such as {@code 12.13.52} or {@code 3:30pm}
+ * <ul><li>{@link #SHORT} is the shortest and mainly numeric, such as {@code 12.13.52} or {@code 3:30pm}
  * <li>{@link #MEDIUM} is longer, such as {@code Jan 12, 1952}
- * <li>{@link #LONG} is longer, such as {@code January 12, 1952} or {@code 3:30:32pm}
- * <li>{@link #FULL} is pretty completely specified, such as
+ * <li>{@link #LONG} is even longer, such as {@code January 12, 1952} or {@code 3:30:32pm}
+ * <li>{@link #FULL} is the longest, such as
  * {@code Tuesday, April 12, 1952 AD or 3:30:42pm PST}.
  * </ul>
+ * For those fields with text, typically abbreviated text form is used with {@link #MEDIUM} option,
+ * and full text form is used with {@link #LONG} and {@link #FULL} options.
  *
  * <p>You can also set the time zone on the format if you wish.
  * If you want even more control over the format or parsing,
@@ -142,13 +146,15 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
  * on the screen.
  * </ul>
  *
- * <h3><a id="synchronization">Synchronization</a></h3>
+ * <h2><a id="synchronization">Synchronization</a></h2>
  *
  * <p>
  * Date formats are not synchronized.
  * It is recommended to create separate format instances for each thread.
  * If multiple threads access a format concurrently, it must be synchronized
  * externally.
+ * @apiNote Consider using {@link java.time.format.DateTimeFormatter} as an
+ * immutable and thread-safe alternative.
  *
  * @implSpec
  * <ul><li>The {@link #format(Date, StringBuffer, FieldPosition)} and
@@ -162,7 +168,7 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
  * {@code null}, but any subsequent operations on the same instance may throw
  * {@code NullPointerException}.</li>
  * <li>The {@link #getCalendar()}, {@link #getNumberFormat()} and
- * {@link getTimeZone()} methods may return {@code null}, if the respective
+ * {@link #getTimeZone()} methods may return {@code null}, if the respective
  * values of this instance is set to {@code null} through the corresponding
  * setter methods. For Example: {@link #getTimeZone()} may return {@code null},
  * if the {@code TimeZone} value of this instance is set as
@@ -175,6 +181,7 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
  * @see          java.util.Calendar
  * @see          java.util.GregorianCalendar
  * @see          java.util.TimeZone
+ * @see          java.time.format.DateTimeFormatter
  * @author       Mark Davis, Chen-Lieh Huang, Alan Liu
  * @since 1.1
  */
@@ -187,15 +194,15 @@ public abstract class DateFormat extends Format {
      *
      * <p>Subclasses should initialize this field to a {@link Calendar}
      * appropriate for the {@link Locale} associated with this
-     * <code>DateFormat</code>.
+     * {@code DateFormat}.
      * @serial
      */
     protected Calendar calendar;
 
     /**
-     * The number formatter that <code>DateFormat</code> uses to format numbers
+     * The number formatter that {@code DateFormat} uses to format numbers
      * in dates and times.  Subclasses should initialize this to a number format
-     * appropriate for the locale associated with this <code>DateFormat</code>.
+     * appropriate for the locale associated with this {@code DateFormat}.
      * @serial
      */
     protected NumberFormat numberFormat;
@@ -300,6 +307,7 @@ public abstract class DateFormat extends Format {
     public static final int TIMEZONE_FIELD = 17;
 
     // Proclaim serial compatibility with 1.1 FCS
+    @java.io.Serial
     private static final long serialVersionUID = 7218322306649953788L;
 
     /**
@@ -324,7 +332,7 @@ public abstract class DateFormat extends Format {
      * first occurrence of the timezone pattern character {@code 'z'}.
      * @return the string buffer passed in as {@code toAppendTo},
      *         with formatted text appended.
-     * @exception IllegalArgumentException if the {@code Format} cannot format
+     * @throws    IllegalArgumentException if the {@code Format} cannot format
      *            the given {@code obj}.
      * @see java.text.Format
      */
@@ -338,6 +346,19 @@ public abstract class DateFormat extends Format {
                           toAppendTo, fieldPosition );
         else
             throw new IllegalArgumentException("Cannot format given Object as a Date");
+    }
+
+    @Override
+    final StringBuf format(Object obj, StringBuf toAppendTo,
+                           FieldPosition fieldPosition) {
+        if (obj instanceof Date) {
+            return format((Date) obj, toAppendTo, fieldPosition);
+        } else if (obj instanceof Number) {
+            return format(new Date(((Number) obj).longValue()),
+                    toAppendTo, fieldPosition);
+        } else {
+            throw new IllegalArgumentException("Cannot format given Object as a Date");
+        }
     }
 
     /**
@@ -365,16 +386,27 @@ public abstract class DateFormat extends Format {
     public abstract StringBuffer format(Date date, StringBuffer toAppendTo,
                                         FieldPosition fieldPosition);
 
+    StringBuf format(Date date, StringBuf toAppendTo,
+                     FieldPosition fieldPosition) {
+        throw new UnsupportedOperationException("Subclasses should override this method");
+    }
+
     /**
-      * Formats a {@link Date} into a date-time string.
-      *
-      * @param date the time value to be formatted into a date-time string.
-      * @return the formatted date-time string.
+     * Formats a {@link Date} into a date-time string.
+     *
+     * @param date the time value to be formatted into a date-time string.
+     * @return the formatted date-time string.
      */
     public final String format(Date date)
     {
-        return format(date, new StringBuffer(),
-                      DontCareFieldPosition.INSTANCE).toString();
+        if ("java.text".equals(getClass().getPackageName())
+                    && "java.text".equals(numberFormat.getClass().getPackageName())) {
+            return format(date, StringBufFactory.of(),
+                    DontCareFieldPosition.INSTANCE).toString();
+        } else {
+            return format(date, new StringBuffer(),
+                    DontCareFieldPosition.INSTANCE).toString();
+        }
     }
 
     /**
@@ -384,9 +416,9 @@ public abstract class DateFormat extends Format {
      * See the {@link #parse(String, ParsePosition)} method for more information
      * on date parsing.
      *
-     * @param source A <code>String</code> whose beginning should be parsed.
-     * @return A <code>Date</code> parsed from the string.
-     * @exception ParseException if the beginning of the specified string
+     * @param source A {@code String} whose beginning should be parsed.
+     * @return A {@code Date} parsed from the string.
+     * @throws    ParseException if the beginning of the specified string
      *            cannot be parsed.
      */
     public Date parse(String source) throws ParseException
@@ -401,7 +433,8 @@ public abstract class DateFormat extends Format {
 
     /**
      * Parse a date/time string according to the given parse position.  For
-     * example, a time text {@code "07/10/96 4:5 PM, PDT"} will be parsed into a {@code Date}
+     * example, if {@code this} has the pattern {@code "M/d/yy h:m a, z"},
+     * then a time text {@code "07/10/96 4:5 PM, PDT"} will be parsed into a {@code Date}
      * that is equivalent to {@code Date(837039900000L)}.
      *
      * <p> By default, parsing is lenient: If the input is not in the form used
@@ -428,26 +461,26 @@ public abstract class DateFormat extends Format {
     public abstract Date parse(String source, ParsePosition pos);
 
     /**
-     * Parses text from a string to produce a <code>Date</code>.
+     * Parses text from a string to produce a {@code Date}.
      * <p>
      * The method attempts to parse text starting at the index given by
-     * <code>pos</code>.
-     * If parsing succeeds, then the index of <code>pos</code> is updated
+     * {@code pos}.
+     * If parsing succeeds, then the index of {@code pos} is updated
      * to the index after the last character used (parsing does not necessarily
      * use all characters up to the end of the string), and the parsed
-     * date is returned. The updated <code>pos</code> can be used to
+     * date is returned. The updated {@code pos} can be used to
      * indicate the starting point for the next call to this method.
-     * If an error occurs, then the index of <code>pos</code> is not
-     * changed, the error index of <code>pos</code> is set to the index of
+     * If an error occurs, then the index of {@code pos} is not
+     * changed, the error index of {@code pos} is set to the index of
      * the character where the error occurred, and null is returned.
      * <p>
      * See the {@link #parse(String, ParsePosition)} method for more information
      * on date parsing.
      *
-     * @param source A <code>String</code>, part of which should be parsed.
-     * @param pos A <code>ParsePosition</code> object with index and error
+     * @param source A {@code String}, part of which should be parsed.
+     * @param pos A {@code ParsePosition} object with index and error
      *            index information as described above.
-     * @return A <code>Date</code> parsed from the string. In case of
+     * @return A {@code Date} parsed from the string. In case of
      *         error, returns null.
      * @throws NullPointerException if {@code source} or {@code pos} is null.
      */
@@ -475,6 +508,31 @@ public abstract class DateFormat extends Format {
      * Constant for default style pattern.  Its value is MEDIUM.
      */
     public static final int DEFAULT = MEDIUM;
+
+    /**
+     * A DateFormat style.
+     * {@code Style} is an enum which corresponds to the DateFormat style
+     * constants. Use {@code getValue()} to retrieve the associated int style
+     * value.
+     */
+    enum Style {
+
+        FULL(DateFormat.FULL),
+        LONG(DateFormat.LONG),
+        MEDIUM(DateFormat.MEDIUM),
+        SHORT(DateFormat.SHORT),
+        DEFAULT(DateFormat.MEDIUM);
+
+        private final int value;
+
+        Style(int value){
+            this.value = value;
+        }
+
+        int getValue() {
+            return value;
+        }
+    }
 
     /**
      * Gets the time formatter with the default formatting style
@@ -629,16 +687,17 @@ public abstract class DateFormat extends Format {
 
     /**
      * Returns an array of all locales for which the
-     * <code>get*Instance</code> methods of this class can return
+     * {@code get*Instance} methods of this class can return
      * localized instances.
      * The returned array represents the union of locales supported by the Java
      * runtime and by installed
      * {@link java.text.spi.DateFormatProvider DateFormatProvider} implementations.
-     * It must contain at least a <code>Locale</code> instance equal to
-     * {@link java.util.Locale#US Locale.US}.
+     * At a minimum, the returned array must contain a {@code Locale} instance equal to
+     * {@link Locale#ROOT Locale.ROOT} and a {@code Locale} instance equal to
+     * {@link Locale#US Locale.US}.
      *
      * @return An array of locales for which localized
-     *         <code>DateFormat</code> instances are available.
+     *         {@code DateFormat} instances are available.
      */
     public static Locale[] getAvailableLocales()
     {
@@ -694,9 +753,9 @@ public abstract class DateFormat extends Format {
     /**
      * Sets the time zone for the calendar of this {@code DateFormat} object.
      * This method is equivalent to the following call.
-     * <blockquote><pre>{@code
-     * getCalendar().setTimeZone(zone)
-     * }</pre></blockquote>
+     * <blockquote>{@snippet lang=java :
+     * getCalendar().setTimeZone(zone);
+     * }</blockquote>
      *
      * <p>The {@code TimeZone} set by this method is overwritten by a
      * {@link #setCalendar(java.util.Calendar) setCalendar} call.
@@ -714,9 +773,9 @@ public abstract class DateFormat extends Format {
     /**
      * Gets the time zone.
      * This method is equivalent to the following call.
-     * <blockquote><pre>{@code
-     * getCalendar().getTimeZone()
-     * }</pre></blockquote>
+     * <blockquote>{@snippet lang=java :
+     * getCalendar().getTimeZone();
+     * }</blockquote>
      *
      * @return the time zone associated with the calendar of DateFormat.
      */
@@ -732,12 +791,16 @@ public abstract class DateFormat extends Format {
      * inputs must match this object's format.
      *
      * <p>This method is equivalent to the following call.
-     * <blockquote><pre>{@code
-     * getCalendar().setLenient(lenient)
-     * }</pre></blockquote>
+     * <blockquote>{@snippet lang=java :
+     * getCalendar().setLenient(lenient);
+     * }</blockquote>
      *
      * <p>This leniency value is overwritten by a call to {@link
      * #setCalendar(java.util.Calendar) setCalendar()}.
+     *
+     * @implSpec A {@link Character#SPACE_SEPARATOR SPACE_SEPARATOR} in the input
+     * text will match any other {@link Character#SPACE_SEPARATOR SPACE_SEPARATOR}s
+     * in the pattern with lenient parsing; otherwise, it will not match.
      *
      * @param lenient when {@code true}, parsing is lenient
      * @see java.util.Calendar#setLenient(boolean)
@@ -750,9 +813,9 @@ public abstract class DateFormat extends Format {
     /**
      * Tell whether date/time parsing is to be lenient.
      * This method is equivalent to the following call.
-     * <blockquote><pre>{@code
-     * getCalendar().isLenient()
-     * }</pre></blockquote>
+     * <blockquote>{@snippet lang=java :
+     * getCalendar().isLenient();
+     * }</blockquote>
      *
      * @return {@code true} if the {@link #calendar} is lenient;
      *         {@code false} otherwise.
@@ -764,7 +827,11 @@ public abstract class DateFormat extends Format {
     }
 
     /**
-     * Overrides hashCode
+     * {@return the hash code for this {@code DateFormat}}
+     *
+     * @implSpec This method calculates the hash code value using the value returned by
+     * {@link #getNumberFormat()}.
+     * @see Object#hashCode()
      */
     public int hashCode() {
         return numberFormat.hashCode();
@@ -772,7 +839,17 @@ public abstract class DateFormat extends Format {
     }
 
     /**
-     * Overrides equals
+     * Compares the specified object with this {@code DateFormat} for equality.
+     * Returns true if the object is also a {@code DateFormat} and the
+     * two formats would format any value the same.
+     *
+     * @implSpec This method performs an equality check with a notion of class
+     * identity based on {@code getClass()}, rather than {@code instanceof}.
+     * Therefore, in the equals methods in subclasses, no instance of this class
+     * should compare as equal to an instance of a subclass.
+     * @param  obj object to be compared for equality
+     * @return {@code true} if the specified object is equal to this {@code DateFormat}
+     * @see Object#equals(Object)
      */
     
     
@@ -857,9 +934,9 @@ public abstract class DateFormat extends Format {
 
     /**
      * Defines constants that are used as attribute keys in the
-     * <code>AttributedCharacterIterator</code> returned
-     * from <code>DateFormat.formatToCharacterIterator</code> and as
-     * field identifiers in <code>FieldPosition</code>.
+     * {@code AttributedCharacterIterator} returned
+     * from {@code DateFormat.formatToCharacterIterator} and as
+     * field identifiers in {@code FieldPosition}.
      * <p>
      * The class also provides two methods to map
      * between its constants and the corresponding Calendar constants.
@@ -870,6 +947,7 @@ public abstract class DateFormat extends Format {
     public static class Field extends Format.Field {
 
         // Proclaim serial compatibility with 1.4 FCS
+        @java.io.Serial
         private static final long serialVersionUID = 7441350119349544720L;
 
         // table of all instances in this class, used by readResolve
@@ -883,13 +961,13 @@ public abstract class DateFormat extends Format {
         private int calendarField;
 
         /**
-         * Returns the <code>Field</code> constant that corresponds to
-         * the <code>Calendar</code> constant <code>calendarField</code>.
-         * If there is no direct mapping between the <code>Calendar</code>
-         * constant and a <code>Field</code>, null is returned.
+         * Returns the {@code Field} constant that corresponds to
+         * the {@code Calendar} constant {@code calendarField}.
+         * If there is no direct mapping between the {@code Calendar}
+         * constant and a {@code Field}, null is returned.
          *
-         * @throws IllegalArgumentException if <code>calendarField</code> is
-         *         not the value of a <code>Calendar</code> field constant.
+         * @throws IllegalArgumentException if {@code calendarField} is
+         *         not the value of a {@code Calendar} field constant.
          * @param calendarField Calendar field constant
          * @return Field instance representing calendarField.
          * @see java.util.Calendar
@@ -904,15 +982,16 @@ public abstract class DateFormat extends Format {
         }
 
         /**
-         * Creates a <code>Field</code>.
+         * Creates a {@code Field}.
          *
-         * @param name the name of the <code>Field</code>
-         * @param calendarField the <code>Calendar</code> constant this
-         *        <code>Field</code> corresponds to; any value, even one
-         *        outside the range of legal <code>Calendar</code> values may
-         *        be used, but <code>-1</code> should be used for values
-         *        that don't correspond to legal <code>Calendar</code> values
+         * @param name the name of the {@code Field}
+         * @param calendarField the {@code Calendar} constant this
+         *        {@code Field} corresponds to; any value, even one
+         *        outside the range of legal {@code Calendar} values may
+         *        be used, but {@code -1} should be used for values
+         *        that don't correspond to legal {@code Calendar} values
          */
+        @SuppressWarnings("this-escape")
         protected Field(String name, int calendarField) {
             super(name);
             this.calendarField = calendarField;
@@ -926,11 +1005,14 @@ public abstract class DateFormat extends Format {
         }
 
         /**
-         * Returns the <code>Calendar</code> field associated with this
+         * Returns the {@code Calendar} field associated with this
          * attribute. For example, if this represents the hours field of
-         * a <code>Calendar</code>, this would return
-         * <code>Calendar.HOUR</code>. If there is no corresponding
-         * <code>Calendar</code> constant, this will return -1.
+         * a {@code Calendar}, this method would return {@code Calendar.HOUR}.
+         * The return value of {@code -1} guarantees that this field does not
+         * represent any corresponding constant in {@code Calendar}.
+         *
+         * @implSpec The default implementation always returns {@code -1} if it does
+         * not represent any corresponding constant in {@code Calendar}.
          *
          * @return Calendar constant for this field
          * @see java.util.Calendar
@@ -947,6 +1029,7 @@ public abstract class DateFormat extends Format {
          * @return resolved DateFormat.Field constant
          */
         @Override
+        @java.io.Serial
         protected Object readResolve() throws InvalidObjectException {
             if (this.getClass() != DateFormat.Field.class) {
                 throw new InvalidObjectException("subclass didn't correctly implement readResolve");
@@ -1047,7 +1130,7 @@ public abstract class DateFormat extends Format {
 
         /**
          * Constant identifying the time of day indicator
-         * (e.g. "a.m." or "p.m.") field.
+         * ({@literal e.g.} "a.m." or "p.m.") field.
          */
         public static final Field AM_PM = new
                             Field("am pm", Calendar.AM_PM);

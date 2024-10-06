@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -418,10 +418,37 @@ final class DateTimeParseContext {
     }
 
     /**
+     * Stores the parsed zone name type.
+     * <p>
+     * This stores the zone name type that has been parsed.
+     * The parsed type should either be;
+     * <ul>
+     *     <li>{@link DateTimeFormatterBuilder.ZoneTextPrinterParser#UNDEFINED}</li>
+     *     <li>{@link DateTimeFormatterBuilder.ZoneTextPrinterParser#STD}</li>
+     *     <li>{@link DateTimeFormatterBuilder.ZoneTextPrinterParser#DST}</li>
+     *     <li>{@link DateTimeFormatterBuilder.ZoneTextPrinterParser#GENERIC}</li>
+     * </ul>
+     *
+     * @param type  the parsed zone name type
+     */
+    void setParsedZoneNameType(int type) {
+        currentParsed().zoneNameType = type;
+    }
+
+    /**
      * Stores the parsed leap second.
      */
     void setParsedLeapSecond() {
         currentParsed().leapSecond = true;
+    }
+
+    /**
+     * Stores the parsed day period.
+     *
+     * @param dayPeriod the parsed day period
+     */
+    void setParsedDayPeriod(DateTimeFormatterBuilder.DayPeriod dayPeriod) {
+        currentParsed().dayPeriod = dayPeriod;
     }
 
     //-----------------------------------------------------------------------

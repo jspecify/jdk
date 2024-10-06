@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,32 @@
 
 package javax.swing.plaf.synth;
 
-import javax.swing.*;
-import javax.swing.plaf.*;
-import javax.swing.plaf.basic.*;
+import java.awt.Component;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Insets;
+import java.awt.LayoutManager;
+import java.awt.Rectangle;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+
+import javax.swing.BorderFactory;
+import javax.swing.Icon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JTabbedPane;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.plaf.ComponentUI;
+import javax.swing.plaf.UIResource;
+import javax.swing.plaf.basic.BasicTabbedPaneUI;
 import javax.swing.text.View;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeEvent;
 import sun.swing.SwingUtilities2;
 
 /**
@@ -56,7 +73,7 @@ public class SynthTabbedPaneUI extends BasicTabbedPaneUI
      * or right).</p>
 
      * <p>A positive overlap indicates that tabs should overlap right/down,
-     * while a negative overlap indicates tha tabs should overlap left/up.</p>
+     * while a negative overlap indicates that tabs should overlap left/up.</p>
      *
      * <p>When tabOverlap is specified, it both changes the x position and width
      * of the tab if in TOP or BOTTOM placement, and changes the y position and
@@ -105,6 +122,18 @@ public class SynthTabbedPaneUI extends BasicTabbedPaneUI
 
     private boolean selectedTabIsPressed = false;
 
+    // Background color for selected tab and content pane
+    private Color selectColor;
+    // Background color for unselected tabs
+    private Color unselectedBackground;
+    private boolean contentOpaque = true;
+
+    /**
+     *
+     * Constructs a {@code SynthTabbedPaneUI}.
+     */
+    public SynthTabbedPaneUI() {}
+
     /**
      * Creates a new UI object for the given component.
      *
@@ -124,6 +153,9 @@ public class SynthTabbedPaneUI extends BasicTabbedPaneUI
      */
     @Override
     protected void installDefaults() {
+        selectColor = UIManager.getColor("TabbedPane.selected");
+        contentOpaque = UIManager.getBoolean("TabbedPane.contentOpaque");
+        unselectedBackground = UIManager.getColor("TabbedPane.unselectedBackground");
         updateStyle(tabPane);
     }
 
@@ -614,6 +646,13 @@ public class SynthTabbedPaneUI extends BasicTabbedPaneUI
                 }
             }
         }
+
+        if (isSelected) {
+            g.setColor(selectColor);
+        } else {
+            g.setColor(getUnselectedBackgroundAt(tabIndex));
+        }
+
         tabContext.getPainter().paintTabbedPaneTabBackground(tabContext, g,
                 x, y, width, height, tabIndex, placement);
         tabContext.getPainter().paintTabbedPaneTabBorder(tabContext, g,
@@ -630,11 +669,18 @@ public class SynthTabbedPaneUI extends BasicTabbedPaneUI
                     tabRect, iconRect, textRect, isSelected);
             clippedTitle = SwingUtilities2.clipStringIfNecessary(null, metrics,
                            title, textRect.width);
+            paintIcon(g, tabPlacement, tabIndex, icon, iconRect, isSelected);
             paintText(ss, g, tabPlacement, font, metrics,
                     tabIndex, clippedTitle, textRect, isSelected);
-
-            paintIcon(g, tabPlacement, tabIndex, icon, iconRect, isSelected);
         }
+    }
+
+    private Color getUnselectedBackgroundAt(int index) {
+        Color color = tabPane.getBackgroundAt(index);
+        if (color instanceof UIResource && unselectedBackground != null) {
+            return unselectedBackground;
+        }
+        return color;
     }
 
     private void layoutLabel(SynthContext ss, int tabPlacement,
@@ -651,7 +697,7 @@ public class SynthTabbedPaneUI extends BasicTabbedPaneUI
 
         ss.getStyle().getGraphicsUtils(ss).layoutText(ss, metrics, title,
                          icon, SwingUtilities.CENTER, SwingUtilities.CENTER,
-                         SwingUtilities.LEADING, SwingUtilities.CENTER,
+                         SwingUtilities.TRAILING, SwingUtilities.CENTER,
                          tabRect, iconRect, textRect, textIconGap);
 
         tabPane.putClientProperty("html", null);
@@ -714,6 +760,21 @@ public class SynthTabbedPaneUI extends BasicTabbedPaneUI
               h -= (y - insets.top);
         }
         SynthLookAndFeel.updateSubregion(ss, g, new Rectangle(x, y, w, h));
+
+        if (tabPane.getTabCount() > 0 && (contentOpaque || tabPane.isOpaque())) {
+            // Fill region behind content area
+            Color color = UIManager.getColor("TabbedPane.contentAreaColor");
+            if (color != null) {
+                g.setColor(color);
+            } else if (selectColor == null || selectedIndex == -1) {
+                g.setColor(tabPane.getBackground());
+            } else {
+                g.setColor(selectColor);
+            }
+            // fill content area rect for both GTK and Nimbus LAF here
+            g.fillRect(x, y, w, h);
+        }
+
         ss.getPainter().paintTabbedPaneContentBackground(ss, g, x, y,
                                                            w, h);
         ss.getPainter().paintTabbedPaneContentBorder(ss, g, x, y, w, h);
@@ -815,6 +876,9 @@ public class SynthTabbedPaneUI extends BasicTabbedPaneUI
     }
 
     private FontMetrics getFontMetrics(Font font) {
+        if (font == null) {
+            font = tabPane.getFont();
+        }
         return tabPane.getFontMetrics(font);
     }
 
@@ -906,8 +970,12 @@ public class SynthTabbedPaneUI extends BasicTabbedPaneUI
         }
     }
 
+    /**
+     * A subclass of {@code SynthArrowButton} that implements
+     * {@code UIResource}.
+     */
     @SuppressWarnings("serial") // Superclass is not serializable across versions
-    private class SynthScrollableTabButton extends SynthArrowButton implements
+    private static class SynthScrollableTabButton extends SynthArrowButton implements
             UIResource {
         public SynthScrollableTabButton(int direction) {
             super(direction);

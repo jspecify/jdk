@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,14 @@
 
 package jdk.jfr.internal.dcmd;
 
+import java.io.IOException;
 
-
+import jdk.jfr.FlightRecorder;
 import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
 import jdk.jfr.internal.Logger;
 import jdk.jfr.internal.Options;
+import jdk.jfr.internal.PrivateAccess;
 import jdk.jfr.internal.Repository;
 import jdk.jfr.internal.SecuritySupport.SafePath;
 
@@ -49,16 +51,17 @@ final class DCmdConfigure extends AbstractDCmd {
      * @param globalBufferCount number of global buffers
      * @param globalBufferSize size of global buffers
      * @param threadBufferSize size of thread buffer for events
+     * @param memorySize Size of in memory buffer
      * @param maxChunkSize threshold at which a new chunk is created in the disk repository
-     * @param sampleThreads if thread sampling should be enabled
-     *
+     * @param preserveRepository if files in the repository should be deleted on exit.
      * @return result
 
      * @throws DCmdException
      *             if the dump could not be completed
      */
-    public String execute
+    public String[] execute
     (
+            boolean verbose,
             String repositoryPath,
             String dumpPath,
             Integer stackDepth,
@@ -67,19 +70,19 @@ final class DCmdConfigure extends AbstractDCmd {
             Long threadBufferSize,
             Long memorySize,
             Long maxChunkSize,
-            Boolean sampleThreads
+            Boolean preserveRepository
 
     ) throws DCmdException {
-        if (LogTag.JFR_DCMD.shouldLog(LogLevel.DEBUG)) {
+        if (Logger.shouldLog(LogTag.JFR_DCMD, LogLevel.DEBUG)) {
             Logger.log(LogTag.JFR_DCMD, LogLevel.DEBUG, "Executing DCmdConfigure: repositorypath=" + repositoryPath +
                     ", dumppath=" + dumpPath +
                     ", stackdepth=" + stackDepth +
                     ", globalbuffercount=" + globalBufferCount +
                     ", globalbuffersize=" + globalBufferSize +
-                    ", thread_buffer_size" + threadBufferSize +
-                    ", memorysize" + memorySize +
+                    ", thread_buffer_size=" + threadBufferSize +
+                    ", memorysize=" + memorySize +
                     ", maxchunksize=" + maxChunkSize +
-                    ", samplethreads" + sampleThreads);
+                    ", preserveRepository=" + preserveRepository);
         }
 
 
@@ -87,82 +90,111 @@ final class DCmdConfigure extends AbstractDCmd {
         if (repositoryPath != null) {
             try {
                 SafePath s = new SafePath(repositoryPath);
-                Repository.getRepository().setBasePath(s);
+                if (FlightRecorder.isInitialized()) {
+                    PrivateAccess.getInstance().getPlatformRecorder().migrate(s);
+                } else {
+                    Repository.getRepository().setBasePath(s);
+                }
                 Logger.log(LogTag.JFR, LogLevel.INFO, "Base repository path set to " + repositoryPath);
             } catch (Exception e) {
                 throw new DCmdException("Could not use " + repositoryPath + " as repository. " + e.getMessage(), e);
             }
-            printRepositoryPath();
+            if (verbose) {
+                printRepositoryPath();
+            }
+            updated = true;
+        }
+
+        if (preserveRepository != null) {
+            Options.setPreserveRepository(preserveRepository.booleanValue());
+            if (verbose) {
+                printPreserveRepository();
+            }
             updated = true;
         }
 
         if (dumpPath != null)  {
-            Options.setDumpPath(new SafePath(dumpPath));
+            try {
+                Options.setDumpPath(new SafePath(dumpPath));
+            } catch (IOException e) {
+                throw new DCmdException("Could not set " + dumpPath + " to emergency dump path. " + e.getMessage(), e);
+            }
             Logger.log(LogTag.JFR, LogLevel.INFO, "Emergency dump path set to " + dumpPath);
-            printDumpPath();
+           if (verbose) {
+               printDumpPath();
+           }
             updated = true;
         }
 
         if (stackDepth != null)  {
             Options.setStackDepth(stackDepth);
             Logger.log(LogTag.JFR, LogLevel.INFO, "Stack depth set to " + stackDepth);
-            printStackDepth();
+            if (verbose) {
+                printStackDepth();
+            }
             updated = true;
         }
 
         if (globalBufferCount != null)  {
             Options.setGlobalBufferCount(globalBufferCount);
             Logger.log(LogTag.JFR, LogLevel.INFO, "Global buffer count set to " + globalBufferCount);
-            printGlobalBufferCount();
+            if (verbose) {
+                printGlobalBufferCount();
+            }
             updated = true;
         }
 
         if (globalBufferSize != null)  {
             Options.setGlobalBufferSize(globalBufferSize);
             Logger.log(LogTag.JFR, LogLevel.INFO, "Global buffer size set to " + globalBufferSize);
-            printGlobalBufferSize();
+            if (verbose) {
+                printGlobalBufferSize();
+            }
             updated = true;
         }
 
         if (threadBufferSize != null)  {
             Options.setThreadBufferSize(threadBufferSize);
             Logger.log(LogTag.JFR, LogLevel.INFO, "Thread buffer size set to " + threadBufferSize);
-            printThreadBufferSize();
+            if (verbose) {
+                printThreadBufferSize();
+            }
             updated = true;
         }
 
         if (memorySize != null) {
             Options.setMemorySize(memorySize);
             Logger.log(LogTag.JFR, LogLevel.INFO, "Memory size set to " + memorySize);
-            printMemorySize();
+            if (verbose) {
+                printMemorySize();
+            }
             updated = true;
         }
 
         if (maxChunkSize != null)  {
             Options.setMaxChunkSize(maxChunkSize);
             Logger.log(LogTag.JFR, LogLevel.INFO, "Max chunk size set to " + maxChunkSize);
-            printMaxChunkSize();
+            if (verbose) {
+                printMaxChunkSize();
+            }
             updated = true;
         }
 
-        if (sampleThreads != null)  {
-            Options.setSampleThreads(sampleThreads);
-            Logger.log(LogTag.JFR, LogLevel.INFO, "Sample threads set to " + sampleThreads);
-            printSampleThreads();
-            updated = true;
+        if (!verbose) {
+            return new String[0];
         }
-
         if (!updated) {
             println("Current configuration:");
             println();
+            printPreserveRepository();
             printRepositoryPath();
+            printDumpPath();
             printStackDepth();
             printGlobalBufferCount();
             printGlobalBufferSize();
             printThreadBufferSize();
             printMemorySize();
             printMaxChunkSize();
-            printSampleThreads();
         }
         return getResult();
     }
@@ -173,14 +205,14 @@ final class DCmdConfigure extends AbstractDCmd {
         println();
     }
 
+    private void printPreserveRepository() {
+        println("Preserve repository: " + Options.getPreserveRepository());
+    }
+
     private void printDumpPath() {
         print("Dump path: ");
         printPath(Options.getDumpPath());
         println();
-    }
-
-    private void printSampleThreads() {
-        println("Sample threads: " + Options.getSampleThreads());
     }
 
     private void printStackDepth() {
@@ -193,25 +225,40 @@ final class DCmdConfigure extends AbstractDCmd {
 
     private void printGlobalBufferSize() {
         print("Global buffer size: ");
-        printBytes(Options.getGlobalBufferSize(), " ");
+        printBytes(Options.getGlobalBufferSize());
         println();
     }
 
     private void printThreadBufferSize() {
         print("Thread buffer size: ");
-        printBytes(Options.getThreadBufferSize(), " ");
+        printBytes(Options.getThreadBufferSize());
         println();
     }
 
     private void printMemorySize() {
         print("Memory size: ");
-        printBytes(Options.getMemorySize(), " ");
+        printBytes(Options.getMemorySize());
         println();
     }
 
     private void printMaxChunkSize() {
         print("Max chunk size: ");
-        printBytes(Options.getMaxChunkSize(), " ");
+        printBytes(Options.getMaxChunkSize());
         println();
+    }
+
+    @Override
+    public String[] getHelp() {
+        throw new InternalError("Should not reach here!");
+    }
+
+    @Override
+    public Argument[] getArgumentInfos() {
+        throw new InternalError("Should not reach here!");
+    }
+
+    @Override
+    protected void execute(ArgumentParser parser) throws DCmdException {
+        throw new InternalError("Should not reach here!");
     }
 }

@@ -29,10 +29,10 @@
  * However, the following notice accompanied the original version of this
  * file and, per its terms, should not be removed:
  *
- * Last changed in libpng 1.6.35 [July 15, 2018]
+ * Copyright (c) 2018-2024 Cosmin Truta
  * Copyright (c) 1998-2002,2004,2006-2018 Glenn Randers-Pehrson
- * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
- * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
+ * Copyright (c) 1996-1997 Andreas Dilger
+ * Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.
  *
  * This code is released under the libpng license.
  * For conditions of distribution and use, see the disclaimer
@@ -54,7 +54,7 @@ png_get_uint_31(png_const_structrp png_ptr, png_const_bytep buf)
    if (uval > PNG_UINT_31_MAX)
       png_error(png_ptr, "PNG unsigned integer out of range");
 
-   return (uval);
+   return uval;
 }
 
 #if defined(PNG_READ_gAMA_SUPPORTED) || defined(PNG_READ_cHRM_SUPPORTED)
@@ -168,7 +168,7 @@ png_read_sig(png_structrp png_ptr, png_inforp info_ptr)
    if (png_sig_cmp(info_ptr->signature, num_checked, num_to_check) != 0)
    {
       if (num_checked < 4 &&
-          png_sig_cmp(info_ptr->signature, num_checked, num_to_check - 4))
+          png_sig_cmp(info_ptr->signature, num_checked, num_to_check - 4) != 0)
          png_error(png_ptr, "Not a PNG file");
       else
          png_error(png_ptr, "PNG file corrupted by ASCII conversion");
@@ -199,7 +199,7 @@ png_read_chunk_header(png_structrp png_ptr)
    /* Put the chunk name into png_ptr->chunk_name. */
    png_ptr->chunk_name = PNG_CHUNK_FROM_STRING(buf+4);
 
-   png_debug2(0, "Reading %lx chunk, length = %lu",
+   png_debug2(0, "Reading chunk typeid = 0x%lx, length = %lu",
        (unsigned long)png_ptr->chunk_name, (unsigned long)length);
 
    /* Reset the crc and run it over the chunk name. */
@@ -266,10 +266,10 @@ png_crc_finish(png_structrp png_ptr, png_uint_32 skip)
       else
          png_chunk_error(png_ptr, "CRC error");
 
-      return (1);
+      return 1;
    }
 
-   return (0);
+   return 0;
 }
 
 /* Compare the CRC stored in the PNG file with that calculated by libpng from
@@ -305,11 +305,11 @@ png_crc_error(png_structrp png_ptr)
    if (need_crc != 0)
    {
       crc = png_get_uint_32(crc_bytes);
-      return ((int)(crc != png_ptr->crc));
+      return crc != png_ptr->crc;
    }
 
    else
-      return (0);
+      return 0;
 }
 
 #if defined(PNG_READ_iCCP_SUPPORTED) || defined(PNG_READ_iTXt_SUPPORTED) ||\
@@ -329,7 +329,6 @@ png_read_buffer(png_structrp png_ptr, png_alloc_size_t new_size, int warn)
 
    if (buffer != NULL && new_size > png_ptr->read_buffer_size)
    {
-      png_ptr->read_buffer = NULL;
       png_ptr->read_buffer = NULL;
       png_ptr->read_buffer_size = 0;
       png_free(png_ptr, buffer);
@@ -450,8 +449,7 @@ png_inflate_claim(png_structrp png_ptr, png_uint_32 owner)
             png_ptr->flags |= PNG_FLAG_ZSTREAM_INITIALIZED;
       }
 
-#if ZLIB_VERNUM >= 0x1290 && \
-   defined(PNG_SET_OPTION_SUPPORTED) && defined(PNG_IGNORE_ADLER32)
+#ifdef PNG_DISABLE_ADLER32_CHECK_SUPPORTED
       if (((png_ptr->options >> PNG_IGNORE_ADLER32) & 3) == PNG_OPTION_ON)
          /* Turn off validation of the ADLER32 checksum in IDAT chunks */
          ret = inflateValidate(&png_ptr->zstream, 0);
@@ -1489,8 +1487,7 @@ png_handle_iCCP(png_structrp png_ptr, png_inforp info_ptr, png_uint_32 length)
                {
                   /* We have the ICC profile header; do the basic header checks.
                    */
-                  const png_uint_32 profile_length =
-                     png_get_uint_32(profile_header);
+                  png_uint_32 profile_length = png_get_uint_32(profile_header);
 
                   if (png_icc_check_length(png_ptr, &png_ptr->colorspace,
                       keyword, profile_length) != 0)
@@ -1507,8 +1504,8 @@ png_handle_iCCP(png_structrp png_ptr, png_inforp info_ptr, png_uint_32 length)
                          * profile.  The header check has already validated
                          * that none of this stuff will overflow.
                          */
-                        const png_uint_32 tag_count = png_get_uint_32(
-                            profile_header+128);
+                        png_uint_32 tag_count =
+                           png_get_uint_32(profile_header + 128);
                         png_bytep profile = png_read_buffer(png_ptr,
                             profile_length, 2/*silent*/);
 
@@ -2105,21 +2102,22 @@ png_handle_eXIf(png_structrp png_ptr, png_inforp info_ptr, png_uint_32 length)
       png_byte buf[1];
       png_crc_read(png_ptr, buf, 1);
       info_ptr->eXIf_buf[i] = buf[0];
-      if (i == 1 && buf[0] != 'M' && buf[0] != 'I'
-                 && info_ptr->eXIf_buf[0] != buf[0])
+      if (i == 1)
       {
-         png_crc_finish(png_ptr, length);
-         png_chunk_benign_error(png_ptr, "incorrect byte-order specifier");
-         png_free(png_ptr, info_ptr->eXIf_buf);
-         info_ptr->eXIf_buf = NULL;
-         return;
+         if ((buf[0] != 'M' && buf[0] != 'I') ||
+             (info_ptr->eXIf_buf[0] != buf[0]))
+         {
+            png_crc_finish(png_ptr, length - 2);
+            png_chunk_benign_error(png_ptr, "incorrect byte-order specifier");
+            png_free(png_ptr, info_ptr->eXIf_buf);
+            info_ptr->eXIf_buf = NULL;
+            return;
+         }
       }
    }
 
-   if (png_crc_finish(png_ptr, 0) != 0)
-      return;
-
-   png_set_eXIf_1(png_ptr, info_ptr, length, info_ptr->eXIf_buf);
+   if (png_crc_finish(png_ptr, 0) == 0)
+      png_set_eXIf_1(png_ptr, info_ptr, length, info_ptr->eXIf_buf);
 
    png_free(png_ptr, info_ptr->eXIf_buf);
    info_ptr->eXIf_buf = NULL;
@@ -2155,8 +2153,9 @@ png_handle_hIST(png_structrp png_ptr, png_inforp info_ptr, png_uint_32 length)
 
    num = length / 2 ;
 
-   if (num != (unsigned int) png_ptr->num_palette ||
-       num > (unsigned int) PNG_MAX_PALETTE_LENGTH)
+   if (length != num * 2 ||
+       num != (unsigned int)png_ptr->num_palette ||
+       num > (unsigned int)PNG_MAX_PALETTE_LENGTH)
    {
       png_crc_finish(png_ptr, length);
       png_chunk_benign_error(png_ptr, "invalid");
@@ -3160,7 +3159,7 @@ png_handle_unknown(png_structrp png_ptr, png_inforp info_ptr,
  */
 
 void /* PRIVATE */
-png_check_chunk_name(png_const_structrp png_ptr, const png_uint_32 chunk_name)
+png_check_chunk_name(png_const_structrp png_ptr, png_uint_32 chunk_name)
 {
    int i;
    png_uint_32 cn=chunk_name;
@@ -3179,7 +3178,7 @@ png_check_chunk_name(png_const_structrp png_ptr, const png_uint_32 chunk_name)
 }
 
 void /* PRIVATE */
-png_check_chunk_length(png_const_structrp png_ptr, const png_uint_32 length)
+png_check_chunk_length(png_const_structrp png_ptr, png_uint_32 length)
 {
    png_alloc_size_t limit = PNG_UINT_31_MAX;
 
@@ -3214,7 +3213,7 @@ png_check_chunk_length(png_const_structrp png_ptr, const png_uint_32 length)
    {
       png_debug2(0," length = %lu, limit = %lu",
          (unsigned long)length,(unsigned long)limit);
-      png_chunk_error(png_ptr, "chunk data is too large");
+      png_benign_error(png_ptr, "chunk data is too large");
    }
 }
 
@@ -3391,7 +3390,7 @@ png_combine_row(png_const_structrp png_ptr, png_bytep dp, int display)
          /* Hence the pre-compiled masks indexed by PACKSWAP (or not), depth and
           * then pass:
           */
-         static PNG_CONST png_uint_32 row_mask[2/*PACKSWAP*/][3/*depth*/][6] =
+         static const png_uint_32 row_mask[2/*PACKSWAP*/][3/*depth*/][6] =
          {
             /* Little-endian byte masks for PACKSWAP */
             { S_MASKS(1,0), S_MASKS(2,0), S_MASKS(4,0) },
@@ -3402,7 +3401,7 @@ png_combine_row(png_const_structrp png_ptr, png_bytep dp, int display)
          /* display_mask has only three entries for the odd passes, so index by
           * pass>>1.
           */
-         static PNG_CONST png_uint_32 display_mask[2][3][3] =
+         static const png_uint_32 display_mask[2][3][3] =
          {
             /* Little-endian byte masks for PACKSWAP */
             { B_MASKS(1,0), B_MASKS(2,0), B_MASKS(4,0) },
@@ -3715,7 +3714,7 @@ png_do_read_interlace(png_row_infop row_info, png_bytep row, int pass,
 {
    /* Arrays to facilitate easy interlacing - use pass (0 - 6) as index */
    /* Offset to next interlace block */
-   static PNG_CONST unsigned int png_pass_inc[7] = {8, 8, 4, 4, 2, 2, 1};
+   static const unsigned int png_pass_inc[7] = {8, 8, 4, 4, 2, 2, 1};
 
    png_debug(1, "in png_do_read_interlace");
    if (row != NULL && row_info != NULL)
@@ -4357,16 +4356,16 @@ png_read_finish_row(png_structrp png_ptr)
    /* Arrays to facilitate easy interlacing - use pass (0 - 6) as index */
 
    /* Start of interlace block */
-   static PNG_CONST png_byte png_pass_start[7] = {0, 4, 0, 2, 0, 1, 0};
+   static const png_byte png_pass_start[7] = {0, 4, 0, 2, 0, 1, 0};
 
    /* Offset to next interlace block */
-   static PNG_CONST png_byte png_pass_inc[7] = {8, 8, 4, 4, 2, 2, 1};
+   static const png_byte png_pass_inc[7] = {8, 8, 4, 4, 2, 2, 1};
 
    /* Start of interlace block in the y direction */
-   static PNG_CONST png_byte png_pass_ystart[7] = {0, 0, 4, 0, 2, 0, 1};
+   static const png_byte png_pass_ystart[7] = {0, 0, 4, 0, 2, 0, 1};
 
    /* Offset to next interlace block in the y direction */
-   static PNG_CONST png_byte png_pass_yinc[7] = {8, 8, 8, 4, 4, 2, 2};
+   static const png_byte png_pass_yinc[7] = {8, 8, 8, 4, 4, 2, 2};
 
    png_debug(1, "in png_read_finish_row");
    png_ptr->row_number++;
@@ -4422,16 +4421,16 @@ png_read_start_row(png_structrp png_ptr)
    /* Arrays to facilitate easy interlacing - use pass (0 - 6) as index */
 
    /* Start of interlace block */
-   static PNG_CONST png_byte png_pass_start[7] = {0, 4, 0, 2, 0, 1, 0};
+   static const png_byte png_pass_start[7] = {0, 4, 0, 2, 0, 1, 0};
 
    /* Offset to next interlace block */
-   static PNG_CONST png_byte png_pass_inc[7] = {8, 8, 4, 4, 2, 2, 1};
+   static const png_byte png_pass_inc[7] = {8, 8, 4, 4, 2, 2, 1};
 
    /* Start of interlace block in the y direction */
-   static PNG_CONST png_byte png_pass_ystart[7] = {0, 0, 4, 0, 2, 0, 1};
+   static const png_byte png_pass_ystart[7] = {0, 0, 4, 0, 2, 0, 1};
 
    /* Offset to next interlace block in the y direction */
-   static PNG_CONST png_byte png_pass_yinc[7] = {8, 8, 8, 4, 4, 2, 2};
+   static const png_byte png_pass_yinc[7] = {8, 8, 8, 4, 4, 2, 2};
 
    unsigned int max_pixel_depth;
    size_t row_bytes;
@@ -4650,14 +4649,13 @@ defined(PNG_USER_TRANSFORM_PTR_SUPPORTED)
        */
       {
          png_bytep temp = png_ptr->big_row_buf + 32;
-         int extra = (int)((temp - (png_bytep)0) & 0x0f);
+         size_t extra = (size_t)temp & 0x0f;
          png_ptr->row_buf = temp - extra - 1/*filter byte*/;
 
          temp = png_ptr->big_prev_row + 32;
-         extra = (int)((temp - (png_bytep)0) & 0x0f);
+         extra = (size_t)temp & 0x0f;
          png_ptr->prev_row = temp - extra - 1/*filter byte*/;
       }
-
 #else
       /* Use 31 bytes of padding before and 17 bytes after row_buf. */
       png_ptr->row_buf = png_ptr->big_row_buf + 31;

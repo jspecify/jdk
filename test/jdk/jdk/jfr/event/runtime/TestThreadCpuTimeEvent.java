@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,7 +23,6 @@
 
 package jdk.jfr.event.runtime;
 
-import com.sun.management.ThreadMXBean;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordedThread;
@@ -33,7 +30,6 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.jfr.EventNames;
 import jdk.test.lib.jfr.Events;
 
-import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
@@ -60,7 +56,6 @@ public class TestThreadCpuTimeEvent {
 
     public static void main(String[] args) throws Throwable {
         testSimple();
-        testCompareWithMXBean();
         testEventAtThreadExit();
     }
 
@@ -98,7 +93,7 @@ public class TestThreadCpuTimeEvent {
                     barrier.await();
                     Instant start = Instant.now();
                     counter = 0;
-                    while ((Duration.between(start, Instant.now()).compareTo(runTime) < 0) ||
+                    while ((start.until(Instant.now()).compareTo(runTime) < 0) ||
                             (counter < cpuConsumerMinCount)) {
                         counter++;
                     }
@@ -107,7 +102,7 @@ public class TestThreadCpuTimeEvent {
             } catch (BrokenBarrierException e) {
                 // Another thread has been interrupted - wait for us to be interrupted as well
                 while (!interrupted()) {
-                    yield();
+                    Thread.yield();
                 }
             } catch (InterruptedException e) {
                 // Normal way of stopping the thread
@@ -133,32 +128,6 @@ public class TestThreadCpuTimeEvent {
 
             Asserts.assertLessThan(systemLoad + userLoad, 1.01f / numCpus); // 100% + rounding errors
         }
-    }
-
-    static Duration getAccumulatedTime(List<RecordedEvent> events, String threadName, String fieldName) {
-        List<RecordedEvent> filteredEvents = events.stream()
-                .filter(e -> e.getThread().getJavaName().equals(threadName))
-                .sorted(Comparator.comparing(RecordedEvent::getStartTime))
-                .collect(Collectors.toList());
-
-        int numCpus = Runtime.getRuntime().availableProcessors();
-        Iterator<RecordedEvent> i = filteredEvents.iterator();
-        RecordedEvent cur = i.next();
-        Duration totalTime = Duration.ZERO;
-        while (i.hasNext()) {
-            RecordedEvent prev = cur;
-            cur = i.next();
-
-            Duration sampleTime = Duration.between(prev.getStartTime(), cur.getStartTime());
-            Float load = (Float)cur.getValue(fieldName);
-
-            // Adjust load to be thread-relative (fully loaded thread would give 100%)
-            Float totalLoadForThread = load * numCpus;
-            Duration threadTime = Duration.ofMillis((long) (sampleTime.toMillis() * totalLoadForThread));
-            totalTime = totalTime.plus(threadTime);
-        }
-
-        return totalTime;
     }
 
     static List<RecordedEvent> generateEvents(int minimumEventCount, CyclicBarrier barrier) throws Throwable {
@@ -204,39 +173,6 @@ public class TestThreadCpuTimeEvent {
 
         List<RecordedEvent> events = generateEvents(1, barrier);
         verifyPerThreadInvariant(events, cpuConsumerThreadName);
-
-        thread.interrupt();
-        thread.join();
-    }
-
-    static void testCompareWithMXBean() throws Throwable {
-        Duration testRunTime = Duration.ofMillis(eventPeriodMillis * cpuConsumerRunFactor);
-        CyclicBarrier barrier = new CyclicBarrier(2);
-        CpuConsumingThread thread = new CpuConsumingThread(testRunTime, barrier);
-        thread.start();
-
-        List<RecordedEvent> beforeEvents = generateEvents(2, barrier);
-        verifyPerThreadInvariant(beforeEvents, cpuConsumerThreadName);
-
-        // Run a second single pass
-        barrier.await();
-        barrier.await();
-
-        ThreadMXBean bean = (ThreadMXBean) ManagementFactory.getThreadMXBean();
-        Duration cpuTime = Duration.ofNanos(bean.getThreadCpuTime(thread.getId()));
-        Duration userTime = Duration.ofNanos(bean.getThreadUserTime(thread.getId()));
-
-        // Check something that should hold even in the presence of unfortunate scheduling
-        Asserts.assertGreaterThanOrEqual(cpuTime.toMillis(), eventPeriodMillis);
-        Asserts.assertGreaterThanOrEqual(userTime.toMillis(), eventPeriodMillis);
-
-        Duration systemTimeBefore = getAccumulatedTime(beforeEvents, cpuConsumerThreadName, "system");
-        Duration userTimeBefore = getAccumulatedTime(beforeEvents, cpuConsumerThreadName, "user");
-        Duration cpuTimeBefore = userTimeBefore.plus(systemTimeBefore);
-
-        Asserts.assertLessThan(cpuTimeBefore, cpuTime);
-        Asserts.assertLessThan(userTimeBefore, userTime);
-        Asserts.assertGreaterThan(cpuTimeBefore, Duration.ZERO);
 
         thread.interrupt();
         thread.join();

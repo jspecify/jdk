@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@ import java.util.Arrays;
 
 import java.security.*;
 import java.security.spec.AlgorithmParameterSpec;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
@@ -130,12 +132,12 @@ abstract class TlsPrfGenerator extends KeyGeneratorSpi {
     @SuppressWarnings("deprecation")
     protected void engineInit(AlgorithmParameterSpec params,
             SecureRandom random) throws InvalidAlgorithmParameterException {
-        if (params instanceof TlsPrfParameterSpec == false) {
+        if (!(params instanceof TlsPrfParameterSpec)) {
             throw new InvalidAlgorithmParameterException(MSG);
         }
         this.spec = (TlsPrfParameterSpec)params;
         SecretKey key = spec.getSecret();
-        if ((key != null) && ("RAW".equals(key.getFormat()) == false)) {
+        if ((key != null) && (!"RAW".equals(key.getFormat()))) {
             throw new InvalidAlgorithmParameterException(
                 "Key encoding format must be RAW");
         }
@@ -153,18 +155,24 @@ abstract class TlsPrfGenerator extends KeyGeneratorSpi {
         SecretKey key = spec.getSecret();
         byte[] secret = (key == null) ? null : key.getEncoded();
         try {
-            byte[] labelBytes = spec.getLabel().getBytes("UTF8");
+            byte[] labelBytes = spec.getLabel().getBytes(UTF_8);
             int n = spec.getOutputLength();
             byte[] prfBytes = (tls12 ?
                 doTLS12PRF(secret, labelBytes, spec.getSeed(), n,
                     spec.getPRFHashAlg(), spec.getPRFHashLength(),
                     spec.getPRFBlockSize()) :
                 doTLS10PRF(secret, labelBytes, spec.getSeed(), n));
-            return new SecretKeySpec(prfBytes, "TlsPrf");
+            try {
+                return new SecretKeySpec(prfBytes, "TlsPrf");
+            } finally {
+                Arrays.fill(prfBytes, (byte)0);
+            }
         } catch (GeneralSecurityException e) {
             throw new ProviderException("Could not generate PRF", e);
-        } catch (java.io.UnsupportedEncodingException e) {
-            throw new ProviderException("Could not generate PRF", e);
+        } finally {
+            if (secret != null) {
+                Arrays.fill(secret, (byte) 0);
+            }
         }
     }
 
@@ -257,6 +265,7 @@ abstract class TlsPrfGenerator extends KeyGeneratorSpi {
         if (seclen > 64) {              // 64: block size of HMAC-MD5
             md5.update(secret, 0, seclen);
             secKey = md5.digest();
+            md5.reset();
             keyLen = secKey.length;
         }
         expand(md5, 16, secKey, 0, keyLen, labelBytes, seed, output,
@@ -267,6 +276,7 @@ abstract class TlsPrfGenerator extends KeyGeneratorSpi {
         if (seclen > 64) {              // 64: block size of HMAC-SHA1
             sha.update(secret, off, seclen);
             secKey = sha.digest();
+            sha.reset();
             keyLen = secKey.length;
             off = 0;
         }
@@ -351,12 +361,15 @@ abstract class TlsPrfGenerator extends KeyGeneratorSpi {
             digest.update(tmp);
             digest.digest(tmp, 0, hmacSize);
 
+            digest.reset();
+
             int k = Math.min(hmacSize, remaining);
             for (int i = 0; i < k; i++) {
                 output[ofs++] ^= tmp[i];
             }
             remaining -= k;
         }
+        Arrays.fill(tmp, (byte)0);
     }
 
     /**
@@ -365,7 +378,7 @@ abstract class TlsPrfGenerator extends KeyGeneratorSpi {
      * TLS 1.2 uses a different hash algorithm than 1.0/1.1 for the PRF
      * calculations.  As of 2010, there is no PKCS11-level support for TLS
      * 1.2 PRF calculations, and no known OS's have an internal variant
-     * we could use.  Therefore for TLS 1.2, we are updating JSSE to request
+     * we could use.  Therefore, for TLS 1.2, we are updating JSSE to request
      * a different provider algorithm:  "SunTls12Prf".  If we reused the
      * name "SunTlsPrf", the PKCS11 provider would need be updated to
      * fail correctly when presented with the wrong version number

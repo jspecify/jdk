@@ -141,6 +141,7 @@ import jdk.dynalink.support.SimpleRelinkableCallSite;
  * in the above example the {@code parseOperation} method is left unimplemented.</li>
  *
  * </ul>
+ * @since 9
  */
 public final class DynamicLinker {
     private static final String CLASS_NAME = DynamicLinker.class.getName();
@@ -213,8 +214,7 @@ public final class DynamicLinker {
 
     private MethodHandle createRelinkAndInvokeMethod(final RelinkableCallSite callSite, final int relinkCount) {
         // Make a bound MH of invoke() for this linker and call site
-        final MethodHandle boundRelinker = MethodHandles.insertArguments(RELINK, 0, this, callSite, Integer.valueOf(
-                relinkCount));
+        final MethodHandle boundRelinker = MethodHandles.insertArguments(RELINK, 0, this, callSite, relinkCount);
         // Make a MH that gathers all arguments to the invocation into an Object[]
         final MethodType type = callSite.getDescriptor().getMethodType();
         final MethodHandle collectingRelinker = boundRelinker.asCollector(Object[].class, type.parameterCount());

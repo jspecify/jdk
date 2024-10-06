@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,7 +58,7 @@ class ArrayTable implements Cloneable {
      * AbstractAction use to avoid having the same code in each class.
      */
     static void writeArrayTable(ObjectOutputStream s, ArrayTable table) throws IOException {
-        Object keys[];
+        Object[] keys;
 
         if (table == null || (keys = table.getKeys(null)) == null) {
             s.writeInt(0);
@@ -255,17 +255,19 @@ class ArrayTable implements Cloneable {
      */
     public Object clone() {
         ArrayTable newArrayTable = new ArrayTable();
-        if (isArray()) {
-            Object[] array = (Object[])table;
-            for (int i = 0 ;i < array.length-1 ; i+=2) {
-                newArrayTable.put(array[i], array[i+1]);
-            }
-        } else {
-            Hashtable<?,?> tmp = (Hashtable)table;
-            Enumeration<?> keys = tmp.keys();
-            while (keys.hasMoreElements()) {
-                Object o = keys.nextElement();
-                newArrayTable.put(o,tmp.get(o));
+        if (table != null) {
+            if (isArray()) {
+                Object[] array = (Object[]) table;
+                for (int i = 0; i < array.length - 1; i += 2) {
+                    newArrayTable.put(array[i], array[i + 1]);
+                }
+            } else {
+                Hashtable<?, ?> tmp = (Hashtable) table;
+                Enumeration<?> keys = tmp.keys();
+                while (keys.hasMoreElements()) {
+                    Object o = keys.nextElement();
+                    newArrayTable.put(o, tmp.get(o));
+                }
             }
         }
         return newArrayTable;

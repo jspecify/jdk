@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -100,7 +100,6 @@ currentDirLength(const WCHAR* ps, int pathlen) {
         static int curDirLenCached = -1;
         //relative to both drive and directory
         if (curDirLenCached == -1) {
-            int dirlen = -1;
             dir = _wgetcwd(NULL, MAX_PATH);
             if (dir != NULL) {
                 curDirLenCached = (int)wcslen(dir);
@@ -165,9 +164,6 @@ pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE) {
                      pathbuf = (WCHAR*)malloc((pathlen + 6) * sizeof(WCHAR));
                      if (pathbuf != 0) {
                          wcscpy(pathbuf, ps);
-                     } else {
-                         JNU_ThrowOutOfMemoryError(env, "native memory allocation failed");
-                         return NULL;
                      }
                  }
             } else {
@@ -177,13 +173,12 @@ pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE) {
                    obviously a burden to all relative paths (The current dir/len
                    for "drive & directory" relative path is cached, so we only
                    calculate it once but for "drive-relative path we call
-                   _wgetdcwd() and wcslen() everytime), but a hit we have
+                   _wgetdcwd() and wcslen() every time), but a hit we have
                    to take if we want to support relative path beyond max_path.
                    There is no way to predict how long the absolute path will be
-                   (therefor allocate the sufficient memory block) before calling
+                   (therefore allocate the sufficient memory block) before calling
                    _wfullpath(), we have to get the length of "current" dir first.
                 */
-                WCHAR *abpath = NULL;
                 int dirlen = currentDirLength(ps, pathlen);
                 if (dirlen + pathlen + 1 > max_path - 1) {
                     pathbuf = prefixAbpath(ps, pathlen, dirlen + pathlen);
@@ -191,9 +186,6 @@ pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE) {
                     pathbuf = (WCHAR*)malloc((pathlen + 6) * sizeof(WCHAR));
                     if (pathbuf != 0) {
                         wcscpy(pathbuf, ps);
-                    } else {
-                        JNU_ThrowOutOfMemoryError(env, "native memory allocation failed");
-                        return NULL;
                     }
                 }
             }
@@ -210,21 +202,16 @@ pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE) {
             pathbuf = (WCHAR*)malloc(sizeof(WCHAR));
             if (pathbuf != NULL) {
                 pathbuf[0] = L'\0';
-            } else {
-                JNU_ThrowOutOfMemoryError(env, 0);
-                return NULL;
             }
         }
     }
     if (pathbuf == 0) {
-        JNU_ThrowOutOfMemoryError(env, 0);
-        return NULL;
+        JNU_ThrowOutOfMemoryError(env, "native memory allocation failed");
     }
     return pathbuf;
 }
 
-JNIEXPORT FD JNICALL
-winFileHandleOpen(JNIEnv *env, jstring path, int flags)
+FD winFileHandleOpen(JNIEnv *env, jstring path, int flags)
 {
     const DWORD access =
         (flags & O_WRONLY) ?  GENERIC_WRITE :
@@ -270,6 +257,14 @@ winFileHandleOpen(JNIEnv *env, jstring path, int flags)
     return (jlong) h;
 }
 
+FD getFD(JNIEnv *env, jobject obj, jfieldID fid) {
+  jobject fdo = (*env)->GetObjectField(env, obj, fid);
+  if (fdo == NULL) {
+    return -1;
+  }
+  return (*env)->GetLongField(env, fdo, IO_handle_fdID);
+}
+
 void
 fileOpen(JNIEnv *env, jobject this, jstring path, jfieldID fid, int flags)
 {
@@ -277,10 +272,10 @@ fileOpen(JNIEnv *env, jobject this, jstring path, jfieldID fid, int flags)
     if (h >= 0) {
         jobject fdobj;
         jboolean append;
-        SET_FD(this, h, fid);
-
         fdobj = (*env)->GetObjectField(env, this, fid);
         if (fdobj != NULL) {
+            // Set FD
+            (*env)->SetLongField(env, fdobj, IO_handle_fdID, h);
             append = (flags & O_APPEND) == 0 ? JNI_FALSE : JNI_TRUE;
             (*env)->SetBooleanField(env, fdobj, IO_append_fdID, append);
         }
@@ -458,19 +453,20 @@ handleSync(FD fd) {
     return 0;
 }
 
-
-int
+jint
 handleSetLength(FD fd, jlong length) {
     HANDLE h = (HANDLE)fd;
-    long high = (long)(length >> 32);
-    DWORD ret;
+    FILE_END_OF_FILE_INFO eofInfo;
 
-    if (h == (HANDLE)(-1)) return -1;
-    ret = SetFilePointer(h, (long)(length), &high, FILE_BEGIN);
-    if (ret == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
+    eofInfo.EndOfFile.QuadPart = length;
+
+    if (h == INVALID_HANDLE_VALUE) {
         return -1;
     }
-    if (SetEndOfFile(h) == FALSE) return -1;
+    if (!SetFileInformationByHandle(h, FileEndOfFileInfo, &eofInfo,
+            sizeof(FILE_END_OF_FILE_INFO))) {
+        return -1;
+    }
     return 0;
 }
 
@@ -552,7 +548,7 @@ fileDescriptorClose(JNIEnv *env, jobject this)
     /* Set the fd to -1 before closing it so that the timing window
      * of other threads using the wrong fd (closed but recycled fd,
      * that gets re-opened with some other filename) is reduced.
-     * Practically the chance of its occurance is low, however, we are
+     * Practically the chance of its occurrence is low, however, we are
      * taking extra precaution over here.
      */
     (*env)->SetLongField(env, this, IO_handle_fdID, -1);
@@ -569,8 +565,6 @@ JNIEXPORT jlong JNICALL
 handleLseek(FD fd, jlong offset, jint whence)
 {
     LARGE_INTEGER pos, distance;
-    DWORD lowPos = 0;
-    long highPos = 0;
     DWORD op = FILE_CURRENT;
     HANDLE h = (HANDLE)fd;
 

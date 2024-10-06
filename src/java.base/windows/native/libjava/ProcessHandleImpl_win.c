@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -109,27 +109,19 @@ Java_java_lang_ProcessHandleImpl_waitForProcessExit0(JNIEnv* env,
     if (handle == NULL) {
         return exitValue;          // No process with that pid is alive
     }
-    do {
-        if (!GetExitCodeProcess(handle, &exitValue)) {
+    if (!GetExitCodeProcess(handle, &exitValue)) {
+        JNU_ThrowByNameWithLastError(env,
+            "java/lang/RuntimeException", "GetExitCodeProcess");
+    } else if (exitValue == STILL_ACTIVE) {
+        if (WaitForSingleObject(handle, INFINITE) /* Wait forever */
+            == WAIT_FAILED) {
+            JNU_ThrowByNameWithLastError(env,
+                "java/lang/RuntimeException", "WaitForSingleObjects");
+        } else if (!GetExitCodeProcess(handle, &exitValue)) {
             JNU_ThrowByNameWithLastError(env,
                 "java/lang/RuntimeException", "GetExitCodeProcess");
-            break;
         }
-        if (exitValue == STILL_ACTIVE) {
-            HANDLE events[2];
-            events[0] = handle;
-            events[1] = JVM_GetThreadInterruptEvent();
-
-            if (WaitForMultipleObjects(sizeof(events)/sizeof(events[0]), events,
-                                       FALSE,    /* Wait for ANY event */
-                                       INFINITE) /* Wait forever */
-                == WAIT_FAILED) {
-                JNU_ThrowByNameWithLastError(env,
-                    "java/lang/RuntimeException", "WaitForMultipleObjects");
-                break;
-            }
-        }
-    } while (exitValue == STILL_ACTIVE);
+    }
     CloseHandle(handle);         // Ignore return code
     return exitValue;
 }
@@ -198,7 +190,7 @@ Java_java_lang_ProcessHandleImpl_parent0(JNIEnv *env,
     } else {
         JNU_ThrowByName(env,
             "java/lang/RuntimeException", "snapshot not available");
-        return -1;
+        ppid = (DWORD)-1;
     }
     CloseHandle(hProcessSnap); // Ignore return code
     return (jlong)ppid;
@@ -267,13 +259,13 @@ Java_java_lang_ProcessHandleImpl_getProcessPids0(JNIEnv *env,
                 break;
             }
             if (jparentArray != NULL) {
-                ppids  = (*env)->GetLongArrayElements(env, jparentArray, NULL);
+                ppids = (*env)->GetLongArrayElements(env, jparentArray, NULL);
                 if (ppids == NULL) {
                     break;
                 }
             }
             if (jstimesArray != NULL) {
-                stimes  = (*env)->GetLongArrayElements(env, jstimesArray, NULL);
+                stimes = (*env)->GetLongArrayElements(env, jstimesArray, NULL);
                 if (stimes == NULL) {
                     break;
                 }
@@ -315,7 +307,7 @@ Java_java_lang_ProcessHandleImpl_getProcessPids0(JNIEnv *env,
     } else {
         JNU_ThrowByName(env,
             "java/lang/RuntimeException", "snapshot not available");
-        return 0;
+        count = 0;
     }
     CloseHandle(hProcessSnap);
     // If more pids than array had size for;  count will be greater than array size
@@ -417,7 +409,6 @@ Java_java_lang_ProcessHandleImpl_00024Info_info0(JNIEnv *env,
                                                  jobject jinfo,
                                                  jlong jpid) {
     DWORD pid = (DWORD)jpid;
-    int ret = 0;
     HANDLE handle =
         OpenProcess(THREAD_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION,
                     FALSE, pid);
@@ -469,16 +460,28 @@ static void getStatInfo(JNIEnv *env, HANDLE handle, jobject jinfo) {
 }
 
 static void getCmdlineInfo(JNIEnv *env, HANDLE handle, jobject jinfo) {
-    char exeName[1024];
-    int bufsize = sizeof exeName;
-    jstring commandObj;
+    WCHAR exeName[1024];
+    WCHAR *longPath;
+    DWORD bufsize = sizeof(exeName)/sizeof(WCHAR);
+    jstring commandObj = NULL;
 
-    if (QueryFullProcessImageName(handle, 0,  exeName, &bufsize)) {
-        commandObj = (*env)->NewStringUTF(env, exeName);
-        CHECK_NULL(commandObj);
-        (*env)->SetObjectField(env, jinfo,
-                               ProcessHandleImpl_Info_commandID, commandObj);
+    if (QueryFullProcessImageNameW(handle, 0,  exeName, &bufsize)) {
+        commandObj = (*env)->NewString(env, (const jchar *)exeName,
+                                       (jsize)wcslen(exeName));
+    } else if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+        bufsize = 32768;
+        longPath = (WCHAR*)malloc(bufsize * sizeof(WCHAR));
+        if (longPath != NULL) {
+            if (QueryFullProcessImageNameW(handle, 0, longPath, &bufsize)) {
+                commandObj = (*env)->NewString(env, (const jchar *)longPath,
+                                               (jsize)wcslen(longPath));
+            }
+            free(longPath);
+        }
     }
+    CHECK_NULL(commandObj);
+    (*env)->SetObjectField(env, jinfo,
+                           ProcessHandleImpl_Info_commandID, commandObj);
 }
 
 static void procToUser(JNIEnv *env, HANDLE handle, jobject jinfo) {

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 //----------REGISTER DEFINITION BLOCK------------------------------------------
 // This information is used by the matcher and the register allocator to
 // describe individual registers and classes of registers within the target
-// archtecture.
+// architecture.
 register %{
 //----------Architecture Description Register Definitions----------------------
 // General Registers
@@ -182,11 +182,11 @@ alloc_class chunk0(
 alloc_class chunk1(
                    R_S16, R_S17, R_S18, R_S19, R_S20, R_S21, R_S22, R_S23,
                    R_S24, R_S25, R_S26, R_S27, R_S28, R_S29, R_S30, R_S31,
-                   R_S0,  R_S1,  R_S2,  R_S3,  R_S4,  R_S5,  R_S6,  R_S7, 
+                   R_S0,  R_S1,  R_S2,  R_S3,  R_S4,  R_S5,  R_S6,  R_S7,
                    R_S8,  R_S9,  R_S10, R_S11, R_S12, R_S13, R_S14, R_S15,
-                   R_D16, R_D16x,R_D17, R_D17x,R_D18, R_D18x,R_D19, R_D19x, 
-                   R_D20, R_D20x,R_D21, R_D21x,R_D22, R_D22x,R_D23, R_D23x, 
-                   R_D24, R_D24x,R_D25, R_D25x,R_D26, R_D26x,R_D27, R_D27x, 
+                   R_D16, R_D16x,R_D17, R_D17x,R_D18, R_D18x,R_D19, R_D19x,
+                   R_D20, R_D20x,R_D21, R_D21x,R_D22, R_D22x,R_D23, R_D23x,
+                   R_D24, R_D24x,R_D25, R_D25x,R_D26, R_D26x,R_D27, R_D27x,
                    R_D28, R_D28x,R_D29, R_D29x,R_D30, R_D30x,R_D31, R_D31x
 );
 
@@ -196,8 +196,7 @@ alloc_class chunk2(APSR, FPSCR);
 // Several register classes are automatically defined based upon information in
 // this architecture description.
 // 1) reg_class inline_cache_reg           ( as defined in frame section )
-// 2) reg_class interpreter_method_oop_reg ( as defined in frame section )
-// 3) reg_class stack_slots( /* one chunk of stack-based "registers" */ )
+// 2) reg_class stack_slots( /* one chunk of stack-based "registers" */ )
 //
 
 // ----------------------------
@@ -223,7 +222,6 @@ reg_class ptr_reg(R_R0, R_R1, R_R2, R_R3, R_R4, R_R5, R_R6, R_R7, R_R8, R_R9, R_
 reg_class sp_ptr_reg(R_R0, R_R1, R_R2, R_R3, R_R4, R_R5, R_R6, R_R7, R_R8, R_R9, R_R11, R_R12, R_R14, R_R10 /* TLS*/, R_R13 /* SP*/);
 
 #define R_Ricklass R_R8
-#define R_Rmethod  R_R9
 #define R_Rthread  R_R10
 #define R_Rexception_obj R_R4
 
@@ -232,11 +230,14 @@ reg_class R0_regP(R_R0);
 reg_class R1_regP(R_R1);
 reg_class R2_regP(R_R2);
 reg_class R4_regP(R_R4);
+reg_class R8_regP(R_R8);
+reg_class R9_regP(R_R9);
+reg_class R12_regP(R_R12);
 reg_class Rexception_regP(R_Rexception_obj);
 reg_class Ricklass_regP(R_Ricklass);
-reg_class Rmethod_regP(R_Rmethod);
 reg_class Rthread_regP(R_Rthread);
 reg_class IP_regP(R_R12);
+reg_class SP_regP(R_R13);
 reg_class LR_regP(R_R14);
 
 reg_class FP_regP(R_R11);
@@ -430,7 +431,7 @@ OptoRegPair c2::return_value(int ideal_reg) {
 //       will point.
 
 int MachCallStaticJavaNode::ret_addr_offset() {
-  bool far = (_method == NULL) ? maybe_far_call(this) : !cache_reachable();
+  bool far = (_method == nullptr) ? maybe_far_call(this) : !cache_reachable();
   return ((far ? 3 : 1) + (_method_handle_invoke ? 1 : 0)) *
     NativeInstruction::instruction_size;
 }
@@ -438,7 +439,7 @@ int MachCallStaticJavaNode::ret_addr_offset() {
 int MachCallDynamicJavaNode::ret_addr_offset() {
   bool far = !cache_reachable();
   // mov_oop is always 2 words
-  return (2 + (far ? 3 : 1)) * NativeInstruction::instruction_size; 
+  return (2 + (far ? 3 : 1)) * NativeInstruction::instruction_size;
 }
 
 int MachCallRuntimeNode::ret_addr_offset() {
@@ -500,31 +501,6 @@ operand immIRotn() %{
   interface(CONST_INTER);
 %}
 
-operand immIRotneg() %{
-  // if AsmOperand::is_rotated_imm() is true for this constant, it is
-  // a immIRot and an optimal instruction combination exists to handle the
-  // constant as an immIRot
-  predicate(!AsmOperand::is_rotated_imm(n->get_int()) && AsmOperand::is_rotated_imm(-n->get_int()));
-  match(ConI);
-
-  op_cost(0);
-  // formats are generated automatically for constants and base registers
-  format %{ %}
-  interface(CONST_INTER);
-%}
-
-// Non-negative integer immediate that is encodable using the rotation scheme,
-// and that when expanded fits in 31 bits.
-operand immU31Rot() %{
-  predicate((0 <= n->get_int()) && AsmOperand::is_rotated_imm(n->get_int()));
-  match(ConI);
-
-  op_cost(0);
-  // formats are generated automatically for constants and base registers
-  format %{ %}
-  interface(CONST_INTER);
-%}
-
 operand immPRot() %{
   predicate(n->get_ptr() == 0 || (AsmOperand::is_rotated_imm(n->get_ptr()) && ((ConPNode*)n)->type()->reloc() == relocInfo::none));
 
@@ -545,15 +521,15 @@ operand immLlowRot() %{
   interface(CONST_INTER);
 %}
 
-operand immLRot2() %{
-  predicate(AsmOperand::is_rotated_imm((int)(n->get_long() >> 32)) &&
-            AsmOperand::is_rotated_imm((int)(n->get_long())));
-  match(ConL);
-  op_cost(0);
-
-  format %{ %}
-  interface(CONST_INTER);
-%}
+//operand immLRot2() %{
+//  predicate(AsmOperand::is_rotated_imm((int)(n->get_long() >> 32)) &&
+//            AsmOperand::is_rotated_imm((int)(n->get_long())));
+//  match(ConL);
+//  op_cost(0);
+//
+//  format %{ %}
+//  interface(CONST_INTER);
+//%}
 
 // Integer Immediate: 12-bit - for addressing mode
 operand immI12() %{

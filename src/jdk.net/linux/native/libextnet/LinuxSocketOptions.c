@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,8 @@
  * questions.
  */
 #include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/types.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -33,89 +35,9 @@
 #include "jni_util.h"
 #include "jdk_net_LinuxSocketOptions.h"
 
-/*
- * Class:     jdk_net_LinuxSocketOptions
- * Method:    setQuickAck
- * Signature: (II)V
- */
-JNIEXPORT void JNICALL Java_jdk_net_LinuxSocketOptions_setQuickAck0
-(JNIEnv *env, jobject unused, jint fd, jboolean on) {
-    int optval;
-    int rv;
-    optval = (on ? 1 : 0);
-    rv = setsockopt(fd, SOL_SOCKET, TCP_QUICKACK, &optval, sizeof (optval));
-    if (rv < 0) {
-        if (errno == ENOPROTOOPT) {
-            JNU_ThrowByName(env, "java/lang/UnsupportedOperationException",
-                            "unsupported socket option");
-        } else {
-            JNU_ThrowByNameWithLastError(env, "java/net/SocketException",
-                                        "set option TCP_QUICKACK failed");
-        }
-    }
-}
-
-/*
- * Class:     jdk_net_LinuxSocketOptions
- * Method:    getQuickAck
- * Signature: (I)Z;
- */
-JNIEXPORT jboolean JNICALL Java_jdk_net_LinuxSocketOptions_getQuickAck0
-(JNIEnv *env, jobject unused, jint fd) {
-    int on;
-    socklen_t sz = sizeof (on);
-    int rv = getsockopt(fd, SOL_SOCKET, TCP_QUICKACK, &on, &sz);
-    if (rv < 0) {
-        if (errno == ENOPROTOOPT) {
-            JNU_ThrowByName(env, "java/lang/UnsupportedOperationException",
-                            "unsupported socket option");
-        } else {
-            JNU_ThrowByNameWithLastError(env, "java/net/SocketException",
-                                        "get option TCP_QUICKACK failed");
-        }
-    }
-    return on != 0;
-}
-
-/*
- * Class:     jdk_net_LinuxSocketOptions
- * Method:    quickAckSupported
- * Signature: ()Z
- */
-JNIEXPORT jboolean JNICALL Java_jdk_net_LinuxSocketOptions_quickAckSupported0
-(JNIEnv *env, jobject unused) {
-    int one = 1;
-    int rv, s;
-    s = socket(PF_INET, SOCK_STREAM, 0);
-    if (s < 0) {
-        return JNI_FALSE;
-    }
-    rv = setsockopt(s, SOL_SOCKET, TCP_QUICKACK, (void *) &one, sizeof (one));
-    if (rv != 0 && errno == ENOPROTOOPT) {
-        rv = JNI_FALSE;
-    } else {
-        rv = JNI_TRUE;
-    }
-    close(s);
-    return rv;
-}
-
-static jint socketOptionSupported(jint sockopt) {
-    jint one = 1;
-    jint rv, s;
-    s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (s < 0) {
-        return 0;
-    }
-    rv = setsockopt(s, SOL_TCP, sockopt, (void *) &one, sizeof (one));
-    if (rv != 0 && errno == ENOPROTOOPT) {
-        rv = 0;
-    } else {
-        rv = 1;
-    }
-    close(s);
-    return rv;
-}
+#ifndef SO_INCOMING_NAPI_ID
+#define SO_INCOMING_NAPI_ID    56
+#endif
 
 static void handleError(JNIEnv *env, jint rv, const char *errmsg) {
     if (rv < 0) {
@@ -128,6 +50,96 @@ static void handleError(JNIEnv *env, jint rv, const char *errmsg) {
     }
 }
 
+static jint socketOptionSupported(jint level, jint optname) {
+    jint one = 1;
+    jint rv, s;
+    socklen_t sz = sizeof (one);
+    /* First try IPv6; fall back to IPv4. */
+    s = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    if (s < 0) {
+        if (errno == EPFNOSUPPORT || errno == EAFNOSUPPORT) {
+            s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+        }
+        if (s < 0) {
+            return 0;
+        }
+    }
+    rv = getsockopt(s, level, optname, (void *) &one, &sz);
+    if (rv != 0 && errno == ENOPROTOOPT) {
+        rv = 0;
+    } else {
+        rv = 1;
+    }
+    close(s);
+    return rv;
+}
+
+/*
+ * Declare library specific JNI_Onload entry if static build
+ */
+DEF_STATIC_JNI_OnLoad
+
+/*
+ * Class:     jdk_net_LinuxSocketOptions
+ * Method:    setQuickAck
+ * Signature: (II)V
+ */
+JNIEXPORT void JNICALL Java_jdk_net_LinuxSocketOptions_setQuickAck0
+(JNIEnv *env, jobject unused, jint fd, jboolean on) {
+    int optval;
+    int rv;
+    optval = (on ? 1 : 0);
+    rv = setsockopt(fd, IPPROTO_TCP, TCP_QUICKACK, &optval, sizeof (optval));
+    handleError(env, rv, "set option TCP_QUICKACK failed");
+}
+
+/*
+ * Class:     jdk_net_LinuxSocketOptions
+ * Method:    getQuickAck
+ * Signature: (I)Z;
+ */
+JNIEXPORT jboolean JNICALL Java_jdk_net_LinuxSocketOptions_getQuickAck0
+(JNIEnv *env, jobject unused, jint fd) {
+    int on;
+    socklen_t sz = sizeof (on);
+    int rv = getsockopt(fd, IPPROTO_TCP, TCP_QUICKACK, &on, &sz);
+    handleError(env, rv, "get option TCP_QUICKACK failed");
+    return on != 0;
+}
+
+/*
+ * Class:     jdk_net_LinuxSocketOptions
+ * Method:    quickAckSupported
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_jdk_net_LinuxSocketOptions_quickAckSupported0
+(JNIEnv *env, jobject unused) {
+    return socketOptionSupported(IPPROTO_TCP, TCP_QUICKACK);
+}
+
+/*
+ * Class:     jdk_net_LinuxSocketOptions
+ * Method:    getSoPeerCred0
+ * Signature: (I)L
+ */
+JNIEXPORT jlong JNICALL Java_jdk_net_LinuxSocketOptions_getSoPeerCred0
+  (JNIEnv *env, jclass clazz, jint fd) {
+
+    int rv;
+    struct ucred cred;
+    socklen_t len = sizeof(cred);
+
+    if ((rv=getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &len)) < 0) {
+        handleError(env, rv, "get SO_PEERCRED failed");
+    } else {
+        if ((int)cred.uid == -1) {
+            handleError(env, -1, "get SO_PEERCRED failed");
+            cred.uid = cred.gid = -1;
+        }
+    }
+    return (((jlong)cred.uid) << 32) | (cred.gid & 0xffffffffL);
+}
+
 /*
  * Class:     jdk_net_LinuxSocketOptions
  * Method:    keepAliveOptionsSupported0
@@ -135,16 +147,16 @@ static void handleError(JNIEnv *env, jint rv, const char *errmsg) {
  */
 JNIEXPORT jboolean JNICALL Java_jdk_net_LinuxSocketOptions_keepAliveOptionsSupported0
 (JNIEnv *env, jobject unused) {
-    return socketOptionSupported(TCP_KEEPIDLE) && socketOptionSupported(TCP_KEEPCNT)
-            && socketOptionSupported(TCP_KEEPINTVL);
+    return socketOptionSupported(SOL_TCP, TCP_KEEPIDLE) && socketOptionSupported(SOL_TCP, TCP_KEEPCNT)
+            && socketOptionSupported(SOL_TCP, TCP_KEEPINTVL);
 }
 
 /*
  * Class:     jdk_net_LinuxSocketOptions
- * Method:    setTcpkeepAliveProbes0
+ * Method:    setTcpKeepAliveProbes0
  * Signature: (II)V
  */
-JNIEXPORT void JNICALL Java_jdk_net_LinuxSocketOptions_setTcpkeepAliveProbes0
+JNIEXPORT void JNICALL Java_jdk_net_LinuxSocketOptions_setTcpKeepAliveProbes0
 (JNIEnv *env, jobject unused, jint fd, jint optval) {
     jint rv = setsockopt(fd, SOL_TCP, TCP_KEEPCNT, &optval, sizeof (optval));
     handleError(env, rv, "set option TCP_KEEPCNT failed");
@@ -174,10 +186,10 @@ JNIEXPORT void JNICALL Java_jdk_net_LinuxSocketOptions_setTcpKeepAliveIntvl0
 
 /*
  * Class:     jdk_net_LinuxSocketOptions
- * Method:    getTcpkeepAliveProbes0
+ * Method:    getTcpKeepAliveProbes0
  * Signature: (I)I;
  */
-JNIEXPORT jint JNICALL Java_jdk_net_LinuxSocketOptions_getTcpkeepAliveProbes0
+JNIEXPORT jint JNICALL Java_jdk_net_LinuxSocketOptions_getTcpKeepAliveProbes0
 (JNIEnv *env, jobject unused, jint fd) {
     jint optval, rv;
     socklen_t sz = sizeof (optval);
@@ -212,4 +224,69 @@ JNIEXPORT jint JNICALL Java_jdk_net_LinuxSocketOptions_getTcpKeepAliveIntvl0
     rv = getsockopt(fd, SOL_TCP, TCP_KEEPINTVL, &optval, &sz);
     handleError(env, rv, "get option TCP_KEEPINTVL failed");
     return optval;
+}
+
+/*
+ * Class:     jdk_net_LinuxSocketOptions
+ * Method:    incomingNapiIdSupported0
+ * Signature: ()Z;
+ */
+JNIEXPORT jboolean JNICALL Java_jdk_net_LinuxSocketOptions_incomingNapiIdSupported0
+(JNIEnv *env, jobject unused) {
+    return socketOptionSupported(SOL_SOCKET, SO_INCOMING_NAPI_ID);
+}
+
+/*
+ * Class:     jdk_net_LinuxSocketOptions
+ * Method:    getIncomingNapiId0
+ * Signature: (I)I;
+ */
+JNIEXPORT jint JNICALL Java_jdk_net_LinuxSocketOptions_getIncomingNapiId0
+(JNIEnv *env, jobject unused, jint fd) {
+    jint optval, rv;
+    socklen_t sz = sizeof (optval);
+    rv = getsockopt(fd, SOL_SOCKET, SO_INCOMING_NAPI_ID, &optval, &sz);
+    handleError(env, rv, "get option SO_INCOMING_NAPI_ID failed");
+    return optval;
+}
+
+/*
+ * Class:     jdk_net_LinuxSocketOptions
+ * Method:    setIpDontFragment0
+ * Signature: (IZZ)V
+ */
+JNIEXPORT void JNICALL Java_jdk_net_LinuxSocketOptions_setIpDontFragment0
+(JNIEnv *env, jobject unused, jint fd, jboolean optval, jboolean isIPv6) {
+    jint rv, optsetting;
+
+    optsetting = optval ? IP_PMTUDISC_DO : IP_PMTUDISC_DONT;
+
+    if (!isIPv6) {
+        rv = setsockopt(fd, IPPROTO_IP, IP_MTU_DISCOVER, &optsetting, sizeof (optsetting));
+    } else {
+        rv = setsockopt(fd, IPPROTO_IPV6, IPV6_MTU_DISCOVER, &optsetting, sizeof (optsetting));
+    }
+    handleError(env, rv, "set option IP_DONTFRAGMENT failed");
+}
+
+/*
+ * Class:     jdk_net_LinuxSocketOptions
+ * Method:    getIpDontFragment0
+ * Signature: (IZ)Z;
+ */
+JNIEXPORT jboolean JNICALL Java_jdk_net_LinuxSocketOptions_getIpDontFragment0
+(JNIEnv *env, jobject unused, jint fd, jboolean isIPv6) {
+    jint optlevel, optname, optval, rv;
+
+    if (!isIPv6) {
+        optlevel = IPPROTO_IP;
+        optname = IP_MTU_DISCOVER;
+    } else {
+        optlevel = IPPROTO_IPV6;
+        optname = IPV6_MTU_DISCOVER;
+    }
+    socklen_t sz = sizeof(optval);
+    rv = getsockopt(fd, optlevel, optname, &optval, &sz);
+    handleError(env, rv, "get option IP_DONTFRAGMENT failed");
+    return optval == IP_PMTUDISC_DO ? JNI_TRUE : JNI_FALSE;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,42 +26,33 @@
  * @bug 4521661 8081854 8182765
  * @summary Test to make sure that there is a link with a proper anchor
  * from a serializable class to serialized-form.html.
- * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestLinkToSerialForm
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestLinkToSerialForm extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestLinkToSerialForm tester = new TestLinkToSerialForm();
+        var tester = new TestLinkToSerialForm();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("serialized-form.html", true,
-                "<a id=\"pkg.C\">");
+                """
+                    <section class="serialized-class-details" id="pkg.C">""");
         checkOutput("pkg/C.html", true,
-                "<a href=\"../serialized-form.html#pkg.C\">");
+                """
+                    <a href="../serialized-form.html#pkg.C">""");
     }
-
-    @Test
-    void test_html4() {
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-sourcepath", testSrc,
-                "pkg");
-        checkExit(Exit.OK);
-
-        checkOutput("serialized-form.html", true,
-                "<a name=\"pkg.C\">");
-}
 }

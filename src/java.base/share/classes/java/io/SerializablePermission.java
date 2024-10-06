@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -105,6 +105,7 @@ import java.util.StringTokenizer;
 @NullMarked
 public final class SerializablePermission extends BasicPermission {
 
+    @java.io.Serial
     private static final long serialVersionUID = 8537212141160296410L;
 
     /**
@@ -119,8 +120,8 @@ public final class SerializablePermission extends BasicPermission {
      *
      * @param name the name of the SerializablePermission.
      *
-     * @throws NullPointerException if <code>name</code> is <code>null</code>.
-     * @throws IllegalArgumentException if <code>name</code> is empty.
+     * @throws NullPointerException if {@code name} is {@code null}.
+     * @throws IllegalArgumentException if {@code name} is empty.
      */
     public SerializablePermission(String name)
     {
@@ -135,8 +136,8 @@ public final class SerializablePermission extends BasicPermission {
      * @param name the name of the SerializablePermission.
      * @param actions currently unused and must be set to null
      *
-     * @throws NullPointerException if <code>name</code> is <code>null</code>.
-     * @throws IllegalArgumentException if <code>name</code> is empty.
+     * @throws NullPointerException if {@code name} is {@code null}.
+     * @throws IllegalArgumentException if {@code name} is empty.
      */
 
     public SerializablePermission(String name, @Nullable String actions)

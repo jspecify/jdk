@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,8 @@ import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.*;
-import java.io.File;
-import jdk.internal.misc.SharedSecrets;
+
+import jdk.internal.access.SharedSecrets;
 
 /**
  * This class holds a set of filenames to be deleted on VM exit through a shutdown hook.
@@ -43,7 +43,7 @@ import jdk.internal.misc.SharedSecrets;
     static {
         // DeleteOnExitHook must be the last shutdown hook to be invoked.
         // Application shutdown hooks may add the first file to the
-        // delete on exit list and cause the DeleteOnExitHook to be
+        // delete-on-exit list and cause the DeleteOnExitHook to be
         // registered during shutdown in progress. So set the
         // registerShutdownInProgress parameter to true.
         SharedSecrets.getJavaLangAccess()

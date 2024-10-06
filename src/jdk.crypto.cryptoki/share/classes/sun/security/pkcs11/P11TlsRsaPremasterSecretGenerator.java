@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
  */
 final class P11TlsRsaPremasterSecretGenerator extends KeyGeneratorSpi {
 
-    private final static String MSG = "TlsRsaPremasterSecretGenerator must be "
+    private static final String MSG = "TlsRsaPremasterSecretGenerator must be "
         + "initialized using a TlsRsaPremasterSecretParameterSpec";
 
     // token instance
@@ -55,7 +55,7 @@ final class P11TlsRsaPremasterSecretGenerator extends KeyGeneratorSpi {
     private final String algorithm;
 
     // mechanism id
-    private long mechanism;
+    private final long mechanism;
 
     @SuppressWarnings("deprecation")
     private TlsRsaPremasterSecretParameterSpec spec;
@@ -83,21 +83,18 @@ final class P11TlsRsaPremasterSecretGenerator extends KeyGeneratorSpi {
     @SuppressWarnings("deprecation")
     protected void engineInit(AlgorithmParameterSpec params,
             SecureRandom random) throws InvalidAlgorithmParameterException {
-        if (!(params instanceof TlsRsaPremasterSecretParameterSpec)) {
+        if (!(params instanceof TlsRsaPremasterSecretParameterSpec spec)) {
             throw new InvalidAlgorithmParameterException(MSG);
         }
 
-        TlsRsaPremasterSecretParameterSpec spec =
-            (TlsRsaPremasterSecretParameterSpec) params;
+        int tlsVersion = (spec.getMajorVersion() << 8) | spec.getMinorVersion();
 
-        int version = (spec.getMajorVersion() << 8) | spec.getMinorVersion();
-
-        if ((version == 0x0300 && !supportSSLv3) || (version < 0x0300) ||
-            (version > 0x0302)) {
+        if ((tlsVersion == 0x0300 && !supportSSLv3) ||
+                (tlsVersion < 0x0300) || (tlsVersion > 0x0303)) {
              throw new InvalidAlgorithmParameterException
                     ("Only" + (supportSSLv3? " SSL 3.0,": "") +
-                     " TLS 1.0, and TLS 1.1 are supported (0x" +
-                     Integer.toHexString(version) + ")");
+                     " TLS 1.0, TLS 1.1 and TLS 1.2 are supported (" +
+                     tlsVersion + ")");
         }
         this.spec = spec;
     }

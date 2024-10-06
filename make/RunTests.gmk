@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -45,8 +45,8 @@ ifneq ($(TEST_VM_OPTS), )
 endif
 
 $(eval $(call ParseKeywordVariable, TEST_OPTS, \
-    KEYWORDS := JOBS TIMEOUT, \
-    STRING_KEYWORDS := VM_OPTIONS, \
+    SINGLE_KEYWORDS := JOBS TIMEOUT_FACTOR JCOV JCOV_DIFF_CHANGESET, \
+    STRING_KEYWORDS := VM_OPTIONS JAVA_OPTIONS, \
 ))
 
 # Helper function to propagate TEST_OPTS values.
@@ -60,15 +60,14 @@ define SetTestOpt
   endif
 endef
 
-# Setup _NT_SYMBOL_PATH on Windows
-ifeq ($(OPENJDK_TARGET_OS), windows)
+# Setup _NT_SYMBOL_PATH on Windows, which points to our pdb files.
+ifeq ($(call isTargetOs, windows), true)
   ifndef _NT_SYMBOL_PATH
-    # Can't use PathList here as it adds quotes around the value.
-    _NT_SYMBOL_PATH := \
-        $(subst $(SPACE),;, $(foreach p, $(sort $(dir $(wildcard \
-        $(addprefix $(SYMBOLS_IMAGE_DIR)/bin/, *.pdb */*.pdb)))), $(call FixPath, $p)))
-    export _NT_SYMBOL_PATH
-    $(info _NT_SYMBOL_PATH $(_NT_SYMBOL_PATH))
+    SYMBOL_PATH := $(call PathList, $(sort $(patsubst %/, %, $(dir $(wildcard \
+        $(addprefix $(SYMBOLS_IMAGE_DIR)/bin/, *.pdb */*.pdb))))))
+    export _NT_SYMBOL_PATH := $(subst \\,\, $(call FixPath, \
+        $(subst $(DQUOTE),, $(SYMBOL_PATH))))
+    $(call LogDebug, Setting _NT_SYMBOL_PATH to $(_NT_SYMBOL_PATH))
   endif
 endif
 
@@ -76,6 +75,9 @@ endif
 # Hook to include the corresponding custom file, if present.
 $(eval $(call IncludeCustomExtension, RunTests.gmk))
 ################################################################################
+
+# This is the JDK that we will test
+JDK_UNDER_TEST := $(JDK_IMAGE_DIR)
 
 TEST_RESULTS_DIR := $(OUTPUTDIR)/test-results
 TEST_SUPPORT_DIR := $(OUTPUTDIR)/test-support
@@ -91,17 +93,96 @@ endif
 JTREG_FAILURE_HANDLER_DIR := $(TEST_IMAGE_DIR)/failure_handler
 JTREG_FAILURE_HANDLER := $(JTREG_FAILURE_HANDLER_DIR)/jtregFailureHandler.jar
 
+JTREG_TEST_THREAD_FACTORY_DIR := $(TEST_IMAGE_DIR)/jtreg_test_thread_factory
+JTREG_TEST_THREAD_FACTORY_JAR := $(JTREG_TEST_THREAD_FACTORY_DIR)/jtregTestThreadFactory.jar
+
+JTREG_FAILURE_HANDLER_TIMEOUT ?= 0
+
 ifneq ($(wildcard $(JTREG_FAILURE_HANDLER)), )
   JTREG_FAILURE_HANDLER_OPTIONS := \
       -timeoutHandlerDir:$(JTREG_FAILURE_HANDLER) \
       -observerDir:$(JTREG_FAILURE_HANDLER) \
       -timeoutHandler:jdk.test.failurehandler.jtreg.GatherProcessInfoTimeoutHandler \
       -observer:jdk.test.failurehandler.jtreg.GatherDiagnosticInfoObserver \
-      -timeoutHandlerTimeout:0
+      -timeoutHandlerTimeout:$(JTREG_FAILURE_HANDLER_TIMEOUT) \
+      #
 endif
 
-GTEST_LAUNCHER_DIRS := $(patsubst %/gtestLauncher, %, $(wildcard $(TEST_IMAGE_DIR)/hotspot/gtest/*/gtestLauncher))
-GTEST_VARIANTS := $(strip $(patsubst $(TEST_IMAGE_DIR)/hotspot/gtest/%, %, $(GTEST_LAUNCHER_DIRS)))
+GTEST_LAUNCHER_DIRS := $(patsubst %/gtestLauncher, %, \
+    $(wildcard $(TEST_IMAGE_DIR)/hotspot/gtest/*/gtestLauncher))
+GTEST_VARIANTS := $(strip $(patsubst $(TEST_IMAGE_DIR)/hotspot/gtest/%, %, \
+    $(GTEST_LAUNCHER_DIRS)))
+
+COV_ENVIRONMENT :=
+JTREG_COV_OPTIONS :=
+
+ifeq ($(TEST_OPTS_JCOV), true)
+  JCOV_OUTPUT_DIR := $(TEST_RESULTS_DIR)/jcov-output
+  JCOV_GRABBER_LOG := $(JCOV_OUTPUT_DIR)/grabber.log
+  JCOV_RESULT_FILE := $(JCOV_OUTPUT_DIR)/result.xml
+  JCOV_REPORT := $(JCOV_OUTPUT_DIR)/report
+  JCOV_MEM_OPTIONS := -Xms64m -Xmx4g
+
+  # Replace our normal test JDK with the JCov image.
+  JDK_UNDER_TEST := $(JCOV_IMAGE_DIR)
+
+  COV_ENVIRONMENT += JAVA_TOOL_OPTIONS="$(JCOV_MEM_OPTIONS)" \
+      _JAVA_OPTIONS="$(JCOV_MEM_OPTIONS)"
+  JTREG_COV_OPTIONS += -e:JAVA_TOOL_OPTIONS='$(JCOV_MEM_OPTIONS)' \
+      -e:_JAVA_OPTIONS='$(JCOV_MEM_OPTIONS)'
+endif
+
+ifeq ($(GCOV_ENABLED), true)
+  GCOV_OUTPUT_DIR := $(TEST_RESULTS_DIR)/gcov-output
+  COV_ENVIRONMENT += GCOV_PREFIX="$(GCOV_OUTPUT_DIR)"
+  JTREG_COV_OPTIONS += -e:GCOV_PREFIX="$(GCOV_OUTPUT_DIR)"
+endif
+
+################################################################################
+# Setup global test running parameters
+################################################################################
+
+# Each factor variable comes in 3 variants. The first one is reserved for users
+# to use on command line. The other two are for predefined configurations in JDL
+# and for machine specific configurations respectively.
+TEST_JOBS_FACTOR ?= 1
+TEST_JOBS_FACTOR_JDL ?= 1
+TEST_JOBS_FACTOR_MACHINE ?= 1
+
+ifeq ($(TEST_JOBS), 0)
+  CORES_DIVIDER := 2
+  # For some big multi-core machines with low ulimit -u setting we hit the max
+  # threads/process limit. In such a setup the memory/cores-only-guided
+  # TEST_JOBS config is insufficient. From experience a concurrency setting of
+  # 14 works reasonably well for low ulimit values (<= 4096). Thus, use
+  # divider 4096/14. For high ulimit -u values this shouldn't make a difference.
+  ULIMIT_DIVIDER := (4096/14)
+  PROC_ULIMIT := -1
+  ifneq ($(OPENJDK_TARGET_OS), windows)
+    PROC_ULIMIT := $(shell $(ULIMIT) -u)
+    ifeq ($(PROC_ULIMIT), unlimited)
+      PROC_ULIMIT := -1
+    endif
+  endif
+  MEMORY_DIVIDER := 2048
+  TEST_JOBS := $(shell $(AWK) \
+    'BEGIN { \
+      c = $(NUM_CORES) / $(CORES_DIVIDER); \
+      m = $(MEMORY_SIZE) / $(MEMORY_DIVIDER); \
+      u = $(PROC_ULIMIT); \
+      if (u > -1) { \
+        u = u / $(ULIMIT_DIVIDER); \
+        if (u < c) c = u; \
+      } \
+      if (c > m) c = m; \
+      c = c * $(TEST_JOBS_FACTOR); \
+      c = c * $(TEST_JOBS_FACTOR_JDL); \
+      c = c * $(TEST_JOBS_FACTOR_MACHINE); \
+      if (c < 1) c = 1; \
+      c = c + 0.5; \
+      printf "%d", c; \
+    }')
+endif
 
 ################################################################################
 # Parse control variables
@@ -110,17 +191,25 @@ GTEST_VARIANTS := $(strip $(patsubst $(TEST_IMAGE_DIR)/hotspot/gtest/%, %, $(GTE
 ifneq ($(TEST_OPTS), )
   # Inform the user
   $(info Running tests using TEST_OPTS control variable '$(TEST_OPTS)')
-
-  $(eval $(call SetTestOpt,VM_OPTIONS,JTREG))
-  $(eval $(call SetTestOpt,VM_OPTIONS,GTEST))
-
-  $(eval $(call SetTestOpt,JOBS,JTREG))
-  $(eval $(call SetTestOpt,TIMEOUT,JTREG))
 endif
 
+### Jtreg
+
+$(eval $(call SetTestOpt,VM_OPTIONS,JTREG))
+$(eval $(call SetTestOpt,JAVA_OPTIONS,JTREG))
+
+$(eval $(call SetTestOpt,JOBS,JTREG))
+$(eval $(call SetTestOpt,TIMEOUT_FACTOR,JTREG))
+$(eval $(call SetTestOpt,FAILURE_HANDLER_TIMEOUT,JTREG))
+$(eval $(call SetTestOpt,REPORT,JTREG))
+
 $(eval $(call ParseKeywordVariable, JTREG, \
-    KEYWORDS := JOBS TIMEOUT TEST_MODE ASSERT VERBOSE RETAIN MAX_MEM, \
-    STRING_KEYWORDS := OPTIONS JAVA_OPTIONS VM_OPTIONS, \
+    SINGLE_KEYWORDS := JOBS TIMEOUT_FACTOR FAILURE_HANDLER_TIMEOUT \
+        TEST_MODE ASSERT VERBOSE RETAIN TEST_THREAD_FACTORY MAX_MEM RUN_PROBLEM_LISTS \
+        RETRY_COUNT REPEAT_COUNT MAX_OUTPUT REPORT $(CUSTOM_JTREG_SINGLE_KEYWORDS), \
+    STRING_KEYWORDS := OPTIONS JAVA_OPTIONS VM_OPTIONS KEYWORDS \
+        EXTRA_PROBLEM_LISTS LAUNCHER_OPTIONS \
+        $(CUSTOM_JTREG_STRING_KEYWORDS), \
 ))
 
 ifneq ($(JTREG), )
@@ -128,9 +217,14 @@ ifneq ($(JTREG), )
   $(info Running tests using JTREG control variable '$(JTREG)')
 endif
 
+### Gtest
+
+$(eval $(call SetTestOpt,VM_OPTIONS,GTEST))
+$(eval $(call SetTestOpt,JAVA_OPTIONS,GTEST))
+
 $(eval $(call ParseKeywordVariable, GTEST, \
-    KEYWORDS := REPEAT, \
-    STRING_KEYWORDS := OPTIONS VM_OPTIONS, \
+    SINGLE_KEYWORDS := REPEAT, \
+    STRING_KEYWORDS := OPTIONS VM_OPTIONS JAVA_OPTIONS, \
 ))
 
 ifneq ($(GTEST), )
@@ -138,32 +232,38 @@ ifneq ($(GTEST), )
   $(info Running tests using GTEST control variable '$(GTEST)')
 endif
 
+### Microbenchmarks
+
+$(eval $(call SetTestOpt,VM_OPTIONS,MICRO))
+$(eval $(call SetTestOpt,JAVA_OPTIONS,MICRO))
+
+$(eval $(call ParseKeywordVariable, MICRO, \
+    SINGLE_KEYWORDS := ITER FORK TIME WARMUP_ITER WARMUP_TIME, \
+    STRING_KEYWORDS := OPTIONS JAVA_OPTIONS VM_OPTIONS RESULTS_FORMAT TEST_JDK \
+        BENCHMARKS_JAR, \
+))
+
+ifneq ($(MICRO), )
+  # Inform the user
+  $(info Running tests using MICRO control variable '$(MICRO)')
+endif
+
 
 ################################################################################
 # Component-specific Jtreg settings
 ################################################################################
 
-ifeq ($(TEST_JOBS), 0)
-  # If TEST_JOBS is not specified, hotspot fallback default is
-  # min(num_cores / 2, 12).
-  hotspot_JTREG_JOBS := $(shell $(EXPR) $(NUM_CORES) / 2)
-  ifeq ($(hotspot_JTREG_JOBS), 0)
-    hotspot_JTREG_JOBS := 1
-  else ifeq ($(shell $(EXPR) $(hotspot_JTREG_JOBS) \> 12), 1)
-    hotspot_JTREG_JOBS := 12
-  endif
-endif
-
 hotspot_JTREG_MAX_MEM := 0
 hotspot_JTREG_ASSERT := false
 hotspot_JTREG_NATIVEPATH := $(TEST_IMAGE_DIR)/hotspot/jtreg/native
 jdk_JTREG_NATIVEPATH := $(TEST_IMAGE_DIR)/jdk/jtreg/native
+lib-test_JTREG_NATIVEPATH := $(TEST_IMAGE_DIR)/lib-test/jtreg/native
 
 jdk_JTREG_PROBLEM_LIST += $(TOPDIR)/test/jdk/ProblemList.txt
 jaxp_JTREG_PROBLEM_LIST += $(TOPDIR)/test/jaxp/ProblemList.txt
 langtools_JTREG_PROBLEM_LIST += $(TOPDIR)/test/langtools/ProblemList.txt
-nashorn_JTREG_PROBLEM_LIST += $(TOPDIR)/test/nashorn/ProblemList.txt
 hotspot_JTREG_PROBLEM_LIST += $(TOPDIR)/test/hotspot/jtreg/ProblemList.txt
+lib-test_JTREG_PROBLEM_LIST += $(TOPDIR)/test/lib-test/ProblemList.txt
 
 ################################################################################
 # Parse test selection
@@ -203,6 +303,24 @@ define ParseGtestTestSelection
   )
 endef
 
+# Helper function to determine if a test specification is a microbenchmark test
+#
+# It is a microbenchmark test if it is either "micro", or "micro:" followed by
+# an optional test filter string.
+define ParseMicroTestSelection
+  $(if $(filter micro%, $1), \
+    $(if $(filter micro, $1), \
+      micro:all \
+    , \
+      $(if $(filter micro:, $1), \
+        micro:all \
+      , \
+        $1 \
+      ) \
+    ) \
+  )
+endef
+
 # Helper function that removes the TOPDIR part
 CleanupJtregPath = \
   $(strip $(patsubst %/, %, $(subst $(JTREG_TOPDIR)/,, $1)))
@@ -237,13 +355,24 @@ ExpandJtregPath = \
     )) \
   )
 
+# with test id: dir/Test.java#selection -> Test.java#selection -> .java#selection -> #selection
+#      without: dir/Test.java           -> Test.java           -> .java           -> <<empty string>>
+TestID = \
+    $(subst .jasm,,$(subst .sh,,$(subst .html,,$(subst .java,,$(suffix $(notdir $1))))))
+
+# The test id starting with a hash (#testid) will be stripped by all
+# evals in ParseJtregTestSelectionInner and will be reinserted by calling
+# TestID (if it is present).
+ParseJtregTestSelection = \
+    $(call IfAppend, $(call ParseJtregTestSelectionInner, $1), $(call TestID, $1))
+
 # Helper function to determine if a test specification is a Jtreg test
 #
 # It is a Jtreg test if it optionally begins with jtreg:, and then is either
 # an unspecified group name (possibly prefixed by :), or a group in a
 # specified test root, or a path to a test or test directory,
 # either absolute or relative to any of the TEST_BASEDIRS or test roots.
-define ParseJtregTestSelection
+define ParseJtregTestSelectionInner
   $(eval TEST_NAME := $(strip $(patsubst jtreg:%, %, $1))) \
   $(if $(or $(findstring :, $(TEST_NAME)), $(findstring /, $(TEST_NAME))), , \
     $(eval TEST_NAME := :$(TEST_NAME)) \
@@ -277,48 +406,55 @@ endef
 
 # Helper function to determine if a test specification is a special test
 #
-# It is a special test if it is "special:" followed by a test name.
+# It is a special test if it is "special:" followed by a test name,
+# if it is "make:" or "make-" followed by a make test, or any of the special
+# test names as a single word.
 define ParseSpecialTestSelection
   $(if $(filter special:%, $1), \
     $1 \
+  ) \
+  $(if $(filter make%, $1), \
+    $(if $(filter make:%, $1), \
+      special:$(strip $1) \
+    ) \
+    $(if $(filter make-%, $1), \
+      special:$(patsubst make-%,make:%, $1) \
+    ) \
+    $(if $(filter make, $1), \
+      special:make:all \
+    )
+  ) \
+  $(if $(filter failure-handler, $1), \
+    special:$(strip $1) \
   )
 endef
 
 ifeq ($(TEST), )
   $(info No test selection given in TEST!)
-  $(info Please use e.g. 'run-test TEST=tier1' or 'run-test-tier1')
+  $(info Please use e.g. 'make test TEST=tier1' or 'make test-tier1')
   $(info See doc/testing.[md|html] for help)
   $(error Cannot continue)
 endif
 
+ParseTestSelection = \
+    $(strip $(or \
+      $(call ParseCustomTestSelection, $1) \
+      $(call ParseGtestTestSelection, $1) \
+      $(call ParseMicroTestSelection, $1) \
+      $(call ParseJtregTestSelection, $1) \
+      $(call ParseSpecialTestSelection, $1) \
+    ))
+
 # Now intelligently convert the test selection given by the user in TEST
 # into a list of fully qualified test descriptors of the tests to run.
-TESTS_TO_RUN :=
-$(foreach test, $(TEST), \
-  $(eval PARSED_TESTS := $(call ParseCustomTestSelection, $(test))) \
-  $(if $(strip $(PARSED_TESTS)), , \
-    $(eval PARSED_TESTS += $(call ParseGtestTestSelection, $(test))) \
-  ) \
-  $(if $(strip $(PARSED_TESTS)), , \
-    $(eval PARSED_TESTS += $(call ParseJtregTestSelection, $(test))) \
-  ) \
-  $(if $(strip $(PARSED_TESTS)), , \
-    $(eval PARSED_TESTS += $(call ParseSpecialTestSelection, $(test))) \
-  ) \
-  $(if $(strip $(PARSED_TESTS)), , \
-    $(eval UNKNOWN_TEST := $(test)) \
-  ) \
-  $(eval TESTS_TO_RUN += $(PARSED_TESTS)) \
-)
+TESTS_TO_RUN := $(strip $(foreach test, $(TEST), $(call ParseTestSelection, $(test))))
+UNKNOWN_TEST := $(strip $(foreach test, $(TEST), $(if $(call ParseTestSelection, $(test)), , $(test))))
 
 ifneq ($(UNKNOWN_TEST), )
   $(info Unknown test selection: '$(UNKNOWN_TEST)')
   $(info See doc/testing.[md|html] for help)
   $(error Cannot continue)
 endif
-
-TESTS_TO_RUN := $(strip $(TESTS_TO_RUN))
-
 
 # Present the result of our parsing to the user
 $(info Test selection '$(TEST)', will run:)
@@ -365,22 +501,25 @@ define SetupRunGtestTestBody
   endif
 
   ifneq ($$(GTEST_REPEAT), )
-    $1_GTEST_REPEAT :=--gtest_repeat=$$(GTEST_REPEAT)
+    $1_GTEST_REPEAT := --gtest_repeat=$$(GTEST_REPEAT)
   endif
 
-  run-test-$1:
+  run-test-$1: pre-run-test
 	$$(call LogWarn)
 	$$(call LogWarn, Running test '$$($1_TEST)')
 	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
-	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/gtest, \
+	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/gtest, ( \
+	    $$(CD) $$($1_TEST_SUPPORT_DIR) && \
 	    $$(FIXPATH) $$(TEST_IMAGE_DIR)/hotspot/gtest/$$($1_VARIANT)/gtestLauncher \
-	         -jdk $(JDK_IMAGE_DIR) $$($1_GTEST_FILTER) \
-	         --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
-	         $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) $$(GTEST_VM_OPTIONS) \
+	        -jdk $(JDK_UNDER_TEST) $$($1_GTEST_FILTER) \
+	        --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
+	        --gtest_catch_exceptions=0 \
+	        $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) $$(GTEST_VM_OPTIONS) \
+	        $$(GTEST_JAVA_OPTIONS) \
 	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) \
 	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
 	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
-	)
+	))
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/gtest.txt
 
@@ -390,7 +529,7 @@ define SetupRunGtestTestBody
 	    $$(subst $$(TOPDIR)/, , $$($1_TEST_RESULTS_DIR))))
 	$$(if $$(wildcard $$($1_RESULT_FILE)), \
 	  $$(eval $1_TOTAL := $$(shell $$(AWK) '/==========.* tests? from .* \
-	      test cases? ran/ { print $$$$2 }' $$($1_RESULT_FILE))) \
+	      test (cases?|suites?) ran/ { print $$$$2 }' $$($1_RESULT_FILE))) \
 	  $$(if $$($1_TOTAL), , $$(eval $1_TOTAL := 0)) \
 	  $$(eval $1_PASSED := $$(shell $$(AWK) '/\[  PASSED  \] .* tests?./ \
 	      { print $$$$4 }' $$($1_RESULT_FILE))) \
@@ -409,7 +548,130 @@ define SetupRunGtestTestBody
 
   $1: run-test-$1 parse-test-$1
 
-  TARGETS += $1
+  TARGETS += $1 run-test-$1 parse-test-$1
+  TEST_TARGETS += parse-test-$1
+
+endef
+
+################################################################################
+
+### Rules for Microbenchmarks
+
+# Helper function for SetupRunMicroTest. Set a MICRO_* variable from, in order:
+# 1) Specified by user on command line
+# 2) Generic default
+#
+# Note: No spaces are allowed around the arguments.
+# Arg $1 The test ID (i.e. $1 in SetupRunMicroTest)
+# Arg $2 Base variable, e.g. MICRO_TEST_JDK
+# Arg $3 The default value (optional)
+define SetMicroValue
+  ifneq ($$($2), )
+    $1_$2 := $$($2)
+  else
+    ifneq ($3, )
+      $1_$2 := $3
+    endif
+  endif
+endef
+
+SetupRunMicroTest = $(NamedParamsMacroTemplate)
+define SetupRunMicroTestBody
+  $1_TEST_RESULTS_DIR := $$(TEST_RESULTS_DIR)/$1
+  $1_TEST_SUPPORT_DIR := $$(TEST_SUPPORT_DIR)/$1
+  $1_EXITCODE := $$($1_TEST_RESULTS_DIR)/exitcode.txt
+
+  $1_TEST_NAME := $$(strip $$(patsubst micro:%, %, $$($1_TEST)))
+
+  $$(eval $$(call SetMicroValue,$1,MICRO_BENCHMARKS_JAR,$$(TEST_IMAGE_DIR)/micro/benchmarks.jar))
+  $$(eval $$(call SetMicroValue,$1,MICRO_TEST_JDK,$$(JDK_UNDER_TEST)))
+  $$(eval $$(call SetMicroValue,$1,MICRO_JAVA_OPTIONS))
+
+  # Current tests needs to open java.io
+  $1_MICRO_JAVA_OPTIONS += --add-opens=java.base/java.io=ALL-UNNAMED
+
+  # Save output as JSON or CSV file
+  ifneq ($$(MICRO_RESULTS_FORMAT), )
+    $1_MICRO_BASIC_OPTIONS += -rf $$(MICRO_RESULTS_FORMAT)
+    $1_MICRO_BASIC_OPTIONS += -rff $$($1_TEST_RESULTS_DIR)/jmh-result.$(MICRO_RESULTS_FORMAT)
+  endif
+
+  # Set library path for native dependencies
+  $1_JMH_JVM_ARGS := -Djava.library.path=$$(TEST_IMAGE_DIR)/micro/native
+
+  ifneq ($$(MICRO_VM_OPTIONS)$$(MICRO_JAVA_OPTIONS), )
+    $1_JMH_JVM_ARGS += $$(MICRO_VM_OPTIONS) $$(MICRO_JAVA_OPTIONS)
+  endif
+
+  $1_MICRO_VM_OPTIONS := -jvmArgs $(call ShellQuote,$$($1_JMH_JVM_ARGS))
+
+  ifneq ($$(MICRO_ITER), )
+    $1_MICRO_ITER := -i $$(MICRO_ITER)
+  endif
+  ifneq ($$(MICRO_FORK), )
+    $1_MICRO_FORK := -f $$(MICRO_FORK)
+  endif
+  ifneq ($$(MICRO_TIME), )
+    $1_MICRO_TIME := -r $$(MICRO_TIME)
+  endif
+  ifneq ($$(MICRO_WARMUP_ITER), )
+    $1_MICRO_WARMUP_ITER := -wi $$(MICRO_WARMUP_ITER)
+  endif
+  ifneq ($$(MICRO_WARMUP_TIME), )
+    $1_MICRO_WARMUP_TIME := -w $$(MICRO_WARMUP_TIME)
+  endif
+
+# Microbenchmarks are executed from the root of the test image directory.
+# This enables JMH tests to add dependencies using relative paths such as
+# -Djava.library.path=micro/native
+
+  run-test-$1: pre-run-test
+	$$(call LogWarn)
+	$$(call LogWarn, Running test '$$($1_TEST)')
+	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
+	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/micro, ( \
+	    $$(CD) $$(TEST_IMAGE_DIR) && \
+	    $$(FIXPATH) $$($1_MICRO_TEST_JDK)/bin/java $$($1_MICRO_JAVA_OPTIONS) \
+	        -jar $$($1_MICRO_BENCHMARKS_JAR) \
+	        $$($1_MICRO_ITER) $$($1_MICRO_FORK) $$($1_MICRO_TIME) \
+	        $$($1_MICRO_WARMUP_ITER) $$($1_MICRO_WARMUP_TIME) \
+	        $$($1_MICRO_VM_OPTIONS) $$($1_MICRO_BASIC_OPTIONS) $$(MICRO_OPTIONS) \
+	        $$($1_TEST_NAME) \
+	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/micro.txt) \
+	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
+	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
+	))
+
+  $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/micro.txt
+
+  parse-test-$1: run-test-$1
+	$$(call LogWarn, Finished running test '$$($1_TEST)')
+	$$(call LogWarn, Test report is stored in $$(strip \
+	    $$(subst $$(TOPDIR)/, , $$($1_TEST_RESULTS_DIR))))
+	$$(if $$(wildcard $$($1_EXITCODE)), \
+	  $$(eval $1_EXIT_CODE := $$(shell $$(CAT) $$($1_EXITCODE))) \
+	  $$(if $$(filter 0, $$($1_EXIT_CODE)), \
+	    $$(eval $1_PASSED := 1) \
+	    $$(eval $1_ERROR := 0) \
+	  , \
+	    $$(eval $1_PASSED := 0) \
+	    $$(eval $1_ERROR := 1) \
+	  ) \
+	  $$(eval $1_FAILED := 0) \
+	  $$(eval $1_TOTAL := $$(shell \
+	      $$(EXPR) $$($1_PASSED) + $$($1_ERROR))) \
+	, \
+	  $$(eval $1_PASSED := 0) \
+	  $$(eval $1_FAILED := 0) \
+	  $$(eval $1_ERROR := 1) \
+	  $$(eval $1_TOTAL := 1) \
+	)
+
+  $1: run-test-$1 parse-test-$1
+
+  TARGETS += $1 run-test-$1 parse-test-$1
+  TEST_TARGETS += parse-test-$1
+
 endef
 
 ################################################################################
@@ -447,12 +709,11 @@ define SetupRunJtregTestBody
 
   $1_TEST_NAME := $$(strip $$(patsubst jtreg:%, %, $$($1_TEST)))
 
-  $1_COMPONENT := \
+  $1_TEST_ROOT := \
       $$(strip $$(foreach root, $$(JTREG_TESTROOTS), \
-        $$(if $$(filter $$(root)%, $$(JTREG_TOPDIR)/$$($1_TEST_NAME)), \
-          $$(lastword $$(subst /, $$(SPACE), $$(root))) \
-        ) \
+        $$(if $$(filter $$(root)%, $$(JTREG_TOPDIR)/$$($1_TEST_NAME)), $$(root)) \
       ))
+  $1_COMPONENT := $$(lastword $$(subst /, $$(SPACE), $$($1_TEST_ROOT)))
   # This will work only as long as just hotspot has the additional "jtreg" directory
   ifeq ($$($1_COMPONENT), jtreg)
     $1_COMPONENT := hotspot
@@ -470,48 +731,86 @@ define SetupRunJtregTestBody
   # Convert JTREG_foo into $1_JTREG_foo with a suitable value.
   $$(eval $$(call SetJtregValue,$1,JTREG_TEST_MODE,agentvm))
   $$(eval $$(call SetJtregValue,$1,JTREG_ASSERT,true))
-  $$(eval $$(call SetJtregValue,$1,JTREG_MAX_MEM,512m))
+  $$(eval $$(call SetJtregValue,$1,JTREG_MAX_MEM,768m))
   $$(eval $$(call SetJtregValue,$1,JTREG_NATIVEPATH))
   $$(eval $$(call SetJtregValue,$1,JTREG_BASIC_OPTIONS))
   $$(eval $$(call SetJtregValue,$1,JTREG_PROBLEM_LIST))
 
+  # Only the problem list for the current test root should be used.
+  $1_JTREG_PROBLEM_LIST := $$(filter $$($1_TEST_ROOT)%, $$($1_JTREG_PROBLEM_LIST))
+
   ifneq ($(TEST_JOBS), 0)
-    # User has specified TEST_JOBS, use that as fallback default
     $$(eval $$(call SetJtregValue,$1,JTREG_JOBS,$$(TEST_JOBS)))
   else
-    # Use JOBS as default (except for hotspot)
     $$(eval $$(call SetJtregValue,$1,JTREG_JOBS,$$(JOBS)))
   endif
 
   # Make sure MaxRAMPercentage is high enough to not cause OOM or swapping since
   # we may end up with a lot of JVM's
-  $1_JTREG_MAX_RAM_PERCENTAGE := $$(shell $$(EXPR) 25 / $$($1_JTREG_JOBS))
+  $1_JTREG_MAX_RAM_PERCENTAGE := $$(shell $(AWK) 'BEGIN { print 25 / $$($1_JTREG_JOBS); }')
 
-  JTREG_TIMEOUT ?= 4
   JTREG_VERBOSE ?= fail,error,summary
   JTREG_RETAIN ?= fail,error
+  JTREG_TEST_THREAD_FACTORY ?=
+  JTREG_RUN_PROBLEM_LISTS ?= false
+  JTREG_RETRY_COUNT ?= 0
+  JTREG_REPEAT_COUNT ?= 0
+  JTREG_REPORT ?= files
+
+  ifneq ($$(JTREG_RETRY_COUNT), 0)
+    ifneq ($$(JTREG_REPEAT_COUNT), 0)
+      $$(info Error: Cannot use both JTREG_RETRY_COUNT and JTREG_REPEAT_COUNT together.)
+      $$(info Please choose one or the other.)
+      $$(error Cannot continue)
+    endif
+  endif
+
+  ifneq ($$(JTREG_TEST_THREAD_FACTORY), )
+    $1_JTREG_BASIC_OPTIONS += -testThreadFactoryPath:$$(JTREG_TEST_THREAD_FACTORY_JAR)
+    $1_JTREG_BASIC_OPTIONS += -testThreadFactory:$$(JTREG_TEST_THREAD_FACTORY)
+    $1_JTREG_BASIC_OPTIONS += $$(addprefix $$(JTREG_PROBLEM_LIST_PREFIX), $$(wildcard \
+	$$(addprefix $$($1_TEST_ROOT)/, ProblemList-$$(JTREG_TEST_THREAD_FACTORY).txt) \
+    ))
+  endif
+
+  ifneq ($$(JTREG_LAUNCHER_OPTIONS), )
+    $1_JTREG_LAUNCHER_OPTIONS += $$(JTREG_LAUNCHER_OPTIONS)
+  endif
+
+  ifneq ($$(JTREG_MAX_OUTPUT), )
+    $1_JTREG_LAUNCHER_OPTIONS += -Djavatest.maxOutputSize=$$(JTREG_MAX_OUTPUT)
+  endif
 
   ifneq ($$($1_JTREG_MAX_MEM), 0)
     $1_JTREG_BASIC_OPTIONS += -vmoption:-Xmx$$($1_JTREG_MAX_MEM)
     $1_JTREG_LAUNCHER_OPTIONS += -Xmx$$($1_JTREG_MAX_MEM)
   endif
 
+  # Make sure the tmp dir is normalized as some tests will react badly otherwise
+  $1_TEST_TMP_DIR := $$(abspath $$($1_TEST_SUPPORT_DIR)/tmp)
+
+  # test.boot.jdk is used by some test cases that want to execute a previous
+  # version of the JDK.
   $1_JTREG_BASIC_OPTIONS += -$$($1_JTREG_TEST_MODE) \
       -verbose:$$(JTREG_VERBOSE) -retain:$$(JTREG_RETAIN) \
-      -concurrency:$$($1_JTREG_JOBS) -timeoutFactor:$$(JTREG_TIMEOUT) \
-      -vmoption:-XX:MaxRAMPercentage=$$($1_JTREG_MAX_RAM_PERCENTAGE)
+      -concurrency:$$($1_JTREG_JOBS) -timeoutFactor:$$(JTREG_TIMEOUT_FACTOR) \
+      -vmoption:-XX:MaxRAMPercentage=$$($1_JTREG_MAX_RAM_PERCENTAGE) \
+      -vmoption:-Dtest.boot.jdk="$$(BOOT_JDK)" \
+      -vmoption:-Djava.io.tmpdir="$$($1_TEST_TMP_DIR)"
 
-  $1_JTREG_BASIC_OPTIONS += -automatic -keywords:\!ignore -ignore:quiet
+  $1_JTREG_BASIC_OPTIONS += -automatic -ignore:quiet
 
   # Make it possible to specify the JIB_DATA_DIR for tests using the
   # JIB Artifact resolver
   $1_JTREG_BASIC_OPTIONS += -e:JIB_DATA_DIR
-  # Some tests needs to find a boot JDK using the JDK8_HOME variable.
-  $1_JTREG_BASIC_OPTIONS += -e:JDK8_HOME=$$(BOOT_JDK)
   # If running on Windows, propagate the _NT_SYMBOL_PATH to enable
   # symbol lookup in hserr files
-  ifeq ($$(OPENJDK_TARGET_OS), windows)
+  # The minidumps are disabled by default on client Windows, so enable them
+  ifeq ($$(call isTargetOs, windows), true)
     $1_JTREG_BASIC_OPTIONS += -e:_NT_SYMBOL_PATH
+    $1_JTREG_BASIC_OPTIONS += -vmoption:-XX:+CreateCoredumpOnCrash
+  else ifeq ($$(call isTargetOs, linux), true)
+      $1_JTREG_BASIC_OPTIONS += -e:_JVM_DWARF_PATH=$$(SYMBOLS_IMAGE_DIR)
   endif
 
   $1_JTREG_BASIC_OPTIONS += \
@@ -527,41 +826,133 @@ define SetupRunJtregTestBody
     $1_JTREG_BASIC_OPTIONS += -nativepath:$$($1_JTREG_NATIVEPATH)
   endif
 
+  ifeq ($$(JTREG_RUN_PROBLEM_LISTS), true)
+    JTREG_PROBLEM_LIST_PREFIX := -match:
+  else
+    JTREG_PROBLEM_LIST_PREFIX := -exclude:
+  endif
+
   ifneq ($$($1_JTREG_PROBLEM_LIST), )
-    $1_JTREG_BASIC_OPTIONS += $$(addprefix -exclude:, $$($1_JTREG_PROBLEM_LIST))
+    $1_JTREG_BASIC_OPTIONS += $$(addprefix $$(JTREG_PROBLEM_LIST_PREFIX), $$($1_JTREG_PROBLEM_LIST))
   endif
 
-  ifneq ($$(JIB_JAR), )
-    $1_JTREG_BASIC_OPTIONS += -cpa:$$(JIB_JAR)
+  JTREG_ALL_OPTIONS := $$(JTREG_JAVA_OPTIONS) $$(JTREG_VM_OPTIONS)
+
+  JTREG_AUTO_PROBLEM_LISTS :=
+  JTREG_AUTO_TIMEOUT_FACTOR := 4
+
+  ifneq ($$(findstring -Xcomp, $$(JTREG_ALL_OPTIONS)), )
+    JTREG_AUTO_PROBLEM_LISTS += ProblemList-Xcomp.txt
+    JTREG_AUTO_TIMEOUT_FACTOR := 10
   endif
 
-  $1_JTREG_BASIC_OPTIONS += -e:TEST_IMAGE_GRAAL_DIR=${TEST_IMAGE_DIR}/hotspot/jtreg/graal
+  ifneq ($$(findstring -XX:+UseZGC, $$(JTREG_ALL_OPTIONS)), )
+    ifneq ($$(findstring -XX:-ZGenerational, $$(JTREG_ALL_OPTIONS)), )
+      JTREG_AUTO_PROBLEM_LISTS += ProblemList-zgc.txt
+    else
+      JTREG_AUTO_PROBLEM_LISTS += ProblemList-generational-zgc.txt
+    endif
+  endif
+
+  ifneq ($$(JTREG_EXTRA_PROBLEM_LISTS), )
+    # Accept both absolute paths as well as relative to the current test root.
+    $1_JTREG_BASIC_OPTIONS += $$(addprefix $$(JTREG_PROBLEM_LIST_PREFIX), $$(wildcard \
+        $$(JTREG_EXTRA_PROBLEM_LISTS) \
+        $$(addprefix $$($1_TEST_ROOT)/, $$(JTREG_EXTRA_PROBLEM_LISTS)) \
+    ))
+  endif
+
+  ifneq ($$(JIB_HOME), )
+    $1_JTREG_BASIC_OPTIONS += -e:JIB_HOME=$$(JIB_HOME)
+  endif
+
+  $1_JTREG_BASIC_OPTIONS += -e:TEST_IMAGE_DIR=$(TEST_IMAGE_DIR)
 
   ifneq ($$(JTREG_FAILURE_HANDLER_OPTIONS), )
     $1_JTREG_LAUNCHER_OPTIONS += -Djava.library.path="$(JTREG_FAILURE_HANDLER_DIR)"
   endif
 
-  clean-workdir-$1:
-	$$(RM) -r $$($1_TEST_SUPPORT_DIR)
+  ifneq ($$(JTREG_KEYWORDS), )
+    # The keywords string may contain problematic characters and may be quoted
+    # already when it arrives here. Remove any existing quotes and replace them
+    # with one set of single quotes.
+    $1_JTREG_KEYWORDS := \
+        $$(strip $$(subst $$(SQUOTE),,$$(subst $$(DQUOTE),,$$(JTREG_KEYWORDS))))
+    ifneq ($$($1_JTREG_KEYWORDS), )
+      $1_JTREG_BASIC_OPTIONS += -k:'$$($1_JTREG_KEYWORDS)'
+    endif
+  endif
 
-  run-test-$1: clean-workdir-$1
+  $$(eval $$(call SetupRunJtregTestCustom, $1))
+
+  # SetupRunJtregTestCustom might also adjust JTREG_AUTO_ variables
+  # so set the final results after setting values from custom setup
+  ifneq ($$(JTREG_AUTO_PROBLEM_LISTS), )
+    # Accept both absolute paths as well as relative to the current test root.
+    $1_JTREG_BASIC_OPTIONS += $$(addprefix $$(JTREG_PROBLEM_LIST_PREFIX), $$(wildcard \
+        $$(JTREG_AUTO_PROBLEM_LISTS) \
+        $$(addprefix $$($1_TEST_ROOT)/, $$(JTREG_AUTO_PROBLEM_LISTS)) \
+    ))
+  endif
+
+  JTREG_TIMEOUT_FACTOR ?= $$(JTREG_AUTO_TIMEOUT_FACTOR)
+
+  clean-outputdirs-$1:
+	$$(RM) -r $$($1_TEST_SUPPORT_DIR)
+	$$(RM) -r $$($1_TEST_RESULTS_DIR)
+
+  $1_COMMAND_LINE := \
+      $$(JTREG_JAVA) $$($1_JTREG_LAUNCHER_OPTIONS) \
+          -Dprogram=jtreg -jar $$(JT_HOME)/lib/jtreg.jar \
+          $$($1_JTREG_BASIC_OPTIONS) \
+          -testjdk:$$(JDK_UNDER_TEST) \
+          -dir:$$(JTREG_TOPDIR) \
+          -reportDir:$$($1_TEST_RESULTS_DIR) \
+          -workDir:$$($1_TEST_SUPPORT_DIR) \
+          -report:$${JTREG_REPORT} \
+          $$$${JTREG_STATUS} \
+          $$(JTREG_OPTIONS) \
+          $$(JTREG_FAILURE_HANDLER_OPTIONS) \
+          $$(JTREG_COV_OPTIONS) \
+          $$($1_TEST_NAME) \
+      && $$(ECHO) $$$$? > $$($1_EXITCODE) \
+      || $$(ECHO) $$$$? > $$($1_EXITCODE)
+
+
+  ifneq ($$(JTREG_RETRY_COUNT), 0)
+    $1_COMMAND_LINE := \
+        for i in {0..$$(JTREG_RETRY_COUNT)}; do \
+          if [ "$$$$i" != 0 ]; then \
+            $$(PRINTF) "\nRetrying Jtreg run. Attempt: $$$$i\n"; \
+          fi; \
+          $$($1_COMMAND_LINE); \
+          if [ "`$$(CAT) $$($1_EXITCODE)`" = "0" ]; then \
+            break; \
+          fi; \
+          export JTREG_STATUS="-status:error,fail"; \
+        done
+  endif
+
+  ifneq ($$(JTREG_REPEAT_COUNT), 0)
+    $1_COMMAND_LINE := \
+        for i in {1..$$(JTREG_REPEAT_COUNT)}; do \
+          $$(PRINTF) "\nRepeating Jtreg run: $$$$i out of $$(JTREG_REPEAT_COUNT)\n"; \
+          $$($1_COMMAND_LINE); \
+          if [ "`$$(CAT) $$($1_EXITCODE)`" != "0" ]; then \
+            $$(PRINTF) "\nFailures detected, no more repeats.\n"; \
+            break; \
+          fi; \
+        done
+  endif
+
+  run-test-$1: pre-run-test clean-outputdirs-$1
 	$$(call LogWarn)
 	$$(call LogWarn, Running test '$$($1_TEST)')
-	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
-	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/jtreg, \
-	    $$(JAVA) $$($1_JTREG_LAUNCHER_OPTIONS) \
-	        -Dprogram=jtreg -jar $$(JT_HOME)/lib/jtreg.jar \
-	        $$($1_JTREG_BASIC_OPTIONS) \
-	        -testjdk:$$(JDK_IMAGE_DIR) \
-	        -dir:$$(JTREG_TOPDIR) \
-	        -reportDir:$$($1_TEST_RESULTS_DIR) \
-	        -workDir:$$($1_TEST_SUPPORT_DIR) \
-	        $$(JTREG_OPTIONS) \
-	        $$(JTREG_FAILURE_HANDLER_OPTIONS) \
-	        $$($1_TEST_NAME) \
-	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
-	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
-	)
+	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR) \
+	    $$($1_TEST_TMP_DIR))
+	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/jtreg, ( \
+            $$(COV_ENVIRONMENT) $$($1_COMMAND_LINE) \
+	))
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/text/stats.txt
 
@@ -591,9 +982,11 @@ define SetupRunJtregTestBody
 	  $$(eval $1_TOTAL := 1) \
 	)
 
-  $1: run-test-$1 parse-test-$1
+  $1: run-test-$1 parse-test-$1 clean-outputdirs-$1
 
-  TARGETS += $1
+  TARGETS += $1 run-test-$1 parse-test-$1 clean-outputdirs-$1
+  TEST_TARGETS += parse-test-$1
+
 endef
 
 ################################################################################
@@ -615,32 +1008,32 @@ define SetupRunSpecialTestBody
     $1_TEST_ARGS :=
   endif
 
-  ifeq ($$($1_TEST_NAME), hotspot-internal)
-    $1_TEST_COMMAND_LINE := \
-        $$(JDK_IMAGE_DIR)/bin/java -XX:+ExecuteInternalVMTests \
-        -XX:+ShowMessageBoxOnError -version
-  else ifeq ($$($1_TEST_NAME), failure-handler)
-    $1_TEST_COMMAND_LINE := \
-        ($(CD) $(TOPDIR)/make/test && $(MAKE) $(MAKE_ARGS) -f \
-        BuildFailureHandler.gmk test)
+  ifeq ($$($1_TEST_NAME), failure-handler)
+    ifeq ($(BUILD_FAILURE_HANDLER), true)
+      $1_TEST_COMMAND_LINE := \
+          ($(CD) $(TOPDIR)/make/test && $(MAKE) $(MAKE_ARGS) -f \
+          BuildFailureHandler.gmk test)
+    else
+      $$(error Cannot test failure handler if it is not built)
+    endif
   else ifeq ($$($1_TEST_NAME), make)
     $1_TEST_COMMAND_LINE := \
         ($(CD) $(TOPDIR)/test/make && $(MAKE) $(MAKE_ARGS) -f \
-        TestMake.gmk $$($1_TEST_ARGS))
+        TestMake.gmk $$($1_TEST_ARGS) TEST_SUPPORT_DIR="$$($1_TEST_SUPPORT_DIR)")
   else
     $$(error Invalid special test specification: $$($1_TEST_NAME))
   endif
 
-  run-test-$1:
+  run-test-$1: pre-run-test
 	$$(call LogWarn)
 	$$(call LogWarn, Running test '$$($1_TEST)')
 	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
-	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/test-execution, \
+	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/test-execution, ( \
 	    $$($1_TEST_COMMAND_LINE) \
 	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/test-output.txt) \
 	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
 	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
-	)
+	))
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/gtest.txt
 
@@ -650,14 +1043,20 @@ define SetupRunSpecialTestBody
 	$$(call LogWarn, Test report is stored in $$(strip \
 	    $$(subst $$(TOPDIR)/, , $$($1_TEST_RESULTS_DIR))))
 	$$(call LogWarn, Warning: Special test results are not properly parsed!)
-	$$(eval $1_PASSED := 0)
-	$$(eval $1_FAILED := 0)
+	$$(eval $1_PASSED := $$(shell \
+	  if [ `$(CAT) $$($1_EXITCODE)` = "0" ]; then $(ECHO) 1; else $(ECHO) 0; fi \
+	))
+	$$(eval $1_FAILED := $$(shell \
+	  if [ `$(CAT) $$($1_EXITCODE)` = "0" ]; then $(ECHO) 0; else $(ECHO) 1; fi \
+	))
 	$$(eval $1_ERROR := 0)
-	$$(eval $1_TOTAL := 0)
+	$$(eval $1_TOTAL := 1)
 
   $1: run-test-$1 parse-test-$1
 
-  TARGETS += $1
+  TARGETS += $1 run-test-$1 parse-test-$1
+  TEST_TARGETS += parse-test-$1
+
 endef
 
 ################################################################################
@@ -667,6 +1066,9 @@ endef
 # Helper function to determine which handler to use for the given test
 UseGtestTestHandler = \
   $(if $(filter gtest:%, $1), true)
+
+UseMicroTestHandler = \
+  $(if $(filter micro:%, $1), true)
 
 UseJtregTestHandler = \
   $(if $(filter jtreg:%, $1), true)
@@ -686,6 +1088,11 @@ $(foreach test, $(TESTS_TO_RUN), \
   ) \
   $(if $(call UseGtestTestHandler, $(test)), \
     $(eval $(call SetupRunGtestTest, $(TEST_ID), \
+        TEST := $(test), \
+    )) \
+  ) \
+  $(if $(call UseMicroTestHandler, $(test)), \
+    $(eval $(call SetupRunMicroTest, $(TEST_ID), \
         TEST := $(test), \
     )) \
   ) \
@@ -711,12 +1118,36 @@ endif
 # The main target for RunTests.gmk
 ################################################################################
 
-# The SetupRun*Test functions have populated TARGETS.
+#
+# Provide hooks for adding functionality before and after all tests are run.
+#
 
+$(call LogInfo, RunTest setup starting)
+
+# This target depends on all actual test having been run (TEST_TARGETS has beeen
+# populated by the SetupRun*Test functions). If you need to provide a teardown
+# hook, you must let it depend on this target.
+run-all-tests: $(TEST_TARGETS)
+	$(call LogInfo, RunTest teardown starting)
+
+# This is an abstract target that will be run before any actual tests. Add your
+# target as a dependency to thisif you need "setup" type functionality executed
+# before all tests.
+pre-run-test:
+	$(call LogInfo, RunTest setup done)
+
+# This is an abstract target that will be run after all actual tests, but before
+# the test summary. If you need "teardown" type functionality, add your target
+# as a dependency on this, and let the teardown target depend on run-all-tests.
+post-run-test: run-all-tests
+	$(call LogInfo, RunTest teardown done)
+
+#
+# Create and print a table of the result of all tests run
+#
 TEST_FAILURE := false
 
-run-test: $(TARGETS)
-        # Create and print a table of the result of all tests run
+run-test-report: post-run-test
 	$(RM) $(TEST_SUMMARY).old 2> /dev/null
 	$(MV) $(TEST_SUMMARY) $(TEST_SUMMARY).old 2> /dev/null || true
 	$(RM) $(TEST_LAST_IDS).old 2> /dev/null
@@ -760,8 +1191,92 @@ run-test: $(TARGETS)
 	$(CAT) $(TEST_SUMMARY)
 	$(ECHO)
 
+# The main run-test target
+run-test: run-test-report
+
+TARGETS += run-all-tests pre-run-test post-run-test run-test-report run-test
+
+################################################################################
+# Setup JCov
+################################################################################
+
+ifeq ($(TEST_OPTS_JCOV), true)
+
+  jcov-do-start-grabber:
+	$(call MakeDir, $(JCOV_OUTPUT_DIR))
+	if $(JAVA) -jar $(JCOV_HOME)/lib/jcov.jar GrabberManager -status 1>/dev/null 2>&1 ; then \
+	  $(JAVA) -jar $(JCOV_HOME)/lib/jcov.jar GrabberManager -stop -stoptimeout 3600 ; \
+	fi
+	$(JAVA) -Xmx4g -jar $(JCOV_HOME)/lib/jcov.jar Grabber -v -t \
+	    $(JCOV_IMAGE_DIR)/template.xml -o $(JCOV_RESULT_FILE) \
+	    1>$(JCOV_GRABBER_LOG) 2>&1 &
+
+  jcov-start-grabber: jcov-do-start-grabber
+	$(call LogWarn, Starting JCov Grabber...)
+	$(JAVA) -jar $(JCOV_HOME)/lib/jcov.jar GrabberManager -t 600 -wait
+
+  jcov-stop-grabber:
+	$(call LogWarn, Stopping JCov Grabber...)
+	$(JAVA) -jar $(JCOV_HOME)/lib/jcov.jar GrabberManager -stop -stoptimeout 3600
+
+  JCOV_REPORT_TITLE := JDK code coverage report<br/>
+  ifneq ($(JCOV_FILTERS), )
+    JCOV_REPORT_TITLE += Code filters: $(JCOV_FILTERS)<br>
+  endif
+  JCOV_REPORT_TITLE += Tests: $(TEST)
+
+  jcov-gen-report: jcov-stop-grabber
+	$(call LogWarn, Generating JCov report ...)
+	$(JAVA) -Xmx4g -jar $(JCOV_HOME)/lib/jcov.jar RepGen -sourcepath \
+	    `$(ECHO) $(TOPDIR)/src/*/share/classes/ | $(TR) ' ' ':'` -fmt html \
+	    $(JCOV_FILTERS) \
+	    -mainReportTitle "$(JCOV_REPORT_TITLE)" \
+	    -o $(JCOV_REPORT) $(JCOV_RESULT_FILE)
+
+  TARGETS += jcov-do-start-grabber jcov-start-grabber jcov-stop-grabber \
+      jcov-gen-report
+
+  ifneq ($(TEST_OPTS_JCOV_DIFF_CHANGESET), )
+
+    JCOV_SOURCE_DIFF := $(JCOV_OUTPUT_DIR)/source_diff
+    JCOV_DIFF_COVERAGE_REPORT := $(JCOV_OUTPUT_DIR)/diff_coverage_report
+
+    ifneq ($(and $(GIT), $(wildcard $(TOPDIR)/.git)), )
+      DIFF_COMMAND := $(GIT) -C $(TOPDIR) diff $(TEST_OPTS_JCOV_DIFF_CHANGESET) > $(JCOV_SOURCE_DIFF)
+    else
+      $(info Error: Must be a git source tree for diff coverage.)
+      $(error No git source tree.)
+    endif
+
+    jcov-gen-diffcoverage: jcov-stop-grabber
+	$(call LogWarn, Generating diff coverage with changeset $(TEST_OPTS_JCOV_DIFF_CHANGESET) ... )
+	$(DIFF_COMMAND)
+	$(JAVA) -Xmx4g -jar $(JCOV_HOME)/lib/jcov.jar \
+	  DiffCoverage -replaceDiff "src/.*/classes/:" -all \
+	    $(JCOV_RESULT_FILE) $(JCOV_SOURCE_DIFF) > \
+	    $(JCOV_DIFF_COVERAGE_REPORT)
+
+    TARGETS += jcov-gen-diffcoverage
+
+  endif
+
+  # Hook this into the framework at appropriate places
+  pre-run-test: jcov-start-grabber
+
+  post-run-test: jcov-gen-report
+
+  ifneq ($(TEST_OPTS_JCOV_DIFF_CHANGESET), )
+
+    post-run-test: jcov-gen-diffcoverage
+
+  endif
+
+  jcov-stop-grabber: run-all-tests
+
+endif
+
 ################################################################################
 
 all: run-test
 
-.PHONY: default all run-test $(TARGETS)
+.PHONY: default all $(TARGETS)

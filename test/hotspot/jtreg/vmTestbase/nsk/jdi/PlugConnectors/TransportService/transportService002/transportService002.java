@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,16 +68,14 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jdi.PlugConnectors.TransportService.transportService002.transportService002
  *
  * @comment build connectors.jar to jars
  * @build nsk.share.jdi.PlugConnectors
  * @run driver nsk.jdi.ConnectorsJarBuilder
  *
- * @build ExecDriver
- * @run driver PropertyResolvingWrapper ExecDriver --java
- *      -cp jars${file.separator}connectors.jar${path.separator}${test.class.path}
+ * @run main/othervm
+ *      -cp jars${file.separator}connectors.jar${path.separator}${test.class.path}${path.separator}${java.class.path}
  *      nsk.jdi.PlugConnectors.TransportService.transportService002.transportService002
  *      -verbose
  *      -arch=${os.family}-${os.simpleArch}
@@ -187,7 +185,6 @@ public class transportService002 {
 
         argsHandler = new ArgumentHandler(argv);
         logHandler = new Log(out, argsHandler);
-        logHandler.enableErrorsSummary(false);
 
         logAlways("==> nsk/jdi/PlugConnectors/TransportService/transportService002 test...");
         logOnVerbose

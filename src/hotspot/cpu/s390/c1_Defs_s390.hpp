@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_S390_VM_C1_DEFS_S390_HPP
-#define CPU_S390_VM_C1_DEFS_S390_HPP
+#ifndef CPU_S390_C1_DEFS_S390_HPP
+#define CPU_S390_C1_DEFS_S390_HPP
 
 // Native word offsets from memory address (big endian).
 enum {
@@ -68,4 +68,13 @@ enum {
   pd_float_saved_as_double = false
 };
 
-#endif // CPU_S390_VM_C1_DEFS_S390_HPP
+enum {
+  pd_two_operand_lir_form = true
+};
+
+// the number of stack required by ArrayCopyStub
+enum {
+  pd_arraycopystub_reserved_argument_area_size = 2
+};
+
+#endif // CPU_S390_C1_DEFS_S390_HPP

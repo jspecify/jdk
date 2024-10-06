@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,6 +82,11 @@ import sun.awt.AppContext;
 @AnnotatedFor({"interning"})
 @JavaBean(description = "Minimal information that all accessible objects return")
 public abstract class AccessibleContext {
+
+    /**
+     * Constructor for subclasses to call.
+     */
+    protected AccessibleContext() {}
 
     /**
      * The {@code AppContext} that should be used to dispatch events for this
@@ -563,7 +568,7 @@ public abstract class AccessibleContext {
      * not be treated as the component's accessible parent and is a method that
      * should only be called by the parent of the accessible child.
      *
-     * @param  a - {@code Accessible} to be set as the parent
+     * @param  a {@code Accessible} to be set as the parent
      */
     public void setAccessibleParent(Accessible a) {
         accessibleParent = a;

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -164,30 +162,7 @@ public class TestDefaultConfigurations {
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
         Document doc = dBuilder.parse(new InputSource(new StringReader(content)));
         doc.getDocumentElement().normalize();
-        // Don't want to add these settings to the jfc-files we ship since they
-        // are not useful to configure. They are however needed to make the test
-        // pass.
-        insertSetting(doc, EventNames.ActiveSetting, "stackTrace", "false");
-        insertSetting(doc, EventNames.ActiveSetting, "threshold", "0 ns");
-        insertSetting(doc, EventNames.ActiveRecording, "stackTrace", "false");
-        insertSetting(doc, EventNames.ActiveRecording, "threshold", "0 ns");
-        insertSetting(doc, EventNames.JavaExceptionThrow, "threshold", "0 ns");
-        insertSetting(doc, EventNames.JavaErrorThrow, "threshold", "0 ns");
         return doc;
-    }
-
-    private static void insertSetting(Document doc, String eventName, String settingName, String settingValue) {
-        for (Element event : getChildElements(doc.getDocumentElement(), "event")) {
-            Attr attribute = event.getAttributeNode("name");
-            if (attribute != null) {
-                if (eventName.equals(attribute.getValue())) {
-                    Element setting = doc.createElement("setting");
-                    setting.setAttribute("name", settingName);
-                    setting.setTextContent(settingValue);
-                    event.appendChild(setting);
-                }
-            }
-        }
     }
 
     private static Collection<Element> getChildElements(Element parent, String name) {

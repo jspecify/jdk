@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, SAP and/or its affiliates.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,7 @@ class MetaspaceDCmd : public DCmdWithParser {
   DCmdArgument<bool> _by_spacetype;
   DCmdArgument<bool> _by_chunktype;
   DCmdArgument<bool> _show_vslist;
-  DCmdArgument<bool> _show_vsmap;
+  DCmdArgument<bool> _show_chunkfreelist;
   DCmdArgument<char*> _scale;
   DCmdArgument<bool> _show_classes;
 public:
@@ -54,13 +54,13 @@ public:
   }
   static const JavaPermission permission() {
     JavaPermission p = {"java.lang.management.ManagementPermission",
-                        "monitor", NULL};
+                        "monitor", nullptr};
     return p;
   }
-  static int num_arguments();
+  static int num_arguments() { return 8; }
   virtual void execute(DCmdSource source, TRAPS);
 };
 
 } // namespace metaspace
 
-#endif /* SHARE_MEMORY_METASPACE_METASPACESTATISTICS_HPP */
+#endif // SHARE_MEMORY_METASPACE_METASPACEDCMD_HPP

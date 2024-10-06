@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,6 @@
  */
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.io.*;
-import java.lang.*;
-import java.util.*;
 import java.awt.image.ImageObserver;
 import java.text.AttributedCharacterIterator;
 
@@ -104,8 +98,7 @@ import java.text.AttributedCharacterIterator;
  * @see     java.awt.Graphics#setFont(java.awt.Font)
  * @since       1.0
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class Graphics {
+public abstract class Graphics {
 
     /**
      * Constructs a new {@code Graphics} object.
@@ -197,6 +190,7 @@ public abstract @UsesObjectEquals class Graphics {
      * Sets this graphics context's current color to the specified
      * color. All subsequent graphics operations using this graphics
      * context use this specified color.
+     * A null argument is silently ignored.
      * @param     c   the new rendering color.
      * @see       java.awt.Color
      * @see       java.awt.Graphics#getColor
@@ -357,7 +351,8 @@ public abstract @UsesObjectEquals class Graphics {
      * {@code Rectangle} objects.  This method sets the
      * user clip, which is independent of the clipping associated
      * with device bounds and window visibility.
-     * @param clip the {@code Shape} to use to set the clip
+     * @param clip the {@code Shape} to use to set the clip.
+     *             Passing {@code null} clears the current {@code clip}.
      * @see         java.awt.Graphics#getClip()
      * @see         java.awt.Graphics#clipRect
      * @see         java.awt.Graphics#setClip(int, int, int, int)
@@ -700,7 +695,7 @@ public abstract @UsesObjectEquals class Graphics {
      * @see         java.awt.Graphics#drawPolygon(int[], int[], int)
      * @since       1.1
      */
-    public abstract void drawPolyline(int xPoints[], int yPoints[],
+    public abstract void drawPolyline(int[] xPoints, int[] yPoints,
                                       int nPoints);
 
     /**
@@ -716,13 +711,13 @@ public abstract @UsesObjectEquals class Graphics {
      * 1&nbsp;&le;&nbsp;<i>i</i>&nbsp;&le;&nbsp;{@code nPoints}.
      * The figure is automatically closed by drawing a line connecting
      * the final point to the first point, if those points are different.
-     * @param        xPoints   a an array of {@code x} coordinates.
-     * @param        yPoints   a an array of {@code y} coordinates.
-     * @param        nPoints   a the total number of points.
+     * @param        xPoints   an array of {@code x} coordinates.
+     * @param        yPoints   an array of {@code y} coordinates.
+     * @param        nPoints   the total number of points.
      * @see          java.awt.Graphics#fillPolygon
      * @see          java.awt.Graphics#drawPolyline
      */
-    public abstract void drawPolygon(int xPoints[], int yPoints[],
+    public abstract void drawPolygon(int[] xPoints, int[] yPoints,
                                      int nPoints);
 
     /**
@@ -751,12 +746,12 @@ public abstract @UsesObjectEquals class Graphics {
      * <p>
      * The area inside the polygon is defined using an
      * even-odd fill rule, also known as the alternating rule.
-     * @param        xPoints   a an array of {@code x} coordinates.
-     * @param        yPoints   a an array of {@code y} coordinates.
-     * @param        nPoints   a the total number of points.
+     * @param        xPoints   an array of {@code x} coordinates.
+     * @param        yPoints   an array of {@code y} coordinates.
+     * @param        nPoints   the total number of points.
      * @see          java.awt.Graphics#drawPolygon(int[], int[], int)
      */
-    public abstract void fillPolygon(int xPoints[], int yPoints[],
+    public abstract void fillPolygon(int[] xPoints, int[] yPoints,
                                      int nPoints);
 
     /**
@@ -822,7 +817,7 @@ public abstract @UsesObjectEquals class Graphics {
      * @see         java.awt.Graphics#drawBytes
      * @see         java.awt.Graphics#drawString
      */
-    public void drawChars(char data[], int offset, int length, int x, int y) {
+    public void drawChars(char[] data, int offset, int length, int x, int y) {
         drawString(new String(data, offset, length), x, y);
     }
 
@@ -848,7 +843,7 @@ public abstract @UsesObjectEquals class Graphics {
      * @see         java.awt.Graphics#drawString
      */
     @SuppressWarnings("deprecation")
-    public void drawBytes(byte data[], int offset, int length, int x, int y) {
+    public void drawBytes(byte[] data, int offset, int length, int x, int y) {
         drawString(new String(data, 0, offset, length), x, y);
     }
 
@@ -1164,17 +1159,14 @@ public abstract @UsesObjectEquals class Graphics {
     /**
      * Disposes of this graphics context once it is no longer referenced.
      *
-     * @deprecated The {@code finalize} method has been deprecated.
-     *     Subclasses that override {@code finalize} in order to perform cleanup
-     *     should be modified to use alternative cleanup mechanisms and
-     *     to remove the overriding {@code finalize} method.
-     *     When overriding the {@code finalize} method, its implementation must explicitly
-     *     ensure that {@code super.finalize()} is invoked as described in {@link Object#finalize}.
-     *     See the specification for {@link Object#finalize()} for further
-     *     information about migration options.
+     * @deprecated Finalization has been deprecated for removal.  See
+     * {@link java.lang.Object#finalize} for background information and details
+     * about migration options.
+     *
      * @see #dispose
      */
-    @Deprecated(since="9")
+    @Deprecated(since="9", forRemoval=true)
+    @SuppressWarnings("removal")
     public void finalize() {
         dispose();
     }

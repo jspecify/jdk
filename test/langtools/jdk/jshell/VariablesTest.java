@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8144903 8177466 8191842
+ * @bug 8144903 8177466 8191842 8211694 8213725 8239536 8257236 8252409 8294431 8322003 8322532
  * @summary Tests for EvaluationState.variables
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
@@ -38,6 +38,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import javax.tools.Diagnostic;
 
+import jdk.jshell.MethodSnippet;
 import jdk.jshell.Snippet;
 import jdk.jshell.TypeDeclSnippet;
 import jdk.jshell.VarSnippet;
@@ -339,7 +340,7 @@ public class VariablesTest extends KullaTesting {
         //assertEquals(getState().source(snippet), src);
         //assertEquals(snippet, undefKey);
         assertEquals(getState().status(undefKey), RECOVERABLE_NOT_DEFINED);
-        List<String> unr = getState().unresolvedDependencies((VarSnippet) undefKey).collect(toList());;
+        List<String> unr = getState().unresolvedDependencies((VarSnippet) undefKey).collect(toList());
         assertEquals(unr.size(), 1);
         assertEquals(unr.get(0), "class undefined");
         assertVariables(variable("undefined", "d"));
@@ -400,6 +401,13 @@ public class VariablesTest extends KullaTesting {
         assertEval("r15a.add(\"a\");");
         assertEval("var r15b = r15a.get(0);");
         assertEval("r15b", "\"a\"");
+        assertEval("class Z { }");
+        assertEval("var r16a = new Z();");
+        assertEval("var r16b = (Runnable) () -> {int r16b_; int r16b__;};");
+        assertEval("class $ { }");
+        assertEval("var r16c = new $();");
+        assertEval("$ r16d() { return null; }");
+        assertEval("var r16d = r16d();");
     }
 
     public void test8191842() {
@@ -410,10 +418,14 @@ public class VariablesTest extends KullaTesting {
 
     public void lvtiRecompileDependentsWithIntersectionTypes() {
         assertEval("<Z extends Runnable & CharSequence> Z get1() { return null; }", added(VALID));
-        VarSnippet var = varKey(assertEval("var i1 = get1();", added(VALID)));
+        assertEval("var i1 = get1();", added(VALID));
+        MethodSnippet get2 = methodKey(assertEval("<Z extends Runnable & Stream> Z get2() { return null; }",
+            ste(MAIN_SNIPPET, NONEXISTENT, RECOVERABLE_NOT_DEFINED, false, null)));
         assertEval("import java.util.stream.*;", added(VALID),
-                                                 ste(var, VALID, VALID, true, MAIN_SNIPPET));
+                                                 ste(get2, RECOVERABLE_NOT_DEFINED, VALID, true, MAIN_SNIPPET));
         assertEval("void t1() { i1.run(); i1.length(); }", added(VALID));
+        assertEval("var i2 = get2();", added(VALID));
+        assertEval("void t2() { i2.run(); i2.count(); }", added(VALID));
     }
 
     public void arrayInit() {
@@ -466,6 +478,78 @@ public class VariablesTest extends KullaTesting {
         assertVarDisplayName("var v6 = new Runnable() { public void run() { } };", "<anonymous class implementing Runnable>");
     }
 
+    public void varType() {
+        assertEval("import java.util.*;");
+        var firstVar = varKey(assertEval("var v1 = List.of(1);", added(VALID)));
+        assertEval("import list.List;", DiagCheck.DIAG_OK, DiagCheck.DIAG_ERROR, added(VALID),
+                                        ste(firstVar, VALID, RECOVERABLE_NOT_DEFINED, true, MAIN_SNIPPET));
+        assertEval("var v2 = java.util.List.of(1);", added(VALID));
+        assertEval("v2", "[1]");
+    }
+
+    public void varDeclNoInit() {
+        assertVarDeclNoInit("byte", "b",  "0");
+        assertVarDeclNoInit("short", "h",  "0");
+        assertVarDeclNoInit("int", "i",  "0");
+        assertVarDeclNoInit("long", "l",  "0");
+        assertVarDeclNoInit("float", "f",  "0.0");
+        assertVarDeclNoInit("double", "d",  "0.0");
+        assertVarDeclNoInit("boolean", "n",  "false");
+        assertVarDeclNoInit("char", "c",  "'\\000'");
+        assertVarDeclNoInit("Object", "o",  "null");
+        assertVarDeclNoInit("String", "s", "null");
+    }
+
+    public void varDeclRedefNoInit() {
+        assertVarDeclRedefNoInit("byte", "b", "1", "0");
+        assertVarDeclRedefNoInit("short", "h", "2", "0");
+        assertVarDeclRedefNoInit("int", "i", "3", "0");
+        assertVarDeclRedefNoInit("long", "l", "4L", IGNORE_VALUE, "0");
+        assertVarDeclRedefNoInit("float", "f", "3.14f", IGNORE_VALUE, "0.0");
+        assertVarDeclRedefNoInit("double", "d", "3.1415926", "0.0");
+        assertVarDeclRedefNoInit("boolean", "n", "true", "false");
+        assertVarDeclRedefNoInit("char", "c", "'x'", "'\\000'");
+        assertVarDeclRedefNoInit("Object", "o", "new Object()", IGNORE_VALUE, "null");
+        assertVarDeclRedefNoInit("String", "s", "\"hi\"", "null");
+    }
+
+    public void badPkgVarDecl() {
+        Compiler compiler = new Compiler();
+        Path nopkgdirpath = Paths.get("cp", "xyz");
+        compiler.compile(nopkgdirpath,
+                "public class TestZ { public static int V = 0; }\n");
+        assertDeclareFail("import static xyz.TestZ.V;",
+                        "compiler.err.cant.access");
+
+
+        VarSnippet v1 = varKey(assertEval("var v = xyz.TestZ.V;", IGNORE_VALUE, null,
+                DiagCheck.DIAG_ERROR, DiagCheck.DIAG_OK, added(RECOVERABLE_NOT_DEFINED)));
+        assertVariableDeclSnippet(v1, "v", "java.lang.Object", RECOVERABLE_NOT_DEFINED, SubKind.VAR_DECLARATION_WITH_INITIALIZER_SUBKIND, 0, 1);
+        assertEval("1+1", "2");
+    }
+
+    private void assertVarDeclRedefNoInit(String typeName, String name, String value, String dvalue) {
+        assertVarDeclRedefNoInit(typeName, name, value, value, dvalue);
+    }
+
+    private void assertVarDeclRedefNoInit(String typeName, String name, String value, String rvalue, String dvalue) {
+        VarSnippet vs = varKey(assertEval(typeName + " " + name + " = " + value + ";", rvalue));
+        assertVarDeclNoInit(typeName,  name, dvalue,
+                ste(vs, VALID, VALID, false, null),
+                ste(vs, VALID, OVERWRITTEN, false, MAIN_SNIPPET));
+    }
+
+    private VarSnippet assertVarDeclNoInit(String typeName, String name, String dvalue) {
+        return assertVarDeclNoInit(typeName, name, dvalue, added(VALID));
+    }
+
+    private VarSnippet assertVarDeclNoInit(String typeName, String name, String dvalue, STEInfo mainInfo, STEInfo... updates) {
+        VarSnippet vs = varKey(assertEval(typeName + " " + name + ";", dvalue, mainInfo, updates));
+        assertEquals(vs.typeName(), typeName);
+        assertEval(name, dvalue, added(VALID));
+        return vs;
+    }
+
     private void assertVarDisplayName(String var, String typeName) {
         assertEquals(varKey(assertEval(var)).typeName(), typeName);
     }
@@ -516,10 +600,42 @@ public class VariablesTest extends KullaTesting {
                 "\n" +
                 "public interface J<T> {\n" +
                 "   public List<T> get();\n" +
+                "}\n",
+                "package list;\n" +
+                "\n" +
+                "public class List {\n" +
                 "}\n");
         String tpath = compiler.getPath(path).toString();
         setUp(b -> b
                 .remoteVMOptions("--class-path", tpath)
                 .compilerOptions("--class-path", tpath));
     }
+
+    public void varIntersection() {
+        assertEval("interface Marker {}");
+        assertEval("var v = (Marker & Runnable) () -> {};", added(VALID));
+        assertEval("v.run()");
+    }
+
+    public void varAnonymousClassAndStaticField() { //JDK-8294431
+        assertEval("var obj = new Object() { public static final String msg = \"hello\"; };");
+    }
+
+    public void underscoreAsLambdaParameter() { //JDK-8322532
+        assertAnalyze("Func f = _ -> 0; int i;",
+                      "Func f = _ -> 0;",
+                      " int i;", true);
+    }
+
+    public void intersectionTypeAsTypeArgument() { //JDK-8322003
+        assertEval("interface Shape {}");
+        assertEval("record Square(int edge) implements Shape {}");
+        assertEval("record Circle(int radius) implements Shape {}");
+        assertEval("java.util.function.Consumer<Shape> printShape = System.out::println;");
+        assertEval("Square square = new Square(1);");
+        assertEval("Circle circle = new Circle(1);");
+        assertEval("var shapes = java.util.List.of(square, circle);");
+        assertEval("shapes.forEach(printShape);");
+    }
+
 }

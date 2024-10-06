@@ -23,7 +23,7 @@
  * questions.
  */
 
-#import <JavaNativeFoundation/JavaNativeFoundation.h>
+#import "JNIUtilities.h"
 
 #import "AWTFont.h"
 #import "CoreTextSupport.h"
@@ -41,12 +41,12 @@ Java_sun_font_CCharToGlyphMapper_countGlyphs
 {
     jint numGlyphs = 0;
 
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
     AWTFont *awtFont = (AWTFont *)jlong_to_ptr(awtFontPtr);
     numGlyphs = [awtFont->fFont numberOfGlyphs];
 
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
 
     return numGlyphs;
 }
@@ -58,12 +58,14 @@ GetGlyphsFromUnicodes(JNIEnv *env, AWTFont *awtFont,
 {
     jint *glyphCodeInts = (*env)->GetPrimitiveArrayCritical(env, glyphs, 0);
 
-    CTS_GetGlyphsAsIntsForCharacters(awtFont, unicodes,
-                                     cgGlyphs, glyphCodeInts, count);
+    if (glyphCodeInts != NULL) {
+        CTS_GetGlyphsAsIntsForCharacters(awtFont, unicodes,
+                                         cgGlyphs, glyphCodeInts, count);
 
-    // Do not use JNI_COMMIT, as that will not free the buffer copy
-    // when +ProtectJavaHeap is on.
-    (*env)->ReleasePrimitiveArrayCritical(env, glyphs, glyphCodeInts, 0);
+        // Do not use JNI_COMMIT, as that will not free the buffer copy
+        // when +ProtectJavaHeap is on.
+        (*env)->ReleasePrimitiveArrayCritical(env, glyphs, glyphCodeInts, 0);
+    }
 }
 
 static inline void
@@ -90,7 +92,7 @@ Java_sun_font_CCharToGlyphMapper_nativeCharsToGlyphs
     (JNIEnv *env, jclass clazz,
      jlong awtFontPtr, jint count, jcharArray unicodes, jintArray glyphs)
 {
-JNF_COCOA_ENTER(env);
+JNI_COCOA_ENTER(env);
 
     AWTFont *awtFont = (AWTFont *)jlong_to_ptr(awtFontPtr);
 
@@ -111,5 +113,5 @@ JNF_COCOA_ENTER(env);
                                               unicodesAsChars, JNI_ABORT);
     }
 
-JNF_COCOA_EXIT(env);
+JNI_COCOA_EXIT(env);
 }

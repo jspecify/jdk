@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,7 @@
  * @test
  * @summary Basic test for jhsdb launcher
  * @library /test/lib
- * @library /lib/testlibrary
- * @requires vm.hasSAandCanAttach
- * @build jdk.testlibrary.*
+ * @requires vm.hasSA
  * @build jdk.test.lib.apps.*
  * @run main BasicLauncherTest
  */
@@ -40,12 +38,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
 import java.util.Optional;
-import jdk.testlibrary.JDKToolLauncher;
-import jdk.testlibrary.Utils;
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.Platform;
+import jdk.test.lib.JDKToolLauncher;
+import jdk.test.lib.SA.SATestUtils;
+import jdk.test.lib.Utils;
 
 public class BasicLauncherTest {
 
@@ -64,7 +63,7 @@ public class BasicLauncherTest {
         else {
             launcher = JDKToolLauncher.createUsingTestJDK("jhsdb");
         }
-
+        launcher.addVMArgs(Utils.getFilteredTestJavaOpts("-Xcomp"));
         return launcher;
     }
 
@@ -80,7 +79,7 @@ public class BasicLauncherTest {
             launcher.addToolArg("clhsdb");
             launcher.addToolArg("--pid=" + Long.toString(theApp.getPid()));
 
-            ProcessBuilder processBuilder = new ProcessBuilder(launcher.getCommand());
+            ProcessBuilder processBuilder = SATestUtils.createProcessBuilder(launcher);
             processBuilder.redirectError(ProcessBuilder.Redirect.INHERIT);
             Process toolProcess = processBuilder.start();
 
@@ -124,16 +123,9 @@ public class BasicLauncherTest {
     }
 
     public static void launchJStack() throws IOException {
-
-        if (Platform.isOSX()) {
-            // Coredump stackwalking is not implemented for Darwin
-            System.out.println("This test is not expected to work on OS X. Skipping");
-            return;
-        }
-
         System.out.println("Starting LingeredApp");
         try {
-            theApp = LingeredApp.startApp(Arrays.asList("-Xmx256m"));
+            theApp = LingeredApp.startApp("-Xmx256m");
 
             System.out.println("Starting jstack against " + theApp.getPid());
             JDKToolLauncher launcher = createSALauncher();
@@ -141,8 +133,8 @@ public class BasicLauncherTest {
             launcher.addToolArg("jstack");
             launcher.addToolArg("--pid=" + Long.toString(theApp.getPid()));
 
-            ProcessBuilder processBuilder = new ProcessBuilder(launcher.getCommand());
-            OutputAnalyzer output = ProcessTools.executeProcess(processBuilder);;
+            ProcessBuilder processBuilder = SATestUtils.createProcessBuilder(launcher);
+            OutputAnalyzer output = ProcessTools.executeProcess(processBuilder);
             output.shouldContain("No deadlocks found");
             output.shouldNotContain("illegal bci");
             output.shouldNotContain("AssertionFailure");
@@ -166,7 +158,7 @@ public class BasicLauncherTest {
 
         System.out.println("Starting LingeredApp");
         try {
-            theApp = LingeredApp.startApp(Arrays.asList("-Xmx256m"));
+            theApp = LingeredApp.startApp("-Xmx256m");
 
             System.out.println("Starting " + toolArgs.get(0) + " against " + theApp.getPid());
             JDKToolLauncher launcher = createSALauncher();
@@ -177,9 +169,9 @@ public class BasicLauncherTest {
 
             launcher.addToolArg("--pid=" + Long.toString(theApp.getPid()));
 
-            ProcessBuilder processBuilder = new ProcessBuilder(launcher.getCommand());
+            ProcessBuilder processBuilder = SATestUtils.createProcessBuilder(launcher);
             processBuilder.redirectError(ProcessBuilder.Redirect.INHERIT);
-            OutputAnalyzer output = ProcessTools.executeProcess(processBuilder);;
+            OutputAnalyzer output = ProcessTools.executeProcess(processBuilder);
             output.shouldContain(expectedMessage);
             unexpectedMessage.ifPresent(output::shouldNotContain);
             output.shouldHaveExitValue(0);
@@ -200,6 +192,7 @@ public class BasicLauncherTest {
     }
 
     public static void main(String[] args) throws Exception {
+        SATestUtils.skipIfCannotAttach(); // throws SkippedException if attach not expected to work.
 
         launchCLHSDB();
 

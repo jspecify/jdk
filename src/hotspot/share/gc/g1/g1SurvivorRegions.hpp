@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,33 +22,42 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1SURVIVORREGIONS_HPP
-#define SHARE_VM_GC_G1_G1SURVIVORREGIONS_HPP
+#ifndef SHARE_GC_G1_G1SURVIVORREGIONS_HPP
+#define SHARE_GC_G1_G1SURVIVORREGIONS_HPP
 
+#include "gc/g1/g1RegionsOnNodes.hpp"
 #include "runtime/globals.hpp"
 
 template <typename T>
 class GrowableArray;
-class HeapRegion;
+class G1HeapRegion;
 
 class G1SurvivorRegions {
 private:
-  GrowableArray<HeapRegion*>* _regions;
+  GrowableArray<G1HeapRegion*>* _regions;
+  volatile size_t             _used_bytes;
+  G1RegionsOnNodes            _regions_on_node;
 
 public:
   G1SurvivorRegions();
 
-  void add(HeapRegion* hr);
+  uint add(G1HeapRegion* hr);
 
   void convert_to_eden();
 
   void clear();
 
   uint length() const;
+  uint regions_on_node(uint node_index) const;
 
-  const GrowableArray<HeapRegion*>* regions() const {
+  const GrowableArray<G1HeapRegion*>* regions() const {
     return _regions;
   }
+
+  // Used bytes of all survivor regions.
+  size_t used_bytes() const { return _used_bytes; }
+
+  void add_used_bytes(size_t used_bytes);
 };
 
-#endif // SHARE_VM_GC_G1_G1SURVIVORREGIONS_HPP
+#endif // SHARE_GC_G1_G1SURVIVORREGIONS_HPP

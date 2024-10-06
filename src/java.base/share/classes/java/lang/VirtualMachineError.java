@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,10 +38,11 @@ import org.jspecify.annotations.Nullable;
  */
 @NullMarked
 public abstract class VirtualMachineError extends Error {
+    @java.io.Serial
     private static final long serialVersionUID = 4161983926571568670L;
 
     /**
-     * Constructs a <code>VirtualMachineError</code> with no detail message.
+     * Constructs a {@code VirtualMachineError} with no detail message.
      */
     
     public VirtualMachineError() {
@@ -49,7 +50,7 @@ public abstract class VirtualMachineError extends Error {
     }
 
     /**
-     * Constructs a <code>VirtualMachineError</code> with the specified
+     * Constructs a {@code VirtualMachineError} with the specified
      * detail message.
      *
      * @param   message   the detail message.
@@ -79,7 +80,7 @@ public abstract class VirtualMachineError extends Error {
     }
 
     /**
-     * Constructs an a {@code VirtualMachineError} with the specified
+     * Constructs a {@code VirtualMachineError} with the specified
      * cause and a detail message of {@code (cause==null ? null :
      * cause.toString())} (which typically contains the class and
      * detail message of {@code cause}).

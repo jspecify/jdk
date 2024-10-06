@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_CONNODE_HPP
-#define SHARE_VM_OPTO_CONNODE_HPP
+#ifndef SHARE_OPTO_CONNODE_HPP
+#define SHARE_OPTO_CONNODE_HPP
 
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
@@ -39,6 +39,7 @@ public:
   ConNode( const Type *t ) : TypeNode(t->remove_speculative(),1) {
     init_req(0, (Node*)Compile::current()->root());
     init_flags(Flag_is_Con);
+    init_class_id(Class_Con);
   }
   virtual int  Opcode() const;
   virtual uint hash() const;
@@ -53,7 +54,9 @@ public:
 // Simple integer constants
 class ConINode : public ConNode {
 public:
-  ConINode( const TypeInt *t ) : ConNode(t) {}
+  ConINode(const TypeInt* t) : ConNode(t) {
+    init_class_id(Class_ConI);
+  }
   virtual int Opcode() const;
 
   // Factory method:
@@ -67,15 +70,16 @@ public:
 // Simple pointer constants
 class ConPNode : public ConNode {
 public:
-  ConPNode( const TypePtr *t ) : ConNode(t) {}
+  ConPNode(const TypePtr *t) : ConNode(t) {}
   virtual int Opcode() const;
 
   // Factory methods:
   static ConPNode* make(address con) {
-    if (con == NULL)
-      return new ConPNode( TypePtr::NULL_PTR ) ;
-    else
-      return new ConPNode( TypeRawPtr::make(con) );
+    if (con == nullptr) {
+      return new ConPNode(TypePtr::NULL_PTR);
+    } else {
+      return new ConPNode(TypeRawPtr::make(con));
+    }
   }
 };
 
@@ -151,4 +155,4 @@ public:
 
 
 
-#endif // SHARE_VM_OPTO_CONNODE_HPP
+#endif // SHARE_OPTO_CONNODE_HPP

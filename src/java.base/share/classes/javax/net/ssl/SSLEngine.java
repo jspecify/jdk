@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,7 +68,7 @@ import java.util.function.BiFunction;
  * using the {@link #getSession()} method.
  * <P>
  * The {@code SSLSocket} class provides much of the same security
- * functionality, but all of the inbound and outbound data is
+ * functionality, but all the inbound and outbound data is
  * automatically transported using the underlying {@link
  * java.net.Socket Socket}, which by design uses a blocking model.
  * While this is appropriate for many applications, this model does not
@@ -224,7 +224,7 @@ import java.util.function.BiFunction;
  * <pre>{@code
  *   SSLEngineResult r = engine.unwrap(src, dst);
  *   switch (r.getStatus()) {
- *   BUFFER_OVERFLOW:
+ *   case BUFFER_OVERFLOW:
  *       // Could attempt to drain the dst buffer of any already obtained
  *       // data, but we'll just increase it to the size needed.
  *       int appSize = engine.getSession().getApplicationBufferSize();
@@ -234,10 +234,10 @@ import java.util.function.BiFunction;
  *       dst = b;
  *       // retry the operation.
  *       break;
- *   BUFFER_UNDERFLOW:
+ *   case BUFFER_UNDERFLOW:
  *       int netSize = engine.getSession().getPacketBufferSize();
  *       // Resize buffer if needed.
- *       if (netSize > dst.capacity()) {
+ *       if (netSize > src.capacity()) {
  *           ByteBuffer b = ByteBuffer.allocate(netSize);
  *           src.flip();
  *           b.put(src);
@@ -312,7 +312,7 @@ import java.util.function.BiFunction;
  *
  *      <LI> <em>Enabled</em> cipher suites, which may be fewer than
  *      the full set of supported suites.  This group is set using the
- *      {@link #setEnabledCipherSuites(String [])} method, and
+ *      {@link #setEnabledCipherSuites(String[])} method, and
  *      queried using the {@link #getEnabledCipherSuites()} method.
  *      Initially, a default set of cipher suites will be enabled on a
  *      new engine that represents the minimum suggested
@@ -329,9 +329,54 @@ import java.util.function.BiFunction;
  * each endpoint must decide which role to assume.  This choice determines
  * who begins the handshaking process as well as which type of messages
  * should be sent by each party.  The method {@link
- * #setUseClientMode(boolean)} configures the mode.  Once the initial
- * handshaking has started, an {@code SSLEngine} can not switch
- * between client and server modes, even when performing renegotiations.
+ * #setUseClientMode(boolean)} configures the mode.  Note that the
+ * default mode for a new {@code SSLEngine} is provider-specific.
+ * Applications should set the mode explicitly before invoking other
+ * methods of the {@code SSLEngine}.  Once the initial handshaking has
+ * started, an {@code SSLEngine} can not switch between client and server
+ * modes, even when performing renegotiations.
+ * <P>
+ * The ApplicationProtocol {@code String} values returned by the methods
+ * in this class are in the network byte representation sent by the peer.
+ * The bytes could be directly compared, or converted to its Unicode
+ * {@code String} format for comparison.
+ *
+ * <blockquote><pre>
+ *     String networkString = sslEngine.getHandshakeApplicationProtocol();
+ *     byte[] bytes = networkString.getBytes(StandardCharsets.ISO_8859_1);
+ *
+ *     //
+ *     // Match using bytes:
+ *     //
+ *     //   "http/1.1"                       (7-bit ASCII values same in UTF-8)
+ *     //   MEETEI MAYEK LETTERS "HUK UN I"  (Unicode 0xabcd->0xabcf)
+ *     //
+ *     String HTTP1_1 = "http/1.1";
+ *     byte[] HTTP1_1_BYTES = HTTP1_1.getBytes(StandardCharsets.UTF_8);
+ *
+ *     byte[] HUK_UN_I_BYTES = new byte[] {
+ *         (byte) 0xab, (byte) 0xcd,
+ *         (byte) 0xab, (byte) 0xce,
+ *         (byte) 0xab, (byte) 0xcf};
+ *
+ *     if ((Arrays.compare(bytes, HTTP1_1_BYTES) == 0 )
+ *             || Arrays.compare(bytes, HUK_UN_I_BYTES) == 0) {
+ *        ...
+ *     }
+ *
+ *     //
+ *     // Alternatively match using string.equals() if we know the ALPN value
+ *     // was encoded from a {@code String} using a certain character set,
+ *     // for example {@code UTF-8}.  The ALPN value must first be properly
+ *     // decoded to a Unicode {@code String} before use.
+ *     //
+ *     String unicodeString = new String(bytes, StandardCharsets.UTF_8);
+ *     if (unicodeString.equals(HTTP1_1)
+ *             || unicodeString.equals("\u005cuabcd\u005cuabce\u005cuabcf")) {
+ *         ...
+ *     }
+ * </pre></blockquote>
+ *
  * <P>
  * Applications might choose to process delegated tasks in different
  * threads.  When an {@code SSLEngine}
@@ -450,8 +495,8 @@ public abstract class SSLEngine {
      * An invocation of this method behaves in exactly the same manner
      * as the invocation:
      * <blockquote><pre>
-     * {@link #wrap(ByteBuffer [], int, int, ByteBuffer)
-     *     engine.wrap(new ByteBuffer [] { src }, 0, 1, dst);}
+     * {@link #wrap(ByteBuffer[], int, int, ByteBuffer)
+     *     engine.wrap(new ByteBuffer[] { src }, 0, 1, dst);}
      * </pre></blockquote>
      *
      * @param   src
@@ -472,7 +517,7 @@ public abstract class SSLEngine {
      *          is null.
      * @throws  IllegalStateException if the client/server mode
      *          has not yet been set.
-     * @see     #wrap(ByteBuffer [], int, int, ByteBuffer)
+     * @see     #wrap(ByteBuffer[], int, int, ByteBuffer)
      */
     public SSLEngineResult wrap(ByteBuffer src,
             ByteBuffer dst) throws SSLException {
@@ -486,7 +531,7 @@ public abstract class SSLEngine {
      * An invocation of this method behaves in exactly the same manner
      * as the invocation:
      * <blockquote><pre>
-     * {@link #wrap(ByteBuffer [], int, int, ByteBuffer)
+     * {@link #wrap(ByteBuffer[], int, int, ByteBuffer)
      *     engine.wrap(srcs, 0, srcs.length, dst);}
      * </pre></blockquote>
      *
@@ -509,7 +554,7 @@ public abstract class SSLEngine {
      *          is null, or if any element in {@code srcs} is null.
      * @throws  IllegalStateException if the client/server mode
      *          has not yet been set.
-     * @see     #wrap(ByteBuffer [], int, int, ByteBuffer)
+     * @see     #wrap(ByteBuffer[], int, int, ByteBuffer)
      */
     public SSLEngineResult wrap(ByteBuffer [] srcs,
             ByteBuffer dst) throws SSLException {
@@ -605,8 +650,8 @@ public abstract class SSLEngine {
      * An invocation of this method behaves in exactly the same manner
      * as the invocation:
      * <blockquote><pre>
-     * {@link #unwrap(ByteBuffer, ByteBuffer [], int, int)
-     *     engine.unwrap(src, new ByteBuffer [] { dst }, 0, 1);}
+     * {@link #unwrap(ByteBuffer, ByteBuffer[], int, int)
+     *     engine.unwrap(src, new ByteBuffer[] { dst }, 0, 1);}
      * </pre></blockquote>
      *
      * @param   src
@@ -627,7 +672,7 @@ public abstract class SSLEngine {
      *          is null.
      * @throws  IllegalStateException if the client/server mode
      *          has not yet been set.
-     * @see     #unwrap(ByteBuffer, ByteBuffer [], int, int)
+     * @see     #unwrap(ByteBuffer, ByteBuffer[], int, int)
      */
     public SSLEngineResult unwrap(ByteBuffer src,
             ByteBuffer dst) throws SSLException {
@@ -641,7 +686,7 @@ public abstract class SSLEngine {
      * An invocation of this method behaves in exactly the same manner
      * as the invocation:
      * <blockquote><pre>
-     * {@link #unwrap(ByteBuffer, ByteBuffer [], int, int)
+     * {@link #unwrap(ByteBuffer, ByteBuffer[], int, int)
      *     engine.unwrap(src, dsts, 0, dsts.length);}
      * </pre></blockquote>
      *
@@ -664,7 +709,7 @@ public abstract class SSLEngine {
      *          is null, or if any element in {@code dsts} is null.
      * @throws  IllegalStateException if the client/server mode
      *          has not yet been set.
-     * @see     #unwrap(ByteBuffer, ByteBuffer [], int, int)
+     * @see     #unwrap(ByteBuffer, ByteBuffer[], int, int)
      */
     public SSLEngineResult unwrap(ByteBuffer src,
             ByteBuffer [] dsts) throws SSLException {
@@ -710,8 +755,8 @@ public abstract class SSLEngine {
      * The underlying memory used by the {@code src} and
      * {@code dsts ByteBuffer}s must not be the same.
      * <P>
-     * The inbound network buffer may be modified as a result of this
-     * call:  therefore if the network data packet is required for some
+     * The inbound network buffer, {@code src}, may be modified as a result of
+     * this call:  therefore if the network data packet is required for some
      * secondary purpose, the data should be duplicated before calling this
      * method.  Note:  the network data will not be useful to a second
      * SSLEngine, as each SSLEngine contains unique random state which
@@ -825,7 +870,7 @@ public abstract class SSLEngine {
      * accept any more inbound data messages.
      *
      * @return  true if the {@code SSLEngine} will not
-     *          consume anymore network data (and by implication,
+     *          consume any more network data (and by implication,
      *          will not produce any more application data.)
      * @see     #closeInbound()
      */
@@ -875,13 +920,13 @@ public abstract class SSLEngine {
      * The returned array includes cipher suites from the list of standard
      * cipher suite names in the <a href=
      * "{@docRoot}/../specs/security/standard-names.html#jsse-cipher-suite-names">
-     * JSSE Cipher Suite Names</a> section of the Java Cryptography
-     * Architecture Standard Algorithm Name Documentation, and may also
-     * include other cipher suites that the provider supports.
+     * JSSE Cipher Suite Names</a> section of the Java Security Standard
+     * Algorithm Names Specification, and may also include other cipher
+     * suites that the provider supports.
      *
      * @return  an array of cipher suite names
      * @see     #getEnabledCipherSuites()
-     * @see     #setEnabledCipherSuites(String [])
+     * @see     #setEnabledCipherSuites(String[])
      */
     public abstract String [] getSupportedCipherSuites();
 
@@ -901,13 +946,13 @@ public abstract class SSLEngine {
      * The returned array includes cipher suites from the list of standard
      * cipher suite names in the <a href=
      * "{@docRoot}/../specs/security/standard-names.html#jsse-cipher-suite-names">
-     * JSSE Cipher Suite Names</a> section of the Java Cryptography
-     * Architecture Standard Algorithm Name Documentation, and may also
-     * include other cipher suites that the provider supports.
+     * JSSE Cipher Suite Names</a> section of the Java Security Standard
+     * Algorithm Names Specification, and may also include other cipher
+     * suites that the provider supports.
      *
      * @return  an array of cipher suite names
      * @see     #getSupportedCipherSuites()
-     * @see     #setEnabledCipherSuites(String [])
+     * @see     #setEnabledCipherSuites(String[])
      */
     public abstract String [] getEnabledCipherSuites();
 
@@ -923,13 +968,13 @@ public abstract class SSLEngine {
      * Note that the standard list of cipher suite names may be found in the
      * <a href=
      * "{@docRoot}/../specs/security/standard-names.html#jsse-cipher-suite-names">
-     * JSSE Cipher Suite Names</a> section of the Java Cryptography
-     * Architecture Standard Algorithm Name Documentation.  Providers
-     * may support cipher suite names not found in this list or might not
-     * use the recommended name for a certain cipher suite.
+     * JSSE Cipher Suite Names</a> section of the Java Security Standard
+     * Algorithm Names Specification. Providers may support cipher suite
+     * names not found in this list or might not use the recommended name
+     * for a certain cipher suite.
      * <P>
      * See {@link #getEnabledCipherSuites()} for more information
-     * on why a specific cipher suite may never be used on a engine.
+     * on why a specific cipher suite may never be used on an engine.
      *
      * @param   suites Names of all the cipher suites to enable
      * @throws  IllegalArgumentException when one or more of the ciphers
@@ -938,7 +983,7 @@ public abstract class SSLEngine {
      * @see     #getSupportedCipherSuites()
      * @see     #getEnabledCipherSuites()
      */
-    public abstract void setEnabledCipherSuites(String suites []);
+    public abstract void setEnabledCipherSuites(String[] suites);
 
 
     /**
@@ -960,7 +1005,7 @@ public abstract class SSLEngine {
      * by the protocol.
      *
      * @return  an array of protocols
-     * @see     #setEnabledProtocols(String [])
+     * @see     #setEnabledProtocols(String[])
      */
     public abstract String [] getEnabledProtocols();
 
@@ -979,14 +1024,14 @@ public abstract class SSLEngine {
      *          when the protocols parameter is null.
      * @see     #getEnabledProtocols()
      */
-    public abstract void setEnabledProtocols(String protocols[]);
+    public abstract void setEnabledProtocols(String[] protocols);
 
 
     /**
      * Returns the {@code SSLSession} in use in this
      * {@code SSLEngine}.
      * <P>
-     * These can be long lived, and frequently correspond to an entire
+     * These can be long-lived, and frequently correspond to an entire
      * login session for some user.  The session specifies a particular
      * cipher suite which is being actively used by all connections in
      * that session, as well as the identities of the session's client
@@ -1013,7 +1058,7 @@ public abstract class SSLEngine {
      * an instance of this class, but before the {@code SSLSession} has
      * been completely initialized and made available via {@code getSession}.
      * For example, the list of valid signature algorithms may restrict
-     * the type of certificates that can used during TrustManager
+     * the type of certificates that can be used during TrustManager
      * decisions, or the maximum TLS/DTLS fragment packet sizes can be
      * resized to better support the network environment.
      * <p>
@@ -1098,6 +1143,9 @@ public abstract class SSLEngine {
      * Servers normally authenticate themselves, and clients
      * are not required to do so.
      *
+     * @implNote
+     * The JDK SunJSSE provider implementation default for this mode is false.
+     *
      * @param   mode true if the engine should start its handshaking
      *          in "client" mode
      * @throws  IllegalArgumentException if a mode change is attempted
@@ -1110,6 +1158,10 @@ public abstract class SSLEngine {
     /**
      * Returns true if the engine is set to use client mode when
      * handshaking.
+     *
+     * @implNote
+     * The JDK SunJSSE provider implementation returns false unless
+     * {@link #setUseClientMode(boolean)} is used to change the mode to true.
      *
      * @return  true if the engine should do handshaking
      *          in "client" mode
@@ -1284,10 +1336,8 @@ public abstract class SSLEngine {
         }
         if (params.getNeedClientAuth()) {
             setNeedClientAuth(true);
-        } else if (params.getWantClientAuth()) {
-            setWantClientAuth(true);
         } else {
-            setWantClientAuth(false);
+            setWantClientAuth(params.getWantClientAuth());
         }
     }
 

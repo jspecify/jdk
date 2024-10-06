@@ -22,9 +22,9 @@
  */
 package com.sun.org.apache.xml.internal.security.keys.keyresolver.implementations;
 
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
-
 
 import com.sun.org.apache.xml.internal.security.exceptions.XMLSecurityException;
 import com.sun.org.apache.xml.internal.security.keys.content.keyvalues.RSAKeyValue;
@@ -39,15 +39,23 @@ public class RSAKeyValueResolver extends KeyResolverSpi {
     private static final com.sun.org.slf4j.internal.Logger LOG =
         com.sun.org.slf4j.internal.LoggerFactory.getLogger(RSAKeyValueResolver.class);
 
+    /** {@inheritDoc} */
+    @Override
+    protected boolean engineCanResolve(Element element, String baseURI, StorageResolver storage) {
+        return XMLUtils.elementIsInSignatureSpace(element, Constants._TAG_KEYVALUE)
+            || XMLUtils.elementIsInSignatureSpace(element, Constants._TAG_RSAKEYVALUE);
+    }
 
     /** {@inheritDoc} */
-    public PublicKey engineLookupAndResolvePublicKey(
-        Element element, String baseURI, StorageResolver storage
+    @Override
+    protected PublicKey engineResolvePublicKey(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
     ) {
-        LOG.debug("Can I resolve {}", element.getTagName());
         if (element == null) {
             return null;
         }
+
+        LOG.debug("Can I resolve {}", element.getTagName());
 
         boolean isKeyValue = XMLUtils.elementIsInSignatureSpace(element, Constants._TAG_KEYVALUE);
         Element rsaKeyElement = null;
@@ -76,15 +84,25 @@ public class RSAKeyValueResolver extends KeyResolverSpi {
     }
 
     /** {@inheritDoc} */
-    public X509Certificate engineLookupResolveX509Certificate(
-        Element element, String baseURI, StorageResolver storage
+    @Override
+    protected X509Certificate engineResolveX509Certificate(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
     ) {
         return null;
     }
 
     /** {@inheritDoc} */
-    public javax.crypto.SecretKey engineLookupAndResolveSecretKey(
-        Element element, String baseURI, StorageResolver storage
+    @Override
+    protected javax.crypto.SecretKey engineResolveSecretKey(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
+    ) {
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected PrivateKey engineResolvePrivateKey(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
     ) {
         return null;
     }

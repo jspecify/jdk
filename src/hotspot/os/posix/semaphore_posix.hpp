@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,18 @@
  *
  */
 
-#ifndef OS_POSIX_VM_SEMAPHORE_POSIX_HPP
-#define OS_POSIX_VM_SEMAPHORE_POSIX_HPP
+#ifndef OS_POSIX_SEMAPHORE_POSIX_HPP
+#define OS_POSIX_SEMAPHORE_POSIX_HPP
 
 #include "memory/allocation.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 #include <semaphore.h>
 
 class PosixSemaphore : public CHeapObj<mtInternal> {
   sem_t _semaphore;
 
-  // Prevent copying and assignment.
-  PosixSemaphore(const PosixSemaphore&);
-  PosixSemaphore& operator=(const PosixSemaphore&);
+  NONCOPYABLE(PosixSemaphore);
 
  public:
   PosixSemaphore(uint value = 0);
@@ -45,9 +44,12 @@ class PosixSemaphore : public CHeapObj<mtInternal> {
   void wait();
 
   bool trywait();
+  // wait until the given absolute time is reached
   bool timedwait(struct timespec ts);
+  // wait until the given relative time elapses
+  bool timedwait(int64_t millis);
 };
 
 typedef PosixSemaphore SemaphoreImpl;
 
-#endif // OS_POSIX_VM_SEMAPHORE_POSIX_HPP
+#endif // OS_POSIX_SEMAPHORE_POSIX_HPP

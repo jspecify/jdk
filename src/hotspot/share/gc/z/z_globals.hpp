@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,80 +24,63 @@
 #ifndef SHARE_GC_Z_Z_GLOBALS_HPP
 #define SHARE_GC_Z_Z_GLOBALS_HPP
 
+#include "gc/z/zGlobals.hpp"
+#include "gc/z/zPageAge.hpp"
+
 #define GC_Z_FLAGS(develop,                                                 \
                    develop_pd,                                              \
                    product,                                                 \
                    product_pd,                                              \
-                   diagnostic,                                              \
-                   diagnostic_pd,                                           \
-                   experimental,                                            \
-                   notproduct,                                              \
-                   manageable,                                              \
-                   product_rw,                                              \
-                   lp64_product,                                            \
                    range,                                                   \
-                   constraint,                                              \
-                   writeable)                                               \
+                   constraint)                                              \
                                                                             \
-  product(ccstr, ZPath, NULL,                                               \
-          "Filesystem path for Java heap backing storage "                  \
-          "(must be a tmpfs or a hugetlbfs filesystem)")                    \
+  product(double, ZYoungCompactionLimit, 25.0,                              \
+          "Maximum allowed garbage in young pages")                         \
+          range(0, 100)                                                     \
                                                                             \
-  product(double, ZAllocationSpikeTolerance, 2.0,                           \
-          "Allocation spike tolerance factor")                              \
+  product(double, ZCollectionIntervalMinor, -1,                             \
+          "Force Minor GC at a fixed time interval (in seconds)")           \
                                                                             \
-  product(double, ZFragmentationLimit, 25.0,                                \
-          "Maximum allowed heap fragmentation")                             \
-                                                                            \
-  product(bool, ZStallOnOutOfMemory, true,                                  \
-          "Allow Java threads to stall and wait for GC to complete "        \
-          "instead of immediately throwing an OutOfMemoryError")            \
-                                                                            \
-  product(size_t, ZMarkStacksMax, NOT_LP64(512*M) LP64_ONLY(8*G),           \
-          "Maximum number of bytes allocated for marking stacks")           \
-          range(32*M, NOT_LP64(512*M) LP64_ONLY(1024*G))                    \
-                                                                            \
-  product(uint, ZCollectionInterval, 0,                                     \
+  product(double, ZCollectionIntervalMajor, -1,                             \
           "Force GC at a fixed time interval (in seconds)")                 \
                                                                             \
-  product(uint, ZStatisticsInterval, 10,                                    \
-          "Time between statistics print outs (in seconds)")                \
-          range(1, (uint)-1)                                                \
+  product(bool, ZCollectionIntervalOnly, false,                             \
+          "Only use timers for GC heuristics")                              \
                                                                             \
-  diagnostic(bool, ZStatisticsForceTrace, false,                            \
-          "Force tracing of ZStats")                                        \
+  product(bool, ZBufferStoreBarriers, true, DIAGNOSTIC,                     \
+          "Buffer store barriers")                                          \
                                                                             \
-  diagnostic(bool, ZProactive, true,                                        \
-          "Enable proactive GC cycles")                                     \
+  product(uint, ZYoungGCThreads, 0, DIAGNOSTIC,                             \
+          "Number of GC threads for the young generation")                  \
                                                                             \
-  diagnostic(bool, ZUnmapBadViews, false,                                   \
-          "Unmap bad (inactive) heap views")                                \
+  product(uint, ZOldGCThreads, 0, DIAGNOSTIC,                               \
+          "Number of GC threads for the old generation")                    \
                                                                             \
-  diagnostic(bool, ZVerifyMarking, false,                                   \
-          "Verify marking stacks")                                          \
+  product(uintx, ZIndexDistributorStrategy, 0, DIAGNOSTIC,                  \
+          "Strategy used to distribute indices to parallel workers "        \
+          "0: Claim tree "                                                  \
+          "1: Simple Striped ")                                             \
                                                                             \
-  diagnostic(bool, ZVerifyForwarding, false,                                \
-          "Verify forwarding tables")                                       \
+  product(bool, ZVerifyRemembered, trueInDebug, DIAGNOSTIC,                 \
+          "Verify remembered sets")                                         \
                                                                             \
-  diagnostic(bool, ZSymbolTableUnloading, false,                            \
-          "Unload unused VM symbols")                                       \
+  develop(bool, ZVerifyOops, false,                                         \
+          "Verify accessed oops")                                           \
                                                                             \
-  diagnostic(bool, ZWeakRoots, true,                                        \
-          "Treat JNI WeakGlobalRefs and StringTable as weak roots")         \
+  product(int, ZTenuringThreshold, -1, DIAGNOSTIC,                          \
+          "Young generation tenuring threshold, -1 for dynamic computation")\
+          range(-1, static_cast<int>(ZPageAgeMax))                          \
                                                                             \
-  diagnostic(bool, ZConcurrentStringTable, true,                            \
-          "Clean StringTable concurrently")                                 \
-                                                                            \
-  diagnostic(bool, ZConcurrentVMWeakHandles, true,                          \
-          "Clean VM WeakHandles concurrently")                              \
-                                                                            \
-  diagnostic(bool, ZConcurrentJNIWeakGlobalHandles, true,                   \
-          "Clean JNI WeakGlobalRefs concurrently")                          \
-                                                                            \
-  diagnostic(bool, ZOptimizeLoadBarriers, true,                             \
-          "Apply load barrier optimizations")                               \
-                                                                            \
-  develop(bool, ZVerifyLoadBarriers, false,                                 \
-          "Verify that reference loads are followed by barriers")
+  develop(size_t, ZForceDiscontiguousHeapReservations, 0,                   \
+          "The gc will attempt to split the heap reservation into this "    \
+          "many reservations, subject to available virtual address space "  \
+          "and invariant restrictions. Higher virtual addresses are "       \
+          "preferred "                                                      \
+          "0: Disabled "                                                    \
+          "1: Attempt contiguous reservation starting at a higher address " \
+          "N: Force that many reservations, if possible")                   \
+          range(0, ZMaxVirtualReservations)
+
+// end of GC_Z_FLAGS
 
 #endif // SHARE_GC_Z_Z_GLOBALS_HPP

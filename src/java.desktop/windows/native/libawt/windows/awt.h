@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,6 @@
 
 #ifndef _AWT_H_
 #define _AWT_H_
-
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0600
-#endif
 
 #ifndef _WIN32_IE
 #define _WIN32_IE 0x0600
@@ -256,41 +252,6 @@ extern JavaVM *jvm;
 #endif
 
 
-struct EnvHolder
-{
-    JavaVM *m_pVM;
-    JNIEnv *m_env;
-    bool    m_isOwner;
-    EnvHolder(
-        JavaVM *pVM,
-        LPCSTR name = "COM holder",
-        jint ver = JNI_VERSION_1_2)
-    : m_pVM(pVM),
-      m_env((JNIEnv *)JNU_GetEnv(pVM, ver)),
-      m_isOwner(false)
-    {
-        if (NULL == m_env) {
-            JavaVMAttachArgs attachArgs;
-            attachArgs.version  = ver;
-            attachArgs.name     = const_cast<char *>(name);
-            attachArgs.group    = NULL;
-            jint status = m_pVM->AttachCurrentThread(
-                (void**)&m_env,
-                &attachArgs);
-            m_isOwner = (NULL!=m_env);
-        }
-    }
-    ~EnvHolder() {
-        if (m_isOwner) {
-            m_pVM->DetachCurrentThread();
-        }
-    }
-    operator bool()  const { return NULL!=m_env; }
-    bool operator !()  const { return NULL==m_env; }
-    operator JNIEnv*() const { return m_env; }
-    JNIEnv* operator ->() const { return m_env; }
-};
-
 template <class T>
 class JLocalRef {
     JNIEnv* m_env;
@@ -337,7 +298,7 @@ class JavaStringBuffer
 protected:
     LPWSTR m_pStr;
     jsize  m_dwSize;
-    LPWSTR getNonEmptyString() {
+    LPCWSTR getNonEmptyString() {
         return (NULL==m_pStr)
                 ? L""
                 : m_pStr;
@@ -378,9 +339,9 @@ public:
         m_pStr = (LPWSTR)SAFE_SIZE_ARRAY_REALLOC(safe_Realloc, m_pStr, m_dwSize+1, sizeof(WCHAR) );
     }
     //we are in UNICODE now, so LPWSTR:=:LPTSTR
-    operator LPWSTR() { return getNonEmptyString(); }
+    operator LPCWSTR() { return getNonEmptyString(); }
     operator LPARAM() { return (LPARAM)getNonEmptyString(); }
-    void *GetData() { return (void *)getNonEmptyString(); }
+    const void *GetData() { return (const void *)getNonEmptyString(); }
     jsize  GetSize() { return m_dwSize; }
 };
 

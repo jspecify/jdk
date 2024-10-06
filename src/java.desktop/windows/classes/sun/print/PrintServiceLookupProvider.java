@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,10 @@
 
 package sun.print;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
+import java.security.PrivilegedAction;
+import java.util.ArrayList;
+
 import javax.print.DocFlavor;
 import javax.print.MultiDocPrintService;
 import javax.print.PrintService;
@@ -47,48 +43,19 @@ import javax.print.attribute.PrintServiceAttribute;
 import javax.print.attribute.PrintServiceAttributeSet;
 import javax.print.attribute.standard.PrinterName;
 
+import sun.awt.util.ThreadGroupUtils;
+
 public class PrintServiceLookupProvider extends PrintServiceLookup {
 
-    private String defaultPrinter;
     private PrintService defaultPrintService;
-    private String[] printers; /* excludes the default printer */
     private PrintService[] printServices; /* includes the default printer */
-    private static boolean pollServices = true;
-    private static final int DEFAULT_MINREFRESH = 240;  // 4 minutes
-    private static int minRefreshTime = DEFAULT_MINREFRESH;
 
     static {
-        /* The system property "sun.java2d.print.polling"
-         * can be used to force the printing code to poll or not poll
-         * for PrintServices.
-         */
-        String pollStr = java.security.AccessController.doPrivileged(
-            new sun.security.action.GetPropertyAction("sun.java2d.print.polling"));
+        loadAWTLibrary();
+    }
 
-        if (pollStr != null) {
-            if (pollStr.equalsIgnoreCase("false")) {
-                pollServices = false;
-            }
-        }
-
-        /* The system property "sun.java2d.print.minRefreshTime"
-         * can be used to specify minimum refresh time (in seconds)
-         * for polling PrintServices.  The default is 240.
-         */
-        String refreshTimeStr = java.security.AccessController.doPrivileged(
-            new sun.security.action.GetPropertyAction(
-                "sun.java2d.print.minRefreshTime"));
-
-        if (refreshTimeStr != null) {
-            try {
-                minRefreshTime = (Integer.valueOf(refreshTimeStr)).intValue();
-            } catch (NumberFormatException e) {
-            }
-            if (minRefreshTime < DEFAULT_MINREFRESH) {
-                minRefreshTime = DEFAULT_MINREFRESH;
-            }
-        }
-
+    @SuppressWarnings({"removal", "restricted"})
+    private static void loadAWTLibrary() {
         java.security.AccessController.doPrivileged(
             new java.security.PrivilegedAction<Void>() {
                 public Void run() {
@@ -118,31 +85,31 @@ public class PrintServiceLookupProvider extends PrintServiceLookup {
         return win32PrintLUS;
     }
 
+    @SuppressWarnings("removal")
     public PrintServiceLookupProvider() {
 
         if (win32PrintLUS == null) {
             win32PrintLUS = this;
 
-            String osName = AccessController.doPrivileged(
-                new sun.security.action.GetPropertyAction("os.name"));
-            // There's no capability for Win98 to refresh printers.
-            // See "OpenPrinter" for more info.
-            if (osName != null && osName.startsWith("Windows 98")) {
-                return;
-            }
             // start the local printer listener thread
-            Thread thr = new Thread(null, new PrinterChangeListener(),
-                                    "PrinterListener", 0, false);
-            thr.setDaemon(true);
-            thr.start();
+            AccessController.doPrivileged((PrivilegedAction<Thread>) () -> {
+                Thread thr = new Thread(ThreadGroupUtils.getRootThreadGroup(),
+                                        new PrinterChangeListener(),
+                                        "PrinterListener", 0, false);
+                thr.setContextClassLoader(null);
+                thr.setDaemon(true);
+                return thr;
+            }).start();
 
-            if (pollServices) {
-                // start the remote printer listener thread
-                Thread remThr = new Thread(null, new RemotePrinterChangeListener(),
+            // start the remote printer listener thread
+            AccessController.doPrivileged((PrivilegedAction<Thread>) () -> {
+                Thread thr = new Thread(ThreadGroupUtils.getRootThreadGroup(),
+                                        new RemotePrinterChangeListener(),
                                         "RemotePrinterListener", 0, false);
-                remThr.setDaemon(true);
-                remThr.start();
-            }
+                thr.setContextClassLoader(null);
+                thr.setDaemon(true);
+                return thr;
+            }).start();
         } /* else condition ought to never happen! */
     }
 
@@ -152,6 +119,7 @@ public class PrintServiceLookupProvider extends PrintServiceLookup {
      * lead people to assume its guaranteed.
      */
     public synchronized PrintService[] getPrintServices() {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkPrintJobAccess();
@@ -163,10 +131,11 @@ public class PrintServiceLookupProvider extends PrintServiceLookup {
     }
 
     private synchronized void refreshServices() {
-        printers = getAllPrinterNames();
+        String[] printers = getAllPrinterNames();
         if (printers == null) {
             // In Windows it is safe to assume no default if printers == null so we
             // don't get the default.
+            invalidateServices();
             printServices = new PrintService[0];
             return;
         }
@@ -197,22 +166,27 @@ public class PrintServiceLookupProvider extends PrintServiceLookup {
             }
         }
 
+        invalidateServices();
+        printServices = newServices;
+    }
+
+    private void invalidateServices() {
         // Look for deleted services and invalidate these
         if (printServices != null) {
             for (int j=0; j < printServices.length; j++) {
                 if ((printServices[j] instanceof Win32PrintService) &&
                     (!printServices[j].equals(defaultPrintService))) {
+
                     ((Win32PrintService)printServices[j]).invalidateService();
                 }
             }
         }
-        printServices = newServices;
     }
 
 
     public synchronized PrintService getPrintServiceByName(String name) {
 
-        if (name == null || name.equals("")) {
+        if (name == null || name.isEmpty()) {
             return null;
         } else {
             /* getPrintServices() is now very fast. */
@@ -246,6 +220,7 @@ public class PrintServiceLookupProvider extends PrintServiceLookup {
     public PrintService[] getPrintServices(DocFlavor flavor,
                                            AttributeSet attributes) {
 
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
           security.checkPrintJobAccess();
@@ -311,6 +286,7 @@ public class PrintServiceLookupProvider extends PrintServiceLookup {
     public MultiDocPrintService[]
         getMultiDocPrintServices(DocFlavor[] flavors,
                                  AttributeSet attributes) {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
           security.checkPrintJobAccess();
@@ -320,6 +296,7 @@ public class PrintServiceLookupProvider extends PrintServiceLookup {
 
 
     public synchronized PrintService getDefaultPrintService() {
+        @SuppressWarnings("removal")
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
           security.checkPrintJobAccess();
@@ -328,7 +305,7 @@ public class PrintServiceLookupProvider extends PrintServiceLookup {
 
         // Windows does not have notification for a change in default
         // so we always get the latest.
-        defaultPrinter = getDefaultPrinterName();
+        String defaultPrinter = getDefaultPrinterName();
         if (defaultPrinter == null) {
             return null;
         }
@@ -358,100 +335,23 @@ public class PrintServiceLookupProvider extends PrintServiceLookup {
         }
         return defaultPrintService;
     }
-    class PrinterChangeListener implements Runnable {
-        long chgObj;
-        PrinterChangeListener() {
-            chgObj = notifyFirstPrinterChange(null);
-        }
 
+    private final class PrinterChangeListener implements Runnable {
         @Override
         public void run() {
-            if (chgObj != -1) {
-                while (true) {
-                    // wait for configuration to change
-                    if (notifyPrinterChange(chgObj) != 0) {
-                        try {
-                            refreshServices();
-                        } catch (SecurityException se) {
-                            break;
-                        }
-                    } else {
-                        notifyClosePrinterChange(chgObj);
-                        break;
-                    }
-                }
-            }
+            notifyLocalPrinterChange(); // busy loop in the native code
         }
     }
 
-    /* Windows provides *PrinterChangeNotification* functions that provides
-       information about printer status changes of the local printers but not
-       network printers.
-       Alternatively, Windows provides a way thro' which one can get the
-       network printer status changes by using WMI, RegistryKeyChange combination,
-       which is a slightly complex mechanism.
-       The Windows WMI offers an async and sync method to read thro' registry
-       via the WQL query. The async method is considered dangerous as it leaves
-       open a channel until we close it. But the async method has the advantage of
-       being notified of a change in registry by calling callback without polling for it.
-       The sync method uses the polling mechanism to notify.
-       RegistryValueChange cannot be used in combination with WMI to get registry
-       value change notification because of an error that may be generated because the
-       scope of the query would be too big to handle(at times).
-       Hence an alternative mechanism is choosen via the EnumPrinters by polling for the
-       count of printer status changes(add\remove) and based on it update the printers
-       list.
-    */
-    class RemotePrinterChangeListener implements Runnable {
-        private String[] prevRemotePrinters;
-
-        RemotePrinterChangeListener() {
-            prevRemotePrinters = getRemotePrintersNames();
-        }
-
-        boolean doCompare(String[] str1, String[] str2) {
-            if (str1.length != str2.length) {
-                return true;
-            } else {
-                for (int i = 0;i < str1.length;i++) {
-                    for (int j = 0;j < str2.length;j++) {
-                        if (!str1[i].equals(str2[j])) {
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            return false;
-        }
-
+    private final class RemotePrinterChangeListener implements Runnable {
         @Override
         public void run() {
-            while (true) {
-                String[] currentRemotePrinters = getRemotePrintersNames();
-                if (doCompare(prevRemotePrinters, currentRemotePrinters)) {
-
-                    // updated the printers data
-                    // printers list now contains both local and network printer data
-                    refreshServices();
-
-                    // store the current data for next comparison
-                    prevRemotePrinters = currentRemotePrinters;
-                }
-
-                try {
-                    Thread.sleep(minRefreshTime * 1000);
-                } catch (InterruptedException e) {
-                    break;
-                }
-            }
+            notifyRemotePrinterChange(); // busy loop in the native code
         }
     }
 
     private native String getDefaultPrinterName();
     private native String[] getAllPrinterNames();
-    private native long notifyFirstPrinterChange(String printer);
-    private native void notifyClosePrinterChange(long chgObj);
-    private native int notifyPrinterChange(long chgObj);
-    private native String[] getRemotePrintersNames();
+    private native void notifyLocalPrinterChange();
+    private native void notifyRemotePrinterChange();
 }

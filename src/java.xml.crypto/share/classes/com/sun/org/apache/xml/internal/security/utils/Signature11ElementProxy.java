@@ -47,6 +47,13 @@ public abstract class Signature11ElementProxy extends ElementProxy {
 
         setDocument(doc);
         setElement(XMLUtils.createElementInSignature11Space(doc, this.getBaseLocalName()));
+
+        String prefix = ElementProxy.getDefaultPrefix(getBaseNamespace());
+        if (prefix == null || prefix.length() == 0) {
+            getElement().setAttributeNS(Constants.NamespaceSpecNS, "xmlns", getBaseNamespace());
+        } else {
+            getElement().setAttributeNS(Constants.NamespaceSpecNS, "xmlns:" + prefix, getBaseNamespace());
+        }
     }
 
     /**
@@ -62,6 +69,7 @@ public abstract class Signature11ElementProxy extends ElementProxy {
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getBaseNamespace() {
         return Constants.SignatureSpec11NS;
     }

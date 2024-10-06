@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,8 +55,9 @@ public class Options {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected Options(Context context) {
-// DEBUGGING -- Use LinkedHashMap for reproducability
+// DEBUGGING -- Use LinkedHashMap for reproducibility
         values = new LinkedHashMap<>();
         context.put(optionsKey, this);
     }
@@ -180,5 +181,10 @@ public class Options {
     public void notifyListeners() {
         for (Runnable r: listeners)
             r.run();
+    }
+
+    public void clear() {
+        values.clear();
+        listeners = List.nil();
     }
 }

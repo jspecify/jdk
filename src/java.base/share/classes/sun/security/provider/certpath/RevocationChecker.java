@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@ import static sun.security.provider.certpath.PKIX.*;
 import sun.security.x509.*;
 import static sun.security.x509.PKIXExtensions.*;
 import sun.security.util.Debug;
+import sun.security.util.KnownOIDs;
 
 class RevocationChecker extends PKIXRevocationChecker {
 
@@ -62,7 +63,7 @@ class RevocationChecker extends PKIXRevocationChecker {
     private Map<X509Certificate, byte[]> ocspResponses;
     private List<Extension> ocspExtensions;
     private final boolean legacy;
-    private LinkedList<CertPathValidatorException> softFailExceptions =
+    private final LinkedList<CertPathValidatorException> softFailExceptions =
         new LinkedList<>();
 
     // state variables
@@ -71,7 +72,8 @@ class RevocationChecker extends PKIXRevocationChecker {
     private boolean crlSignFlag;
     private int certIndex;
 
-    private enum Mode { PREFER_OCSP, PREFER_CRLS, ONLY_CRLS, ONLY_OCSP };
+    private enum Mode { PREFER_OCSP, PREFER_CRLS, ONLY_CRLS, ONLY_OCSP }
+
     private Mode mode = Mode.PREFER_OCSP;
 
     private static class RevocationProperties {
@@ -82,7 +84,10 @@ class RevocationChecker extends PKIXRevocationChecker {
         String ocspSubject;
         String ocspIssuer;
         String ocspSerial;
+        boolean ocspNonce;
     }
+    private RevocationProperties rp;
+    private static final int DEFAULT_NONCE_BYTES = 16;
 
     RevocationChecker() {
         legacy = false;
@@ -98,7 +103,7 @@ class RevocationChecker extends PKIXRevocationChecker {
     void init(TrustAnchor anchor, ValidatorParams params)
         throws CertPathValidatorException
     {
-        RevocationProperties rp = getRevocationProperties();
+        rp = getRevocationProperties();
         URI uri = getOcspResponder();
         responderURI = (uri == null) ? toURI(rp.ocspUrl) : uri;
         X509Certificate cert = getOcspResponderCert();
@@ -176,6 +181,7 @@ class RevocationChecker extends PKIXRevocationChecker {
         }
     }
 
+    @SuppressWarnings("removal")
     private static RevocationProperties getRevocationProperties() {
         return AccessController.doPrivileged(
             new PrivilegedAction<RevocationProperties>() {
@@ -197,6 +203,8 @@ class RevocationChecker extends PKIXRevocationChecker {
                         = Security.getProperty("ocsp.responderCertSerialNumber");
                     rp.crlDPEnabled
                         = Boolean.getBoolean("com.sun.security.enableCRLDP");
+                    rp.ocspNonce
+                        = Boolean.getBoolean("jdk.security.certpath.ocspNonce");
                     return rp;
                 }
             }
@@ -286,7 +294,6 @@ class RevocationChecker extends PKIXRevocationChecker {
                 if (debug != null) {
                     debug.println("CertStore exception:" + e);
                 }
-                continue;
             }
         }
         throw new CertPathValidatorException(
@@ -344,7 +351,7 @@ class RevocationChecker extends PKIXRevocationChecker {
     {
         if (debug != null) {
             debug.println("RevocationChecker.check: checking cert" +
-                "\n  SN: " + Debug.toHexString(xcert.getSerialNumber()) +
+                "\n  SN: " + Debug.toString(xcert.getSerialNumber()) +
                 "\n  Subject: " + xcert.getSubjectX500Principal() +
                 "\n  Issuer: " + xcert.getIssuerX500Principal());
         }
@@ -381,7 +388,6 @@ class RevocationChecker extends PKIXRevocationChecker {
                     throw e;
                 }
             }
-            CertPathValidatorException cause = e;
             // Otherwise, failover
             if (debug != null) {
                 debug.println("RevocationChecker.check() " + e.getMessage());
@@ -406,12 +412,12 @@ class RevocationChecker extends PKIXRevocationChecker {
                     throw x;
                 }
                 if (!isSoftFailException(x)) {
-                    cause.addSuppressed(x);
-                    throw cause;
+                    e.addSuppressed(x);
+                    throw e;
                 } else {
                     // only pass if both exceptions were soft failures
                     if (!eSoftFail) {
-                        throw cause;
+                        throw e;
                     }
                 }
             }
@@ -481,10 +487,8 @@ class RevocationChecker extends PKIXRevocationChecker {
                 }
                 break;
             case "SSLServer":
-                result = (t != null && t instanceof IOException);
-                break;
             case "URI":
-                result = (t != null && t instanceof IOException);
+                result = (t instanceof IOException);
                 break;
             default:
                 // we don't know about any other remote CertStore types
@@ -579,11 +583,11 @@ class RevocationChecker extends PKIXRevocationChecker {
                     approvedCRLs.addAll(DistributionPointFetcher.getCRLs(
                                         sel, signFlag, prevKey, prevCert,
                                         params.sigProvider(), certStores,
-                                        reasonsMask, anchors, null, params.variant()));
+                                        reasonsMask, anchors, null,
+                                        params.variant(), anchor));
                 }
             } catch (CertStoreException e) {
-                if (e instanceof CertStoreTypeException) {
-                    CertStoreTypeException cste = (CertStoreTypeException)e;
+                if (e instanceof CertStoreTypeException cste) {
                     if (isCausedByNetworkIssue(cste.getType(), e)) {
                         throw new CertPathValidatorException(
                             "Unable to determine revocation status due to " +
@@ -602,7 +606,6 @@ class RevocationChecker extends PKIXRevocationChecker {
                     try {
                         verifyWithSeparateSigningKey(cert, prevKey, signFlag,
                                                      stackedCerts);
-                        return;
                     } catch (CertPathValidatorException cpve) {
                         if (networkFailureException != null) {
                             // if a network issue previously prevented us from
@@ -639,11 +642,11 @@ class RevocationChecker extends PKIXRevocationChecker {
             debug.println("RevocationChecker.checkApprovedCRLs() " +
                           "starting the final sweep...");
             debug.println("RevocationChecker.checkApprovedCRLs()" +
-                          " cert SN: " + sn.toString());
+                          " cert SN: " + Debug.toString(sn));
         }
 
         CRLReason reasonCode = CRLReason.UNSPECIFIED;
-        X509CRLEntryImpl entry = null;
+        X509CRLEntryImpl entry;
         for (X509CRL crl : approvedCRLs) {
             X509CRLEntry e = crl.getRevokedCertificate(cert);
             if (e != null) {
@@ -694,7 +697,7 @@ class RevocationChecker extends PKIXRevocationChecker {
                            Collection<String> unresolvedCritExts)
         throws CertPathValidatorException
     {
-        X509CertImpl currCert = null;
+        X509CertImpl currCert;
         try {
             currCert = X509CertImpl.toImpl(cert);
         } catch (CertificateException ce) {
@@ -705,11 +708,18 @@ class RevocationChecker extends PKIXRevocationChecker {
         // does not need to be checked in this code. The constraints will be
         // checked when the responder's certificate is validated.
 
-        OCSPResponse response = null;
-        CertId certId = null;
+        OCSPResponse response;
+        CertId certId;
         try {
             certId = new CertId(issuerInfo.getName(), issuerInfo.getPublicKey(),
                     currCert.getSerialNumberObject());
+
+            byte[] nonce = null;
+            for (Extension ext : ocspExtensions) {
+                if (ext.getId().equals(KnownOIDs.OCSPNonceExt.value())) {
+                    nonce = ext.getValue();
+                }
+            }
 
             // check if there is a cached OCSP response available
             byte[] responseBytes = ocspResponses.get(cert);
@@ -720,12 +730,6 @@ class RevocationChecker extends PKIXRevocationChecker {
                 response = new OCSPResponse(responseBytes);
 
                 // verify the response
-                byte[] nonce = null;
-                for (Extension ext : ocspExtensions) {
-                    if (ext.getId().equals("1.3.6.1.5.5.7.48.1.2")) {
-                        nonce = ext.getValue();
-                    }
-                }
                 response.verify(Collections.singletonList(certId), issuerInfo,
                         responderCert, params.date(), nonce, params.variant());
 
@@ -739,9 +743,43 @@ class RevocationChecker extends PKIXRevocationChecker {
                         null, -1);
                 }
 
+                List<Extension> tmpExtensions = null;
+                if (rp.ocspNonce) {
+                    if (nonce == null) {
+                        try {
+                            // create the 16-byte nonce by default
+                            Extension nonceExt = new OCSPNonceExtension(DEFAULT_NONCE_BYTES);
+
+                            if (ocspExtensions.size() > 0) {
+                                tmpExtensions = new ArrayList<>(ocspExtensions);
+                                tmpExtensions.add(nonceExt);
+                            } else {
+                                tmpExtensions = List.of(nonceExt);
+                            }
+
+                            if (debug != null) {
+                                debug.println("Default nonce has been created in the OCSP extensions");
+                            }
+                        } catch (IOException e) {
+                            throw new CertPathValidatorException("Failed to create the default nonce " +
+                                    "in OCSP extensions", e);
+                        }
+                    } else {
+                        throw new CertPathValidatorException("Application provided nonce cannot be " +
+                                "used if the value of the jdk.security.certpath.ocspNonce system " +
+                                "property is true");
+                    }
+                } else {
+                    if (nonce != null) {
+                        if (debug != null) {
+                            debug.println("Using application provided nonce");
+                        }
+                    }
+                }
+
                 response = OCSP.check(Collections.singletonList(certId),
                         responderURI, issuerInfo, responderCert, null,
-                        ocspExtensions, params.variant());
+                        rp.ocspNonce ? tmpExtensions : ocspExtensions, params.variant());
             }
         } catch (IOException e) {
             throw new CertPathValidatorException(
@@ -749,8 +787,7 @@ class RevocationChecker extends PKIXRevocationChecker {
                 e, null, -1, BasicReason.UNDETERMINED_REVOCATION_STATUS);
         }
 
-        RevocationStatus rs =
-            (RevocationStatus)response.getSingleResponse(certId);
+        RevocationStatus rs = response.getSingleResponse(certId);
         RevocationStatus.CertStatus certStatus = rs.getCertStatus();
         if (certStatus == RevocationStatus.CertStatus.REVOKED) {
             Date revocationTime = rs.getRevocationTime();
@@ -773,12 +810,11 @@ class RevocationChecker extends PKIXRevocationChecker {
     /*
      * Removes any non-hexadecimal characters from a string.
      */
-    private static final String HEX_DIGITS = "0123456789ABCDEFabcdef";
     private static String stripOutSeparators(String value) {
         char[] chars = value.toCharArray();
         StringBuilder hexNumber = new StringBuilder();
         for (int i = 0; i < chars.length; i++) {
-            if (HEX_DIGITS.indexOf(chars[i]) != -1) {
+            if (HexFormat.isHexDigit(chars[i])) {
                 hexNumber.append(chars[i]);
             }
         }
@@ -803,6 +839,9 @@ class RevocationChecker extends PKIXRevocationChecker {
         return false;
     }
 
+    private static final boolean[] ALL_REASONS =
+            {true, true, true, true, true, true, true, true, true};
+
     /**
      * Internal method that verifies a set of possible_crls,
      * and sees if each is approved, based on the cert.
@@ -812,19 +851,15 @@ class RevocationChecker extends PKIXRevocationChecker {
      * @param signFlag <code>true</code> if prevKey was trusted to sign CRLs
      * @param prevKey the public key of the issuer of cert
      * @param reasonsMask the reason code mask
-     * @param trustAnchors a <code>Set</code> of <code>TrustAnchor</code>s>
+     * @param anchors a <code>Set</code> of <code>TrustAnchor</code>s>
      * @return a collection of approved crls (or an empty collection)
      */
-    private static final boolean[] ALL_REASONS =
-        {true, true, true, true, true, true, true, true, true};
     private Collection<X509CRL> verifyPossibleCRLs(Set<X509CRL> crls,
                                                    X509Certificate cert,
                                                    PublicKey prevKey,
                                                    boolean signFlag,
                                                    boolean[] reasonsMask,
-                                                   Set<TrustAnchor> anchors)
-        throws CertPathValidatorException
-    {
+                                                   Set<TrustAnchor> anchors) {
         try {
             X509CertImpl certImpl = X509CertImpl.toImpl(cert);
             if (debug != null) {
@@ -834,7 +869,7 @@ class RevocationChecker extends PKIXRevocationChecker {
             }
             CRLDistributionPointsExtension ext =
                 certImpl.getCRLDistributionPointsExtension();
-            List<DistributionPoint> points = null;
+            List<DistributionPoint> points;
             if (ext == null) {
                 // assume a DP with reasons and CRLIssuer fields omitted
                 // and a DP name of the cert issuer.
@@ -845,7 +880,7 @@ class RevocationChecker extends PKIXRevocationChecker {
                      null, null);
                 points = Collections.singletonList(point);
             } else {
-                points = ext.get(CRLDistributionPointsExtension.POINTS);
+                points = ext.getDistributionPoints();
             }
             Set<X509CRL> results = new HashSet<>();
             for (DistributionPoint point : points) {
@@ -853,7 +888,7 @@ class RevocationChecker extends PKIXRevocationChecker {
                     if (DistributionPointFetcher.verifyCRL(
                             certImpl, point, crl, reasonsMask, signFlag,
                             prevKey, null, params.sigProvider(), anchors,
-                            certStores, params.date(), params.variant()))
+                            certStores, params.date(), params.variant(), anchor))
                     {
                         results.add(crl);
                     }
@@ -881,10 +916,10 @@ class RevocationChecker extends PKIXRevocationChecker {
      * only CRLs signed with a different key (but the same issuer
      * name) as the certificate being checked.
      *
-     * @param currCert the <code>X509Certificate</code> to be checked
+     * @param cert the <code>X509Certificate</code> to be checked
      * @param prevKey the <code>PublicKey</code> that failed
      * @param signFlag <code>true</code> if that key was trusted to sign CRLs
-     * @param stackedCerts a <code>Set</code> of <code>X509Certificate</code>s>
+     * @param stackedCerts a <code>Set</code> of <code>X509Certificate</code>s
      *                     whose revocation status depends on the
      *                     non-revoked status of this cert. To avoid
      *                     circular dependencies, we assume they're
@@ -931,6 +966,9 @@ class RevocationChecker extends PKIXRevocationChecker {
         }
     }
 
+    private static final boolean [] CRL_SIGN_USAGE =
+            { false, false, false, false, false, false, true };
+
     /**
      * Tries to find a CertPath that establishes a key that can be
      * used to verify the revocation status of a given certificate.
@@ -945,8 +983,6 @@ class RevocationChecker extends PKIXRevocationChecker {
      *                     establishment of this path.
      * @throws CertPathValidatorException on failure
      */
-    private static final boolean [] CRL_SIGN_USAGE =
-        { false, false, false, false, false, false, true };
     private void buildToNewKey(X509Certificate currCert,
                                PublicKey prevKey,
                                Set<X509Certificate> stackedCerts)
@@ -995,7 +1031,7 @@ class RevocationChecker extends PKIXRevocationChecker {
         builderParams.setRevocationEnabled(false);
 
         // check for AuthorityInformationAccess extension
-        if (Builder.USE_AIA == true) {
+        if (Builder.USE_AIA) {
             X509CertImpl currCertImpl = null;
             try {
                 currCertImpl = X509CertImpl.toImpl(currCert);
@@ -1026,7 +1062,7 @@ class RevocationChecker extends PKIXRevocationChecker {
             }
         }
 
-        CertPathBuilder builder = null;
+        CertPathBuilder builder;
         try {
             builder = CertPathBuilder.getInstance("PKIX");
         } catch (NoSuchAlgorithmException nsae) {
@@ -1048,7 +1084,7 @@ class RevocationChecker extends PKIXRevocationChecker {
                 // Now check revocation of all certs in path, assuming that
                 // the stackedCerts are revoked.
                 if (stackedCerts == null) {
-                    stackedCerts = new HashSet<X509Certificate>();
+                    stackedCerts = new HashSet<>();
                 }
                 stackedCerts.add(currCert);
                 TrustAnchor ta = cpbr.getTrustAnchor();
@@ -1145,7 +1181,7 @@ class RevocationChecker extends PKIXRevocationChecker {
         @Override
         public boolean match(Certificate cert) {
             if (!super.match(cert))
-                return(false);
+                return false;
 
             if (badKeySet.contains(cert.getPublicKey())) {
                 if (debug != null)
@@ -1166,12 +1202,10 @@ class RevocationChecker extends PKIXRevocationChecker {
          */
         @Override
         public String toString() {
-            StringBuilder sb = new StringBuilder();
-            sb.append("RejectKeySelector: [\n");
-            sb.append(super.toString());
-            sb.append(badKeySet);
-            sb.append("]");
-            return sb.toString();
+            return "RejectKeySelector: [\n" +
+                    super.toString() +
+                    badKeySet +
+                    "]";
         }
     }
 }

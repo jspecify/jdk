@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,18 +26,6 @@
 /*
  * The Toolkit class has two functions: it instantiates the AWT
  * ToolkitPeer's native methods, and provides the DLL's core functions.
- *
- * There are two ways this DLL can be used: either as a dynamically-
- * loaded Java native library from the interpreter, or by a Windows-
- * specific app.  The first manner requires that the Toolkit provide
- * all support needed so the app can function as a first-class Windows
- * app, while the second assumes that the app will provide that
- * functionality.  Which mode this DLL functions in is determined by
- * which initialization paradigm is used. If the Toolkit is constructed
- * normally, then the Toolkit will have its own pump. If it is explicitly
- * initialized for an embedded environment (via a static method on
- * sun.awt.windows.WToolkit), then it will rely on an external message
- * pump.
  *
  * The most basic functionality needed is a Windows message pump (also
  * known as a message loop).  When an Java app is started as a console
@@ -133,29 +121,24 @@ class CriticalSection {
 // Macros for using CriticalSection objects that help trace
 // lock/unlock actions
 
-/* Use THIS_FILE when it is available. */
-#ifndef THIS_FILE
-    #define THIS_FILE __FILE__
-#endif
-
 #define CRITICAL_SECTION_ENTER(cs) { \
     J2dTraceLn4(J2D_TRACE_VERBOSE2, \
                 "CS.Wait:  tid, cs, file, line = 0x%x, 0x%x, %s, %d", \
-                GetCurrentThreadId(), &(cs), THIS_FILE, __LINE__); \
+                GetCurrentThreadId(), &(cs), __FILE__, __LINE__); \
     (cs).Enter(); \
     J2dTraceLn4(J2D_TRACE_VERBOSE2, \
                 "CS.Enter: tid, cs, file, line = 0x%x, 0x%x, %s, %d", \
-                GetCurrentThreadId(), &(cs), THIS_FILE, __LINE__); \
+                GetCurrentThreadId(), &(cs), __FILE__, __LINE__); \
 }
 
 #define CRITICAL_SECTION_LEAVE(cs) { \
     J2dTraceLn4(J2D_TRACE_VERBOSE2, \
                 "CS.Leave: tid, cs, file, line = 0x%x, 0x%x, %s, %d", \
-                GetCurrentThreadId(), &(cs), THIS_FILE, __LINE__); \
+                GetCurrentThreadId(), &(cs), __FILE__, __LINE__); \
     (cs).Leave(); \
     J2dTraceLn4(J2D_TRACE_VERBOSE2, \
                 "CS.Left:  tid, cs, file, line = 0x%x, 0x%x, %s, %d", \
-                GetCurrentThreadId(), &(cs), THIS_FILE, __LINE__); \
+                GetCurrentThreadId(), &(cs), __FILE__, __LINE__); \
 }
 
 // Redefine WinAPI values related to touch input, if OS < Windows 7.
@@ -227,7 +210,7 @@ public:
     AwtToolkit();
     ~AwtToolkit();
 
-    BOOL Initialize(BOOL localPump);
+    BOOL Initialize();
     BOOL Dispose();
 
     void SetDynamicLayout(BOOL dynamic);
@@ -249,7 +232,8 @@ public:
         UINT cInputs, PTOUCHINPUT pInputs, int cbSize);
     BOOL TICloseTouchInputHandle(HTOUCHINPUT hTouchInput);
 
-    INLINE BOOL localPump() { return m_localPump; }
+    LRESULT InvokeInputMethodFunction(UINT msg, WPARAM wParam=0, LPARAM lParam=0);
+
     INLINE BOOL VerifyComponents() { return FALSE; } // TODO: Use new DebugHelper class to set this flag
     INLINE HWND GetHWnd() { return m_toolkitHWnd; }
 
@@ -257,7 +241,7 @@ public:
     INLINE void SetModuleHandle(HMODULE h) { m_dllHandle = h; }
 
     INLINE static DWORD MainThread() { return GetInstance().m_mainThreadId; }
-    INLINE void VerifyActive() throw (awt_toolkit_shutdown) {
+    INLINE void VerifyActive() {
         if (!m_isActive && m_mainThreadId != ::GetCurrentThreadId()) {
             throw awt_toolkit_shutdown();
         }
@@ -429,7 +413,6 @@ public:
     INLINE void SetVerbose(long flag)   { m_verbose = (flag != 0); }
     INLINE void SetVerify(long flag)    { m_verifyComponents = (flag != 0); }
     INLINE void SetBreak(long flag)     { m_breakOnError = (flag != 0); }
-    INLINE void SetHeapCheck(long flag);
 
     static void SetBusy(BOOL busy);
 
@@ -444,14 +427,14 @@ public:
 
     HANDLE m_waitEvent;
     volatile DWORD eventNumber;
-    volatile BOOL isInDoDragDropLoop;
+    volatile BOOL isDnDSourceActive;
+    volatile BOOL isDnDTargetActive;
 private:
     HWND CreateToolkitWnd(LPCTSTR name);
 
     void InitTouchKeyboardExeFilePath();
     HWND GetTouchKeyboardWindow();
 
-    BOOL m_localPump;
     DWORD m_mainThreadId;
     HWND m_toolkitHWnd;
     HWND m_inputMethodHWnd;
@@ -503,6 +486,10 @@ private:
     HMODULE m_dllHandle;  /* The module handle. */
 
     CriticalSection m_Sync;
+    CriticalSection m_inputMethodLock;
+
+    HANDLE m_inputMethodWaitEvent;
+    LRESULT m_inputMethodData;
 
 /* track display changes - used by palette-updating code.
    This is a workaround for a windows bug that prevents

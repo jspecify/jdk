@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8056174
+ * @bug 8056174 8242068 8255536 8267319
  * @summary Make sure JarSigner impl conforms to spec
  * @library /test/lib
  * @modules java.base/sun.security.tools.keytool
@@ -31,11 +31,9 @@
  *          jdk.jartool
  *          jdk.crypto.ec
  * @build jdk.test.lib.util.JarUtils
- * @run main Spec
+ * @run main/othervm Spec
  */
 
-import com.sun.jarsigner.ContentSigner;
-import com.sun.jarsigner.ContentSignerParameters;
 import jdk.security.jarsigner.JarSigner;
 import jdk.test.lib.util.JarUtils;
 import sun.security.provider.certpath.X509CertPath;
@@ -70,6 +68,9 @@ public class Spec {
         sun.security.tools.keytool.Main.main(
                 ("-keystore ks -storepass changeit -keypass changeit -dname" +
                         " CN=DSA -alias d -genkeypair -keyalg dsa").split(" "));
+        sun.security.tools.keytool.Main.main(
+                ("-keystore ks -storepass changeit -keypass changeit -dname" +
+                        " CN=Ed25519 -alias e -genkeypair -keyalg Ed25519").split(" "));
 
         char[] pass = "changeit".toCharArray();
 
@@ -125,7 +126,7 @@ public class Spec {
         iae(()->b1.setProperty("internalsf", "Hello"));
         npe(()->b1.setProperty("sectionsonly", null));
         iae(()->b1.setProperty("sectionsonly", "OK"));
-        npe(()->b1.setProperty("altsigner", null));
+        npe(()->b1.setProperty("sectionsonly", null));
         npe(()->b1.eventHandler(null));
 
         // default values
@@ -143,7 +144,6 @@ public class Spec {
         assertTrue(js2.getProperty("tsapolicyid") == null);
         assertTrue(js2.getProperty("internalsf").equals("false"));
         assertTrue(js2.getProperty("sectionsonly").equals("false"));
-        assertTrue(js2.getProperty("altsigner") == null);
         uoe(()->js2.getProperty("invalid"));
 
         // default values
@@ -159,7 +159,6 @@ public class Spec {
                 .setProperty("tsapolicyid", "1.2.3.4")
                 .setProperty("internalsf", "true")
                 .setProperty("sectionsonly", "true")
-                .setProperty("altsigner", "MyContentSigner")
                 .eventHandler(myeh);
         JarSigner js3 = b3.build();
 
@@ -171,17 +170,16 @@ public class Spec {
         assertTrue(js3.getProperty("tsapolicyid").equals("1.2.3.4"));
         assertTrue(js3.getProperty("internalsf").equals("true"));
         assertTrue(js3.getProperty("sectionsonly").equals("true"));
-        assertTrue(js3.getProperty("altsigner").equals("MyContentSigner"));
-        assertTrue(js3.getProperty("altsignerpath") == null);
 
-        assertTrue(JarSigner.Builder.getDefaultDigestAlgorithm().equals("SHA-256"));
+        assertTrue(JarSigner.Builder.getDefaultDigestAlgorithm()
+                .equals("SHA-384"));
 
         // Calculating large DSA and RSA keys are too slow.
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
         kpg.initialize(1024);
         assertTrue(JarSigner.Builder
                 .getDefaultSignatureAlgorithm(kpg.generateKeyPair().getPrivate())
-                    .equals("SHA256withRSA"));
+                    .equals("SHA384withRSA"));
 
         kpg = KeyPairGenerator.getInstance("DSA");
         kpg.initialize(1024);
@@ -190,15 +188,15 @@ public class Spec {
                 .equals("SHA256withDSA"));
 
         kpg = KeyPairGenerator.getInstance("EC");
-        kpg.initialize(192);
+        kpg.initialize(256);
         assertTrue(JarSigner.Builder
                 .getDefaultSignatureAlgorithm(kpg.generateKeyPair().getPrivate())
-                .equals("SHA256withECDSA"));
+                .equals("SHA384withECDSA"));
         kpg.initialize(384);
         assertTrue(JarSigner.Builder
                 .getDefaultSignatureAlgorithm(kpg.generateKeyPair().getPrivate())
                 .equals("SHA384withECDSA"));
-        kpg.initialize(571);
+        kpg.initialize(521);
         assertTrue(JarSigner.Builder
                 .getDefaultSignatureAlgorithm(kpg.generateKeyPair().getPrivate())
                 .equals("SHA512withECDSA"));
@@ -239,16 +237,5 @@ public class Spec {
 
     static void assertTrue(boolean x) throws Exception {
         if (!x) throw new Exception("Not true");
-    }
-
-    static class MyContentSigner extends ContentSigner {
-        @Override
-        public byte[] generateSignedData(
-                ContentSignerParameters parameters,
-                boolean omitContent,
-                boolean applyTimestamp) throws NoSuchAlgorithmException,
-                CertificateException, IOException {
-            return new byte[0];
-        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,9 +35,10 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLException;
@@ -47,8 +48,8 @@ import javax.net.ssl.SSLProtocolException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
-import jdk.internal.misc.JavaNetInetAddressAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaNetInetAddressAccess;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * Implementation of an SSL socket.
@@ -73,6 +74,16 @@ import jdk.internal.misc.SharedSecrets;
 public final class SSLSocketImpl
         extends BaseSSLSocketImpl implements SSLTransport {
 
+    /**
+     * ERROR HANDLING GUIDELINES
+     * (which exceptions to throw and catch and which not to throw and catch)
+     *
+     * - if there is an IOException (SocketException) when accessing the
+     *   underlying Socket, pass it through
+     *
+     * - do not throw IOExceptions, throw SSLExceptions (or a subclass)
+     */
+
     final SSLContextImpl            sslContext;
     final TransportContext          conContext;
 
@@ -81,8 +92,11 @@ public final class SSLSocketImpl
 
     private String                  peerHost;
     private boolean                 autoClose;
-    private boolean                 isConnected = false;
-    private volatile boolean        tlsIsClosed = false;
+    private boolean                 isConnected;
+    private volatile boolean        tlsIsClosed;
+
+    private final ReentrantLock     socketLock = new ReentrantLock();
+    private final ReentrantLock     handshakeLock = new ReentrantLock();
 
     /*
      * Is the local name service trustworthy?
@@ -92,6 +106,11 @@ public final class SSLSocketImpl
      */
     private static final boolean trustNameService =
             Utilities.getBooleanProperty("jdk.tls.trustNameService", false);
+
+    /*
+     * Default timeout to skip bytes from the open socket
+     */
+    private static final int DEFAULT_SKIP_TIMEOUT = 1;
 
     /**
      * Package-private constructor used to instantiate an unconnected
@@ -130,7 +149,7 @@ public final class SSLSocketImpl
      * if appropriate.
      */
     SSLSocketImpl(SSLContextImpl sslContext, String peerHost,
-            int peerPort) throws IOException, UnknownHostException {
+            int peerPort) throws IOException {
         super();
         this.sslContext = sslContext;
         HandshakeHash handshakeHash = new HandshakeHash();
@@ -174,7 +193,7 @@ public final class SSLSocketImpl
      */
     SSLSocketImpl(SSLContextImpl sslContext,
             String peerHost, int peerPort, InetAddress localAddr,
-            int localPort) throws IOException, UnknownHostException {
+            int localPort) throws IOException {
         super();
         this.sslContext = sslContext;
         HandshakeHash handshakeHash = new HandshakeHash();
@@ -249,7 +268,7 @@ public final class SSLSocketImpl
      * role of an SSL client. It may be useful in cases which start
      * using SSL after some initial data transfers, for example in some
      * SSL tunneling applications or as part of some kinds of application
-     * protocols which negotiate use of a SSL based security.
+     * protocols which negotiate use of an SSL based security.
      */
     SSLSocketImpl(SSLContextImpl sslContext, Socket sock,
             String peerHost, int port, boolean autoClose) throws IOException {
@@ -292,14 +311,25 @@ public final class SSLSocketImpl
     }
 
     @Override
-    public synchronized String[] getEnabledCipherSuites() {
-        return CipherSuite.namesOf(conContext.sslConfig.enabledCipherSuites);
+    public String[] getEnabledCipherSuites() {
+        socketLock.lock();
+        try {
+            return CipherSuite.namesOf(
+                    conContext.sslConfig.enabledCipherSuites);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized void setEnabledCipherSuites(String[] suites) {
-        conContext.sslConfig.enabledCipherSuites =
-                CipherSuite.validValuesOf(suites);
+    public void setEnabledCipherSuites(String[] suites) {
+        socketLock.lock();
+        try {
+            conContext.sslConfig.enabledCipherSuites =
+                    CipherSuite.validValuesOf(suites);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
@@ -309,72 +339,94 @@ public final class SSLSocketImpl
     }
 
     @Override
-    public synchronized String[] getEnabledProtocols() {
-        return ProtocolVersion.toStringArray(
-                conContext.sslConfig.enabledProtocols);
+    public String[] getEnabledProtocols() {
+        socketLock.lock();
+        try {
+            return ProtocolVersion.toStringArray(
+                    conContext.sslConfig.enabledProtocols);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized void setEnabledProtocols(String[] protocols) {
+    public void setEnabledProtocols(String[] protocols) {
         if (protocols == null) {
             throw new IllegalArgumentException("Protocols cannot be null");
         }
 
-        conContext.sslConfig.enabledProtocols =
-                ProtocolVersion.namesOf(protocols);
+        socketLock.lock();
+        try {
+            conContext.sslConfig.enabledProtocols =
+                    ProtocolVersion.namesOf(protocols);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
     public SSLSession getSession() {
         try {
             // start handshaking, if failed, the connection will be closed.
-            ensureNegotiated();
+            ensureNegotiated(false);
         } catch (IOException ioe) {
             if (SSLLogger.isOn && SSLLogger.isOn("handshake")) {
                 SSLLogger.severe("handshake failed", ioe);
             }
 
-            return SSLSessionImpl.nullSession;
+            return new SSLSessionImpl();
         }
 
         return conContext.conSession;
     }
 
     @Override
-    public synchronized SSLSession getHandshakeSession() {
-        if (conContext.handshakeContext != null) {
-            synchronized (this) {
-                if (conContext.handshakeContext != null) {
-                    return conContext.handshakeContext.handshakeSession;
-                }
-            }
+    public SSLSession getHandshakeSession() {
+        socketLock.lock();
+        try {
+            return conContext.handshakeContext == null ?
+                    null : conContext.handshakeContext.handshakeSession;
+        } finally {
+            socketLock.unlock();
         }
-
-        return null;
     }
 
     @Override
-    public synchronized void addHandshakeCompletedListener(
+    public void addHandshakeCompletedListener(
             HandshakeCompletedListener listener) {
         if (listener == null) {
             throw new IllegalArgumentException("listener is null");
         }
 
-        conContext.sslConfig.addHandshakeCompletedListener(listener);
+        socketLock.lock();
+        try {
+            conContext.sslConfig.addHandshakeCompletedListener(listener);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized void removeHandshakeCompletedListener(
+    public void removeHandshakeCompletedListener(
             HandshakeCompletedListener listener) {
         if (listener == null) {
             throw new IllegalArgumentException("listener is null");
         }
 
-        conContext.sslConfig.removeHandshakeCompletedListener(listener);
+        socketLock.lock();
+        try {
+            conContext.sslConfig.removeHandshakeCompletedListener(listener);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
     public void startHandshake() throws IOException {
+        startHandshake(true);
+    }
+
+    private void startHandshake(boolean resumable) throws IOException {
         if (!isConnected) {
             throw new SocketException("Socket is not connected");
         }
@@ -384,8 +436,9 @@ public final class SSLSocketImpl
             throw new SocketException("Socket has been closed or broken");
         }
 
-        synchronized (conContext) {     // handshake lock
-            // double check the context status
+        handshakeLock.lock();
+        try {
+            // double-check the context status
             if (conContext.isBroken || conContext.isInboundClosed() ||
                     conContext.isOutboundClosed()) {
                 throw new SocketException("Socket has been closed or broken");
@@ -401,59 +454,110 @@ public final class SSLSocketImpl
                 if (!conContext.isNegotiated) {
                     readHandshakeRecord();
                 }
+            } catch (InterruptedIOException iioe) {
+                if(resumable){
+                    handleException(iioe);
+                } else{
+                    throw conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                            "Couldn't kickstart handshaking", iioe);
+                }
+            } catch (SocketException se) {
+                handleException(se);
             } catch (IOException ioe) {
-                conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "Couldn't kickstart handshaking", ioe);
             } catch (Exception oe) {    // including RuntimeException
                 handleException(oe);
             }
+        } finally {
+            handshakeLock.unlock();
         }
     }
 
     @Override
-    public synchronized void setUseClientMode(boolean mode) {
-        conContext.setUseClientMode(mode);
+    public void setUseClientMode(boolean mode) {
+        socketLock.lock();
+        try {
+            conContext.setUseClientMode(mode);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized boolean getUseClientMode() {
-        return conContext.sslConfig.isClientMode;
+    public boolean getUseClientMode() {
+        socketLock.lock();
+        try {
+            return conContext.sslConfig.isClientMode;
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized void setNeedClientAuth(boolean need) {
-        conContext.sslConfig.clientAuthType =
-                (need ? ClientAuthType.CLIENT_AUTH_REQUIRED :
-                        ClientAuthType.CLIENT_AUTH_NONE);
+    public void setNeedClientAuth(boolean need) {
+        socketLock.lock();
+        try {
+            conContext.sslConfig.clientAuthType =
+                    (need ? ClientAuthType.CLIENT_AUTH_REQUIRED :
+                            ClientAuthType.CLIENT_AUTH_NONE);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized boolean getNeedClientAuth() {
-        return (conContext.sslConfig.clientAuthType ==
+    public boolean getNeedClientAuth() {
+        socketLock.lock();
+        try {
+            return (conContext.sslConfig.clientAuthType ==
                         ClientAuthType.CLIENT_AUTH_REQUIRED);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized void setWantClientAuth(boolean want) {
-        conContext.sslConfig.clientAuthType =
-                (want ? ClientAuthType.CLIENT_AUTH_REQUESTED :
-                        ClientAuthType.CLIENT_AUTH_NONE);
+    public void setWantClientAuth(boolean want) {
+        socketLock.lock();
+        try {
+            conContext.sslConfig.clientAuthType =
+                    (want ? ClientAuthType.CLIENT_AUTH_REQUESTED :
+                            ClientAuthType.CLIENT_AUTH_NONE);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized boolean getWantClientAuth() {
-        return (conContext.sslConfig.clientAuthType ==
+    public boolean getWantClientAuth() {
+        socketLock.lock();
+        try {
+            return (conContext.sslConfig.clientAuthType ==
                         ClientAuthType.CLIENT_AUTH_REQUESTED);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized void setEnableSessionCreation(boolean flag) {
-        conContext.sslConfig.enableSessionCreation = flag;
+    public void setEnableSessionCreation(boolean flag) {
+        socketLock.lock();
+        try {
+            conContext.sslConfig.enableSessionCreation = flag;
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized boolean getEnableSessionCreation() {
-        return conContext.sslConfig.enableSessionCreation;
+    public boolean getEnableSessionCreation() {
+        socketLock.lock();
+        try {
+            return conContext.sslConfig.enableSessionCreation;
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
@@ -461,11 +565,11 @@ public final class SSLSocketImpl
         return tlsIsClosed;
     }
 
-    // Please don't synchronized this method.  Otherwise, the read and close
+    // Please don't synchronize this method.  Otherwise, the read and close
     // locks may be deadlocked.
     @Override
     public void close() throws IOException {
-        if (tlsIsClosed) {
+        if (isClosed()) {
             return;
         }
 
@@ -474,27 +578,36 @@ public final class SSLSocketImpl
         }
 
         try {
-            // shutdown output bound, which may have been closed previously.
-            if (!isOutputShutdown()) {
-                duplexCloseOutput();
-            }
+            if (isConnected()) {
+                // shutdown output bound, which may have been closed previously.
+                if (!isOutputShutdown()) {
+                    duplexCloseOutput();
+                }
 
-            // shutdown input bound, which may have been closed previously.
-            if (!isInputShutdown()) {
-                duplexCloseInput();
-            }
-
-            if (!isClosed()) {
-                // close the connection directly
-                closeSocket(false);
+                // shutdown input bound, which may have been closed previously.
+                if (!isInputShutdown()) {
+                    duplexCloseInput();
+                }
             }
         } catch (IOException ioe) {
             // ignore the exception
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                SSLLogger.warning("SSLSocket duplex close failed", ioe);
+                SSLLogger.warning("SSLSocket duplex close failed. Debug info only. Exception details:", ioe);
             }
         } finally {
-            tlsIsClosed = true;
+            if (!isClosed()) {
+                // close the connection directly
+                try {
+                    closeSocket(false);
+                } catch (IOException ioe) {
+                    // ignore the exception
+                    if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                        SSLLogger.warning("SSLSocket close failed. Debug info only. Exception details:", ioe);
+                    }
+                } finally {
+                    tlsIsClosed = true;
+                }
+            }
         }
     }
 
@@ -526,44 +639,128 @@ public final class SSLSocketImpl
             if (!conContext.protocolVersion.useTLS13PlusSpec()) {
                 hasCloseReceipt = true;
             } else {
-                // Use a user_canceled alert for TLS 1.3 duplex close.
-                useUserCanceled = true;
+                // Do not use user_canceled workaround if the other side has
+                // already half-closed the connection
+                if (!conContext.isInboundClosed()) {
+                    // Use a user_canceled alert for TLS 1.3 duplex close.
+                    useUserCanceled = true;
+                }
             }
         } else if (conContext.handshakeContext != null) {   // initial handshake
             // Use user_canceled alert regardless the protocol versions.
             useUserCanceled = true;
 
-            // The protocol version may have been negotiated.
-            ProtocolVersion pv = conContext.handshakeContext.negotiatedProtocol;
+            // The protocol version may have been negotiated.  The
+            // conContext.handshakeContext.negotiatedProtocol is not used as there
+            // may be a race to set it to null.
+            ProtocolVersion pv = conContext.protocolVersion;
             if (pv == null || (!pv.useTLS13PlusSpec())) {
                 hasCloseReceipt = true;
             }
         }
 
+        // Deliver the user_canceled alert and the close notify alert.
+        closeNotify(useUserCanceled);
+
+        if (!isInputShutdown()) {
+            bruteForceCloseInput(hasCloseReceipt);
+        }
+    }
+
+    void closeNotify(boolean useUserCanceled) throws IOException {
         // Need a lock here so that the user_canceled alert and the
         // close_notify alert can be delivered together.
-        try {
-            synchronized (conContext.outputRecord) {
-                // send a user_canceled alert if needed.
-                if (useUserCanceled) {
-                    conContext.warning(Alert.USER_CANCELED);
-                }
+        int linger = getSoLinger();
+        if (linger >= 0) {
+            // don't wait more than SO_LINGER for obtaining the lock.
+            //
+            // keep and clear the current thread interruption status.
+            boolean interrupted = Thread.interrupted();
+            try {
+                if (conContext.outputRecord.recordLock.tryLock() ||
+                        conContext.outputRecord.recordLock.tryLock(
+                                linger, TimeUnit.SECONDS)) {
+                    try {
+                        deliverClosedNotify(useUserCanceled);
+                    } finally {
+                        conContext.outputRecord.recordLock.unlock();
+                    }
+                } else {
+                    // For layered, non-autoclose sockets, we are not
+                    // able to bring them into a usable state, so we
+                    // treat it as fatal error.
+                    if (!super.isOutputShutdown()) {
+                        if (isLayered() && !autoClose) {
+                            throw new SSLException(
+                                    "SO_LINGER timeout, " +
+                                    "close_notify message cannot be sent.");
+                        } else {
+                            super.shutdownOutput();
+                            if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                                SSLLogger.warning(
+                                    "SSLSocket output duplex close failed: " +
+                                    "SO_LINGER timeout, " +
+                                    "close_notify message cannot be sent.");
+                            }
+                        }
+                    }
 
-                // send a close_notify alert
-                conContext.warning(Alert.CLOSE_NOTIFY);
+                    // RFC2246 requires that the session becomes
+                    // unresumable if any connection is terminated
+                    // without proper close_notify messages with
+                    // level equal to warning.
+                    //
+                    // RFC4346 no longer requires that a session not be
+                    // resumed if failure to properly close a connection.
+                    //
+                    // We choose to make the session unresumable if
+                    // failed to send the close_notify message.
+                    //
+                    conContext.conSession.invalidate();
+                    if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                        SSLLogger.warning(
+                                "Invalidate the session: SO_LINGER timeout, " +
+                                "close_notify message cannot be sent.");
+                    }
+                }
+            } catch (InterruptedException ex) {
+                // keep interrupted status
+                interrupted = true;
             }
+
+            // restore the interrupted status
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        } else {
+            conContext.outputRecord.recordLock.lock();
+            try {
+                deliverClosedNotify(useUserCanceled);
+            } finally {
+                conContext.outputRecord.recordLock.unlock();
+            }
+        }
+    }
+
+    private void deliverClosedNotify(
+            boolean useUserCanceled) throws IOException {
+        try {
+            // send a user_canceled alert if needed.
+            if (useUserCanceled) {
+                conContext.warning(Alert.USER_CANCELED);
+            }
+
+            // send a close_notify alert
+            conContext.warning(Alert.CLOSE_NOTIFY);
         } finally {
             if (!conContext.isOutboundClosed()) {
                 conContext.outputRecord.close();
             }
 
-            if ((autoClose || !isLayered()) && !super.isOutputShutdown()) {
+            if (!super.isOutputShutdown() &&
+                    (autoClose || !isLayered())) {
                 super.shutdownOutput();
             }
-        }
-
-        if (!isInputShutdown()) {
-            bruteForceCloseInput(hasCloseReceipt);
         }
     }
 
@@ -574,11 +771,9 @@ public final class SSLSocketImpl
      * but the inbound is still open.
      */
     private void duplexCloseInput() throws IOException {
-        boolean hasCloseReceipt = false;
-        if (conContext.isNegotiated &&
-                !conContext.protocolVersion.useTLS13PlusSpec()) {
-            hasCloseReceipt = true;
-        }   // No close receipt if handshake has no completed.
+        boolean hasCloseReceipt = conContext.isNegotiated &&
+                !conContext.protocolVersion.useTLS13PlusSpec();
+        // No close receipt if handshake has not completed.
 
         bruteForceCloseInput(hasCloseReceipt);
     }
@@ -608,7 +803,12 @@ public final class SSLSocketImpl
             }
         } else {
             if (!conContext.isInboundClosed()) {
-                conContext.inputRecord.close();
+                try (conContext.inputRecord) {
+                    // Try the best to use up the input records and close the
+                    // socket gracefully, without impact the performance too
+                    // much.
+                    appInput.deplete();
+                }
             }
 
             if ((autoClose || !isLayered()) && !super.isInputShutdown()) {
@@ -617,7 +817,7 @@ public final class SSLSocketImpl
         }
     }
 
-    // Please don't synchronized this method.  Otherwise, the read and close
+    // Please don't synchronize this method.  Otherwise, the read and close
     // locks may be deadlocked.
     @Override
     public void shutdownInput() throws IOException {
@@ -639,26 +839,28 @@ public final class SSLSocketImpl
         // Is it ready to close inbound?
         //
         // No need to throw exception if the initial handshake is not started.
-        if (checkCloseNotify && !conContext.isInputCloseNotified &&
-            (conContext.isNegotiated || conContext.handshakeContext != null)) {
-
-            conContext.fatal(Alert.INTERNAL_ERROR,
-                    "closing inbound before receiving peer's close_notify");
-        }
-
-        conContext.closeInbound();
-        if ((autoClose || !isLayered()) && !super.isInputShutdown()) {
-            super.shutdownInput();
+        try {
+            if (checkCloseNotify && !conContext.isInputCloseNotified &&
+                    (conContext.isNegotiated ||
+                            conContext.handshakeContext != null)) {
+                throw new SSLException(
+                        "closing inbound before receiving peer's close_notify");
+            }
+        } finally {
+            conContext.closeInbound();
+            if ((autoClose || !isLayered()) && !super.isInputShutdown()) {
+                super.shutdownInput();
+            }
         }
     }
 
     @Override
     public boolean isInputShutdown() {
         return conContext.isInboundClosed() &&
-                ((autoClose || !isLayered()) ? super.isInputShutdown(): true);
+                (!autoClose && isLayered() || super.isInputShutdown());
     }
 
-    // Please don't synchronized this method.  Otherwise, the read and close
+    // Please don't synchronize this method.  Otherwise, the read and close
     // locks may be deadlocked.
     @Override
     public void shutdownOutput() throws IOException {
@@ -679,41 +881,49 @@ public final class SSLSocketImpl
     @Override
     public boolean isOutputShutdown() {
         return conContext.isOutboundClosed() &&
-                ((autoClose || !isLayered()) ? super.isOutputShutdown(): true);
+                (!autoClose && isLayered() || super.isOutputShutdown());
     }
 
     @Override
-    public synchronized InputStream getInputStream() throws IOException {
-        if (isClosed()) {
-            throw new SocketException("Socket is closed");
-        }
+    public InputStream getInputStream() throws IOException {
+        socketLock.lock();
+        try {
+            if (isClosed()) {
+                throw new SocketException("Socket is closed");
+            }
 
-        if (!isConnected) {
-            throw new SocketException("Socket is not connected");
-        }
+            if (!isConnected) {
+                throw new SocketException("Socket is not connected");
+            }
 
-        if (conContext.isInboundClosed() || isInputShutdown()) {
-            throw new SocketException("Socket input is already shutdown");
-        }
+            if (conContext.isInboundClosed() || isInputShutdown()) {
+                throw new SocketException("Socket input is already shutdown");
+            }
 
-        return appInput;
+            return appInput;
+        } finally {
+            socketLock.unlock();
+        }
     }
 
-    private void ensureNegotiated() throws IOException {
+    private void ensureNegotiated(boolean resumable) throws IOException {
         if (conContext.isNegotiated || conContext.isBroken ||
                 conContext.isInboundClosed() || conContext.isOutboundClosed()) {
             return;
         }
 
-        synchronized (conContext) {     // handshake lock
-            // double check the context status
+        handshakeLock.lock();
+        try {
+            // double-check the context status
             if (conContext.isNegotiated || conContext.isBroken ||
                     conContext.isInboundClosed() ||
                     conContext.isOutboundClosed()) {
                 return;
             }
 
-            startHandshake();
+            startHandshake(resumable);
+        } finally {
+            handshakeLock.unlock();
         }
     }
 
@@ -731,6 +941,13 @@ public final class SSLSocketImpl
         // Is application data available in the stream?
         private volatile boolean appDataIsAvailable;
 
+        // reading lock
+        private final ReentrantLock readLock = new ReentrantLock();
+
+        // closing status
+        private volatile boolean isClosing;
+        private volatile boolean hasDepleted;
+
         AppInputStream() {
             this.appDataIsAvailable = false;
             this.buffer = ByteBuffer.allocate(4096);
@@ -742,7 +959,7 @@ public final class SSLSocketImpl
          */
         @Override
         public int available() throws IOException {
-            // Currently not synchronized.
+            // Currently, not synchronized.
             if ((!appDataIsAvailable) || checkEOF()) {
                 return 0;
             }
@@ -776,8 +993,7 @@ public final class SSLSocketImpl
          * and returning "-1" on non-fault EOF status.
          */
         @Override
-        public int read(byte[] b, int off, int len)
-                throws IOException {
+        public int read(byte[] b, int off, int len) throws IOException {
             if (b == null) {
                 throw new NullPointerException("the target buffer is null");
             } else if (off < 0 || len < 0 || len > b.length - off) {
@@ -796,7 +1012,7 @@ public final class SSLSocketImpl
             if (!conContext.isNegotiated && !conContext.isBroken &&
                     !conContext.isInboundClosed() &&
                     !conContext.isOutboundClosed()) {
-                ensureNegotiated();
+                ensureNegotiated(true);
             }
 
             // Check if the Socket is invalid (error or closed).
@@ -805,11 +1021,40 @@ public final class SSLSocketImpl
                 throw new SocketException("Connection or inbound has closed");
             }
 
+            // Check if the input stream has been depleted.
+            //
+            // Note that the "hasDepleted" rather than the isClosing
+            // filed is checked here, in case the closing process is
+            // still in progress.
+            if (hasDepleted) {
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                    SSLLogger.fine("The input stream has been depleted");
+                }
+
+                return -1;
+            }
+
             // Read the available bytes at first.
             //
             // Note that the receiving and processing of post-handshake message
             // are also synchronized with the read lock.
-            synchronized (this) {
+            readLock.lock();
+            try {
+                // Double check if the Socket is invalid (error or closed).
+                if (conContext.isBroken || conContext.isInboundClosed()) {
+                    throw new SocketException(
+                            "Connection or inbound has closed");
+                }
+
+                // Double check if the input stream has been depleted.
+                if (hasDepleted) {
+                    if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                        SSLLogger.fine("The input stream is closing");
+                    }
+
+                    return -1;
+                }
+
                 int remains = available();
                 if (remains > 0) {
                     int howmany = Math.min(remains, len);
@@ -841,6 +1086,18 @@ public final class SSLSocketImpl
                     // dummy for compiler
                     return -1;
                 }
+            } finally {
+                // Check if the input stream is closing.
+                //
+                // If deplete() did not hold the lock, clean up the
+                // input stream here.
+                try {
+                    if (isClosing) {
+                        readLockedDeplete();
+                    }
+                } finally {
+                    readLock.unlock();
+                }
             }
         }
 
@@ -849,23 +1106,27 @@ public final class SSLSocketImpl
          *
          * This implementation is somewhat less efficient than possible, but
          * not badly so (redundant copy).  We reuse the read() code to keep
-         * things simpler. Note that SKIP_ARRAY is static and may garbled by
-         * concurrent use, but we are not interested in the data anyway.
+         * things simpler.
          */
         @Override
-        public synchronized long skip(long n) throws IOException {
+        public long skip(long n) throws IOException {
             // dummy array used to implement skip()
             byte[] skipArray = new byte[256];
-
             long skipped = 0;
-            while (n > 0) {
-                int len = (int)Math.min(n, skipArray.length);
-                int r = read(skipArray, 0, len);
-                if (r <= 0) {
-                    break;
+
+            readLock.lock();
+            try {
+                while (n > 0) {
+                    int len = (int)Math.min(n, skipArray.length);
+                    int r = read(skipArray, 0, len);
+                    if (r <= 0) {
+                        break;
+                    }
+                    n -= r;
+                    skipped += r;
                 }
-                n -= r;
-                skipped += r;
+            } finally {
+                readLock.unlock();
             }
 
             return skipped;
@@ -878,11 +1139,11 @@ public final class SSLSocketImpl
             }
 
             try {
-                shutdownInput(false);
+                SSLSocketImpl.this.close();
             } catch (IOException ioe) {
                 // ignore the exception
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                    SSLLogger.warning("input stream close failed", ioe);
+                    SSLLogger.warning("input stream close failed. Debug info only. Exception details:", ioe);
                 }
             }
         }
@@ -894,9 +1155,17 @@ public final class SSLSocketImpl
          * or has been closed, throw an Exception.
          */
         private boolean checkEOF() throws IOException {
-            if (conContext.isInboundClosed()) {
+            if (conContext.isBroken) {
+                if (conContext.closeReason == null) {
+                    return true;
+                } else {
+                    throw new SSLException(
+                            "Connection has closed: " + conContext.closeReason,
+                            conContext.closeReason);
+                }
+            } else if (conContext.isInboundClosed()) {
                 return true;
-            } else if (conContext.isInputCloseNotified || conContext.isBroken) {
+            } else if (conContext.isInputCloseNotified) {
                 if (conContext.closeReason == null) {
                     return true;
                 } else {
@@ -908,23 +1177,77 @@ public final class SSLSocketImpl
 
             return false;
         }
+
+        /**
+         * Try to use up input records to close the
+         * socket gracefully, without impact the performance too much.
+         */
+        private void deplete() {
+            if (conContext.isInboundClosed() || isClosing) {
+                return;
+            }
+
+            isClosing = true;
+            if (readLock.tryLock()) {
+                try {
+                    readLockedDeplete();
+                } finally {
+                    readLock.unlock();
+                }
+            }
+        }
+
+        /**
+         * Try to use up the input records.
+         *
+         * Please don't call this method unless the readLock is held by
+         * the current thread.
+         */
+        private void readLockedDeplete() {
+            // double check
+            if (hasDepleted || conContext.isInboundClosed()) {
+                return;
+            }
+
+            if (!(conContext.inputRecord instanceof SSLSocketInputRecord
+                    socketInputRecord)) {
+                return;
+            }
+
+            try {
+                socketInputRecord.deplete(
+                    conContext.isNegotiated && (getSoTimeout() > 0));
+            } catch (Exception ex) {
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                    SSLLogger.warning(
+                        "input stream close depletion failed", ex);
+                }
+            } finally {
+                hasDepleted = true;
+            }
+        }
     }
 
     @Override
-    public synchronized OutputStream getOutputStream() throws IOException {
-        if (isClosed()) {
-            throw new SocketException("Socket is closed");
-        }
+    public OutputStream getOutputStream() throws IOException {
+        socketLock.lock();
+        try {
+            if (isClosed()) {
+                throw new SocketException("Socket is closed");
+            }
 
-        if (!isConnected) {
-            throw new SocketException("Socket is not connected");
-        }
+            if (!isConnected) {
+                throw new SocketException("Socket is not connected");
+            }
 
-        if (conContext.isOutboundDone() || isOutputShutdown()) {
-            throw new SocketException("Socket output is already shutdown");
-        }
+            if (conContext.isOutboundDone() || isOutputShutdown()) {
+                throw new SocketException("Socket output is already shutdown");
+            }
 
-        return appOutput;
+            return appOutput;
+        } finally {
+            socketLock.unlock();
+        }
     }
 
 
@@ -967,7 +1290,7 @@ public final class SSLSocketImpl
             if (!conContext.isNegotiated && !conContext.isBroken &&
                     !conContext.isInboundClosed() &&
                     !conContext.isOutboundClosed()) {
-                ensureNegotiated();
+                ensureNegotiated(true);
             }
 
             // Check if the Socket is invalid (error or closed).
@@ -983,16 +1306,22 @@ public final class SSLSocketImpl
                 conContext.outputRecord.deliver(b, off, len);
             } catch (SSLHandshakeException she) {
                 // may be record sequence number overflow
-                conContext.fatal(Alert.HANDSHAKE_FAILURE, she);
-            } catch (IOException e) {
-                conContext.fatal(Alert.UNEXPECTED_MESSAGE, e);
-            }
+                throw conContext.fatal(Alert.HANDSHAKE_FAILURE, she);
+            } catch (SSLException ssle) {
+                throw conContext.fatal(Alert.UNEXPECTED_MESSAGE, ssle);
+            }   // re-throw other IOException, which should be caused by
+                // the underlying plain socket and could be handled by
+                // applications (for example, re-try the connection).
 
             // Is the sequence number is nearly overflow, or has the key usage
             // limit been reached?
             if (conContext.outputRecord.seqNumIsHuge() ||
                     conContext.outputRecord.writeCipher.atKeyLimit()) {
                 tryKeyUpdate();
+            }
+            // Check if NewSessionTicket PostHandshake message needs to be sent
+            if (conContext.conSession.updateNST) {
+                tryNewSessionTicket();
             }
         }
 
@@ -1003,55 +1332,84 @@ public final class SSLSocketImpl
             }
 
             try {
-                shutdownOutput();
+                SSLSocketImpl.this.close();
             } catch (IOException ioe) {
                 // ignore the exception
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                    SSLLogger.warning("output stream close failed", ioe);
+                    SSLLogger.warning("output stream close failed. Debug info only. Exception details:", ioe);
                 }
             }
         }
     }
 
     @Override
-    public synchronized SSLParameters getSSLParameters() {
-        return conContext.sslConfig.getSSLParameters();
-    }
-
-    @Override
-    public synchronized void setSSLParameters(SSLParameters params) {
-        conContext.sslConfig.setSSLParameters(params);
-
-        if (conContext.sslConfig.maximumPacketSize != 0) {
-            conContext.outputRecord.changePacketSize(
-                    conContext.sslConfig.maximumPacketSize);
+    public SSLParameters getSSLParameters() {
+        socketLock.lock();
+        try {
+            return conContext.sslConfig.getSSLParameters();
+        } finally {
+            socketLock.unlock();
         }
     }
 
     @Override
-    public synchronized String getApplicationProtocol() {
-        return conContext.applicationProtocol;
+    public void setSSLParameters(SSLParameters params) {
+        socketLock.lock();
+        try {
+            conContext.sslConfig.setSSLParameters(params);
+
+            if (conContext.sslConfig.maximumPacketSize != 0) {
+                conContext.outputRecord.changePacketSize(
+                        conContext.sslConfig.maximumPacketSize);
+            }
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized String getHandshakeApplicationProtocol() {
-        if (conContext.handshakeContext != null) {
-            return conContext.handshakeContext.applicationProtocol;
+    public String getApplicationProtocol() {
+        socketLock.lock();
+        try {
+            return conContext.applicationProtocol;
+        } finally {
+            socketLock.unlock();
         }
+    }
 
+    @Override
+    public String getHandshakeApplicationProtocol() {
+        socketLock.lock();
+        try {
+            if (conContext.handshakeContext != null) {
+                return conContext.handshakeContext.applicationProtocol;
+            }
+        } finally {
+            socketLock.unlock();
+        }
         return null;
     }
 
     @Override
-    public synchronized void setHandshakeApplicationProtocolSelector(
+    public void setHandshakeApplicationProtocolSelector(
             BiFunction<SSLSocket, List<String>, String> selector) {
-        conContext.sslConfig.socketAPSelector = selector;
+        socketLock.lock();
+        try {
+            conContext.sslConfig.socketAPSelector = selector;
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     @Override
-    public synchronized BiFunction<SSLSocket, List<String>, String>
+    public BiFunction<SSLSocket, List<String>, String>
             getHandshakeApplicationProtocolSelector() {
-        return conContext.sslConfig.socketAPSelector;
+        socketLock.lock();
+        try {
+            return conContext.sslConfig.socketAPSelector;
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     /**
@@ -1065,14 +1423,13 @@ public final class SSLSocketImpl
                         conContext.isNegotiated) {
                     return 0;
                 }
-            } catch (SSLException ssle) {
-                throw ssle;
+            } catch (SSLException |
+                    InterruptedIOException | SocketException se) {
+                // Don't change exception in case of timeouts or interrupts
+                // or SocketException.
+                throw se;
             } catch (IOException ioe) {
-                if (!(ioe instanceof SSLException)) {
-                    throw new SSLException("readHandshakeRecord", ioe);
-                } else {
-                    throw ioe;
-                }
+                throw new SSLException("readHandshakeRecord", ioe);
             }
         }
 
@@ -1081,7 +1438,7 @@ public final class SSLSocketImpl
 
     /**
      * Read application data record. Used by AppInputStream only, but defined
-     * here so as to use the socket level synchronization.
+     * here to use the socket level synchronization.
      *
      * Note that the connection guarantees that handshake, alert, and change
      * cipher spec data streams are handled as they arrive, so we never see
@@ -1120,27 +1477,24 @@ public final class SSLSocketImpl
             }
 
             try {
-                Plaintext plainText;
-                synchronized (this) {
-                    plainText = decode(buffer);
-                }
+                Plaintext plainText = decode(buffer);
                 if (plainText.contentType == ContentType.APPLICATION_DATA.id &&
                         buffer.position() > 0) {
                     return buffer;
                 }
-            } catch (SSLException ssle) {
-                throw ssle;
+            } catch (SSLException |
+                    InterruptedIOException | SocketException se) {
+                // Don't change exception in case of timeouts or interrupts
+                // or SocketException.
+                throw se;
             } catch (IOException ioe) {
-                if (!(ioe instanceof SSLException)) {
-                    throw new SSLException("readApplicationRecord", ioe);
-                } else {
-                    throw ioe;
-                }
+                throw new SSLException("readApplicationRecord", ioe);
             }
         }
 
         //
-        // couldn't read, due to some kind of error
+        // Couldn't read, due to some kind of error or inbound
+        // has been closed.
         //
         return null;
     }
@@ -1183,11 +1537,11 @@ public final class SSLSocketImpl
      * wrapped.
      */
     private void tryKeyUpdate() throws IOException {
-        // Don't bother to kickstart if handshaking is in progress, or if the
-        // connection is not duplex-open.
+        // Don't bother to kickstart if handshaking is in progress, or if
+        // the write side of the connection is not open.  We allow a half-
+        // duplex write-only connection for key updates.
         if ((conContext.handshakeContext == null) &&
                 !conContext.isOutboundClosed() &&
-                !conContext.isInboundClosed() &&
                 !conContext.isBroken) {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                 SSLLogger.finest("trigger key update");
@@ -1196,32 +1550,59 @@ public final class SSLSocketImpl
         }
     }
 
+    // Try to generate a PostHandshake NewSessionTicket message.  This is
+    // TLS 1.3 only.
+    private void tryNewSessionTicket() throws IOException {
+        // Don't bother to kickstart if handshaking is in progress, or if the
+        // connection is not duplex-open.
+        if (SSLConfiguration.serverNewSessionTicketCount > 0 &&
+            !conContext.sslConfig.isClientMode &&
+            conContext.protocolVersion.useTLS13PlusSpec() &&
+            conContext.handshakeContext == null &&
+            !conContext.isOutboundClosed() &&
+            !conContext.isInboundClosed() &&
+            !conContext.isBroken) {
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                SSLLogger.finest("trigger new session ticket");
+            }
+            conContext.conSession.updateNST = false;
+            NewSessionTicket.t13PosthandshakeProducer.produce(
+                    new PostHandshakeContext(conContext));
+        }
+    }
+
     /**
      * Initialize the handshaker and socket streams.
      *
      * Called by connect, the layered constructor, and SSLServerSocket.
      */
-    synchronized void doneConnect() throws IOException {
-        // In server mode, it is not necessary to set host and serverNames.
-        // Otherwise, would require a reverse DNS lookup to get the hostname.
-        if ((peerHost == null) || (peerHost.length() == 0)) {
-            boolean useNameService =
-                    trustNameService && conContext.sslConfig.isClientMode;
-            useImplicitHost(useNameService);
-        } else {
-            conContext.sslConfig.serverNames =
-                    Utilities.addToSNIServerNameList(
-                            conContext.sslConfig.serverNames, peerHost);
+    void doneConnect() throws IOException {
+        socketLock.lock();
+        try {
+            // In server mode, it is not necessary to set host and serverNames.
+            // Otherwise, would require a reverse DNS lookup to get
+            // the hostname.
+            if (peerHost == null || peerHost.isEmpty()) {
+                boolean useNameService =
+                        trustNameService && conContext.sslConfig.isClientMode;
+                useImplicitHost(useNameService);
+            } else {
+                conContext.sslConfig.serverNames =
+                        Utilities.addToSNIServerNameList(
+                                conContext.sslConfig.serverNames, peerHost);
+            }
+
+            InputStream sockInput = super.getInputStream();
+            conContext.inputRecord.setReceiverStream(sockInput);
+
+            OutputStream sockOutput = super.getOutputStream();
+            conContext.inputRecord.setDeliverStream(sockOutput);
+            conContext.outputRecord.setDeliverStream(sockOutput);
+
+            this.isConnected = true;
+        } finally {
+            socketLock.unlock();
         }
-
-        InputStream sockInput = super.getInputStream();
-        conContext.inputRecord.setReceiverStream(sockInput);
-
-        OutputStream sockOutput = super.getOutputStream();
-        conContext.inputRecord.setDeliverStream(sockOutput);
-        conContext.outputRecord.setDeliverStream(sockOutput);
-
-        this.isConnected = true;
     }
 
     private void useImplicitHost(boolean useNameService) {
@@ -1230,7 +1611,7 @@ public final class SSLSocketImpl
         // identification.  Use the application original specified
         // hostname or IP address instead.
 
-        // Get the original hostname via jdk.internal.misc.SharedSecrets
+        // Get the original hostname via jdk.internal.access.SharedSecrets
         InetAddress inetAddress = getInetAddress();
         if (inetAddress == null) {      // not connected
             return;
@@ -1239,8 +1620,7 @@ public final class SSLSocketImpl
         JavaNetInetAddressAccess jna =
                 SharedSecrets.getJavaNetInetAddressAccess();
         String originalHostname = jna.getOriginalHostName(inetAddress);
-        if ((originalHostname != null) &&
-                (originalHostname.length() != 0)) {
+        if (originalHostname != null && !originalHostname.isEmpty()) {
 
             this.peerHost = originalHostname;
             if (conContext.sslConfig.serverNames.isEmpty() &&
@@ -1268,11 +1648,16 @@ public final class SSLSocketImpl
     // Please NOTE that this method MUST be called before calling to
     // SSLSocket.setSSLParameters(). Otherwise, the {@code host} parameter
     // may override SNIHostName in the customized server name indication.
-    public synchronized void setHost(String host) {
-        this.peerHost = host;
-        this.conContext.sslConfig.serverNames =
-                Utilities.addToSNIServerNameList(
-                        conContext.sslConfig.serverNames, host);
+    public void setHost(String host) {
+        socketLock.lock();
+        try {
+            this.peerHost = host;
+            this.conContext.sslConfig.serverNames =
+                    Utilities.addToSNIServerNameList(
+                            conContext.sslConfig.serverNames, host);
+        } finally {
+            socketLock.unlock();
+        }
     }
 
     /**
@@ -1311,24 +1696,29 @@ public final class SSLSocketImpl
                 alert = Alert.INTERNAL_ERROR;
             }
         }
-        conContext.fatal(alert, cause);
+
+        if (cause instanceof SocketException) {
+            try {
+                throw conContext.fatal(alert, cause);
+            } catch (Exception e) {
+                // Just delivering the fatal alert, re-throw the socket exception instead.
+            }
+
+            throw (SocketException)cause;
+        }
+
+        throw conContext.fatal(alert, cause);
     }
 
     private Plaintext handleEOF(EOFException eofe) throws IOException {
         if (requireCloseNotify || conContext.handshakeContext != null) {
-            SSLException ssle;
             if (conContext.handshakeContext != null) {
-                ssle = new SSLHandshakeException(
-                        "Remote host terminated the handshake");
+                throw new SSLHandshakeException(
+                        "Remote host terminated the handshake",  eofe);
             } else {
-                ssle = new SSLProtocolException(
-                        "Remote host terminated the connection");
+                throw new SSLProtocolException(
+                        "Remote host terminated the connection", eofe);
             }
-
-            if (eofe != null) {
-                ssle.initCause(eofe);
-            }
-            throw ssle;
         } else {
             // treat as if we had received a close_notify
             conContext.isInputCloseNotified = true;
@@ -1362,17 +1752,24 @@ public final class SSLSocketImpl
             }
 
             try {
-                if (conContext.isInputCloseNotified) {
-                    // Close the connection, no wait for more peer response.
-                    closeSocket(false);
-                } else {
-                    // Close the connection, may wait for peer close_notify.
-                    closeSocket(true);
-                }
+                // If conContext.isInputCloseNotified is false, close the
+                // connection, no wait for more peer response.  Otherwise,
+                // may wait for peer close_notify.
+                closeSocket(conContext.isNegotiated &&
+                        !conContext.isInputCloseNotified);
             } finally {
                 tlsIsClosed = true;
             }
         }
+    }
+
+    @Override
+    public String toString() {
+        return "SSLSocket[" +
+                "hostname=" + getPeerHost() +
+                ", port=" + getPeerPort() +
+                ", " + conContext.conSession +  // SSLSessionImpl.toString()
+                "]";
     }
 
     private void closeSocket(boolean selfInitiated) throws IOException {
@@ -1382,6 +1779,33 @@ public final class SSLSocketImpl
         }
 
         if (autoClose || !isLayered()) {
+            // Try to clear the kernel buffer to avoid TCP connection resets.
+            if (conContext.inputRecord instanceof
+                    SSLSocketInputRecord inputRecord && isConnected) {
+                if (appInput.readLock.tryLock()) {
+                    try {
+                        int soTimeout = getSoTimeout();
+                        try {
+                            // deplete could hang on the skip operation
+                            // in case of infinite socket read timeout.
+                            // Change read timeout to avoid deadlock.
+                            // This workaround could be replaced later
+                            // with the right synchronization
+                            if (soTimeout == 0)
+                                setSoTimeout(DEFAULT_SKIP_TIMEOUT);
+                            inputRecord.deplete(false);
+                        } catch (java.net.SocketTimeoutException stEx) {
+                            // skip timeout exception during deplete
+                        } finally {
+                            if (soTimeout == 0)
+                                setSoTimeout(soTimeout);
+                        }
+                    } finally {
+                        appInput.readLock.unlock();
+                    }
+                }
+            }
+
             super.close();
         } else if (selfInitiated) {
             if (!conContext.isInboundClosed() && !isInputShutdown()) {
@@ -1408,17 +1832,23 @@ public final class SSLSocketImpl
             SSLLogger.fine("wait for close_notify or alert");
         }
 
-        while (!conContext.isInboundClosed()) {
-            try {
-                Plaintext plainText = decode(null);
-                // discard and continue
-                if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                    SSLLogger.finest(
-                        "discard plaintext while waiting for close", plainText);
+        appInput.readLock.lock();
+        try {
+            while (!conContext.isInboundClosed()) {
+                try {
+                    Plaintext plainText = decode(null);
+                    // discard and continue
+                    if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                        SSLLogger.finest(
+                                "discard plaintext while waiting for close",
+                                plainText);
+                    }
+                } catch (Exception e) {   // including RuntimeException
+                    handleException(e);
                 }
-            } catch (Exception e) {   // including RuntimeException
-                handleException(e);
             }
+        } finally {
+            appInput.readLock.unlock();
         }
     }
 }

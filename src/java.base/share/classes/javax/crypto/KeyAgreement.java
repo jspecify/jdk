@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,9 @@ import sun.security.jca.GetInstance.Instance;
  * with two other parties, {@code doPhase} needs to be called twice,
  * the first time setting the {@code lastPhase} flag to
  * {@code false}, and the second time setting it to {@code true}.
- * There may be any number of parties involved in a key exchange.
+ * There may be any number of parties involved in a key exchange.  However,
+ * support for key exchanges with more than two parties is implementation
+ * specific or as specified by the standard key agreement algorithm.
  *
  * <p> Every implementation of the Java platform is required to support the
  * following standard {@code KeyAgreement} algorithm:
@@ -103,7 +105,7 @@ public class KeyAgreement {
     private final Object lock;
 
     /**
-     * Creates a KeyAgreement object.
+     * Creates a {@code KeyAgreement} object.
      *
      * @param keyAgreeSpi the delegate
      * @param provider the provider
@@ -141,11 +143,11 @@ public class KeyAgreement {
      * Returns a {@code KeyAgreement} object that implements the
      * specified key agreement algorithm.
      *
-     * <p> This method traverses the list of registered security Providers,
-     * starting with the most preferred Provider.
-     * A new KeyAgreement object encapsulating the
-     * KeyAgreementSpi implementation from the first
-     * Provider that supports the specified algorithm is returned.
+     * <p> This method traverses the list of registered security providers,
+     * starting with the most preferred provider.
+     * A new {@code KeyAgreement} object encapsulating the
+     * {@code KeyAgreementSpi} implementation from the first
+     * provider that supports the specified algorithm is returned.
      *
      * <p> Note that the list of registered providers may be retrieved via
      * the {@link Security#getProviders() Security.getProviders()} method.
@@ -155,7 +157,7 @@ public class KeyAgreement {
      * {@code jdk.security.provider.preferred}
      * {@link Security#getProperty(String) Security} property to determine
      * the preferred provider order for the specified algorithm. This
-     * may be different than the order of providers returned by
+     * may be different from the order of providers returned by
      * {@link Security#getProviders() Security.getProviders()}.
      *
      * @param algorithm the standard name of the requested key agreement
@@ -178,13 +180,11 @@ public class KeyAgreement {
     public static final KeyAgreement getInstance(String algorithm)
             throws NoSuchAlgorithmException {
         Objects.requireNonNull(algorithm, "null algorithm name");
-        List<Service> services =
-                GetInstance.getServices("KeyAgreement", algorithm);
         // make sure there is at least one service from a signed provider
-        Iterator<Service> t = services.iterator();
+        Iterator<Service> t = GetInstance.getServices("KeyAgreement", algorithm);
         while (t.hasNext()) {
             Service s = t.next();
-            if (JceSecurity.canUseProvider(s.getProvider()) == false) {
+            if (!JceSecurity.canUseProvider(s.getProvider())) {
                 continue;
             }
             return new KeyAgreement(s, t, algorithm);
@@ -197,8 +197,8 @@ public class KeyAgreement {
      * Returns a {@code KeyAgreement} object that implements the
      * specified key agreement algorithm.
      *
-     * <p> A new KeyAgreement object encapsulating the
-     * KeyAgreementSpi implementation from the specified provider
+     * <p> A new {@code KeyAgreement} object encapsulating the
+     * {@code KeyAgreementSpi} implementation from the specified provider
      * is returned.  The specified provider must be registered
      * in the security provider list.
      *
@@ -244,9 +244,9 @@ public class KeyAgreement {
      * Returns a {@code KeyAgreement} object that implements the
      * specified key agreement algorithm.
      *
-     * <p> A new KeyAgreement object encapsulating the
-     * KeyAgreementSpi implementation from the specified Provider
-     * object is returned.  Note that the specified Provider object
+     * <p> A new {@code KeyAgreement} object encapsulating the
+     * {@code KeyAgreementSpi} implementation from the specified
+     * provider is returned.  Note that the specified provider
      * does not have to be registered in the provider list.
      *
      * @param algorithm the standard name of the requested key agreement
@@ -265,7 +265,7 @@ public class KeyAgreement {
      *
      * @throws NoSuchAlgorithmException if a {@code KeyAgreementSpi}
      *         implementation for the specified algorithm is not available
-     *         from the specified Provider object
+     *         from the specified {@code Provider} object
      *
      * @throws NullPointerException if {@code algorithm} is {@code null}
      *
@@ -317,12 +317,12 @@ public class KeyAgreement {
                 } else {
                     s = serviceIterator.next();
                 }
-                if (JceSecurity.canUseProvider(s.getProvider()) == false) {
+                if (!JceSecurity.canUseProvider(s.getProvider())) {
                     continue;
                 }
                 try {
                     Object obj = s.newInstance(null);
-                    if (obj instanceof KeyAgreementSpi == false) {
+                    if (!(obj instanceof KeyAgreementSpi)) {
                         continue;
                     }
                     spi = (KeyAgreementSpi)obj;
@@ -375,10 +375,10 @@ public class KeyAgreement {
                     s = serviceIterator.next();
                 }
                 // if provider says it does not support this key, ignore it
-                if (s.supportsParameter(key) == false) {
+                if (!s.supportsParameter(key)) {
                     continue;
                 }
-                if (JceSecurity.canUseProvider(s.getProvider()) == false) {
+                if (!JceSecurity.canUseProvider(s.getProvider())) {
                     continue;
                 }
                 try {
@@ -435,7 +435,8 @@ public class KeyAgreement {
      * implementation of the highest-priority
      * installed provider as the source of randomness.
      * (If none of the installed providers supply an implementation of
-     * SecureRandom, a system-provided source of randomness will be used.)
+     * {@code SecureRandom}, a system-provided source of randomness
+     * will be used.)
      *
      * @param key the party's private information. For example, in the case
      * of the Diffie-Hellman key agreement, this would be the party's own
@@ -446,7 +447,7 @@ public class KeyAgreement {
      * has an incompatible algorithm type.
      */
     public final void init(Key key) throws InvalidKeyException {
-        init(key, JceSecurity.RANDOM);
+        init(key, JCAUtil.getDefSecureRandom());
     }
 
     /**
@@ -498,7 +499,8 @@ public class KeyAgreement {
      * implementation of the highest-priority
      * installed provider as the source of randomness.
      * (If none of the installed providers supply an implementation of
-     * SecureRandom, a system-provided source of randomness will be used.)
+     * {@code SecureRandom}, a system-provided source of randomness
+     * will be used.)
      *
      * @param key the party's private information. For example, in the case
      * of the Diffie-Hellman key agreement, this would be the party's own
@@ -514,7 +516,7 @@ public class KeyAgreement {
     public final void init(Key key, AlgorithmParameterSpec params)
         throws InvalidKeyException, InvalidAlgorithmParameterException
     {
-        init(key, params, JceSecurity.RANDOM);
+        init(key, params, JCAUtil.getDefSecureRandom());
     }
 
     private String getProviderName() {
@@ -561,10 +563,10 @@ public class KeyAgreement {
      * @param key the key for this phase. For example, in the case of
      * Diffie-Hellman between 2 parties, this would be the other party's
      * Diffie-Hellman public key.
-     * @param lastPhase flag which indicates whether or not this is the last
+     * @param lastPhase flag which indicates whether this is the last
      * phase of this key agreement.
      *
-     * @return the (intermediate) key resulting from this phase, or null
+     * @return the (intermediate) key resulting from this phase, or {@code null}
      * if this phase does not yield a key
      *
      * @exception InvalidKeyException if the given key is inappropriate for
@@ -582,16 +584,22 @@ public class KeyAgreement {
     /**
      * Generates the shared secret and returns it in a new buffer.
      *
-     * <p>This method resets this {@code KeyAgreement} object, so that it
-     * can be reused for further key agreements. Unless this key agreement is
-     * reinitialized with one of the {@code init} methods, the same
-     * private information and algorithm parameters will be used for
-     * subsequent key agreements.
+     * <p>This method resets this {@code KeyAgreement} object to the state that
+     * it was in after the most recent call to one of the {@code init} methods.
+     * After a call to {@code generateSecret}, the object can be reused for
+     * further key agreement operations by calling {@code doPhase} to supply
+     * new keys, and then calling {@code generateSecret} to produce a new
+     * secret. In this case, the private information and algorithm parameters
+     * supplied to {@code init} will be used for multiple key agreement
+     * operations. The {@code init} method can be called after
+     * {@code generateSecret} to change the private information used in
+     * subsequent operations.
      *
      * @return the new buffer with the shared secret
      *
      * @exception IllegalStateException if this key agreement has not been
-     * completed yet
+     * initialized or if {@code doPhase} has not been called to supply the
+     * keys for all parties in the agreement
      */
     public final byte[] generateSecret() throws IllegalStateException {
         chooseFirstProvider();
@@ -606,11 +614,16 @@ public class KeyAgreement {
      * result, a {@code ShortBufferException} is thrown.
      * In this case, this call should be repeated with a larger output buffer.
      *
-     * <p>This method resets this {@code KeyAgreement} object, so that it
-     * can be reused for further key agreements. Unless this key agreement is
-     * reinitialized with one of the {@code init} methods, the same
-     * private information and algorithm parameters will be used for
-     * subsequent key agreements.
+     * <p>This method resets this {@code KeyAgreement} object to the state that
+     * it was in after the most recent call to one of the {@code init} methods.
+     * After a call to {@code generateSecret}, the object can be reused for
+     * further key agreement operations by calling {@code doPhase} to supply
+     * new keys, and then calling {@code generateSecret} to produce a new
+     * secret. In this case, the private information and algorithm parameters
+     * supplied to {@code init} will be used for multiple key agreement
+     * operations. The {@code init} method can be called after
+     * {@code generateSecret} to change the private information used in
+     * subsequent operations.
      *
      * @param sharedSecret the buffer for the shared secret
      * @param offset the offset in {@code sharedSecret} where the
@@ -619,7 +632,8 @@ public class KeyAgreement {
      * @return the number of bytes placed into {@code sharedSecret}
      *
      * @exception IllegalStateException if this key agreement has not been
-     * completed yet
+     * initialized or if {@code doPhase} has not been called to supply the
+     * keys for all parties in the agreement
      * @exception ShortBufferException if the given output buffer is too small
      * to hold the secret
      */
@@ -634,18 +648,24 @@ public class KeyAgreement {
      * Creates the shared secret and returns it as a {@code SecretKey}
      * object of the specified algorithm.
      *
-     * <p>This method resets this {@code KeyAgreement} object, so that it
-     * can be reused for further key agreements. Unless this key agreement is
-     * reinitialized with one of the {@code init} methods, the same
-     * private information and algorithm parameters will be used for
-     * subsequent key agreements.
+     * <p>This method resets this {@code KeyAgreement} object to the state that
+     * it was in after the most recent call to one of the {@code init} methods.
+     * After a call to {@code generateSecret}, the object can be reused for
+     * further key agreement operations by calling {@code doPhase} to supply
+     * new keys, and then calling {@code generateSecret} to produce a new
+     * secret. In this case, the private information and algorithm parameters
+     * supplied to {@code init} will be used for multiple key agreement
+     * operations. The {@code init} method can be called after
+     * {@code generateSecret} to change the private information used in
+     * subsequent operations.
      *
      * @param algorithm the requested secret-key algorithm
      *
      * @return the shared secret key
      *
      * @exception IllegalStateException if this key agreement has not been
-     * completed yet
+     * initialized or if {@code doPhase} has not been called to supply the
+     * keys for all parties in the agreement
      * @exception NoSuchAlgorithmException if the specified secret-key
      * algorithm is not available
      * @exception InvalidKeyException if the shared secret-key material cannot

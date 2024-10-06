@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,11 @@
 package javax.crypto;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.io.*;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.nio.file.*;
 import java.security.*;
@@ -72,27 +76,28 @@ import sun.security.util.Debug;
  * @since 1.4
  */
 
+@SuppressWarnings("removal")
 final class JceSecurity {
 
-
     private static final Debug debug = Debug.getInstance("jca");
-
-    static final SecureRandom RANDOM = new SecureRandom();
 
     // The defaultPolicy and exemptPolicy will be set up
     // in the static initializer.
     private static CryptoPermissions defaultPolicy = null;
     private static CryptoPermissions exemptPolicy = null;
 
-    // Map<Provider,?> of the providers we already have verified
-    // value == PROVIDER_VERIFIED is successfully verified
-    // value is failure cause Exception in error case
-    private static final Map<Provider, Object> verificationResults =
-            new IdentityHashMap<>();
+    // Map of the providers we already have verified.
+    // If verified ok, value == PROVIDER_VERIFIED, otherwise
+    // the cause of verification failure is stored as value.
+    private static final Map<WeakIdentityWrapper, Object>
+        verificationResults = new ConcurrentHashMap<>();
 
     // Map<Provider,?> of the providers currently being verified
     private static final Map<Provider, Object> verifyingProviders =
             new IdentityHashMap<>();
+
+    // weak references queued by GC
+    private static final ReferenceQueue<Object> queue = new ReferenceQueue<>();
 
     private static final boolean isRestricted;
 
@@ -149,9 +154,10 @@ final class JceSecurity {
 
     static Instance getInstance(String type, Class<?> clazz, String algorithm)
             throws NoSuchAlgorithmException {
-        List<Service> services = GetInstance.getServices(type, algorithm);
+        Iterator<Service> t = GetInstance.getServices(type, algorithm);
         NoSuchAlgorithmException failure = null;
-        for (Service s : services) {
+        while (t.hasNext()) {
+            Service s = t.next();
             if (canUseProvider(s.getProvider()) == false) {
                 // allow only signed providers
                 continue;
@@ -199,36 +205,61 @@ final class JceSecurity {
      * JCE trusted CA.
      * Return null if ok, failure Exception if verification failed.
      */
-    static synchronized Exception getVerificationResult(Provider p) {
-        Object o = verificationResults.get(p);
-        if (o == PROVIDER_VERIFIED) {
-            return null;
-        } else if (o != null) {
-            return (Exception)o;
-        }
-        if (verifyingProviders.get(p) != null) {
-            // this method is static synchronized, must be recursion
-            // return failure now but do not save the result
-            return new NoSuchProviderException("Recursion during verification");
-        }
+    static Exception getVerificationResult(Provider p) {
+        expungeStaleWrappers();
+        WeakIdentityWrapper pKey = new WeakIdentityWrapper(p, queue);
         try {
-            verifyingProviders.put(p, Boolean.FALSE);
-            URL providerURL = getCodeBase(p.getClass());
-            verifyProvider(providerURL, p);
-            // Verified ok, cache result
-            verificationResults.put(p, PROVIDER_VERIFIED);
-            return null;
-        } catch (Exception e) {
-            verificationResults.put(p, e);
-            return e;
-        } finally {
-            verifyingProviders.remove(p);
+            Object o = verificationResults.computeIfAbsent(pKey, new Function<>() {
+                public Object apply(WeakIdentityWrapper key) {
+                    // no mapping found
+                    if (verifyingProviders.get(p) != null) {
+                        // recursion; return failure now
+                        throw new IllegalStateException();
+                    }
+                    Object result;
+                    try {
+                        verifyingProviders.put(p, Boolean.FALSE);
+                        URL providerURL = getCodeBase(p.getClass());
+                        verifyProvider(providerURL, p);
+                        result = PROVIDER_VERIFIED;
+                    } catch (Exception e) {
+                        result = e;
+                    } finally {
+                        verifyingProviders.remove(p);
+                    }
+                    if (debug != null) {
+                        debug.println("Provider " + p.getName() +
+                                " verification result: " + result);
+                    }
+                    return result;
+                }
+            });
+            return (o == PROVIDER_VERIFIED? null : (Exception) o);
+
+        } catch (IllegalStateException ise) {
+            // recursive update detected
+            return new NoSuchProviderException
+                    ("Recursion during verification");
+        }
+    }
+
+    /**
+     * Removes weakly reachable keys from history.
+     */
+    static void expungeStaleWrappers() {
+        WeakIdentityWrapper key;
+        while ((key = (WeakIdentityWrapper) queue.poll()) != null) {
+            verificationResults.remove(key);
         }
     }
 
     // return whether this provider is properly signed and can be used by JCE
     static boolean canUseProvider(Provider p) {
-        return getVerificationResult(p) == null;
+        Exception e = getVerificationResult(p);
+        if (debug != null && e != null) {
+            debug.println("Provider verification result: " + e);
+        }
+        return e == null;
     }
 
     // dummy object to represent null
@@ -236,7 +267,8 @@ final class JceSecurity {
 
     static {
         try {
-            NULL_URL = new URL("http://null.oracle.com/");
+            @SuppressWarnings("deprecation")
+            var _unused = NULL_URL = new URL("http://null.oracle.com/");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -390,5 +422,28 @@ final class JceSecurity {
 
     static boolean isRestricted() {
         return isRestricted;
+    }
+
+    private static final class WeakIdentityWrapper extends WeakReference<Object> {
+
+        final int hash;
+
+        WeakIdentityWrapper(Provider obj, ReferenceQueue<Object> queue) {
+            super(obj, queue);
+            hash = System.identityHashCode(obj);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            return o instanceof WeakIdentityWrapper w && get() == w.get();
+        }
+
+        @Override
+        public int hashCode() {
+            return hash;
+        }
     }
 }

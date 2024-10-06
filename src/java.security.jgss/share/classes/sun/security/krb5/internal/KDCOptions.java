@@ -37,6 +37,8 @@ import sun.security.krb5.internal.util.KerberosFlags;
 import sun.security.util.*;
 import java.io.IOException;
 
+import static sun.security.krb5.internal.Krb5.DEBUG;
+
 /**
  * Implements the ASN.1 KDCOptions type.
  *
@@ -140,6 +142,7 @@ public class KDCOptions extends KerberosFlags {
     public static final int UNUSED10        = 10;
     public static final int UNUSED11        = 11;
     public static final int CNAME_IN_ADDL_TKT = 14;
+    public static final int CANONICALIZE    = 15;
     public static final int RENEWABLE_OK    = 27;
     public static final int ENC_TKT_IN_SKEY = 28;
     public static final int RENEW           = 30;
@@ -160,15 +163,14 @@ public class KDCOptions extends KerberosFlags {
         "UNUSED11",         //11;
         null,null,
         "CNAME_IN_ADDL_TKT",//14;
-        null,null,null,null,null,null,null,null,null,null,null,null,
+        "CANONICALIZE",     //15;
+        null,null,null,null,null,null,null,null,null,null,null,
         "RENEWABLE_OK",     //27;
         "ENC_TKT_IN_SKEY",  //28;
         null,
         "RENEW",            //30;
         "VALIDATE",         //31;
     };
-
-    private boolean DEBUG = Krb5.DEBUG;
 
     public static KDCOptions with(int... flags) {
         KDCOptions options = new KDCOptions();
@@ -319,8 +321,8 @@ public class KDCOptions extends KerberosFlags {
                 }
             }
         } catch (KrbException e) {
-            if (DEBUG) {
-                System.out.println("Exception in getting default values for " +
+            if (DEBUG != null) {
+                DEBUG.println("Exception in getting default values for " +
                         "KDC Options from the configuration ");
                 e.printStackTrace();
 

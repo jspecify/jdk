@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.security.NoSuchProviderException;
 import java.security.SecureRandomParameters;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HexFormat;
 import java.util.List;
 
 public class HmacDrbg extends AbstractHashDrbg {
@@ -44,6 +45,7 @@ public class HmacDrbg extends AbstractHashDrbg {
     private byte[] v;
     private byte[] k;
 
+    @SuppressWarnings("this-escape")
     public HmacDrbg(SecureRandomParameters params) {
         mechName = "HMAC_DRBG";
         configure(params);
@@ -51,8 +53,8 @@ public class HmacDrbg extends AbstractHashDrbg {
 
     private void status() {
         if (debug != null) {
-            debug.println(this, "V = " + hex(v));
-            debug.println(this, "Key = " + hex(k));
+            debug.println(this, "V = " + HexFormat.of().formatHex(v));
+            debug.println(this, "Key = " + HexFormat.of().formatHex(k));
             debug.println(this, "reseed counter = " + reseedCounter);
         }
     }
@@ -176,7 +178,7 @@ public class HmacDrbg extends AbstractHashDrbg {
             v = mac.doFinal(v);
             // Step 4.2 temp = temp || V.
             System.arraycopy(v, 0, result, pos,
-                    len > outLen ? outLen : len);
+                    Math.min(len, outLen));
 
             len -= outLen;
             if (len <= 0) {

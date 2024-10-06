@@ -3,9 +3,9 @@
  * @bug 8004832
  * @summary Add new doclint package
  * @library ..
- * @modules jdk.compiler/com.sun.tools.doclint
+ * @modules jdk.javadoc/jdk.javadoc.internal.doclint
  * @build DocLintTester
- * @run main DocLintTester -ref MissingGT.out MissingGT.java
+ * @run main DocLintTester -Xmsgs:all,-missing -ref MissingGT.out MissingGT.java
  */
 
 // tidy: Warning: <.*> missing '>' for end of tag

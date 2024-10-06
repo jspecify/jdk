@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,8 @@ import java.io.Serializable;
 import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import java.io.IOException;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * This class represents a relative distinguished name, or RDN, which is a
@@ -112,6 +114,7 @@ public class Rdn implements Serializable, Comparable<Object> {
     // The common case.
     private static final int DEFAULT_SIZE = 1;
 
+    @java.io.Serial
     private static final long serialVersionUID = -5994465067210009656L;
 
     /**
@@ -316,7 +319,7 @@ public class Rdn implements Serializable, Comparable<Object> {
      * @param obj The non-null object to compare against.
      * @return  A negative integer, zero, or a positive integer as this Rdn
      *          is less than, equal to, or greater than the given Object.
-     * @exception ClassCastException if obj is null or not a Rdn.
+     * @throws ClassCastException if obj is null or not a Rdn.
      */
     public int compareTo(Object obj) {
         if (!(obj instanceof Rdn)) {
@@ -646,11 +649,7 @@ public class Rdn implements Serializable, Comparable<Object> {
                         // Convert hex-encoded UTF-8 to 16-bit chars.
                         byte[] utf8 = getUtf8Octets(chars, i, end);
                         if (utf8.length > 0) {
-                            try {
-                                builder.append(new String(utf8, "UTF8"));
-                            } catch (java.io.UnsupportedEncodingException e) {
-                                // shouldn't happen
-                            }
+                            builder.append(new String(utf8, UTF_8));
                             i += utf8.length * 3 - 1;
                         } else { // no utf8 bytes available, invalid DN
 
@@ -736,17 +735,36 @@ public class Rdn implements Serializable, Comparable<Object> {
     }
 
     /**
+     * The writeObject method is called to save the state of the
+     * {@code Rdn} to a stream.
+     *
      * Serializes only the unparsed RDN, for compactness and to avoid
      * any implementation dependency.
      *
-     * @serialData      The RDN string
+     * @serialData The unparsed RDN {@code String} representation.
+     *
+     * @param s the {@code ObjectOutputStream} to write to
+     * @throws java.io.IOException if an I/O error occurs
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream s)
             throws java.io.IOException {
         s.defaultWriteObject();
         s.writeObject(toString());
     }
 
+    /**
+     * The readObject method is called to restore the state of
+     * the {@code Rdn} from a stream.
+     *
+     * See {@code writeObject} for a description of the serial form.
+     *
+     * @param s the {@code ObjectInputStream} to read from
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if the class of a serialized object
+     *         could not be found
+     */
+    @java.io.Serial
     private void readObject(ObjectInputStream s)
             throws IOException, ClassNotFoundException {
         s.defaultReadObject();

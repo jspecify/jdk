@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,10 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
- * This class implements a character buffer that can be used as an Writer.
+ * This class implements a character buffer that can be used as a Writer.
  * The buffer automatically grows when data is written to the stream.  The data
  * can be retrieved using toCharArray() and toString().
  * <P>
@@ -43,12 +44,11 @@ import java.util.Arrays;
  * @since       1.1
  */
 @NullMarked
-public
-class CharArrayWriter extends Writer {
+public class CharArrayWriter extends Writer {
     /**
      * The buffer where data is stored.
      */
-    protected char buf[];
+    protected char[] buf;
 
     /**
      * The number of chars in the buffer.
@@ -65,8 +65,8 @@ class CharArrayWriter extends Writer {
     /**
      * Creates a new CharArrayWriter with the specified initial size.
      *
-     * @param initialSize  an int specifying the initial buffer size.
-     * @exception IllegalArgumentException if initialSize is negative
+     * @param  initialSize  an int specifying the initial buffer size.
+     * @throws IllegalArgumentException if initialSize is negative
      */
     public CharArrayWriter( int initialSize) {
         if (initialSize < 0) {
@@ -101,11 +101,9 @@ class CharArrayWriter extends Writer {
      *          or {@code off + len} is negative or greater than the length
      *          of the given array
      */
-    public void write(char c[],  int off,   int len) {
-        if ((off < 0) || (off > c.length) || (len < 0) ||
-            ((off + len) > c.length) || ((off + len) < 0)) {
-            throw new IndexOutOfBoundsException();
-        } else if (len == 0) {
+    public void write(char[] c, int off, int len) {
+        Objects.checkFromIndexSize(off, len, c.length);
+        if (len == 0) {
             return;
         }
         synchronized (lock) {
@@ -156,10 +154,12 @@ class CharArrayWriter extends Writer {
      * Appends the specified character sequence to this writer.
      *
      * <p> An invocation of this method of the form {@code out.append(csq)}
-     * behaves in exactly the same way as the invocation
+     * when {@code csq} is not {@code null}, behaves in exactly the same way
+     * as the invocation
      *
-     * <pre>
-     *     out.write(csq.toString()) </pre>
+     * {@snippet lang=java :
+     *     out.write(csq.toString())
+     * }
      *
      * <p> Depending on the specification of {@code toString} for the
      * character sequence {@code csq}, the entire sequence may not be
@@ -190,8 +190,9 @@ class CharArrayWriter extends Writer {
      * {@code csq} is not {@code null}, behaves in
      * exactly the same way as the invocation
      *
-     * <pre>
-     *     out.write(csq.subSequence(start, end).toString()) </pre>
+     * {@snippet lang=java :
+     *     out.write(csq.subSequence(start, end).toString())
+     * }
      *
      * @param  csq
      *         The character sequence from which a subsequence will be
@@ -226,8 +227,9 @@ class CharArrayWriter extends Writer {
      * <p> An invocation of this method of the form {@code out.append(c)}
      * behaves in exactly the same way as the invocation
      *
-     * <pre>
-     *     out.write(c) </pre>
+     * {@snippet lang=java :
+     *     out.write(c)
+     * }
      *
      * @param  c
      *         The 16-bit character to append
@@ -283,6 +285,8 @@ class CharArrayWriter extends Writer {
 
     /**
      * Flush the stream.
+     *
+     * <p> The {@code flush} method of {@code CharArrayWriter} does nothing.
      */
     public void flush() { }
 

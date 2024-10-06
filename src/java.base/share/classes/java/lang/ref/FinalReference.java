@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,29 @@
 
 package java.lang.ref;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
-
 /**
  * Final references, used to implement finalization
  */
-@NullMarked
-class FinalReference<T extends @Nullable Object> extends Reference<T> {
+sealed class FinalReference<T> extends Reference<T> permits Finalizer {
 
     public FinalReference(T referent, ReferenceQueue<? super T> q) {
         super(referent, q);
+    }
+
+    /* May only be called when the reference is inactive, so no longer weak. */
+    @Override
+    public T get() {
+        // Cannot call super.get() when active, as the GC could
+        // deactivate immediately after the test.
+        return getFromInactiveFinalReference();
+    }
+
+    /* May only be called when the reference is inactive, so no longer weak.
+     * Clearing while active would discard the finalization request.
+     */
+    @Override
+    public void clear() {
+        clearInactiveFinalReference();
     }
 
     @Override

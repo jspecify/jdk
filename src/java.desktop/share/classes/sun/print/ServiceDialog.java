@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package sun.print;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dialog;
@@ -35,9 +34,7 @@ import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
 import java.awt.GridBagLayout;
 import java.awt.GridBagConstraints;
-import java.awt.GridLayout;
 import java.awt.Insets;
-import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -61,13 +58,9 @@ import javax.print.*;
 import javax.print.attribute.*;
 import javax.print.attribute.standard.*;
 import javax.swing.*;
-import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.TitledBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import javax.swing.text.NumberFormatter;
@@ -76,6 +69,7 @@ import java.awt.event.KeyEvent;
 import java.net.URISyntaxException;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
+import sun.awt.OSInfo;
 
 /**
  * A class which implements a cross-platform print dialog.
@@ -455,6 +449,7 @@ public class ServiceDialog extends JDialog implements ActionListener {
     /**
      * Initialize ResourceBundle
      */
+    @SuppressWarnings("removal")
     public static void initResource() {
         java.security.AccessController.doPrivileged(
             new java.security.PrivilegedAction<Object>() {
@@ -548,6 +543,7 @@ public class ServiceDialog extends JDialog implements ActionListener {
      * Returns URL for image resource
      */
     private static URL getImageResource(final String key) {
+        @SuppressWarnings("removal")
         URL url = java.security.AccessController.doPrivileged(
                        new java.security.PrivilegedAction<URL>() {
                 public URL run() {
@@ -908,6 +904,7 @@ public class ServiceDialog extends JDialog implements ActionListener {
          * to throw a SecurityException if the permission is not granted.
          */
         private void throwPrintToFile() {
+            @SuppressWarnings("removal")
             SecurityManager security = System.getSecurityManager();
             if (security != null) {
                 if (printToFilePermission == null) {
@@ -961,7 +958,13 @@ public class ServiceDialog extends JDialog implements ActionListener {
             if (info != null) {
                 lblInfo.setText(info.toString());
             }
-            btnProperties.setEnabled(uiFactory != null);
+            PrinterJob job = null;
+            PrinterJobWrapper wrapper = (PrinterJobWrapper)
+                                        asCurrent.get(PrinterJobWrapper.class);
+            if (wrapper != null) {
+                job = wrapper.getPrinterJob();
+            }
+            btnProperties.setEnabled(uiFactory != null &&  job != null);
         }
     }
 
@@ -1395,7 +1398,7 @@ public class ServiceDialog extends JDialog implements ActionListener {
             String unitsKey = "label.millimetres";
             String defaultCountry = Locale.getDefault().getCountry();
             if (defaultCountry != null &&
-                (defaultCountry.equals("") ||
+                (defaultCountry.isEmpty() ||
                  defaultCountry.equals(Locale.US.getCountry()) ||
                  defaultCountry.equals(Locale.CANADA.getCountry()))) {
                 unitsKey = "label.inches";
@@ -1611,11 +1614,10 @@ public class ServiceDialog extends JDialog implements ActionListener {
             MediaSize mediaSize = null;
 
             Media media = (Media)asCurrent.get(Media.class);
-            if (media == null || !(media instanceof MediaSizeName)) {
+            if (!(media instanceof MediaSizeName)) {
                 media = (Media)psCurrent.getDefaultAttributeValue(Media.class);
             }
-            if (media != null && (media instanceof MediaSizeName)) {
-                MediaSizeName msn = (MediaSizeName)media;
+            if (media instanceof MediaSizeName msn) {
                 mediaSize = MediaSize.getMediaSizeForName(msn);
             }
             if (mediaSize == null) {
@@ -1697,11 +1699,10 @@ public class ServiceDialog extends JDialog implements ActionListener {
             MediaSize mediaSize = null;
 
             Media media = (Media)asCurrent.get(Media.class);
-            if (media == null || !(media instanceof MediaSizeName)) {
+            if (!(media instanceof MediaSizeName)) {
                 media = (Media)psCurrent.getDefaultAttributeValue(Media.class);
             }
-            if (media != null && (media instanceof MediaSizeName)) {
-                MediaSizeName msn = (MediaSizeName)media;
+            if (media instanceof MediaSizeName msn) {
                 mediaSize = MediaSize.getMediaSizeForName(msn);
             }
             if (mediaSize == null) {
@@ -2300,6 +2301,7 @@ public class ServiceDialog extends JDialog implements ActionListener {
         private QualityPanel pnlQuality;
         private JobAttributesPanel pnlJobAttributes;
         private SidesPanel pnlSides;
+        private OutputPanel pnlOutput;
 
         public AppearancePanel() {
             super();
@@ -2330,6 +2332,11 @@ public class ServiceDialog extends JDialog implements ActionListener {
             pnlJobAttributes = new JobAttributesPanel();
             addToGB(pnlJobAttributes, this, gridbag, c);
 
+            if (OSInfo.getOSType() != OSInfo.OSType.WINDOWS) {
+                c.gridwidth = GridBagConstraints.REMAINDER;
+                pnlOutput = new OutputPanel();
+                addToGB(pnlOutput, this, gridbag, c);
+            }
         }
 
         public void updateInfo() {
@@ -2337,6 +2344,9 @@ public class ServiceDialog extends JDialog implements ActionListener {
             pnlQuality.updateInfo();
             pnlSides.updateInfo();
             pnlJobAttributes.updateInfo();
+            if (pnlOutput != null) {
+                pnlOutput.updateInfo();
+            }
         }
     }
 
@@ -2818,15 +2828,113 @@ public class ServiceDialog extends JDialog implements ActionListener {
         }
     }
 
+    @SuppressWarnings("serial") // Superclass is not serializable across versions
+    private class OutputPanel extends JPanel implements ItemListener {
 
+        private final String strTitle = getMsg("border.output");
+        private JLabel lblOutput;
+        private JComboBox<Object> cbOutput;
+        private Vector<OutputBin> outputs = new Vector<>();
 
+        public OutputPanel() {
+            super();
+
+            GridBagLayout gridbag = new GridBagLayout();
+            GridBagConstraints c = new GridBagConstraints();
+
+            setLayout(gridbag);
+            setBorder(BorderFactory.createTitledBorder(strTitle));
+
+            cbOutput = new JComboBox<>();
+
+            c.fill = GridBagConstraints.BOTH;
+            c.insets = compInsets;
+            c.weighty = 1.0;
+
+            c.weightx = 0.0;
+            lblOutput = new JLabel(getMsg("label.outputbins"), JLabel.TRAILING);
+            lblOutput.setDisplayedMnemonic(getMnemonic("label.outputbins"));
+            lblOutput.setLabelFor(cbOutput);
+            addToGB(lblOutput, this, gridbag, c);
+            c.weightx = 1.0;
+            c.gridwidth = GridBagConstraints.REMAINDER;
+            addToGB(cbOutput, this, gridbag, c);
+        }
+
+        public void itemStateChanged(ItemEvent e) {
+
+            Object source = e.getSource();
+            if (e.getStateChange() == ItemEvent.SELECTED) {
+                if (source == cbOutput) {
+                    int index = cbOutput.getSelectedIndex();
+                    if ((index >= 0) && (index < outputs.size())) {
+                        asCurrent.add(outputs.get(index));
+                    } else if (index == cbOutput.getItemCount() - 1) {
+                        asCurrent.remove(OutputBin.class);
+                    }
+                }
+            }
+        }
+
+        public void updateInfo() {
+
+            Class<OutputBin> obCategory = OutputBin.class;
+
+            cbOutput.removeItemListener(this);
+            cbOutput.removeAllItems();
+
+            outputs.clear();
+
+            boolean outputEnabled = false;
+
+            if (psCurrent.isAttributeCategorySupported(obCategory)) {
+
+                Object values =
+                        psCurrent.getSupportedAttributeValues(obCategory,
+                                docFlavor,
+                                asCurrent);
+
+                if (values instanceof OutputBin[]) {
+                    OutputBin[] outputBins = (OutputBin[])values;
+
+                    for (OutputBin outputBin: outputBins) {
+                        outputs.add(outputBin);
+                        cbOutput.addItem(outputBin.toString());
+                    }
+
+                    cbOutput.addItem("");
+                    cbOutput.setSelectedIndex(cbOutput.getItemCount() - 1);
+
+                    OutputBin current = (OutputBin) asCurrent.get(obCategory);
+                    if (current != null) {
+                        for (int i = 0; i < outputs.size(); i++) {
+                            if (current.equals(outputs.get(i))) {
+                                cbOutput.setSelectedIndex(i);
+                                break;
+                            }
+                        }
+                    } else if (outputBins.length == 1) {
+                        cbOutput.setSelectedIndex(0);
+                    }
+
+                    outputEnabled = outputBins.length > 1;
+                }
+            }
+
+            cbOutput.setEnabled(outputEnabled);
+            lblOutput.setEnabled(outputEnabled);
+            if (outputEnabled) {
+                cbOutput.addItemListener(this);
+            }
+        }
+    }
 
     /**
      * A special widget that groups a JRadioButton with an associated icon,
      * placed to the left of the radio button.
      */
     @SuppressWarnings("serial") // Superclass is not serializable across versions
-    private class IconRadioButton extends JPanel {
+    private static class IconRadioButton extends JPanel {
 
         private JRadioButton rb;
         private JLabel lbl;
@@ -2836,6 +2944,7 @@ public class ServiceDialog extends JDialog implements ActionListener {
         {
             super(new FlowLayout(FlowLayout.LEADING));
             final URL imgURL = getImageResource(img);
+            @SuppressWarnings("removal")
             Icon icon = java.security.AccessController.doPrivileged(
                                  new java.security.PrivilegedAction<Icon>() {
                 public Icon run() {
@@ -2879,7 +2988,7 @@ public class ServiceDialog extends JDialog implements ActionListener {
      * user selects a file that already exists.
      */
     @SuppressWarnings("serial") // JDK implementation class
-    private class ValidatingFileChooser extends JFileChooser {
+    private static class ValidatingFileChooser extends JFileChooser {
         public void approveSelection() {
             File selected = getSelectedFile();
             boolean exists;

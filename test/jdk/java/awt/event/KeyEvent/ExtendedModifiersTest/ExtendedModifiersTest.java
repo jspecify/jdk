@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,12 +32,13 @@
  *          2. InputEvent.getModifiersExText() returns
  *             correct extended modifier keys description
  *
- * @library ../../../../../lib/testlibrary/  ../../helpers/lwcomponents/
+ * @library /lib/client/ ../../helpers/lwcomponents/
+ * @library /test/lib
  * @build LWComponent
  * @build LWButton
  * @build LWList
  * @build ExtendedRobot
- * @run main/timeout=600 ExtendedModifiersTest
+ * @run main/timeout=300 ExtendedModifiersTest
  */
 import java.awt.Button;
 import java.awt.Color;
@@ -54,7 +55,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.ArrayList;
 
-import static jdk.testlibrary.Asserts.*;
+import static jdk.test.lib.Asserts.*;
 import test.java.awt.event.helpers.lwcomponents.LWButton;
 import test.java.awt.event.helpers.lwcomponents.LWList;
 
@@ -70,7 +71,7 @@ public class ExtendedModifiersTest implements KeyListener {
 
     private final ExtendedRobot robot;
     private static final int WAIT_DELAY = 5000;
-    private static final int KEY_DELAY = 500;
+    private static final int KEY_DELAY = 100;
     private final Object lock;
 
     private boolean keyPressedFlag;
@@ -105,6 +106,7 @@ public class ExtendedModifiersTest implements KeyListener {
         frame = new Frame();
         frame.setTitle("ExtendedModifiersTest");
         frame.setLayout(new GridLayout(1, 6));
+        frame.setLocationRelativeTo(null);
 
         button = new Button();
         button.addKeyListener(this);
@@ -246,7 +248,7 @@ public class ExtendedModifiersTest implements KeyListener {
             runScenario(new int[]{KeyEvent.VK_SHIFT, KeyEvent.VK_ALT},
                     InputEvent.SHIFT_DOWN_MASK | InputEvent.ALT_DOWN_MASK);
 
-            if (OS.contains("os x") || OS.contains("sunos")) {
+            if (OS.contains("os x")) {
                 // 6. meta
                 runScenario(new int[]{KeyEvent.VK_META},
                         InputEvent.META_DOWN_MASK);

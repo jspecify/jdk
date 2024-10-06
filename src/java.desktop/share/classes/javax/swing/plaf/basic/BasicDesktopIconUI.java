@@ -243,6 +243,15 @@ public class BasicDesktopIconUI extends DesktopIconUI {
         int __x, __y;
         Rectangle startingBounds;
 
+        /**
+         * Constructs a {@code MouseInputHandler}.
+         */
+        public MouseInputHandler() {}
+
+        /**
+         * {@inheritDoc java.awt.event.MouseListener}
+         * @param e {@inheritDoc java.awt.event.MouseListener}
+         */
         public void mouseReleased(MouseEvent e) {
             _x = 0;
             _y = 0;
@@ -258,6 +267,10 @@ public class BasicDesktopIconUI extends DesktopIconUI {
 
         }
 
+        /**
+         * {@inheritDoc java.awt.event.MouseListener}
+         * @param e {@inheritDoc java.awt.event.MouseListener}
+         */
         public void mousePressed(MouseEvent e) {
             Point p = SwingUtilities.convertPoint((Component)e.getSource(),
                         e.getX(), e.getY(), null);
@@ -346,6 +359,6 @@ public class BasicDesktopIconUI extends DesktopIconUI {
             SwingUtilities.computeUnion(newX, newY, newWidth, newHeight, r);
             f.getParent().repaint(r.x, r.y, r.width, r.height);
         }
-    }; /// End MotionListener
+    } /// End MotionListener
 
 }

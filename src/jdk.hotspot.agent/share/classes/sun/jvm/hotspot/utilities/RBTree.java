@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,7 @@ package sun.jvm.hotspot.utilities;
     <P> An RBTree takes a Comparator as argument to its constructor
     which is used internally to order the nodes in the tree. The
     comparator's arguments are obtained by calling the routine
-    "getNodeData" on two nodes; the default implementaion returns the
+    "getNodeData" on two nodes; the default implementation returns the
     node data. This Comparator is also used to perform the generic
     "find" operation, which returns the RBNode containing user data
     precisely equalling the query data. Different types of user data
@@ -57,12 +57,12 @@ import java.util.Random;
 
 public class RBTree {
   private RBNode root;
-  private Comparator comparator;
+  private Comparator<Object> comparator;
   protected static final boolean DEBUGGING = true;
   protected static final boolean VERBOSE   = true;
   protected static final boolean REALLY_VERBOSE = false;
 
-  public RBTree(Comparator comparator) {
+  public RBTree(Comparator<Object> comparator) {
     this.comparator = comparator;
   }
 
@@ -534,7 +534,7 @@ public class RBTree {
     int treeSize = 10000;
     int maxVal = treeSize;
     System.err.println("Building tree...");
-    RBTree tree = new RBTree(new Comparator() {
+    RBTree tree = new RBTree(new Comparator<>() {
         public int compare(Object o1, Object o2) {
           Integer i1 = (Integer) o1;
           Integer i2 = (Integer) o2;
@@ -548,7 +548,7 @@ public class RBTree {
       });
     Random rand = new Random(System.currentTimeMillis());
     for (int i = 0; i < treeSize; i++) {
-      Integer val = new Integer(rand.nextInt(maxVal) + 1);
+      Integer val = rand.nextInt(maxVal) + 1;
       try {
         tree.insertNode(new RBNode(val));
         if ((i > 0) && (i % 100 == 0)) {
@@ -605,7 +605,7 @@ public class RBTree {
       tree.deleteNode(xParent);
 
       // Now create and insert a new value
-      Integer newVal = new Integer(rand.nextInt(maxVal) + 1);
+      Integer newVal = rand.nextInt(maxVal) + 1;
       if (DEBUGGING && VERBOSE) {
         System.err.println("(Inserting value " + newVal + ")");
       }

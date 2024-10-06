@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,19 +36,18 @@
 
 package java.awt.image;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.awt.Point;
 import java.awt.Graphics2D;
-import java.awt.color.*;
-import sun.java2d.cmm.ColorTransform;
-import sun.java2d.cmm.CMSManager;
-import sun.java2d.cmm.ProfileDeferralMgr;
-import sun.java2d.cmm.PCMM;
-import java.awt.geom.Rectangle2D;
-import java.awt.geom.Point2D;
+import java.awt.Point;
 import java.awt.RenderingHints;
+import java.awt.color.ColorSpace;
+import java.awt.color.ICC_ColorSpace;
+import java.awt.color.ICC_Profile;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+
+import sun.java2d.cmm.CMSManager;
+import sun.java2d.cmm.ColorTransform;
+import sun.java2d.cmm.PCMM;
 
 /**
  * This class performs a pixel-by-pixel color conversion of the data in
@@ -71,8 +70,7 @@ import java.awt.RenderingHints;
  * @see java.awt.RenderingHints#KEY_COLOR_RENDERING
  * @see java.awt.RenderingHints#KEY_DITHERING
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, RasterOp {
+public class ColorConvertOp implements BufferedImageOp, RasterOp {
     ICC_Profile[]    profileList;
     ColorSpace[]     CSList;
     ColorTransform    thisTransform, thisRasterTransform;
@@ -80,13 +78,6 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
     RenderingHints   hints;
     boolean          gotProfiles;
     float[]          srcMinVals, srcMaxVals, dstMinVals, dstMaxVals;
-
-    /* the class initializer */
-    static {
-        if (ProfileDeferralMgr.deferring) {
-            ProfileDeferralMgr.activateProfiles();
-        }
-    }
 
     /**
      * Constructs a new ColorConvertOp which will convert
@@ -203,9 +194,9 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
      * @param profiles the array of {@code ICC_Profile} objects
      * @param hints the {@code RenderingHints} object used to control
      *        the color conversion, or {@code null}
-     * @exception IllegalArgumentException when the profile sequence does not
+     * @throws IllegalArgumentException when the profile sequence does not
      *             specify a well-defined color conversion
-     * @exception NullPointerException if profiles is null
+     * @throws NullPointerException if profiles is null
      */
     public ColorConvertOp (ICC_Profile[] profiles, RenderingHints hints)
     {
@@ -251,7 +242,7 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
      * @return {@code dest} color converted from {@code src}
      *         or a new, converted {@code BufferedImage}
      *         if {@code dest} is {@code null}
-     * @exception IllegalArgumentException if dest is null and this op was
+     * @throws IllegalArgumentException if dest is null and this op was
      *             constructed using the constructor which takes only a
      *             RenderingHints argument, since the operation is ill defined.
      */
@@ -364,8 +355,7 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
     private void updateBITransform(ICC_Profile srcProfile,
                                    ICC_Profile destProfile) {
         ICC_Profile[]    theProfiles;
-        int              i1, nProfiles, nTransforms, whichTrans, renderState;
-        ColorTransform[]  theTransforms;
+        int              i1, nProfiles, nTransforms, renderingIntent;
         boolean          useSrc = false, useDest = false;
 
         nProfiles = profileList.length;
@@ -400,51 +390,20 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
             theProfiles[idx] = destProfile;
         }
 
-        /* make the transform list */
-        theTransforms = new ColorTransform [nTransforms];
-
-        /* initialize transform get loop */
         if (theProfiles[0].getProfileClass() == ICC_Profile.CLASS_OUTPUT) {
                                         /* if first profile is a printer
                                            render as colorimetric */
-            renderState = ICC_Profile.icRelativeColorimetric;
+            renderingIntent = ICC_Profile.icRelativeColorimetric;
         }
         else {
-            renderState = ICC_Profile.icPerceptual; /* render any other
+            renderingIntent = ICC_Profile.icPerceptual; /* render any other
                                                        class perceptually */
         }
-
-        whichTrans = ColorTransform.In;
-
+        /* or get this profile's rendering intent to select transform
+           from next profiles? */
+        //renderingIntent = getRenderingIntent(theProfiles[0]);
         PCMM mdl = CMSManager.getModule();
-
-        /* get the transforms from each profile */
-        for (i1 = 0; i1 < nTransforms; i1++) {
-            if (i1 == nTransforms -1) {         /* last profile? */
-                whichTrans = ColorTransform.Out; /* get output transform */
-            }
-            else {      /* check for abstract profile */
-                if ((whichTrans == ColorTransform.Simulation) &&
-                    (theProfiles[i1].getProfileClass () ==
-                     ICC_Profile.CLASS_ABSTRACT)) {
-                renderState = ICC_Profile.icPerceptual;
-                    whichTrans = ColorTransform.In;
-                }
-            }
-
-            theTransforms[i1] = mdl.createTransform (
-                theProfiles[i1], renderState, whichTrans);
-
-            /* get this profile's rendering intent to select transform
-               from next profile */
-            renderState = getRenderingIntent(theProfiles[i1]);
-
-            /* "middle" profiles use simulation transform */
-            whichTrans = ColorTransform.Simulation;
-        }
-
-        /* make the net transform */
-        thisTransform = mdl.createTransform(theTransforms);
+        thisTransform = mdl.createTransform(renderingIntent, theProfiles);
 
         /* update corresponding source and dest profiles */
         thisSrcProfile = srcProfile;
@@ -465,7 +424,7 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
      * @return {@code dest} color converted from {@code src}
      *         or a new, converted {@code WritableRaster}
      *         if {@code dest} is {@code null}
-     * @exception IllegalArgumentException if the number of source or
+     * @throws IllegalArgumentException if the number of source or
      *             destination bands is incorrect, the source or destination
      *             color spaces are undefined, or this op was constructed
      *             with one of the constructors that applies only to
@@ -506,54 +465,24 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
 
         /* make a new transform if needed */
         if (thisRasterTransform == null) {
-            int              i1, whichTrans, renderState;
-            ColorTransform[]  theTransforms;
+            int renderingIntent;
 
-            /* make the transform list */
-            theTransforms = new ColorTransform [nProfiles];
-
-            /* initialize transform get loop */
             if (profileList[0].getProfileClass() == ICC_Profile.CLASS_OUTPUT) {
                                             /* if first profile is a printer
                                                render as colorimetric */
-                renderState = ICC_Profile.icRelativeColorimetric;
+                renderingIntent = ICC_Profile.icRelativeColorimetric;
             }
             else {
-                renderState = ICC_Profile.icPerceptual; /* render any other
+                renderingIntent = ICC_Profile.icPerceptual; /* render any other
                                                            class perceptually */
             }
 
-            whichTrans = ColorTransform.In;
-
+            /* or get this profile's rendering intent to select transform
+               from next profiles? */
+            // renderingIntent = getRenderingIntent(profileList[i1]);
             PCMM mdl = CMSManager.getModule();
-
-            /* get the transforms from each profile */
-            for (i1 = 0; i1 < nProfiles; i1++) {
-                if (i1 == nProfiles -1) {         /* last profile? */
-                    whichTrans = ColorTransform.Out; /* get output transform */
-                }
-                else {  /* check for abstract profile */
-                    if ((whichTrans == ColorTransform.Simulation) &&
-                        (profileList[i1].getProfileClass () ==
-                         ICC_Profile.CLASS_ABSTRACT)) {
-                        renderState = ICC_Profile.icPerceptual;
-                        whichTrans = ColorTransform.In;
-                    }
-                }
-
-                theTransforms[i1] = mdl.createTransform (
-                    profileList[i1], renderState, whichTrans);
-
-                /* get this profile's rendering intent to select transform
-                   from next profile */
-                renderState = getRenderingIntent(profileList[i1]);
-
-                /* "middle" profiles use simulation transform */
-                whichTrans = ColorTransform.Simulation;
-            }
-
-            /* make the net transform */
-            thisRasterTransform = mdl.createTransform(theTransforms);
+            thisRasterTransform = mdl.createTransform(renderingIntent,
+                                                      profileList);
         }
 
         int srcTransferType = src.getTransferType();
@@ -621,7 +550,7 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
      */
     public BufferedImage createCompatibleDestImage (BufferedImage src,
                                                     ColorModel destCM) {
-        ColorSpace cs = null;;
+        ColorSpace cs = null;
         if (destCM == null) {
             if (CSList == null) {
                 /* ICC case */
@@ -631,7 +560,7 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
                         "Destination ColorSpace is undefined");
                 }
                 ICC_Profile destProfile = profileList[nProfiles - 1];
-                cs = new ICC_ColorSpace(destProfile);
+                cs = createCompatibleColorSpace(destProfile);
             } else {
                 /* non-ICC case */
                 int nSpaces = CSList.length;
@@ -639,6 +568,25 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
             }
         }
         return createCompatibleDestImage(src, destCM, cs);
+    }
+
+    private static ColorSpace createCompatibleColorSpace(ICC_Profile profile) {
+        if (profile == ICC_Profile.getInstance(ColorSpace.CS_sRGB)) {
+            return ColorSpace.getInstance(ColorSpace.CS_sRGB);
+        }
+        if (profile == ICC_Profile.getInstance(ColorSpace.CS_LINEAR_RGB)) {
+            return ColorSpace.getInstance(ColorSpace.CS_LINEAR_RGB);
+        }
+        if (profile == ICC_Profile.getInstance(ColorSpace.CS_CIEXYZ)) {
+            return ColorSpace.getInstance(ColorSpace.CS_CIEXYZ);
+        }
+        if (profile == ICC_Profile.getInstance(ColorSpace.CS_PYCC)) {
+            return ColorSpace.getInstance(ColorSpace.CS_PYCC);
+        }
+        if (profile == ICC_Profile.getInstance(ColorSpace.CS_GRAY)) {
+            return ColorSpace.getInstance(ColorSpace.CS_GRAY);
+        }
+        return new ICC_ColorSpace(profile);
     }
 
     private BufferedImage createCompatibleDestImage(BufferedImage src,
@@ -742,7 +690,7 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
          * shall be set to zero. Thus, we are ignoring two most significant
          * bytes here.
          *
-         *  See http://www.color.org/ICC1v42_2006-05.pdf, section 7.2.15.
+         *  See https://www.color.org/ICC1v42_2006-05.pdf, section 7.2.15.
          */
         return ((header[index+2] & 0xff) <<  8) |
                 (header[index+3] & 0xff);
@@ -820,7 +768,7 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
             }
             float[] srcMinVal = new float[iccSrcNumComp];
             float[] srcInvDiffMinMax = new float[iccSrcNumComp];
-            for (int i = 0; i < srcNumComp; i++) {
+            for (int i = 0; i < iccSrcNumComp; i++) {
                 srcMinVal[i] = cs.getMinValue(i);
                 srcInvDiffMinMax[i] = maxNum / (cs.getMaxValue(i) - srcMinVal[i]);
             }
@@ -834,7 +782,7 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
             }
             float[] dstMinVal = new float[iccDstNumComp];
             float[] dstDiffMinMax = new float[iccDstNumComp];
-            for (int i = 0; i < dstNumComp; i++) {
+            for (int i = 0; i < iccDstNumComp; i++) {
                 dstMinVal[i] = cs.getMinValue(i);
                 dstDiffMinMax[i] = (cs.getMaxValue(i) - dstMinVal[i]) / maxNum;
             }
@@ -887,7 +835,7 @@ public @UsesObjectEquals class ColorConvertOp implements BufferedImageOp, Raster
                                       dstDiffMinMax[i] + dstMinVal[i];
                     }
                     if (nonICCDst) {
-                        color = srcColorSpace.fromCIEXYZ(dstColor);
+                        color = dstColorSpace.fromCIEXYZ(dstColor);
                         for (int i = 0; i < dstNumComp; i++) {
                             dstColor[i] = color[i];
                         }

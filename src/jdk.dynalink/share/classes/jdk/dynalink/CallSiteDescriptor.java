@@ -88,6 +88,7 @@ import java.util.function.Supplier;
  * the {@code MethodHandles.Lookup} object it carries. This lookup should be used
  * to find method handles to set as targets of the call site described by this
  * descriptor.
+ * @since 9
  */
 public class CallSiteDescriptor extends SecureLookupSupplier {
     private final Operation operation;
@@ -269,8 +270,7 @@ public class CallSiteDescriptor extends SecureLookupSupplier {
         final String mt = methodType.toString();
         final String l = getLookupPrivileged().toString();
         final String o = operation.toString();
-        final StringBuilder b = new StringBuilder(o.length() + mt.length() + 1 + l.length());
-        return b.append(o).append(mt).append('@').append(l).toString();
+        return o + mt + '@' + l;
     }
 
     private void assertChangeInvariants(final CallSiteDescriptor changed, final String caller) {

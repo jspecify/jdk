@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,16 +44,15 @@
  * @requires vm.gc != "Z"
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jdi.ReferenceType.instances.instances003.instances003
- * @run main/othervm/native PropertyResolvingWrapper
+ * @run main/othervm/native
  *      nsk.jdi.ReferenceType.instances.instances003.instances003
  *      -verbose
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=-Xmx128M ${test.vm.opts} ${test.java.opts}"
+ *      -debugee.vmkeys="-Xmx128M ${test.vm.opts} ${test.java.opts}"
  *      -testClassNames nsk.jdi.ReferenceType.instances.instances003.instances003$TestClassLoader:java.lang.String:java.lang.Thread
  */
 
@@ -62,6 +61,7 @@ package nsk.jdi.ReferenceType.instances.instances003;
 import java.io.PrintStream;
 import java.util.*;
 
+import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ReferenceType;
 
@@ -101,7 +101,10 @@ public class instances003 extends HeapwalkingDebugger {
     }
 
     public static void main(String argv[]) {
-        System.exit(run(argv, System.out) + Consts.JCK_STATUS_BASE);
+        int result = run(argv,System.out);
+        if (result != 0) {
+            throw new RuntimeException("TEST FAILED with result " + result);
+        }
     }
 
     public static int run(String argv[], PrintStream out) {
@@ -122,9 +125,10 @@ public class instances003 extends HeapwalkingDebugger {
 
         // create temporary strong references to prevent the weakly referred instances being GCed
         // during the time between creating them and disabling collection on them
+        boolean useTempStrongReference = needTempStongReference(referrerType);
         pipe.println(HeapwalkingDebuggee.COMMAND_CREATE_INSTANCES + ":" + className + ":" + createInstanceCount +
-            ":" + referrerCount + ":" + referrerType +
-            (referrerType.equals(ObjectInstancesManager.WEAK_REFERENCE) ? "|" + ObjectInstancesManager.STRONG_REFERENCE : ""));
+                ":" + referrerCount + ":" + referrerType +
+                (useTempStrongReference ? "|" + ObjectInstancesManager.STRONG_REFERENCE : ""));
 
         // Note! This test is broken, in the sense that it incorrectly assumes
         // that no GC can happen before it walks the heap. In practice, it seems
@@ -135,14 +139,24 @@ public class instances003 extends HeapwalkingDebugger {
         checkDebugeeAnswer_instanceCounts(className, createInstanceCount, objectsToFilter);
 
         ReferenceType referenceType = debuggee.classByName(className);
-        List<ObjectReference> instances = HeapwalkingDebugger.filterObjectReferrence(objectsToFilter, referenceType.instances(0));
+        List<ObjectReference> allInstances = HeapwalkingDebugger.filterObjectReferrence(objectsToFilter, referenceType.instances(0));
 
-        for (ObjectReference or : instances) {
-            or.disableCollection();
+        // There are potentially other non-test Java threads allocating objects and triggering GC's.
+        // We need to call disableCollection() on each object returned by referenceType.instances()
+        // to deal with the case when GC was triggered. Otherwise, these objects can
+        // be potentially collected.
+        List<ObjectReference> instances = new LinkedList<>();
+        for (ObjectReference objRef : allInstances) {
+            try {
+                objRef.disableCollection();
+                instances.add(objRef);
+            } catch (ObjectCollectedException ex) {
+                // skip this references
+            }
         }
 
         // remove the temporary strong references so the weak references can be properly tested
-        if (referrerType.equals(ObjectInstancesManager.WEAK_REFERENCE)) {
+        if (useTempStrongReference) {
             pipe.println(HeapwalkingDebuggee.COMMAND_DELETE_REFERRERS + ":" + className + ":" + referrerCount + ":" + ObjectInstancesManager.STRONG_REFERENCE);
             if (!isDebuggeeReady()) {
                 return;
@@ -156,6 +170,7 @@ public class instances003 extends HeapwalkingDebugger {
         for (int i = 0; i < preventGCCount; i++) {
             instances.get(i).enableCollection();
         }
+
 
         pipe.println(HeapwalkingDebuggee.COMMAND_DELETE_INSTANCES + ":" + className + ":" + createInstanceCount);
 
@@ -182,5 +197,14 @@ public class instances003 extends HeapwalkingDebugger {
             for (String className : testClasses)
                 testClass(className, referenceType);
         }
+    }
+
+
+    private static boolean needTempStongReference(String referenceType) {
+        return ObjectInstancesManager.WEAK_REFERENCE.equals(referenceType) ||
+                ObjectInstancesManager.JNI_WEAK_REFERENCE.equals(referenceType) ||
+                ObjectInstancesManager.PHANTOM_REFERENCE.equals(referenceType) ||
+                ObjectInstancesManager.SOFT_REFERENCE.equals(referenceType);
+
     }
 }

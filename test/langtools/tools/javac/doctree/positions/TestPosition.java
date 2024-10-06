@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8008174
+ * @bug 8008174 8227923
  * @summary proper source positions for doc comments
  * @modules jdk.compiler
  * @build TestPosition
@@ -77,7 +77,7 @@ public class TestPosition extends AbstractProcessor {
                     new DocTreeScanner<Void, Void>() {
                         @Override public Void scan(DocTree node, Void p) {
                             if (node != null) {
-                                DocSourcePositions sp = (DocSourcePositions) trees.getSourcePositions(); //XXX: the cast???
+                                DocSourcePositions sp = trees.getSourcePositions();
                                 int start = (int) sp.getStartPosition(testElement.getCompilationUnit(), docCommentTree, node);
                                 int end   = (int) sp.getEndPosition(testElement.getCompilationUnit(), docCommentTree, node);
                                 String snippet = code.substring(start, end).replace(" \n", "!trailing-whitespace!\n");

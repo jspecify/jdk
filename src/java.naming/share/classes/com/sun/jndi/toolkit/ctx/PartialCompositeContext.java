@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -477,9 +477,9 @@ public abstract class PartialCompositeContext implements Context, Resolver {
         int len = prefix.size();
 
         if (!allEmpty(prefix) && !allEmpty(name)) {
-            if (res.get(len - 1).equals("")) {
+            if (res.get(len - 1).isEmpty()) {
                 res.remove(len - 1);
-            } else if (res.get(len).equals("")) {
+            } else if (res.get(len).isEmpty()) {
                 res.remove(len);
             }
         }
@@ -510,12 +510,11 @@ public abstract class PartialCompositeContext implements Context, Resolver {
             throws NamingException {
 
         Object obj = cont.getResolvedObj();
-        PartialCompositeContext pctx = null;
 
-        if (obj instanceof PartialCompositeContext) {
+        if (obj instanceof PartialCompositeContext partialCtx) {
             // Just cast if octx already is PartialCompositeContext
             // %%% ignoring environment for now
-            return (PartialCompositeContext)obj;
+            return partialCtx;
         } else {
             throw cont.fillInException(new CannotProceedException());
         }

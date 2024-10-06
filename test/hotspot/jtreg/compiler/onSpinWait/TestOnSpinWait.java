@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2016 Azul Systems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -27,8 +27,10 @@
  * @summary (x86 only) checks that java.lang.Thread.onSpinWait is intrinsified
  * @bug 8147844
  * @library /test/lib
- * @modules java.base/jdk.internal.misc
+ *
+ * @requires vm.flagless
  * @requires os.arch=="x86" | os.arch=="amd64" | os.arch=="x86_64"
+ *
  * @run driver compiler.onSpinWait.TestOnSpinWait
  */
 
@@ -40,29 +42,14 @@ import jdk.test.lib.process.ProcessTools;
 public class TestOnSpinWait {
 
     public static void main(String[] args) throws Exception {
-
-        // Test C1 compiler
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-          "-XX:+IgnoreUnrecognizedVMOptions", "-showversion",
-          "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Xbatch",
-          "-XX:+PrintCompilation", "-XX:+UnlockDiagnosticVMOptions",
-          "-XX:+PrintInlining", Launcher.class.getName());
-
-        OutputAnalyzer analyzer = new OutputAnalyzer(pb.start());
-
-        analyzer.shouldHaveExitValue(0);
-
-        // The test is applicable only to C1 (present in Server VM).
-        analyzer.shouldContain("java.lang.Thread::onSpinWait (1 bytes)   intrinsic");
-
         // Test C2 compiler
-        pb = ProcessTools.createJavaProcessBuilder(
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
           "-XX:+IgnoreUnrecognizedVMOptions", "-showversion",
           "-XX:-TieredCompilation", "-Xbatch",
           "-XX:+PrintCompilation", "-XX:+UnlockDiagnosticVMOptions",
           "-XX:+PrintInlining", Launcher.class.getName());
 
-        analyzer = new OutputAnalyzer(pb.start());
+        OutputAnalyzer analyzer = new OutputAnalyzer(pb.start());
 
         analyzer.shouldHaveExitValue(0);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,18 @@
 
 /*
  * @test
- * @library /lib/testlibrary /test/lib
+ * @library /test/lib
  * @modules jdk.jartool/sun.tools.jar
- * @build LingeredAppForJps
- * @build LingeredApp
- * @run main/othervm TestJps
+ * @build jdk.test.lib.apps.LingeredApp
+ * @run main/othervm/timeout=360 TestJps
  */
 
  /*
   * Notes:
   *   @modules tag is ignored in driver mode, so need main/othervm
+  *
+  *   LingeredApp is pre-built separately to have jdk.test.lib classes ready
+  *   before the test is compiled (see JDK-8242282).
   *
   *   Launching the process with relative path to an app jar file is not tested
   *
@@ -40,41 +42,26 @@
   *   of the full package name actually is not tested.
   */
 
-import java.util.List;
-import java.io.File;
+import jdk.test.lib.apps.LingeredApp;
 
 public class TestJps {
 
-    public static void testJpsClass() throws Throwable {
-        LingeredApp app = new LingeredAppForJps();
+    public static void testJps(boolean useJar) throws Throwable {
+        LingeredAppForJps app = new LingeredAppForJps();
+        if (useJar) {
+            app.buildJar();
+        }
         try {
-            LingeredApp.startApp(JpsHelper.getVmArgs(), app);
+            LingeredApp.startApp(app, JpsHelper.getVmArgs());
             JpsHelper.runJpsVariants(app.getPid(),
-                LingeredAppForJps.getProcessName(), LingeredAppForJps.getFullProcessName(), app.getLockFileName());
-
+                    app.getProcessName(), app.getFullProcessName(), app.getLockFileName());
         } finally {
             LingeredApp.stopApp(app);
         }
     }
 
-    public static void testJpsJar() throws Throwable {
-        // Get any jar exception as early as possible
-        File jar = LingeredAppForJps.buildJar();
-
-        // Jar created go to the main test
-        LingeredAppForJps app = new LingeredAppForJps();
-        try {
-            LingeredAppForJps.startAppJar(JpsHelper.getVmArgs(), app, jar);
-            JpsHelper.runJpsVariants(app.getPid(),
-                LingeredAppForJps.getProcessName(jar), LingeredAppForJps.getFullProcessName(jar), app.getLockFileName());
-        } finally {
-            LingeredAppForJps.stopApp(app);
-        }
-
-    }
-
     public static void main(String[] args) throws Throwable {
-        testJpsClass();
-        testJpsJar();
+        testJps(false);
+        testJps(true);
     }
 }

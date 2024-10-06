@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,32 +22,61 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INSTANCEKLASS_INLINE_HPP
-#define SHARE_VM_OOPS_INSTANCEKLASS_INLINE_HPP
+#ifndef SHARE_OOPS_INSTANCEKLASS_INLINE_HPP
+#define SHARE_OOPS_INSTANCEKLASS_INLINE_HPP
 
-#include "memory/iterator.hpp"
 #include "oops/instanceKlass.hpp"
-#include "oops/klass.hpp"
-#include "oops/oop.inline.hpp"
-#include "runtime/orderAccess.hpp"
-#include "utilities/debug.hpp"
-#include "utilities/globalDefinitions.hpp"
-#include "utilities/macros.hpp"
 
-inline Klass* InstanceKlass::array_klasses_acquire() const {
-  return OrderAccess::load_acquire(&_array_klasses);
+#include "memory/memRegion.hpp"
+#include "oops/fieldInfo.inline.hpp"
+#include "oops/klass.inline.hpp"
+#include "oops/oop.inline.hpp"
+#include "runtime/atomic.hpp"
+#include "utilities/devirtualizer.inline.hpp"
+#include "utilities/globalDefinitions.hpp"
+
+inline intptr_t* InstanceKlass::start_of_itable()   const { return (intptr_t*)start_of_vtable() + vtable_length(); }
+inline intptr_t* InstanceKlass::end_of_itable()     const { return start_of_itable() + itable_length(); }
+
+inline oop InstanceKlass::static_field_base_raw() { return java_mirror(); }
+
+inline Symbol* InstanceKlass::field_name(int index) const { return field(index).name(constants()); }
+inline Symbol* InstanceKlass::field_signature(int index) const { return field(index).signature(constants()); }
+
+inline int InstanceKlass::java_fields_count() const { return FieldInfoStream::num_java_fields(fieldinfo_stream()); }
+inline int InstanceKlass::total_fields_count() const { return FieldInfoStream::num_total_fields(fieldinfo_stream()); }
+
+inline OopMapBlock* InstanceKlass::start_of_nonstatic_oop_maps() const {
+  return (OopMapBlock*)(start_of_itable() + itable_length());
 }
 
-inline void InstanceKlass::release_set_array_klasses(Klass* k) {
-  OrderAccess::release_store(&_array_klasses, k);
+inline Klass** InstanceKlass::end_of_nonstatic_oop_maps() const {
+  return (Klass**)(start_of_nonstatic_oop_maps() +
+                   nonstatic_oop_map_count());
+}
+
+inline InstanceKlass* volatile* InstanceKlass::adr_implementor() const {
+  if (is_interface()) {
+    return (InstanceKlass* volatile*)end_of_nonstatic_oop_maps();
+  } else {
+    return nullptr;
+  }
+}
+
+inline ObjArrayKlass* InstanceKlass::array_klasses_acquire() const {
+  return Atomic::load_acquire(&_array_klasses);
+}
+
+inline void InstanceKlass::release_set_array_klasses(ObjArrayKlass* k) {
+  Atomic::release_store(&_array_klasses, k);
 }
 
 inline jmethodID* InstanceKlass::methods_jmethod_ids_acquire() const {
-  return OrderAccess::load_acquire(&_methods_jmethod_ids);
+  return Atomic::load_acquire(&_methods_jmethod_ids);
 }
 
 inline void InstanceKlass::release_set_methods_jmethod_ids(jmethodID* jmeths) {
-  OrderAccess::release_store(&_methods_jmethod_ids, jmeths);
+  Atomic::release_store(&_methods_jmethod_ids, jmeths);
 }
 
 // The iteration over the oops in objects is a hot path in the GC code.
@@ -56,7 +85,7 @@ inline void InstanceKlass::release_set_methods_jmethod_ids(jmethodID* jmeths) {
 
 template <typename T, class OopClosureType>
 ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_map(OopMapBlock* map, oop obj, OopClosureType* closure) {
-  T* p         = (T*)obj->obj_field_addr_raw<T>(map->offset());
+  T* p         = obj->field_addr<T>(map->offset());
   T* const end = p + map->count();
 
   for (; p < end; ++p) {
@@ -66,7 +95,7 @@ ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_map(OopMapBlock* map, oop o
 
 template <typename T, class OopClosureType>
 ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_map_reverse(OopMapBlock* map, oop obj, OopClosureType* closure) {
-  T* const start = (T*)obj->obj_field_addr_raw<T>(map->offset());
+  T* const start = obj->field_addr<T>(map->offset());
   T*       p     = start + map->count();
 
   while (start < p) {
@@ -77,7 +106,7 @@ ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_map_reverse(OopMapBlock* ma
 
 template <typename T, class OopClosureType>
 ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_map_bounded(OopMapBlock* map, oop obj, OopClosureType* closure, MemRegion mr) {
-  T* p   = (T*)obj->obj_field_addr_raw<T>(map->offset());
+  T* p   = obj->field_addr<T>(map->offset());
   T* end = p + map->count();
 
   T* const l   = (T*)mr.start();
@@ -130,28 +159,24 @@ ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_maps_bounded(oop obj, OopCl
 }
 
 template <typename T, class OopClosureType>
-ALWAYSINLINE int InstanceKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
+ALWAYSINLINE void InstanceKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
   if (Devirtualizer::do_metadata(closure)) {
     Devirtualizer::do_klass(closure, this);
   }
 
   oop_oop_iterate_oop_maps<T>(obj, closure);
-
-  return size_helper();
 }
 
 template <typename T, class OopClosureType>
-ALWAYSINLINE int InstanceKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
+ALWAYSINLINE void InstanceKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
   assert(!Devirtualizer::do_metadata(closure),
       "Code to handle metadata is not implemented");
 
   oop_oop_iterate_oop_maps_reverse<T>(obj, closure);
-
-  return size_helper();
 }
 
 template <typename T, class OopClosureType>
-ALWAYSINLINE int InstanceKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr) {
+ALWAYSINLINE void InstanceKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr) {
   if (Devirtualizer::do_metadata(closure)) {
     if (mr.contains(obj)) {
       Devirtualizer::do_klass(closure, this);
@@ -159,8 +184,6 @@ ALWAYSINLINE int InstanceKlass::oop_oop_iterate_bounded(oop obj, OopClosureType*
   }
 
   oop_oop_iterate_oop_maps_bounded<T>(obj, closure, mr);
-
-  return size_helper();
 }
 
-#endif // SHARE_VM_OOPS_INSTANCEKLASS_INLINE_HPP
+#endif // SHARE_OOPS_INSTANCEKLASS_INLINE_HPP

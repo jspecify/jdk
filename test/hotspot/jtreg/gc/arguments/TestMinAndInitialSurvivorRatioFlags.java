@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,18 @@
  * questions.
  */
 
+package gc.arguments;
+
 /*
  * @test TestMinAndInitialSurvivorRatioFlags
- * @key gc
  * @summary Verify that MinSurvivorRatio and InitialSurvivorRatio flags work
  * @library /test/lib
+ * @library /
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run driver/timeout=240 TestMinAndInitialSurvivorRatioFlags
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run driver/timeout=240 gc.arguments.TestMinAndInitialSurvivorRatioFlags
  */
 
 import java.lang.management.MemoryUsage;
@@ -38,9 +40,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.Utils;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 /* Test verifies that VM can start with any GC when MinSurvivorRatio and
  * InitialSurvivorRatio flags passed and for Parallel GC it verifies that
@@ -101,8 +102,7 @@ public class TestMinAndInitialSurvivorRatioFlags {
                 Boolean.toString(useAdaptiveSizePolicy)
         );
         vmOptions.removeIf((String p) -> p.isEmpty());
-        ProcessBuilder procBuilder = ProcessTools.createJavaProcessBuilder(vmOptions.toArray(new String[vmOptions.size()]));
-        OutputAnalyzer analyzer = new OutputAnalyzer(procBuilder.start());
+        OutputAnalyzer analyzer = GCArguments.executeLimitedTestJava(vmOptions);
         analyzer.shouldHaveExitValue(0);
     }
 

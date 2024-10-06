@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
   @key headful
   @bug       6187066
   @summary   Tests the Window.autoRequestFocus property for the Window.toFront() method.
-  @author    anton.tarasov: area=awt.focus
   @library /java/awt/patchlib     ../../regtesthelpers
   @build java.desktop/java.awt.Helper
   @build      Util
@@ -34,13 +33,9 @@
 */
 
 import java.awt.*;
-import java.awt.event.*;
-import java.applet.Applet;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.lang.reflect.InvocationTargetException;
 import test.java.awt.regtesthelpers.Util;
 
-public class AutoRequestFocusToFrontTest extends Applet {
+public class AutoRequestFocusToFrontTest {
     static boolean haveDelays;
 
     static Frame auxFrame;
@@ -76,10 +71,6 @@ public class AutoRequestFocusToFrontTest extends Applet {
     }
 
     public void init() {
-        // Create instructions for the user here, as well as set up
-        // the environment -- set the layout manager, add buttons,
-        // etc.
-        this.setLayout (new BorderLayout ());
         toolkitClassName = Toolkit.getDefaultToolkit().getClass().getName();
     }
 
@@ -211,26 +202,22 @@ public class AutoRequestFocusToFrontTest extends Applet {
         //      Focused frame is excluded from modality.
         ////////////////////////////////////////////////
 
-        if (!"sun.awt.motif.MToolkit".equals(toolkitClassName)) {
-            recreateGUI();
-            auxFrame.setModalExclusionType(Dialog.ModalExclusionType.APPLICATION_EXCLUDE);
+        recreateGUI();
+        auxFrame.setModalExclusionType(Dialog.ModalExclusionType.APPLICATION_EXCLUDE);
 
-            Test.setWindows(modalDialog, modalDialog, new Window[] {modalDialog, frame3});
-            Test.test("Test stage 6.1 in progress", modalDlgButton);
-        }
+        Test.setWindows(modalDialog, modalDialog, new Window[] {modalDialog, frame3});
+        Test.test("Test stage 6.1 in progress", modalDlgButton);
 
 
         // 6.2. Owner Frame (with owned modal Dialog).
         //      Focused frame is excluded from modality.
         ////////////////////////////////////////////////
 
-        if (!"sun.awt.motif.MToolkit".equals(toolkitClassName)) {
-            recreateGUI();
-            auxFrame.setModalExclusionType(Dialog.ModalExclusionType.APPLICATION_EXCLUDE);
+        recreateGUI();
+        auxFrame.setModalExclusionType(Dialog.ModalExclusionType.APPLICATION_EXCLUDE);
 
-            Test.setWindows(frame3, modalDialog, new Window[] {modalDialog, frame3});
-            Test.test("Test stage 6.2 in progress", modalDlgButton, true);
-        }
+        Test.setWindows(frame3, modalDialog, new Window[] {modalDialog, frame3});
+        Test.test("Test stage 6.2 in progress", modalDlgButton, true);
 
         ///////////////////////////////////////////////////
         // 7. Calling setVisible(true) for the shown Frame.
@@ -431,4 +418,3 @@ class TestFailedException extends RuntimeException {
         super("Test failed: " + msg);
     }
 }
-

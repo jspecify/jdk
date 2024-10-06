@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -27,6 +25,8 @@ import sun.security.util.math.*;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Optional;
 
 /**
  * Arithmetic in the field of integers modulo a prime value implemented using
@@ -153,6 +153,11 @@ public class BigIntegerModuloP implements IntegerFieldModuloP {
         public void asByteArray(byte[] result) {
             bigIntAsByteArray(v, result);
         }
+
+        @Override
+        public long[] getLimbs() {
+            return null;
+        }
     }
 
     private class ImmutableElement extends Element
@@ -168,6 +173,13 @@ public class BigIntegerModuloP implements IntegerFieldModuloP {
 
         private MutableElement(BigInteger v) {
             super(v);
+        }
+
+        @Override
+        public void conditionalSet(IntegerModuloP b, int set) {
+            if (set == 1) {
+                v = b.asBigInteger();
+            }
         }
 
         @Override
@@ -244,6 +256,11 @@ public class BigIntegerModuloP implements IntegerFieldModuloP {
             return this;
         }
 
+        @Override
+        public MutableElement setAdditiveInverse() {
+            v = BigInteger.ZERO.subtract(v);
+            return this;
+        }
     }
 
     private class SmallElement extends ImmutableElement implements SmallValue {

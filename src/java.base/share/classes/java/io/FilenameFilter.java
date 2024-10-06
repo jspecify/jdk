@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,18 +31,19 @@ import org.jspecify.annotations.Nullable;
 /**
  * Instances of classes that implement this interface are used to
  * filter filenames. These instances are used to filter directory
- * listings in the <code>list</code> method of class
- * <code>File</code>, and by the Abstract Window Toolkit's file
+ * listings in the {@code list} method of class
+ * {@code File}, and by the Abstract Window Toolkit's file
  * dialog component.
  *
  * @author  Arthur van Hoff
  * @author  Jonathan Payne
- * @see     java.awt.FileDialog#setFilenameFilter(java.io.FilenameFilter)
+ * @see     java.desktop/java.awt.FileDialog#setFilenameFilter(java.io.FilenameFilter)
  * @see     java.io.File
  * @see     java.io.File#list(java.io.FilenameFilter)
  * @since   1.0
  */
 @NullMarked
+@SuppressWarnings("doclint:reference") // cross-module links
 @FunctionalInterface
 public interface FilenameFilter {
     /**
@@ -50,8 +51,8 @@ public interface FilenameFilter {
      *
      * @param   dir    the directory in which the file was found.
      * @param   name   the name of the file.
-     * @return  <code>true</code> if and only if the name should be
-     * included in the file list; <code>false</code> otherwise.
+     * @return  {@code true} if and only if the name should be
+     * included in the file list; {@code false} otherwise.
      */
     boolean accept(File dir, String name);
 }

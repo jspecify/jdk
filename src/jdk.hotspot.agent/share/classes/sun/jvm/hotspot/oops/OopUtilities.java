@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,8 @@ import sun.jvm.hotspot.memory.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.TypeDataBase;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** A utility class encapsulating useful oop operations */
 
@@ -41,38 +43,29 @@ public class OopUtilities {
   // String fields
   private static ByteField coderField;
   private static OopField valueField;
-  // ThreadGroup fields
-  private static OopField threadGroupParentField;
-  private static OopField threadGroupNameField;
-  private static IntField threadGroupNThreadsField;
-  private static OopField threadGroupThreadsField;
-  private static IntField threadGroupNGroupsField;
-  private static OopField threadGroupGroupsField;
   // Thread fields
+  private static OopField threadHolderField;
   private static OopField threadNameField;
-  private static OopField threadGroupField;
   private static LongField threadEETopField;
   //tid field is new since 1.5
   private static LongField threadTIDField;
-  // threadStatus field is new since 1.5
-  private static IntField threadStatusField;
   // parkBlocker field is new since 1.6
   private static OopField threadParkBlockerField;
-
+  // Thread$FieldHolder fields
+  private static IntField threadStatusField;
   private static IntField threadPriorityField;
   private static BooleanField threadDaemonField;
 
-  // possible values of java_lang_Thread::ThreadStatus
-  private static int THREAD_STATUS_NEW;
-
-  private static int THREAD_STATUS_RUNNABLE;
-  private static int THREAD_STATUS_SLEEPING;
-  private static int THREAD_STATUS_IN_OBJECT_WAIT;
-  private static int THREAD_STATUS_IN_OBJECT_WAIT_TIMED;
-  private static int THREAD_STATUS_PARKED;
-  private static int THREAD_STATUS_PARKED_TIMED;
-  private static int THREAD_STATUS_BLOCKED_ON_MONITOR_ENTER;
-  private static int THREAD_STATUS_TERMINATED;
+  // possible values of JavaThreadStatus
+  public static int THREAD_STATUS_NEW;
+  public static int THREAD_STATUS_RUNNABLE;
+  public static int THREAD_STATUS_SLEEPING;
+  public static int THREAD_STATUS_IN_OBJECT_WAIT;
+  public static int THREAD_STATUS_IN_OBJECT_WAIT_TIMED;
+  public static int THREAD_STATUS_PARKED;
+  public static int THREAD_STATUS_PARKED_TIMED;
+  public static int THREAD_STATUS_BLOCKED_ON_MONITOR_ENTER;
+  public static int THREAD_STATUS_TERMINATED;
 
   // java.util.concurrent.locks.AbstractOwnableSynchronizer fields
   private static OopField absOwnSyncOwnerThreadField;
@@ -97,7 +90,7 @@ public class OopUtilities {
       return null;
     }
     int length = (int)charArray.getLength();
-    StringBuffer buf = new StringBuffer(length);
+    StringBuilder buf = new StringBuilder(length);
     for (int i = 0; i < length; i++) {
       buf.append(charArray.getCharAt(i));
     }
@@ -109,7 +102,7 @@ public class OopUtilities {
       return null;
     }
     int length = (int)byteArray.getLength() >> coder;
-    StringBuffer buf = new StringBuffer(length);
+    StringBuilder buf = new StringBuilder(length);
     if (coder == 0) {
       // Latin1 encoded
       for (int i = 0; i < length; i++) {
@@ -165,97 +158,40 @@ public class OopUtilities {
     return escapeString(stringOopToString(stringOop));
   }
 
-  private static void initThreadGroupFields() {
-    if (threadGroupParentField == null) {
-      SystemDictionary sysDict = VM.getVM().getSystemDictionary();
-      InstanceKlass k = sysDict.getThreadGroupKlass();
-      threadGroupParentField   = (OopField) k.findField("parent",   "Ljava/lang/ThreadGroup;");
-      threadGroupNameField     = (OopField) k.findField("name",     "Ljava/lang/String;");
-      threadGroupNThreadsField = (IntField) k.findField("nthreads", "I");
-      threadGroupThreadsField  = (OopField) k.findField("threads",  "[Ljava/lang/Thread;");
-      threadGroupNGroupsField  = (IntField) k.findField("ngroups",  "I");
-      threadGroupGroupsField   = (OopField) k.findField("groups",   "[Ljava/lang/ThreadGroup;");
-      if (Assert.ASSERTS_ENABLED) {
-        Assert.that(threadGroupParentField   != null &&
-                    threadGroupNameField     != null &&
-                    threadGroupNThreadsField != null &&
-                    threadGroupThreadsField  != null &&
-                    threadGroupNGroupsField  != null &&
-                    threadGroupGroupsField   != null, "must find all java.lang.ThreadGroup fields");
-      }
-    }
-  }
-
-  public static Oop threadGroupOopGetParent(Oop threadGroupOop) {
-    initThreadGroupFields();
-    return threadGroupParentField.getValue(threadGroupOop);
-  }
-
-  public static String threadGroupOopGetName(Oop threadGroupOop) {
-    initThreadGroupFields();
-    return stringOopToString(threadGroupNameField.getValue(threadGroupOop));
-  }
-
-  public static Oop[] threadGroupOopGetThreads(Oop threadGroupOop) {
-    initThreadGroupFields();
-    int nthreads = threadGroupNThreadsField.getValue(threadGroupOop);
-    Oop[] result = new Oop[nthreads];
-    ObjArray threads = (ObjArray) threadGroupThreadsField.getValue(threadGroupOop);
-    for (int i = 0; i < nthreads; i++) {
-      result[i] = threads.getObjAt(i);
-    }
-    return result;
-  }
-
-  public static Oop[] threadGroupOopGetGroups(Oop threadGroupOop) {
-    initThreadGroupFields();
-    int ngroups = threadGroupNGroupsField.getValue(threadGroupOop);
-    Oop[] result = new Oop[ngroups];
-    ObjArray groups = (ObjArray) threadGroupGroupsField.getValue(threadGroupOop);
-    for (int i = 0; i < ngroups; i++) {
-      result[i] = groups.getObjAt(i);
-    }
-    return result;
-  }
-
   private static void initThreadFields() {
     if (threadNameField == null) {
       SystemDictionary sysDict = VM.getVM().getSystemDictionary();
       InstanceKlass k = sysDict.getThreadKlass();
+      threadHolderField  = (OopField) k.findField("holder", "Ljava/lang/Thread$FieldHolder;");
       threadNameField  = (OopField) k.findField("name", "Ljava/lang/String;");
-      threadGroupField = (OopField) k.findField("group", "Ljava/lang/ThreadGroup;");
       threadEETopField = (LongField) k.findField("eetop", "J");
       threadTIDField = (LongField) k.findField("tid", "J");
-      threadStatusField = (IntField) k.findField("threadStatus", "I");
       threadParkBlockerField = (OopField) k.findField("parkBlocker",
                                      "Ljava/lang/Object;");
+      k = sysDict.getThreadFieldHolderKlass();
       threadPriorityField = (IntField) k.findField("priority", "I");
+      threadStatusField = (IntField) k.findField("threadStatus", "I");
       threadDaemonField = (BooleanField) k.findField("daemon", "Z");
-      TypeDataBase db = VM.getVM().getTypeDataBase();
-      THREAD_STATUS_NEW = db.lookupIntConstant("java_lang_Thread::NEW").intValue();
 
-      THREAD_STATUS_RUNNABLE = db.lookupIntConstant("java_lang_Thread::RUNNABLE").intValue();
-      THREAD_STATUS_SLEEPING = db.lookupIntConstant("java_lang_Thread::SLEEPING").intValue();
-      THREAD_STATUS_IN_OBJECT_WAIT = db.lookupIntConstant("java_lang_Thread::IN_OBJECT_WAIT").intValue();
-      THREAD_STATUS_IN_OBJECT_WAIT_TIMED = db.lookupIntConstant("java_lang_Thread::IN_OBJECT_WAIT_TIMED").intValue();
-      THREAD_STATUS_PARKED = db.lookupIntConstant("java_lang_Thread::PARKED").intValue();
-      THREAD_STATUS_PARKED_TIMED = db.lookupIntConstant("java_lang_Thread::PARKED_TIMED").intValue();
-      THREAD_STATUS_BLOCKED_ON_MONITOR_ENTER = db.lookupIntConstant("java_lang_Thread::BLOCKED_ON_MONITOR_ENTER").intValue();
-      THREAD_STATUS_TERMINATED = db.lookupIntConstant("java_lang_Thread::TERMINATED").intValue();
+      TypeDataBase db = VM.getVM().getTypeDataBase();
+      THREAD_STATUS_NEW = db.lookupIntConstant("JavaThreadStatus::NEW").intValue();
+
+      THREAD_STATUS_RUNNABLE = db.lookupIntConstant("JavaThreadStatus::RUNNABLE").intValue();
+      THREAD_STATUS_SLEEPING = db.lookupIntConstant("JavaThreadStatus::SLEEPING").intValue();
+      THREAD_STATUS_IN_OBJECT_WAIT = db.lookupIntConstant("JavaThreadStatus::IN_OBJECT_WAIT").intValue();
+      THREAD_STATUS_IN_OBJECT_WAIT_TIMED = db.lookupIntConstant("JavaThreadStatus::IN_OBJECT_WAIT_TIMED").intValue();
+      THREAD_STATUS_PARKED = db.lookupIntConstant("JavaThreadStatus::PARKED").intValue();
+      THREAD_STATUS_PARKED_TIMED = db.lookupIntConstant("JavaThreadStatus::PARKED_TIMED").intValue();
+      THREAD_STATUS_BLOCKED_ON_MONITOR_ENTER = db.lookupIntConstant("JavaThreadStatus::BLOCKED_ON_MONITOR_ENTER").intValue();
+      THREAD_STATUS_TERMINATED = db.lookupIntConstant("JavaThreadStatus::TERMINATED").intValue();
 
       if (Assert.ASSERTS_ENABLED) {
         // it is okay to miss threadStatusField, because this was
         // introduced only in 1.5 JDK.
         Assert.that(threadNameField   != null &&
-                    threadGroupField  != null &&
                     threadEETopField  != null, "must find all java.lang.Thread fields");
       }
     }
-  }
-
-  public static Oop threadOopGetThreadGroup(Oop threadOop) {
-    initThreadFields();
-    return threadGroupField.getValue(threadOop);
   }
 
   public static String threadOopGetName(Oop threadOop) {
@@ -287,7 +223,8 @@ public class OopUtilities {
     initThreadFields();
     // The threadStatus is only present starting in 1.5
     if (threadStatusField != null) {
-      return (int) threadStatusField.getValue(threadOop);
+      Oop holderOop = threadHolderField.getValue(threadOop);
+      return threadStatusField.getValue(holderOop);
     } else {
       // All we can easily figure out is if it is alive, but that is
       // enough info for a valid unknown status.
@@ -334,7 +271,8 @@ public class OopUtilities {
   public static int threadOopGetPriority(Oop threadOop) {
     initThreadFields();
     if (threadPriorityField != null) {
-      return threadPriorityField.getValue(threadOop);
+      Oop holderOop = threadHolderField.getValue(threadOop);
+      return threadPriorityField.getValue(holderOop);
     } else {
       return 0;
     }
@@ -343,7 +281,8 @@ public class OopUtilities {
   public static boolean threadOopGetDaemon(Oop threadOop) {
     initThreadFields();
     if (threadDaemonField != null) {
-      return threadDaemonField.getValue(threadOop);
+      Oop holderOop = threadHolderField.getValue(threadOop);
+      return threadDaemonField.getValue(holderOop);
     } else {
       return false;
     }

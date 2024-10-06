@@ -21,10 +21,7 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id: ApacheTransform.java 1788465 2017-03-24 15:10:51Z coheigea $
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -33,16 +30,25 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Set;
 
+
+import javax.xml.crypto.Data;
+import javax.xml.crypto.MarshalException;
+import javax.xml.crypto.NodeSetData;
+import javax.xml.crypto.OctetStreamData;
+import javax.xml.crypto.XMLCryptoContext;
+import javax.xml.crypto.XMLStructure;
+import javax.xml.crypto.dom.DOMCryptoContext;
+import javax.xml.crypto.dsig.TransformException;
+import javax.xml.crypto.dsig.TransformService;
+import javax.xml.crypto.dsig.spec.TransformParameterSpec;
+
+import com.sun.org.apache.xml.internal.security.signature.XMLSignatureInput;
+import com.sun.org.apache.xml.internal.security.transforms.Transform;
+import com.sun.org.apache.xml.internal.security.transforms.Transforms;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import com.sun.org.apache.xml.internal.security.signature.XMLSignatureInput;
-import com.sun.org.apache.xml.internal.security.transforms.Transform;
-
-import javax.xml.crypto.*;
-import javax.xml.crypto.dom.DOMCryptoContext;
-import javax.xml.crypto.dsig.*;
-import javax.xml.crypto.dsig.spec.TransformParameterSpec;
 
 /**
  * This is a wrapper/glue class which invokes the Apache XML-Security
@@ -57,7 +63,7 @@ public abstract class ApacheTransform extends TransformService {
 
     private static final com.sun.org.slf4j.internal.Logger LOG =
         com.sun.org.slf4j.internal.LoggerFactory.getLogger(ApacheTransform.class);
-    private Transform apacheTransform;
+    private Transform transform;
     protected Document ownerDoc;
     protected Element transformElem;
     protected TransformParameterSpec params;
@@ -135,13 +141,11 @@ public abstract class ApacheTransform extends TransformService {
             throw new TransformException("transform must be marshalled");
         }
 
-        if (apacheTransform == null) {
+        if (transform == null) {
             try {
-                apacheTransform =
+                transform =
                     new Transform(ownerDoc, getAlgorithm(), transformElem.getChildNodes());
-                apacheTransform.setElement(transformElem, xc.getBaseURI());
-                boolean secVal = Utils.secureValidation(xc);
-                apacheTransform.setSecureValidation(secVal);
+                transform.setElement(transformElem, xc.getBaseURI());
                 LOG.debug("Created transform for algorithm: {}", getAlgorithm());
             } catch (Exception ex) {
                 throw new TransformException("Couldn't find Transform for: " +
@@ -189,12 +193,12 @@ public abstract class ApacheTransform extends TransformService {
 
         try {
             if (os != null) {
-                in = apacheTransform.performTransform(in, os);
+                in = transform.performTransform(in, os, secVal);
                 if (!in.isNodeSet() && !in.isElement()) {
                     return null;
                 }
             } else {
-                in = apacheTransform.performTransform(in);
+                in = transform.performTransform(in, secVal);
             }
             if (in.isOctetStream()) {
                 return new ApacheOctetStreamData(in);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,82 +74,11 @@ static jlong page_size = 0;
 
 #endif /* _ALLBSD_SOURCE */
 
-static struct dirent* read_dir(DIR* dirp, struct dirent* entry) {
-#ifdef __solaris__
-    struct dirent* dbuf = readdir(dirp);
-    return dbuf;
-#else /* __linux__ || _ALLBSD_SOURCE */
-    struct dirent* p;
-    if (readdir_r(dirp, entry, &p) == 0) {
-        return p;
-    } else {
-        return NULL;
-    }
-#endif
-}
-
 // true = get available swap in bytes
 // false = get total swap in bytes
 static jlong get_total_or_available_swap_space_size(JNIEnv* env, jboolean available) {
-#ifdef __solaris__
-    long total, avail;
-    int nswap, i, count;
-    swaptbl_t *stbl;
-    char *strtab;
-
-    // First get the number of swap resource entries
-    if ((nswap = swapctl(SC_GETNSWP, NULL)) == -1) {
-        throw_internal_error(env, "swapctl failed to get nswap");
-        return -1;
-    }
-    if (nswap == 0) {
-        return 0;
-    }
-
-    // Allocate storage for resource entries
-    stbl = (swaptbl_t*) malloc(nswap * sizeof(swapent_t) +
-                               sizeof(struct swaptable));
-    if (stbl == NULL) {
-        JNU_ThrowOutOfMemoryError(env, 0);
-        return -1;
-    }
-
-    // Allocate storage for the table
-    strtab = (char*) malloc((nswap + 1) * MAXPATHLEN);
-    if (strtab == NULL) {
-        free(stbl);
-        JNU_ThrowOutOfMemoryError(env, 0);
-        return -1;
-    }
-
-    for (i = 0; i < (nswap + 1); i++) {
-      stbl->swt_ent[i].ste_path = strtab + (i * MAXPATHLEN);
-    }
-    stbl->swt_n = nswap + 1;
-
-    // Get the entries
-    if ((count = swapctl(SC_LIST, stbl)) < 0) {
-        free(stbl);
-        free(strtab);
-        throw_internal_error(env, "swapctl failed to get swap list");
-        return -1;
-    }
-
-    // Sum the entries to get total and free swap
-    total = 0;
-    avail = 0;
-    for (i = 0; i < count; i++) {
-      total += stbl->swt_ent[i].ste_pages;
-      avail += stbl->swt_ent[i].ste_free;
-    }
-
-    free(stbl);
-    free(strtab);
-    return available ? ((jlong)avail * page_size) :
-                       ((jlong)total * page_size);
-#elif defined(__linux__)
+#if defined(__linux__)
     int ret;
-    FILE *fp;
     jlong total = 0, avail = 0;
 
     struct sysinfo si;
@@ -168,6 +97,12 @@ static jlong get_total_or_available_swap_space_size(JNIEnv* env, jboolean availa
         throw_internal_error(env, "sysctlbyname failed");
     }
     return available ? (jlong)vmusage.xsu_avail : (jlong)vmusage.xsu_total;
+#elif defined(_AIX)
+    perfstat_memory_total_t memory_info;
+    if (perfstat_memory_total(NULL, &memory_info, sizeof(perfstat_memory_total_t), 1) == -1) {
+        throw_internal_error(env, "perfstat_memory_total failed");
+    }
+    return available ? (jlong)(memory_info.pgsp_free * 4L * 1024L) : (jlong)(memory_info.pgsp_total * 4L * 1024L);
 #else /* _ALLBSD_SOURCE */
     /*
      * XXXBSD: there's no way available to get swap info in
@@ -185,59 +120,13 @@ Java_com_sun_management_internal_OperatingSystemImpl_initialize0
     page_size = sysconf(_SC_PAGESIZE);
 }
 
+// Linux-specific implementation is in UnixOperatingSystem.c
+#if !defined(__linux__)
 JNIEXPORT jlong JNICALL
 Java_com_sun_management_internal_OperatingSystemImpl_getCommittedVirtualMemorySize0
   (JNIEnv *env, jobject mbean)
 {
-#ifdef __solaris__
-    psinfo_t psinfo;
-    ssize_t result;
-    size_t remaining;
-    char* addr;
-    int fd;
-
-    fd = open64("/proc/self/psinfo", O_RDONLY, 0);
-    if (fd < 0) {
-        throw_internal_error(env, "Unable to open /proc/self/psinfo");
-        return -1;
-    }
-
-    addr = (char *)&psinfo;
-    for (remaining = sizeof(psinfo_t); remaining > 0;) {
-        result = read(fd, addr, remaining);
-        if (result < 0) {
-            if (errno != EINTR) {
-                close(fd);
-                throw_internal_error(env, "Unable to read /proc/self/psinfo");
-                return -1;
-            }
-        } else {
-            remaining -= result;
-            addr += result;
-        }
-    }
-
-    close(fd);
-    return (jlong) psinfo.pr_size * 1024;
-#elif defined(__linux__)
-    FILE *fp;
-    unsigned long vsize = 0;
-
-    if ((fp = fopen("/proc/self/stat", "r")) == NULL) {
-        throw_internal_error(env, "Unable to open /proc/self/stat");
-        return -1;
-    }
-
-    // Ignore everything except the vsize entry
-    if (fscanf(fp, "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %*d %*d %*d %*d %*d %*d %*u %*u %*d %lu %*[^\n]\n", &vsize) == EOF) {
-        throw_internal_error(env, "Unable to get virtual memory usage");
-        fclose(fp);
-        return -1;
-    }
-
-    fclose(fp);
-    return (jlong)vsize;
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
     struct task_basic_info t_info;
     mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
 
@@ -254,6 +143,7 @@ Java_com_sun_management_internal_OperatingSystemImpl_getCommittedVirtualMemorySi
     return (64 * MB);
 #endif
 }
+#endif
 
 JNIEXPORT jlong JNICALL
 Java_com_sun_management_internal_OperatingSystemImpl_getTotalSwapSpaceSize0
@@ -292,7 +182,7 @@ Java_com_sun_management_internal_OperatingSystemImpl_getProcessCpuTime0
      * BSDNOTE: FreeBSD implements _SC_CLK_TCK since FreeBSD 5, so
      *          add a magic to handle it
      */
-#if defined(__solaris__) || defined(_SC_CLK_TCK)
+#if defined(_SC_CLK_TCK)
     clk_tck = (jlong) sysconf(_SC_CLK_TCK);
 #elif defined(__linux__) || defined(_ALLBSD_SOURCE)
     clk_tck = 100;
@@ -312,7 +202,7 @@ Java_com_sun_management_internal_OperatingSystemImpl_getProcessCpuTime0
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_sun_management_internal_OperatingSystemImpl_getFreePhysicalMemorySize0
+Java_com_sun_management_internal_OperatingSystemImpl_getFreeMemorySize0
   (JNIEnv *env, jobject mbean)
 {
 #ifdef __APPLE__
@@ -346,7 +236,7 @@ Java_com_sun_management_internal_OperatingSystemImpl_getFreePhysicalMemorySize0
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_sun_management_internal_OperatingSystemImpl_getTotalPhysicalMemorySize0
+Java_com_sun_management_internal_OperatingSystemImpl_getTotalMemorySize0
   (JNIEnv *env, jobject mbean)
 {
 #ifdef _ALLBSD_SOURCE
@@ -403,7 +293,7 @@ Java_com_sun_management_internal_OperatingSystemImpl_getOpenFileDescriptorCount0
         return -1;
     }
 
-    // allocate memory to hold the fd information (we don't acutally use this information
+    // allocate memory to hold the fd information (we don't actually use this information
     // but need it to get the number of open files)
     fds_size = bsdinfo.pbi_nfiles * sizeof(struct proc_fdinfo);
     fds = malloc(fds_size);
@@ -432,7 +322,6 @@ Java_com_sun_management_internal_OperatingSystemImpl_getOpenFileDescriptorCount0
     return (100);
 #else /* solaris/linux */
     DIR *dirp;
-    struct dirent dbuf;
     struct dirent* dentp;
     jlong fds = 0;
 
@@ -453,7 +342,7 @@ Java_com_sun_management_internal_OperatingSystemImpl_getOpenFileDescriptorCount0
 
     // iterate through directory entries, skipping '.' and '..'
     // each entry represents an open file descriptor.
-    while ((dentp = read_dir(dirp, &dbuf)) != NULL) {
+    while ((dentp = readdir(dirp)) != NULL) {
         if (isdigit(dentp->d_name[0])) {
             fds++;
         }

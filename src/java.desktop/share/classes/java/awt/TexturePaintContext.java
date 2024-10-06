@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -339,7 +339,7 @@ public abstract @UsesObjectEquals class TexturePaintContext implements PaintCont
      * pixels to blend, when the error values reach 1.0 we move to the
      * next pixel and reset them to 0.0.
      */
-    public static int blend(int rgbs[], int xmul, int ymul) {
+    public static int blend(int[] rgbs, int xmul, int ymul) {
         // xmul/ymul are 31 bits wide, (0 => 2^31-1)
         // shift them to 12 bits wide, (0 => 2^12-1)
         xmul = (xmul >>> 19);
@@ -376,10 +376,10 @@ public abstract @UsesObjectEquals class TexturePaintContext implements PaintCont
 
     static class Int extends TexturePaintContext {
         IntegerInterleavedRaster srcRas;
-        int inData[];
+        int[] inData;
         int inOff;
         int inSpan;
-        int outData[];
+        int[] outData;
         int outOff;
         int outSpan;
         boolean filter;
@@ -426,7 +426,7 @@ public abstract @UsesObjectEquals class TexturePaintContext implements PaintCont
             if (normalx) {
                 outSpan -= w;
             }
-            int rgbs[] = filter ? new int[4] : null;
+            int[] rgbs = filter ? new int[4] : null;
             for (int j = 0; j < h; j++) {
                 if (normalx) {
                     int in = inOff + rowy * inSpan + bWidth;
@@ -512,10 +512,10 @@ public abstract @UsesObjectEquals class TexturePaintContext implements PaintCont
 
     static class Byte extends TexturePaintContext {
         ByteInterleavedRaster srcRas;
-        byte inData[];
+        byte[] inData;
         int inOff;
         int inSpan;
-        byte outData[];
+        byte[] outData;
         int outOff;
         int outSpan;
 
@@ -632,11 +632,11 @@ public abstract @UsesObjectEquals class TexturePaintContext implements PaintCont
 
     static class ByteFilter extends TexturePaintContext {
         ByteInterleavedRaster srcRas;
-        int inPalette[];
-        byte inData[];
+        int[] inPalette;
+        byte[] inData;
         int inOff;
         int inSpan;
-        int outData[];
+        int[] outData;
         int outOff;
         int outSpan;
 
@@ -681,7 +681,7 @@ public abstract @UsesObjectEquals class TexturePaintContext implements PaintCont
             int rowy = y;
             int rowxerr = xerr;
             int rowyerr = yerr;
-            int rgbs[] = new int[4];
+            int[] rgbs = new int[4];
             for (int j = 0; j < h; j++) {
                 x = rowx;
                 y = rowy;
@@ -768,7 +768,7 @@ public abstract @UsesObjectEquals class TexturePaintContext implements PaintCont
             int rowyerr = yerr;
             WritableRaster srcRas = this.srcRas;
             WritableRaster outRas = this.outRas;
-            int rgbs[] = filter ? new int[4] : null;
+            int[] rgbs = filter ? new int[4] : null;
             for (int j = 0; j < h; j++) {
                 x = rowx;
                 y = rowy;

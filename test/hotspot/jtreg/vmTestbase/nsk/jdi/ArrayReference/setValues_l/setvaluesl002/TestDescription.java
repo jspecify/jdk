@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,22 +76,21 @@
  *     4448603: JDI spec: ArrayReference.setValues(List) has discrepancy
  *     Evaluation:
  *     There is indeed an inconsistency.  The safer of the two options should be
- *     choosen: ignore tail elements in Lists that are too long. This is also what
+ *     chosen: ignore tail elements in Lists that are too long. This is also what
  *     the reference implementation does.
  *     4419982: JDI: two StackFrame methods return incorrect values for double
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jdi.ArrayReference.setValues_l.setvaluesl002
  *        nsk.jdi.ArrayReference.setValues_l.setvaluesl002a
- * @run main/othervm PropertyResolvingWrapper
+ * @run driver
  *      nsk.jdi.ArrayReference.setValues_l.setvaluesl002
  *      -verbose
  *      -arch=${os.family}-${os.simpleArch}
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=${test.vm.opts} ${test.java.opts}"
+ *      -debugee.vmkeys="${test.vm.opts} ${test.java.opts}"
  */
 

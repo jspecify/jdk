@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,6 +75,10 @@ import org.jspecify.annotations.Nullable;
  * Therefore, it would be wrong to write a program that depended on this
  * exception for its correctness:   <i>the fail-fast behavior of iterators
  * should be used only to detect bugs.</i>
+ *
+ * <p>The {@link #addFirst addFirst} and {@link #addLast addLast} methods of this class
+ * throw {@code UnsupportedOperationException}. The encounter order of elements is determined
+ * by the comparison method; therefore, explicit positioning is not supported.
  *
  * <p>This class is a member of the
  * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
@@ -160,6 +164,7 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      *         not {@link Comparable}, or are not mutually comparable
      * @throws NullPointerException if the specified collection is null
      */
+    @SuppressWarnings("this-escape")
     public TreeSet(Collection<? extends E> c) {
         this();
         addAll(c);
@@ -172,6 +177,7 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      * @param s sorted set whose elements will comprise the new set
      * @throws NullPointerException if the specified sorted set is null
      */
+    @SuppressWarnings("this-escape")
     public TreeSet(SortedSet<E> s) {
         this(s.comparator());
         addAll(s);
@@ -309,12 +315,9 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
         // Use linear-time version if applicable
         if (m.size()==0 && c.size() > 0 &&
             c instanceof SortedSet &&
-            m instanceof TreeMap) {
+                m instanceof TreeMap<E, Object> map) {
             SortedSet<? extends E> set = (SortedSet<? extends E>) c;
-            TreeMap<E,Object> map = (TreeMap<E, Object>) m;
-            Comparator<?> cc = set.comparator();
-            Comparator<? super E> mc = map.comparator();
-            if (cc==mc || (cc != null && cc.equals(mc))) {
+            if (Objects.equals(set.comparator(), map.comparator())) {
                 map.addAllForTreeSet(set, PRESENT);
                 return true;
             }
@@ -483,6 +486,30 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
     }
 
     /**
+     * Throws {@code UnsupportedOperationException}. The encounter order induced by this
+     * set's comparison method determines the position of elements, so explicit positioning
+     * is not supported.
+     *
+     * @throws UnsupportedOperationException always
+     * @since 21
+     */
+    public void addFirst(E e) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Throws {@code UnsupportedOperationException}. The encounter order induced by this
+     * set's comparison method determines the position of elements, so explicit positioning
+     * is not supported.
+     *
+     * @throws UnsupportedOperationException always
+     * @since 21
+     */
+    public void addLast(E e) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Returns a shallow copy of this {@code TreeSet} instance. (The elements
      * themselves are not cloned.)
      *
@@ -514,6 +541,7 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      *             set's Comparator, or by the elements' natural ordering if
      *             the set has no Comparator).
      */
+    @java.io.Serial
     private void writeObject(java.io.ObjectOutputStream s)
         throws java.io.IOException {
         // Write out any hidden stuff
@@ -534,6 +562,7 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      * Reconstitute the {@code TreeSet} instance from a stream (that is,
      * deserialize it).
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s)
         throws java.io.IOException, ClassNotFoundException {
         // Read in any hidden stuff
@@ -576,5 +605,6 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
         return TreeMap.keySpliteratorFor(m);
     }
 
+    @java.io.Serial
     private static final long serialVersionUID = -2479143000061671589L;
 }

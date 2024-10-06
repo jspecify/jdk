@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,96 +23,64 @@
 
 /*
  * @test
- * @bug 8173302 8182765 8196202
+ * @bug 8173302 8182765 8196202 8210047 8264274
  * @summary make sure the overview-summary and module-summary pages don't
  *          don't have the See link, and the overview is copied correctly.
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestOverview
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestOverview extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestOverview tester = new TestOverview();
+        var tester = new TestOverview();
         tester.runTests();
     }
 
     @Test
-    void test1() {
+    public void test1() {
         javadoc("-d", "out-1",
                     "-doctitle", "Document Title",
                     "-windowtitle", "Window Title",
                     "-overview", testSrc("overview.html"),
-                    "--frames",
                     "-sourcepath", testSrc("src"),
                     "p1", "p2");
         checkExit(Exit.OK);
-        checkOverview();
+        checkOverview("");
     }
 
     @Test
-    void test1_html4() {
-        javadoc("-d", "out-1-html4",
-                "-html4",
-                "-doctitle", "Document Title",
-                "-windowtitle", "Window Title",
-                "-overview", testSrc("overview.html"),
-                "--frames",
-                "-sourcepath", testSrc("src"),
-                "p1", "p2");
-        checkExit(Exit.OK);
-        checkOverview_html4();
-    }
-
-    @Test
-    void test2() {
+    public void test2() {
         javadoc("-d", "out-2",
                     "-doctitle", "Document Title",
                     "-windowtitle", "Window Title",
                     "-overview", testSrc("overview.html"),
-                    "--frames",
                     "-sourcepath", testSrc("msrc"),
                     "p1", "p2");
         checkExit(Exit.OK);
-        checkOverview();
+        checkOverview("acme/");
     }
 
-    @Test
-    void test2_html4() {
-        javadoc("-d", "out-2-html4",
-                "-html4",
-                "-doctitle", "Document Title",
-                "-windowtitle", "Window Title",
-                "-overview", testSrc("overview.html"),
-                "--frames",
-                "-sourcepath", testSrc("msrc"),
-                "p1", "p2");
-        checkExit(Exit.OK);
-        checkOverview_html4();
-    }
-
-    void checkOverview() {
-        checkOutput("overview-summary.html", true,
-                "<div class=\"header\">\n"
-                + "<h1 class=\"title\">Document Title</h1>\n"
-                + "</div>\n"
-                + "<main role=\"main\">\n"
-                + "<div class=\"contentContainer\">\n"
-                + "<div class=\"block\">This is line1. This is line 2.</div>\n"
-                + "</div>\n"
-                + "<div class=\"contentContainer\">");
-    }
-
-    void checkOverview_html4() {
-        checkOutput("overview-summary.html", true,
-                "<div class=\"header\">\n"
-                + "<h1 class=\"title\">Document Title</h1>\n"
-                + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
-                + "<div class=\"block\">This is line1. This is line 2.</div>\n"
-                + "</div>\n"
-                + "<div class=\"contentContainer\">");
+    void checkOverview(String modulePrefix) {
+        checkOutput("index.html", true,
+                """
+                    <main role="main">
+                    <div class="header">
+                    <h1 class="title">Document Title</h1>
+                    </div>
+                    <div class="block">This is line1. This is line 2.</div>
+                    <dl class="notes">
+                    <dt>See Also:</dt>
+                    <dd>
+                    <ul class="tag-list">
+                    <li><a href="%sp1/C.html" title="class in p1"><code>C</code></a></li>
+                    </ul>
+                    </dd>
+                    </dl>
+                    """.formatted(modulePrefix)); // adapt expected reference URL to module context
     }
 }

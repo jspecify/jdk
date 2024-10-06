@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,8 @@ import java.nio.channels.*;
 import java.io.FileDescriptor;
 import java.util.Set;
 
-import jdk.internal.misc.SharedSecrets;
-import jdk.internal.misc.JavaIOFileDescriptorAccess;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.access.JavaIOFileDescriptorAccess;
 import sun.nio.ch.FileChannelImpl;
 import sun.nio.ch.ThreadPool;
 import sun.nio.ch.SimpleAsynchronousFileChannelImpl;
@@ -103,16 +103,6 @@ class UnixChannelFactory {
         }
     }
 
-
-    /**
-     * Constructs a file channel from an existing (open) file descriptor
-     */
-    static FileChannel newFileChannel(int fd, String path, boolean reading, boolean writing) {
-        FileDescriptor fdObj = new FileDescriptor();
-        fdAccess.set(fdObj, fd);
-        return FileChannelImpl.open(fdObj, path, reading, writing, false, null);
-    }
-
     /**
      * Constructs a file channel by opening a file using a dfd/path pair
      */
@@ -141,8 +131,8 @@ class UnixChannelFactory {
             throw new IllegalArgumentException("APPEND + TRUNCATE_EXISTING not allowed");
 
         FileDescriptor fdObj = open(dfd, path, pathForPermissionCheck, flags, mode);
-        return FileChannelImpl.open(fdObj, path.toString(), flags.read,
-                flags.write, flags.direct, null);
+        return FileChannelImpl.open(fdObj, path.toString(), flags.read, flags.write,
+                (flags.sync || flags.dsync), flags.direct, null);
     }
 
     /**
@@ -178,7 +168,7 @@ class UnixChannelFactory {
 
         // for now use simple implementation
         FileDescriptor fdObj = open(-1, path, null, flags, mode);
-        return SimpleAsynchronousFileChannelImpl.open(fdObj, flags.read, flags.write, pool);
+        return SimpleAsynchronousFileChannelImpl.open(fdObj, path.toString(), flags.read, flags.write, pool);
     }
 
     /**
@@ -247,6 +237,7 @@ class UnixChannelFactory {
             oflags |= O_DIRECT;
 
         // permission check before we open the file
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             if (pathForPermissionCheck == null)

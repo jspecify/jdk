@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import java.security.PrivilegedAction;
  *
  * @author      Jonathan Payne
  */
+@SuppressWarnings("removal")
 public class NetworkClient {
     /* Default value of read timeout, if not specified (infinity) */
     public static final int DEFAULT_READ_TIMEOUT = -1;
@@ -101,7 +102,7 @@ public class NetworkClient {
      * the NetworkClients will not work correctly in EBCDIC based systems.
      * However, we cannot just use ASCII or ISO8859_1 universally, because in
      * Asian locales, non-ASCII characters may be embedded in otherwise
-     * ASCII based protocols (eg. HTTP). The specifications (RFC2616, 2398)
+     * ASCII based protocols (e.g. HTTP). The specifications (RFC2616, 2398)
      * are a little ambiguous in this matter. For instance, RFC2398 [part 2.1]
      * says that the HTTP request URI should be escaped using a defined
      * mechanism, but there is no way to specify in the escaped string what
@@ -228,6 +229,7 @@ public class NetworkClient {
     }
 
     /** Create connection with host <i>host</i> on port <i>port</i> */
+    @SuppressWarnings("this-escape")
     public NetworkClient(String host, int port) throws IOException {
         openServer(host, port);
     }

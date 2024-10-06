@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -159,7 +159,7 @@ public class BasicStroke implements Stroke {
     int cap;
     float miterlimit;
 
-    float dash[];
+    float[] dash;
     float dash_phase;
 
     /**
@@ -191,7 +191,7 @@ public class BasicStroke implements Stroke {
      */
     @ConstructorProperties({ "lineWidth", "endCap", "lineJoin", "miterLimit", "dashArray", "dashPhase" })
     public BasicStroke(float width, int cap, int join, float miterlimit,
-                       float dash[], float dash_phase) {
+                       float[] dash, float dash_phase) {
         if (width < 0.0f) {
             throw new IllegalArgumentException("negative width");
         }
@@ -296,6 +296,7 @@ public class BasicStroke implements Stroke {
      * stroked outline of a specified {@code Shape}.
      * @param s the {@code Shape} boundary be stroked
      * @return the {@code Shape} of the stroked outline.
+     * @throws NullPointerException if {@code s} is {@code null}
      */
     public Shape createStrokedShape(Shape s) {
         sun.java2d.pipe.RenderingEngine re =

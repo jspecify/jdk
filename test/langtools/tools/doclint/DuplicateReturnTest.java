@@ -2,10 +2,10 @@
  * @test /nodynamiccopyright/
  * @bug 8081820
  * @summary Validate return uniqueness
- * @modules jdk.compiler/com.sun.tools.doclint
+ * @modules jdk.javadoc/jdk.javadoc.internal.doclint
  * @build DocLintTester
- * @run main DocLintTester -Xmsgs:-reference DuplicateReturnTest.java
- * @run main DocLintTester -ref DuplicateReturnTest.out DuplicateReturnTest.java
+ * @run main DocLintTester -Xmsgs:all,-missing,-reference DuplicateReturnTest.java
+ * @run main DocLintTester -Xmsgs:all,-missing -ref DuplicateReturnTest.out DuplicateReturnTest.java
  */
 
 /** . */

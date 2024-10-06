@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -457,18 +457,6 @@ public class ArgumentHandler extends DebugeeArgumentHandler {
         }
  */
 
-        if (! isLaunchedLocally() && ! isDefaultDebugeeSuspendMode()) {
-            throw new BadOption("inconsistent options: "
-                                + "-debugee.launch=" + getLaunchMode()
-                                + " and -debugee.suspend=" + getDebugeeSuspendMode());
-        }
-
-        if (! isLaunchedLocally() && isLaunchingConnector()) {
-            throw new BadOption("inconsistent options: "
-                                + "-debugee.launch=" + getLaunchMode()
-                                + " and -connector=" + getConnectorType());
-        }
-
         if (isLaunchingConnector() && ! isDefaultTransport()) {
             throw new BadOption("inconsistent options: "
                                 + "-connector=" + getConnectorType()
@@ -520,21 +508,21 @@ class CheckedFeatures {
          *  available only on the Microsoft Windows platform.
          *  "
          */
-        {"solaris-sparc",   "com.sun.jdi.SharedMemoryAttach"},
-        {"solaris-sparcv9", "com.sun.jdi.SharedMemoryAttach"},
-        {"solaris-i586",    "com.sun.jdi.SharedMemoryAttach"},
-        {"solaris-amd64",   "com.sun.jdi.SharedMemoryAttach"},
-        {"solaris-x64",     "com.sun.jdi.SharedMemoryAttach"},
         {"linux-i586",      "com.sun.jdi.SharedMemoryAttach"},
         {"linux-ia64",      "com.sun.jdi.SharedMemoryAttach"},
         {"linux-amd64",     "com.sun.jdi.SharedMemoryAttach"},
         {"linux-x64",       "com.sun.jdi.SharedMemoryAttach"},
-        {"linux-sparc",     "com.sun.jdi.SharedMemoryAttach"},
-        {"linux-sparcv9",   "com.sun.jdi.SharedMemoryAttach"},
         {"linux-aarch64",   "com.sun.jdi.SharedMemoryAttach"},
         {"linux-arm",       "com.sun.jdi.SharedMemoryAttach"},
+        {"linux-ppc64",     "com.sun.jdi.SharedMemoryAttach"},
+        {"linux-ppc64le",   "com.sun.jdi.SharedMemoryAttach"},
+        {"linux-s390x",     "com.sun.jdi.SharedMemoryAttach"},
+        {"linux-riscv64",   "com.sun.jdi.SharedMemoryAttach"},
         {"macosx-amd64",    "com.sun.jdi.SharedMemoryAttach"},
         {"mac-x64",         "com.sun.jdi.SharedMemoryAttach"},
+        {"macosx-aarch64",  "com.sun.jdi.SharedMemoryAttach"},
+        {"mac-aarch64",     "com.sun.jdi.SharedMemoryAttach"},
+        {"aix-ppc64",       "com.sun.jdi.SharedMemoryAttach"},
 
             // listening connectors
         /*
@@ -546,21 +534,21 @@ class CheckedFeatures {
          *  It is available only on the Microsoft Windows platform.
          *  "
          */
-        {"solaris-sparc",   "com.sun.jdi.SharedMemoryListen"},
-        {"solaris-sparcv9", "com.sun.jdi.SharedMemoryListen"},
-        {"solaris-i586",    "com.sun.jdi.SharedMemoryListen"},
-        {"solaris-amd64",   "com.sun.jdi.SharedMemoryListen"},
-        {"solaris-x64",     "com.sun.jdi.SharedMemoryListen"},
         {"linux-i586",      "com.sun.jdi.SharedMemoryListen"},
         {"linux-ia64",      "com.sun.jdi.SharedMemoryListen"},
         {"linux-amd64",     "com.sun.jdi.SharedMemoryListen"},
         {"linux-x64",       "com.sun.jdi.SharedMemoryListen"},
-        {"linux-sparc",     "com.sun.jdi.SharedMemoryListen"},
-        {"linux-sparcv9",   "com.sun.jdi.SharedMemoryListen"},
         {"linux-aarch64",   "com.sun.jdi.SharedMemoryListen"},
         {"linux-arm",       "com.sun.jdi.SharedMemoryListen"},
+        {"linux-ppc64",     "com.sun.jdi.SharedMemoryListen"},
+        {"linux-ppc64le",   "com.sun.jdi.SharedMemoryListen"},
+        {"linux-s390x",     "com.sun.jdi.SharedMemoryListen"},
+        {"linux-riscv64",   "com.sun.jdi.SharedMemoryListen"},
         {"macosx-amd64",    "com.sun.jdi.SharedMemoryListen"},
         {"mac-x64",         "com.sun.jdi.SharedMemoryListen"},
+        {"macosx-aarch64",  "com.sun.jdi.SharedMemoryListen"},
+        {"mac-aarch64",     "com.sun.jdi.SharedMemoryListen"},
+        {"aix-ppc64",       "com.sun.jdi.SharedMemoryListen"},
 
             // launching connectors
         /*
@@ -572,25 +560,9 @@ class CheckedFeatures {
          *  respect to debugging. The details of launching the VM and specifying the
          *  necessary debug options are handled by the connector. The underlying
          *  transport used by this connector depends on the platform. On Microsoft
-         *  Windows, the shared memory transport is used. On Solaris and Linux the
-         *  socket transport is used.
+         *  Windows, the shared memory transport is used. On Linux the socket transport is used.
          * "
          */
-        {"solaris-sparc",   "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-        {"solaris-sparc",   "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-
-        {"solaris-sparcv9", "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-        {"solaris-sparcv9", "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-
-        {"solaris-i586",    "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-        {"solaris-i586",    "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-
-        {"solaris-amd64",   "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-        {"solaris-amd64",   "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-
-        {"solaris-x64",     "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-        {"solaris-x64",     "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-
         {"linux-i586",      "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
         {"linux-i586",      "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
 
@@ -603,17 +575,23 @@ class CheckedFeatures {
         {"linux-x64",       "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
         {"linux-x64",       "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
 
-        {"linux-sparc",     "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-        {"linux-sparc",     "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-
-        {"linux-sparcv9",   "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-        {"linux-sparcv9",   "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-
         {"linux-aarch64",   "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
         {"linux-aarch64",   "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
 
         {"linux-arm",       "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
         {"linux-arm",       "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
+
+        {"linux-ppc64",     "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
+        {"linux-ppc64",     "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
+
+        {"linux-ppc64le",   "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
+        {"linux-ppc64le",   "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
+
+        {"linux-s390x",     "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
+        {"linux-s390x",     "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
+
+        {"linux-riscv64",   "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
+        {"linux-riscv64",   "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
 
         {"windows-i586",    "com.sun.jdi.CommandLineLaunch", "dt_socket"},
         {"windows-i586",    "com.sun.jdi.RawCommandLineLaunch", "dt_socket"},
@@ -630,24 +608,33 @@ class CheckedFeatures {
         {"macosx-amd64",     "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
         {"macosx-amd64",     "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
 
-        {"mac-x64",         "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-        {"mac-x64",         "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
+        {"mac-x64",          "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
+        {"mac-x64",          "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
+
+        {"macosx-aarch64",   "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
+        {"macosx-aarch64",   "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
+
+        {"mac-aarch64",      "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
+        {"mac-aarch64",      "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
+
+        {"aix-ppc64",       "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
+        {"aix-ppc64",       "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
 
         // shared memory transport is implemented only on windows platform
-        {"solaris-sparc",   "dt_shmem"},
-        {"solaris-sparcv9", "dt_shmem"},
-        {"solaris-i586",    "dt_shmem"},
-        {"solaris-amd64",   "dt_shmem"},
-        {"solaris-x64",     "dt_shmem"},
         {"linux-i586",      "dt_shmem"},
         {"linux-ia64",      "dt_shmem"},
         {"linux-amd64",     "dt_shmem"},
         {"linux-x64",       "dt_shmem"},
-        {"linux-sparc",     "dt_shmem"},
-        {"linux-sparcv9",   "dt_shmem"},
         {"linux-aarch64",   "dt_shmem"},
         {"linux-arm",       "dt_shmem"},
+        {"linux-ppc64",     "dt_shmem"},
+        {"linux-ppc64le",   "dt_shmem"},
+        {"linux-s390x",     "dt_shmem"},
+        {"linux-riscv64",   "dt_shmem"},
         {"macosx-amd64",    "dt_shmem"},
         {"mac-x64",         "dt_shmem"},
+        {"macosx-aarch64",  "dt_shmem"},
+        {"mac-aarch64",     "dt_shmem"},
+        {"aix-ppc64",       "dt_shmem"},
     };
 }

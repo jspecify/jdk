@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,19 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_ACCESSBACKEND_INLINE_HPP
-#define SHARE_VM_RUNTIME_ACCESSBACKEND_INLINE_HPP
+#ifndef SHARE_OOPS_ACCESSBACKEND_INLINE_HPP
+#define SHARE_OOPS_ACCESSBACKEND_INLINE_HPP
+
+#include "oops/accessBackend.hpp"
 
 #include "oops/access.hpp"
-#include "oops/accessBackend.hpp"
+#include "oops/arrayOop.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "runtime/atomic.hpp"
+#include "runtime/orderAccess.hpp"
+
+#include <type_traits>
 
 template <DecoratorSet decorators>
 template <DecoratorSet idecorators, typename T>
@@ -85,35 +91,35 @@ inline T RawAccessBarrier<decorators>::oop_load_at(oop base, ptrdiff_t offset) {
 
 template <DecoratorSet decorators>
 template <typename T>
-inline T RawAccessBarrier<decorators>::oop_atomic_cmpxchg(T new_value, void* addr, T compare_value) {
+inline T RawAccessBarrier<decorators>::oop_atomic_cmpxchg(void* addr, T compare_value, T new_value) {
   typedef typename AccessInternal::EncodedType<decorators, T>::type Encoded;
   Encoded encoded_new = encode(new_value);
   Encoded encoded_compare = encode(compare_value);
-  Encoded encoded_result = atomic_cmpxchg(encoded_new,
-                                          reinterpret_cast<Encoded*>(addr),
-                                          encoded_compare);
+  Encoded encoded_result = atomic_cmpxchg(reinterpret_cast<Encoded*>(addr),
+                                          encoded_compare,
+                                          encoded_new);
   return decode<T>(encoded_result);
 }
 
 template <DecoratorSet decorators>
 template <typename T>
-inline T RawAccessBarrier<decorators>::oop_atomic_cmpxchg_at(T new_value, oop base, ptrdiff_t offset, T compare_value) {
-  return oop_atomic_cmpxchg(new_value, field_addr(base, offset), compare_value);
+inline T RawAccessBarrier<decorators>::oop_atomic_cmpxchg_at(oop base, ptrdiff_t offset, T compare_value, T new_value) {
+  return oop_atomic_cmpxchg(field_addr(base, offset), compare_value, new_value);
 }
 
 template <DecoratorSet decorators>
 template <typename T>
-inline T RawAccessBarrier<decorators>::oop_atomic_xchg(T new_value, void* addr) {
+inline T RawAccessBarrier<decorators>::oop_atomic_xchg(void* addr, T new_value) {
   typedef typename AccessInternal::EncodedType<decorators, T>::type Encoded;
   Encoded encoded_new = encode(new_value);
-  Encoded encoded_result = atomic_xchg(encoded_new, reinterpret_cast<Encoded*>(addr));
+  Encoded encoded_result = atomic_xchg(reinterpret_cast<Encoded*>(addr), encoded_new);
   return decode<T>(encoded_result);
 }
 
 template <DecoratorSet decorators>
 template <typename T>
-inline T RawAccessBarrier<decorators>::oop_atomic_xchg_at(T new_value, oop base, ptrdiff_t offset) {
-  return oop_atomic_xchg(new_value, field_addr(base, offset));
+inline T RawAccessBarrier<decorators>::oop_atomic_xchg_at(oop base, ptrdiff_t offset, T new_value) {
+  return oop_atomic_xchg(field_addr(base, offset), new_value);
 }
 
 template <DecoratorSet decorators>
@@ -134,7 +140,7 @@ RawAccessBarrier<decorators>::load_internal(void* addr) {
   if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
     OrderAccess::fence();
   }
-  return OrderAccess::load_acquire(reinterpret_cast<const volatile T*>(addr));
+  return Atomic::load_acquire(reinterpret_cast<const volatile T*>(addr));
 }
 
 template <DecoratorSet decorators>
@@ -142,7 +148,7 @@ template <DecoratorSet ds, typename T>
 inline typename EnableIf<
   HasDecorator<ds, MO_ACQUIRE>::value, T>::type
 RawAccessBarrier<decorators>::load_internal(void* addr) {
-  return OrderAccess::load_acquire(reinterpret_cast<const volatile T*>(addr));
+  return Atomic::load_acquire(reinterpret_cast<const volatile T*>(addr));
 }
 
 template <DecoratorSet decorators>
@@ -158,7 +164,7 @@ template <DecoratorSet ds, typename T>
 inline typename EnableIf<
   HasDecorator<ds, MO_SEQ_CST>::value>::type
 RawAccessBarrier<decorators>::store_internal(void* addr, T value) {
-  OrderAccess::release_store_fence(reinterpret_cast<volatile T*>(addr), value);
+  Atomic::release_store_fence(reinterpret_cast<volatile T*>(addr), value);
 }
 
 template <DecoratorSet decorators>
@@ -166,7 +172,7 @@ template <DecoratorSet ds, typename T>
 inline typename EnableIf<
   HasDecorator<ds, MO_RELEASE>::value>::type
 RawAccessBarrier<decorators>::store_internal(void* addr, T value) {
-  OrderAccess::release_store(reinterpret_cast<volatile T*>(addr), value);
+  Atomic::release_store(reinterpret_cast<volatile T*>(addr), value);
 }
 
 template <DecoratorSet decorators>
@@ -174,17 +180,17 @@ template <DecoratorSet ds, typename T>
 inline typename EnableIf<
   HasDecorator<ds, MO_RELAXED>::value>::type
 RawAccessBarrier<decorators>::store_internal(void* addr, T value) {
-  Atomic::store(value, reinterpret_cast<volatile T*>(addr));
+  Atomic::store(reinterpret_cast<volatile T*>(addr), value);
 }
 
 template <DecoratorSet decorators>
 template <DecoratorSet ds, typename T>
 inline typename EnableIf<
   HasDecorator<ds, MO_RELAXED>::value, T>::type
-RawAccessBarrier<decorators>::atomic_cmpxchg_internal(T new_value, void* addr, T compare_value) {
-  return Atomic::cmpxchg(new_value,
-                         reinterpret_cast<volatile T*>(addr),
+RawAccessBarrier<decorators>::atomic_cmpxchg_internal(void* addr, T compare_value, T new_value) {
+  return Atomic::cmpxchg(reinterpret_cast<volatile T*>(addr),
                          compare_value,
+                         new_value,
                          memory_order_relaxed);
 }
 
@@ -192,10 +198,10 @@ template <DecoratorSet decorators>
 template <DecoratorSet ds, typename T>
 inline typename EnableIf<
   HasDecorator<ds, MO_SEQ_CST>::value, T>::type
-RawAccessBarrier<decorators>::atomic_cmpxchg_internal(T new_value, void* addr, T compare_value) {
-  return Atomic::cmpxchg(new_value,
-                         reinterpret_cast<volatile T*>(addr),
+RawAccessBarrier<decorators>::atomic_cmpxchg_internal(void* addr, T compare_value, T new_value) {
+  return Atomic::cmpxchg(reinterpret_cast<volatile T*>(addr),
                          compare_value,
+                         new_value,
                          memory_order_conservative);
 }
 
@@ -203,51 +209,13 @@ template <DecoratorSet decorators>
 template <DecoratorSet ds, typename T>
 inline typename EnableIf<
   HasDecorator<ds, MO_SEQ_CST>::value, T>::type
-RawAccessBarrier<decorators>::atomic_xchg_internal(T new_value, void* addr) {
-  return Atomic::xchg(new_value,
-                      reinterpret_cast<volatile T*>(addr));
-}
-
-// For platforms that do not have native support for wide atomics,
-// we can emulate the atomicity using a lock. So here we check
-// whether that is necessary or not.
-
-template <DecoratorSet ds>
-template <DecoratorSet decorators, typename T>
-inline typename EnableIf<
-  AccessInternal::PossiblyLockedAccess<T>::value, T>::type
-RawAccessBarrier<ds>::atomic_xchg_maybe_locked(T new_value, void* addr) {
-  if (!AccessInternal::wide_atomic_needs_locking()) {
-    return atomic_xchg_internal<ds>(new_value, addr);
-  } else {
-    AccessInternal::AccessLocker access_lock;
-    volatile T* p = reinterpret_cast<volatile T*>(addr);
-    T old_val = RawAccess<>::load(p);
-    RawAccess<>::store(p, new_value);
-    return old_val;
-  }
-}
-
-template <DecoratorSet ds>
-template <DecoratorSet decorators, typename T>
-inline typename EnableIf<
-  AccessInternal::PossiblyLockedAccess<T>::value, T>::type
-RawAccessBarrier<ds>::atomic_cmpxchg_maybe_locked(T new_value, void* addr, T compare_value) {
-  if (!AccessInternal::wide_atomic_needs_locking()) {
-    return atomic_cmpxchg_internal<ds>(new_value, addr, compare_value);
-  } else {
-    AccessInternal::AccessLocker access_lock;
-    volatile T* p = reinterpret_cast<volatile T*>(addr);
-    T old_val = RawAccess<>::load(p);
-    if (old_val == compare_value) {
-      RawAccess<>::store(p, new_value);
-    }
-    return old_val;
-  }
+RawAccessBarrier<decorators>::atomic_xchg_internal(void* addr, T new_value) {
+  return Atomic::xchg(reinterpret_cast<volatile T*>(addr),
+                      new_value);
 }
 
 class RawAccessBarrierArrayCopy: public AllStatic {
-  template<typename T> struct IsHeapWordSized: public IntegralConstant<bool, sizeof(T) == HeapWordSize> { };
+  template<typename T> struct IsHeapWordSized: public std::integral_constant<bool, sizeof(T) == HeapWordSize> { };
 public:
   template <DecoratorSet decorators, typename T>
   static inline typename EnableIf<
@@ -330,7 +298,7 @@ public:
   }
 };
 
-template<> struct RawAccessBarrierArrayCopy::IsHeapWordSized<void>: public IntegralConstant<bool, false> { };
+template<> struct RawAccessBarrierArrayCopy::IsHeapWordSized<void>: public std::false_type { };
 
 template <DecoratorSet decorators>
 template <typename T>
@@ -360,7 +328,7 @@ inline void RawAccessBarrier<decorators>::clone(oop src, oop dst, size_t size) {
                                             reinterpret_cast<jlong*>((oopDesc*)dst),
                                             align_object_size(size) / HeapWordsPerLong);
   // Clear the header
-  dst->init_mark_raw();
+  dst->init_mark();
 }
 
-#endif // SHARE_VM_RUNTIME_ACCESSBACKEND_INLINE_HPP
+#endif // SHARE_OOPS_ACCESSBACKEND_INLINE_HPP

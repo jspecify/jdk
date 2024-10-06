@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package com.sun.tools.jdi;
-
-import org.jspecify.annotations.Nullable;
 
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ClassNotLoadedException;
@@ -67,11 +65,8 @@ public class LocalVariableImpl extends MirrorImpl
         }
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
-        if ((obj != null) && (obj instanceof LocalVariableImpl)) {
-            LocalVariableImpl other = (LocalVariableImpl)obj;
+    public boolean equals(Object obj) {
+        if (obj instanceof LocalVariableImpl other) {
             return ((slot() == other.slot()) &&
                     (scopeStart != null) &&
                     (scopeStart.equals(other.scopeStart)) &&

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,19 @@
 
 /**
  * @test
- * @library /lib/testlibrary
- * @build AutomaticModulesTest ModuleUtils JarUtils
- * @run testng AutomaticModulesTest
+ * @bug 8142968 8253751 8262944 8314986
+ * @library /test/lib
+ * @build AutomaticModulesTest
+ *        jdk.test.lib.util.JarUtils
+ *        jdk.test.lib.util.ModuleUtils
+ * @run junit AutomaticModulesTest
  * @summary Basic tests for automatic modules
  */
 
 import java.io.IOException;
 import java.lang.module.Configuration;
 import java.lang.module.FindException;
+import java.lang.module.InvalidModuleDescriptorException;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleDescriptor.Requires.Modifier;
 import java.lang.module.ModuleFinder;
@@ -40,7 +44,6 @@ import java.lang.module.ResolutionException;
 import java.lang.module.ResolvedModule;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.Set;
 import java.util.jar.Attributes;
@@ -48,76 +51,72 @@ import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-import static org.testng.Assert.*;
+import jdk.test.lib.util.JarUtils;
+import jdk.test.lib.util.ModuleUtils;
 
-@Test
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+
 public class AutomaticModulesTest {
+    private static final Path USER_DIR = Path.of(System.getProperty("user.dir"));
 
-    private static final Path USER_DIR
-         = Paths.get(System.getProperty("user.dir"));
+    // JAR file name to expected module name / version
+    static Stream<Arguments> jarNames() {
+        return Stream.of(
+            arguments( "foo.jar",                    "foo" ),
+            arguments( "foo4j.jar",                  "foo4j" ),
 
-    @DataProvider(name = "jarnames")
-    public Object[][] createJarNames() {
-        return new Object[][] {
+            arguments( "foo1.jar",                   "foo1" ),
+            arguments( "foo10.jar",                  "foo10" ),
 
-            // JAR file name                module-name[/version]
+            arguments( "foo-1.jar",                  "foo/1" ),
+            arguments( "foo-1.2.jar",                "foo/1.2" ),
+            arguments( "foo-1.2.3.jar",              "foo/1.2.3" ),
+            arguments( "foo-1.2.3.4.jar",            "foo/1.2.3.4" ),
 
-            { "foo.jar",                    "foo" },
-            { "foo4j.jar",                  "foo4j", },
+            arguments( "foo-10.jar",                 "foo/10" ),
+            arguments( "foo-10.20.jar",              "foo/10.20" ),
+            arguments( "foo-10.20.30.jar",           "foo/10.20.30" ),
+            arguments( "foo-10.20.30.40.jar",        "foo/10.20.30.40" ),
 
-            { "foo1.jar",                   "foo1" },
-            { "foo10.jar",                  "foo10" },
+            arguments( "foo-bar.jar",                "foo.bar" ),
+            arguments( "foo-bar-1.jar",              "foo.bar/1" ),
+            arguments( "foo-bar-1.2.jar",            "foo.bar/1.2" ),
+            arguments( "foo-bar-10.jar",             "foo.bar/10" ),
+            arguments( "foo-bar-10.20.jar",          "foo.bar/10.20" ),
 
-            { "foo-1.jar",                  "foo/1" },
-            { "foo-1.2.jar",                "foo/1.2" },
-            { "foo-1.2.3.jar",              "foo/1.2.3" },
-            { "foo-1.2.3.4.jar",            "foo/1.2.3.4" },
+            arguments("foo.bar1.jar",                "foo.bar1" ),
+            arguments( "foo.bar10.jar",              "foo.bar10" ),
 
-            { "foo-10.jar",                 "foo/10" },
-            { "foo-10.20.jar",              "foo/10.20" },
-            { "foo-10.20.30.jar",           "foo/10.20.30" },
-            { "foo-10.20.30.40.jar",        "foo/10.20.30.40" },
+            arguments( "foo-1.2-SNAPSHOT.jar",       "foo/1.2-SNAPSHOT" ),
+            arguments( "foo-bar-1.2-SNAPSHOT.jar",   "foo.bar/1.2-SNAPSHOT" ),
 
-            { "foo-bar.jar",                "foo.bar" },
-            { "foo-bar-1.jar",              "foo.bar/1" },
-            { "foo-bar-1.2.jar",            "foo.bar/1.2"},
-            { "foo-bar-10.jar",             "foo.bar/10" },
-            { "foo-bar-10.20.jar",          "foo.bar/10.20" },
-
-            { "foo.bar1.jar",               "foo.bar1" },
-            { "foo.bar10.jar",              "foo.bar10" },
-
-            { "foo-1.2-SNAPSHOT.jar",       "foo/1.2-SNAPSHOT" },
-            { "foo-bar-1.2-SNAPSHOT.jar",   "foo.bar/1.2-SNAPSHOT" },
-
-            { "foo--bar-1.0.jar",           "foo.bar/1.0" },
-            { "-foo-bar-1.0.jar",           "foo.bar/1.0" },
-            { "foo-bar--1.0.jar",           "foo.bar/1.0" },
-
-        };
+            arguments( "foo--bar-1.0.jar",           "foo.bar/1.0" ),
+            arguments( "-foo-bar-1.0.jar",           "foo.bar/1.0" ),
+            arguments( "foo-bar--1.0.jar",           "foo.bar/1.0" )
+        );
     }
 
     // JAR file names that do not map to a legal module name
-    @DataProvider(name = "badjarnames")
-    public Object[][] createBadNames() {
-        return new Object[][]{
-
-            { ".jar",          null },
-            { "_.jar",         null },
-
-            { "foo.1.jar",     null },
-            { "1foo.jar",      null },
-            { "foo.1bar.jar",  null },
-
-        };
+    static Stream<String> barJarNames() {
+        return Stream.of(
+            ".jar",
+            "_.jar",
+            "foo.1.jar",
+            "1foo.jar",
+            "foo.1bar.jar"
+        );
     }
 
     /**
      * Test mapping of JAR file names to module names
      */
-    @Test(dataProvider = "jarnames")
+    @ParameterizedTest
+    @MethodSource("jarNames")
     public void testNames(String fn, String mid) throws IOException {
         String[] s = mid.split("/");
         String mn = s[0];
@@ -138,19 +137,20 @@ public class AutomaticModulesTest {
 
         ModuleDescriptor descriptor = mref.get().descriptor();
         assertTrue(descriptor.isAutomatic());
-        assertEquals(descriptor.name(), mn);
+        assertEquals(mn, descriptor.name());
         if (vs == null) {
             assertFalse(descriptor.version().isPresent());
         } else {
-            assertEquals(descriptor.version().get().toString(), vs);
+            assertEquals(vs, descriptor.version().get().toString());
         }
     }
 
     /**
      * Test impossible mapping of JAR files to modules names
      */
-    @Test(dataProvider = "badjarnames", expectedExceptions = FindException.class)
-    public void testBadNames(String fn, String ignore) throws IOException {
+    @ParameterizedTest
+    @MethodSource("barJarNames")
+    public void testBadNames(String fn) throws IOException {
         Path dir = Files.createTempDirectory(USER_DIR, "mods");
         Path jf = dir.resolve(fn);
 
@@ -158,38 +158,36 @@ public class AutomaticModulesTest {
         createDummyJarFile(jf);
 
         // should throw FindException
-        ModuleFinder.of(dir).findAll();
+        var finder = ModuleFinder.of(dir);
+        assertThrows(FindException.class, finder::findAll);
     }
 
-
-    @DataProvider(name = "modulenames")
-    public Object[][] createModuleNames() {
-        return new Object[][] {
-            { "foo",        null },
-            { "foo",        "1.0" },
-            { "foo.bar",    null },
-            { "foo.bar",    "1.0" },
-            { "class_",     null },
-            { "class_",     "1.0" },
-        };
+    // Automatic-Module-Name attribute values and version in JAR file name
+    static Stream<Arguments> automaticModuleNames() {
+        return Stream.of(
+            arguments( "foo",        null ),
+            arguments( "foo",        "1.0" ),
+            arguments( "foo.bar",    null ),
+            arguments( "foo.bar",    "1.0" ),
+            arguments( "class_",     null ),
+            arguments( "class_",     "1.0" )
+        );
     }
 
-    @DataProvider(name = "badmodulenames")
-    public Object[][] createBadModuleNames() {
-        return new Object[][] {
-            { "",            null },
-            { "",            "1.0" },
-            { "666",         null },
-            { "666",         "1.0" },
-            { "foo.class",   null },
-            { "foo.class",   "1.0" },
-        };
+    // Bad Automatic-Module-Name attribute values
+    static Stream<String> badAutomaticModuleNames() {
+        return Stream.of(
+            "",
+            "666",
+            "foo.class"
+        );
     }
 
     /**
      * Test JAR files with the Automatic-Module-Name attribute
      */
-    @Test(dataProvider = "modulenames")
+    @ParameterizedTest
+    @MethodSource("automaticModuleNames")
     public void testAutomaticModuleNameAttribute(String name, String vs)
         throws IOException
     {
@@ -214,27 +212,26 @@ public class AutomaticModulesTest {
 
         ModuleReference mref = finder.find(name).get();
         ModuleDescriptor descriptor = mref.descriptor();
-        assertEquals(descriptor.name(), name);
-        assertEquals(descriptor.version()
+        assertEquals(name, descriptor.name());
+        assertEquals(vs, descriptor.version()
                 .map(ModuleDescriptor.Version::toString)
-                .orElse(null), vs);
+                .orElse(null));
     }
 
     /**
      * Test JAR files with the Automatic-Module-Name attribute with a value
      * that is not a legal module name.
      */
-    @Test(dataProvider = "badmodulenames", expectedExceptions = FindException.class)
-    public void testBadAutomaticModuleNameAttribute(String name, String ignore)
-        throws IOException
-    {
-        // should throw FindException
-        testAutomaticModuleNameAttribute(name, null);
+    @ParameterizedTest
+    @MethodSource("badAutomaticModuleNames")
+    public void testBadAutomaticModuleNameAttribute(String name) throws IOException {
+        assertThrows(FindException.class, () -> testAutomaticModuleNameAttribute(name, null));
     }
 
     /**
      * Test all packages are exported
      */
+    @Test
     public void testPackages() throws IOException {
         Path dir = Files.createTempDirectory(USER_DIR, "mods");
         createDummyJarFile(dir.resolve("m.jar"),
@@ -259,6 +256,7 @@ public class AutomaticModulesTest {
      * Test class files in JAR file where the entry does not correspond to a
      * legal package name.
      */
+    @Test
     public void testBadPackage() throws IOException {
         Path dir = Files.createTempDirectory(USER_DIR, "mods");
         createDummyJarFile(dir.resolve("m.jar"), "p/C1.class", "p-/C2.class");
@@ -280,6 +278,7 @@ public class AutomaticModulesTest {
     /**
      * Test non-class resources in a JAR file.
      */
+    @Test
     public void testNonClassResources() throws IOException {
         Path dir = Files.createTempDirectory(USER_DIR, "mods");
         createDummyJarFile(dir.resolve("m.jar"),
@@ -303,17 +302,18 @@ public class AutomaticModulesTest {
     /**
      * Test .class file in unnamed package (top-level directory)
      */
-    @Test(expectedExceptions = FindException.class)
+    @Test
     public void testClassInUnnamedPackage() throws IOException {
         Path dir = Files.createTempDirectory(USER_DIR, "mods");
         createDummyJarFile(dir.resolve("m.jar"), "Mojo.class");
-        ModuleFinder finder = ModuleFinder.of(dir);
-        finder.findAll();
+        var finder = ModuleFinder.of(dir);
+        assertThrows(FindException.class, finder::findAll);
     }
 
     /**
      * Test JAR file with META-INF/services configuration file
      */
+    @Test
     public void testServicesConfiguration() throws IOException {
         String service = "p.S";
         String provider = "p.S1";
@@ -341,27 +341,25 @@ public class AutomaticModulesTest {
         ModuleDescriptor descriptor = mref.get().descriptor();
         assertTrue(descriptor.provides().size() == 1);
         ModuleDescriptor.Provides provides = descriptor.provides().iterator().next();
-        assertEquals(provides.service(), service);
+        assertEquals(service, provides.service());
         assertTrue(provides.providers().size() == 1);
         assertTrue(provides.providers().contains((provider)));
     }
 
     // META-INF/services files that don't map to legal service names
-    @DataProvider(name = "badservices")
-    public Object[][] createBadServices() {
-        return new Object[][] {
-
-                // service type         provider type
-                { "-",                  "p.S1" },
-                { ".S",                 "p.S1" },
-        };
+    static Stream<Arguments> badServices() {
+        return Stream.of(
+            arguments( "-",  "p.S1" ),
+            arguments( ".S", "p.S1" )
+        );
     }
 
     /**
      * Test JAR file with META-INF/services configuration file with bad
      * values or names.
      */
-    @Test(dataProvider = "badservices")
+    @ParameterizedTest
+    @MethodSource("badServices")
     public void testBadServicesNames(String service, String provider)
         throws IOException
     {
@@ -379,22 +377,20 @@ public class AutomaticModulesTest {
     }
 
     // META-INF/services configuration file entries that are not legal
-    @DataProvider(name = "badproviders")
-    public Object[][] createBadProviders() {
-        return new Object[][] {
-
-                // service type         provider type
-                { "p.S",                "-" },
-                { "p.S",                "p..S1" },
-                { "p.S",                "S1." },
-        };
+    static Stream<Arguments> badProviders() {
+        return Stream.of(
+            arguments("p.S", "-"),
+            arguments("p.S", "p..S1"),
+            arguments("p.S", "S1.")
+        );
     }
 
     /**
      * Test JAR file with META-INF/services configuration file with bad
      * values or names.
      */
-    @Test(dataProvider = "badproviders", expectedExceptions = FindException.class)
+    @ParameterizedTest
+    @MethodSource("badProviders")
     public void testBadProviderNames(String service, String provider)
         throws IOException
     {
@@ -414,14 +410,15 @@ public class AutomaticModulesTest {
         JarUtils.createJarFile(dir.resolve("m.jar"), tmpdir);
 
         // should throw FindException
-        ModuleFinder.of(dir).findAll();
+        var finder = ModuleFinder.of(dir);
+        assertThrows(FindException.class, finder::findAll);
     }
 
     /**
      * Test JAR file with META-INF/services configuration file listing a
      * provider that is not in the module.
      */
-    @Test(expectedExceptions = FindException.class)
+    @Test
     public void testMissingProviderPackage() throws IOException {
         Path tmpdir = Files.createTempDirectory(USER_DIR, "tmp");
 
@@ -431,16 +428,23 @@ public class AutomaticModulesTest {
         Files.write(services.resolve("p.S"), Set.of("q.P"));
 
         Path dir = Files.createTempDirectory(USER_DIR, "mods");
-        JarUtils.createJarFile(dir.resolve("m.jar"), tmpdir);
+        Path jarfile = dir.resolve("m.jar");
+        JarUtils.createJarFile(jarfile, tmpdir);
 
-        // should throw FindException
-        ModuleFinder.of(dir).findAll();
+        // FindException should be thrown with InvalidModuleDescriptorException as cause
+        var finder = ModuleFinder.of(dir);
+        FindException ex = assertThrows(FindException.class, () -> finder.findAll());
+        Throwable cause = ex.getCause();
+        assertTrue(cause instanceof InvalidModuleDescriptorException);
+        var imde = (InvalidModuleDescriptorException) cause;
+        assertEquals("Provider class q.P not in JAR file " + jarfile.getFileName(), imde.getMessage());
     }
 
     /**
      * Test that a JAR file with a Main-Class attribute results
      * in a module with a main class.
      */
+    @Test
     public void testMainClass() throws IOException {
         String mainClass = "p.Main";
 
@@ -459,27 +463,24 @@ public class AutomaticModulesTest {
         Configuration cf = resolve(parent, finder, "m");
 
         ModuleDescriptor descriptor = findDescriptor(cf, "m");
-
-        assertTrue(descriptor.mainClass().isPresent());
-        assertEquals(descriptor.mainClass().get(), mainClass);
+        assertEquals(mainClass, descriptor.mainClass().get());
     }
 
-    // Main-Class files that do not map to a legal qualified type name
-    @DataProvider(name = "badmainclass")
-    public Object[][] createBadMainClass() {
-        return new Object[][] {
-            { "p..Main",     null },
-            { "p-.Main",     null },
-
-        };
+    // Main-Class attribute values that do not map to a legal qualified type name
+    static Stream<String> badMainClasses() {
+        return Stream.of(
+            "p..Main",
+            "p-.Main"
+        );
     }
 
     /**
      * Test that a JAR file with a Main-Class attribute that is not a qualified
      * type name.
      */
-    @Test(dataProvider = "badmainclass")
-    public void testBadMainClass(String mainClass, String ignore) throws IOException {
+    @ParameterizedTest
+    @MethodSource("badMainClasses")
+    public void testBadMainClass(String mainClass) throws IOException {
         Manifest man = new Manifest();
         Attributes attrs = man.getMainAttributes();
         attrs.put(Attributes.Name.MANIFEST_VERSION, "1.0.0");
@@ -499,6 +500,7 @@ public class AutomaticModulesTest {
     /**
      * Test that a JAR file with a Main-Class attribute that is not in the module
      */
+    @Test
     public void testMissingMainClassPackage() throws IOException {
         Manifest man = new Manifest();
         Attributes attrs = man.getMainAttributes();
@@ -522,6 +524,7 @@ public class AutomaticModulesTest {
      *   b*
      *   c*
      */
+    @Test
     public void testConfiguration1() throws Exception {
         ModuleDescriptor descriptor1
             = ModuleDescriptor.newModule("a")
@@ -566,13 +569,14 @@ public class AutomaticModulesTest {
         assertTrue(a.reads().contains(c));
 
         assertTrue(b.reads().contains(a));
+        assertFalse(b.reads().contains(b));
         assertTrue(b.reads().contains(c));
         testReadAllBootModules(cf, "b");  // b reads all modules in boot layer
 
         assertTrue(c.reads().contains(a));
         assertTrue(c.reads().contains(b));
+        assertFalse(c.reads().contains(c));
         testReadAllBootModules(cf, "c");  // c reads all modules in boot layer
-
     }
 
     /**
@@ -582,6 +586,7 @@ public class AutomaticModulesTest {
      *   c*
      *   d*
      */
+    @Test
     public void testInConfiguration2() throws IOException {
         ModuleDescriptor descriptor1
             = ModuleDescriptor.newModule("a")
@@ -638,12 +643,14 @@ public class AutomaticModulesTest {
 
         assertTrue(c.reads().contains(a));
         assertTrue(c.reads().contains(b));
+        assertFalse(c.reads().contains(c));
         assertTrue(c.reads().contains(d));
         testReadAllBootModules(cf, "c");   // c reads all modules in boot layer
 
         assertTrue(d.reads().contains(a));
         assertTrue(d.reads().contains(b));
         assertTrue(d.reads().contains(c));
+        assertFalse(d.reads().contains(d));
         testReadAllBootModules(cf, "d");    // d reads all modules in boot layer
     }
 
@@ -654,6 +661,7 @@ public class AutomaticModulesTest {
      *   c*
      *   d*
      */
+    @Test
     public void testInConfiguration3() throws IOException {
         ModuleDescriptor descriptor1
             = ModuleDescriptor.newModule("a")
@@ -710,18 +718,16 @@ public class AutomaticModulesTest {
         assertTrue(b.reads().contains(d));
         assertTrue(b.reads().contains(base));
 
-        assertTrue(reads(cf, "b", "c"));
-        assertTrue(reads(cf, "b", "d"));
-        assertTrue(reads(cf, "b", "java.base"));
-
         assertTrue(c.reads().contains(a));
         assertTrue(c.reads().contains(b));
+        assertFalse(c.reads().contains(c));
         assertTrue(c.reads().contains(d));
         testReadAllBootModules(cf, "c");   // c reads all modules in boot layer
 
         assertTrue(d.reads().contains(a));
         assertTrue(d.reads().contains(b));
         assertTrue(d.reads().contains(c));
+        assertFalse(d.reads().contains(d));
         testReadAllBootModules(cf, "d");    // d reads all modules in boot layer
     }
 
@@ -729,6 +735,7 @@ public class AutomaticModulesTest {
      * Basic test to ensure that no automatic modules are resolved when
      * an automatic module is not a root or required by other modules.
      */
+    @Test
     public void testInConfiguration4() throws IOException {
         ModuleDescriptor descriptor1
             = ModuleDescriptor.newModule("m1")
@@ -758,6 +765,7 @@ public class AutomaticModulesTest {
      * Basic test to ensure that if an automatic module is resolved then
      * all observable automatic modules are resolved.
      */
+    @Test
     public void testInConfiguration5() throws IOException {
         // m1 requires m2
         ModuleDescriptor descriptor1
@@ -814,6 +822,7 @@ public class AutomaticModulesTest {
 
         assertTrue(auto1.reads().contains(m1));
         assertTrue(auto1.reads().contains(m2));
+        assertFalse(auto1.reads().contains(auto1));
         assertTrue(auto1.reads().contains(auto2));
         assertTrue(auto1.reads().contains(auto3));
         assertTrue(auto1.reads().contains(base));
@@ -821,6 +830,7 @@ public class AutomaticModulesTest {
         assertTrue(auto2.reads().contains(m1));
         assertTrue(auto2.reads().contains(m2));
         assertTrue(auto2.reads().contains(auto1));
+        assertFalse(auto2.reads().contains(auto2));
         assertTrue(auto2.reads().contains(auto3));
         assertTrue(auto2.reads().contains(base));
 
@@ -828,6 +838,7 @@ public class AutomaticModulesTest {
         assertTrue(auto3.reads().contains(m2));
         assertTrue(auto3.reads().contains(auto1));
         assertTrue(auto3.reads().contains(auto2));
+        assertFalse(auto3.reads().contains(auto3));
         assertTrue(auto3.reads().contains(base));
     }
 
@@ -837,6 +848,7 @@ public class AutomaticModulesTest {
      * automatic modules that are found by the after finder and not shadowed
      * by the before finder, or parent configurations, should also be resolved.
      */
+    @Test
     public void testInConfiguration6() throws IOException {
         // m1 requires auto1
         ModuleDescriptor descriptor1
@@ -896,13 +908,84 @@ public class AutomaticModulesTest {
 
         assertTrue(auto2.reads().contains(m1));
         assertTrue(auto2.reads().contains(auto1));
+        assertFalse(auto2.reads().contains(auto2));
         assertTrue(auto2.reads().contains(auto3));
         assertTrue(auto2.reads().contains(base));
 
         assertTrue(auto3.reads().contains(m1));
         assertTrue(auto3.reads().contains(auto1));
         assertTrue(auto3.reads().contains(auto2));
+        assertFalse(auto3.reads().contains(auto3));
         assertTrue(auto3.reads().contains(base));
+    }
+
+    /**
+     * Basic test for a module requiring an automatic module in a parent
+     * configuration. If an explicit module in a child configuration reads an
+     * automatic module in a parent configuration then it should read all
+     * automatic modules in the parent configuration.
+     */
+    @Test
+    public void testInConfiguration7() throws Exception {
+        // m1 requires auto1
+        ModuleDescriptor descriptor1 = ModuleDescriptor.newModule("m1")
+                .requires("auto1")
+                .build();
+
+        Path dir1 = Files.createTempDirectory(USER_DIR, "mods");
+        createDummyJarFile(dir1.resolve("auto1.jar"), "p1/C.class");
+        createDummyJarFile(dir1.resolve("auto2.jar"), "p2/C.class");
+
+        // module finder locates m1, auto1, and auto2
+        ModuleFinder finder1 = ModuleFinder.compose(ModuleUtils.finderOf(descriptor1),
+                                                    ModuleFinder.of(dir1));
+
+        Configuration parent = ModuleLayer.boot().configuration();
+        ResolvedModule base = parent.findModule("java.base").orElseThrow();
+
+        Configuration cf1 = resolve(parent, finder1, "m1");
+        assertTrue(cf1.modules().size() == 3);
+
+        ResolvedModule m1 = cf1.findModule("m1").orElseThrow();
+        ResolvedModule auto1 = cf1.findModule("auto1").orElseThrow();
+        ResolvedModule auto2 = cf1.findModule("auto2").orElseThrow();
+
+        assertTrue(m1.reads().size() == 3);
+        assertTrue(m1.reads().contains(base));
+        assertTrue(m1.reads().contains(auto1));
+        assertTrue(m1.reads().contains(auto2));
+
+        assertTrue(auto1.reads().contains(base));
+        assertTrue(auto1.reads().contains(m1));
+        assertFalse(auto1.reads().contains(auto1));
+        assertTrue(auto1.reads().contains(auto2));
+
+        assertTrue(auto2.reads().contains(base));
+        assertTrue(auto2.reads().contains(m1));
+        assertTrue(auto2.reads().contains(auto1));
+        assertFalse(auto2.reads().contains(auto2));
+
+        // m2 requires auto1
+        ModuleDescriptor descriptor2 = ModuleDescriptor.newModule("m2")
+                .requires("auto1")
+                .build();
+
+        Path dir2 = Files.createTempDirectory(USER_DIR, "mods");
+        createDummyJarFile(dir1.resolve("auto3.jar"), "p3/C.class");
+
+        // module finder locates m2 and auto3
+        ModuleFinder finder2 = ModuleFinder.compose(ModuleUtils.finderOf(descriptor2),
+                                                    ModuleFinder.of(dir2));
+
+        Configuration cf2 = resolve(cf1, finder2, "m2");
+        assertTrue(cf2.modules().size() == 1);   // auto3 should not be resolved
+
+        ResolvedModule m2 = cf2.findModule("m2").orElseThrow();
+
+        assertTrue(m2.reads().size() == 3);
+        assertTrue(m2.reads().contains(base));
+        assertTrue(m2.reads().contains(auto1));
+        assertTrue(m2.reads().contains(auto2));
     }
 
     /**
@@ -911,7 +994,7 @@ public class AutomaticModulesTest {
      *   b* contains p
      *   c* contains p
      */
-    @Test(expectedExceptions = { ResolutionException.class })
+    @Test
     public void testDuplicateSuppliers1() throws IOException {
         ModuleDescriptor descriptor
             = ModuleDescriptor.newModule("a")
@@ -930,7 +1013,7 @@ public class AutomaticModulesTest {
                                    ModuleFinder.of(dir));
 
         Configuration parent = ModuleLayer.boot().configuration();
-        resolve(parent, finder, "a");
+        assertThrows(ResolutionException.class, () -> resolve(parent, finder, "a"));
     }
 
     /**
@@ -938,7 +1021,7 @@ public class AutomaticModulesTest {
      *   a contains p, requires b*
      *   b* contains p
      */
-    @Test(expectedExceptions = { ResolutionException.class })
+    @Test
     public void testDuplicateSuppliers2() throws IOException {
         ModuleDescriptor descriptor
             = ModuleDescriptor.newModule("a")
@@ -956,12 +1039,13 @@ public class AutomaticModulesTest {
                                    ModuleFinder.of(dir));
 
         Configuration parent = ModuleLayer.boot().configuration();
-        resolve(parent, finder, "a");
+        assertThrows(ResolutionException.class, () -> resolve(parent, finder, "a"));
     }
 
     /**
      * Basic test of layer containing automatic modules
      */
+    @Test
     public void testInLayer() throws IOException {
         ModuleDescriptor descriptor
             = ModuleDescriptor.newModule("a")
@@ -1003,6 +1087,7 @@ public class AutomaticModulesTest {
     /**
      * Test miscellaneous methods.
      */
+    @Test
     public void testMisc() throws IOException {
         Path dir = Files.createTempDirectory(USER_DIR, "mods");
         Path m_jar = createDummyJarFile(dir.resolve("m.jar"), "p/T.class");
@@ -1044,13 +1129,10 @@ public class AutomaticModulesTest {
      * configuration.
      */
     static void testReadAllBootModules(Configuration cf, String mn) {
-
         Set<String> bootModules = ModuleLayer.boot().modules().stream()
                 .map(Module::getName)
                 .collect(Collectors.toSet());
-
         bootModules.forEach(other -> assertTrue(reads(cf, mn, other)));
-
     }
 
     /**
@@ -1100,7 +1182,7 @@ public class AutomaticModulesTest {
             Files.createFile(file);
         }
 
-        Path[] paths = Stream.of(entries).map(Paths::get).toArray(Path[]::new);
+        Path[] paths = Stream.of(entries).map(Path::of).toArray(Path[]::new);
         JarUtils.createJarFile(jarfile, man, dir, paths);
         return jarfile;
     }
@@ -1114,5 +1196,4 @@ public class AutomaticModulesTest {
     {
         return createDummyJarFile(jarfile, null, entries);
     }
-
 }

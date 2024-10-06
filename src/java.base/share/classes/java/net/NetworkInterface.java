@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,27 +25,60 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.NoSuchElementException;
-import java.security.AccessController;
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * This class represents a Network Interface made up of a name,
- * and a list of IP addresses assigned to this interface.
- * It is used to identify the local interface on which a multicast group
- * is joined.
+ * This class represents a Network Interface.
+ * <p>
+ * A Network Interface is an abstraction encapsulating
+ * the characteristics of a Network Interface Controller, or
+ * Virtual Network adapter, which is a system hardware/software
+ * component connecting a computer, or host system, to a computer
+ * network. A Network Interface can be physical or virtual.
+ * A Network Interface has a name, zero or more assigned
+ * {@linkplain InetAddress IP addresses}, zero or more {@linkplain
+ * InterfaceAddress MAC Addresses}, and may have an index.
+ * The name is highly platform specific but a name such as "le0"
+ * is typical; it may not be unique. The index is a highly platform
+ * specific number that identifies the interface. The network
+ * configuration may change during the lifetime of the JVM.
+ * For example, the set of IP addresses assigned to a network
+ * interface can be transient and dynamically allocated, and may
+ * change at any time.
+ * <p>
+ * When obtaining a {@code NetworkInterface} instance, part of its
+ * configuration (such as its name and the list of assigned IP addresses),
+ * is reflective of its configuration at creation time.
+ * Obtaining an updated view of the network configuration may require
+ * looking up a network interface again in order to obtain a new instance.
+ * <p>
+ * Network interface instances are typically used to identify the local
+ * interface on which a multicast group is joined.
  *
- * Interfaces are normally known by names such as "le0".
+ * @apiNote <a id="lookup"></a>Several static methods in this class are
+ * factory methods, returning a new instance of a {@code NetworkInterface},
+ * reflecting the configuration at the time of instantiation.
+ * The network configuration may change at any time, and as such,
+ * these methods may need to be invoked again in order to obtain
+ * a more up-to-date view of the network interfaces.
+ * In particular, there is no guarantee that the same interface will be
+ * found at the same index, or that the same network addresses will be
+ * bound to the interface, if the network configuration of the system
+ * has changed.
  *
  * @since 1.4
  */
+@NullMarked
 public final class NetworkInterface {
     private String name;
     private String displayName;
@@ -56,24 +89,12 @@ public final class NetworkInterface {
     private NetworkInterface parent = null;
     private boolean virtual = false;
     private static final NetworkInterface defaultInterface;
-    private static final int defaultIndex; /* index of defaultInterface */
 
     static {
-        AccessController.doPrivileged(
-            new java.security.PrivilegedAction<>() {
-                public Void run() {
-                    System.loadLibrary("net");
-                    return null;
-                }
-            });
+        jdk.internal.loader.BootLoader.loadLibrary("net");
 
         init();
         defaultInterface = DefaultInterface.getDefault();
-        if (defaultInterface != null) {
-            defaultIndex = defaultInterface.getIndex();
-        } else {
-            defaultIndex = 0;
-        }
     }
 
     /**
@@ -101,7 +122,7 @@ public final class NetworkInterface {
     }
 
     /**
-     * Get an Enumeration with all or a subset of the InetAddresses bound to
+     * Get an Enumeration with all, or a subset, of the InetAddresses bound to
      * this network interface.
      * <p>
      * If there is a security manager, its {@code checkConnect}
@@ -111,7 +132,12 @@ public final class NetworkInterface {
      * {@link NetPermission}("getNetworkInformation") permission, then all
      * InetAddresses are returned.
      *
-     * @return an Enumeration object with all or a subset of the InetAddresses
+     * @implNote
+     * The returned enumeration contains all, or a subset, of the InetAddresses that were
+     * bound to the interface at the time the {@linkplain #getNetworkInterfaces()
+     * interface configuration was read}
+     *
+     * @return an Enumeration object with all, or a subset, of the InetAddresses
      * bound to this network interface
      * @see #inetAddresses()
      */
@@ -120,7 +146,7 @@ public final class NetworkInterface {
     }
 
     /**
-     * Get a Stream of all or a subset of the InetAddresses bound to this
+     * Get a Stream of all, or a subset, of the InetAddresses bound to this
      * network interface.
      * <p>
      * If there is a security manager, its {@code checkConnect}
@@ -130,7 +156,12 @@ public final class NetworkInterface {
      * {@link NetPermission}("getNetworkInformation") permission, then all
      * InetAddresses are returned.
      *
-     * @return a Stream object with all or a subset of the InetAddresses
+     * @implNote
+     * The stream contains all, or a subset, of the InetAddresses that were
+     * bound to the interface at the time the {@linkplain #getNetworkInterfaces()
+     * interface configuration was read}
+     *
+     * @return a Stream object with all, or a subset, of the InetAddresses
      * bound to this network interface
      * @since 9
      */
@@ -142,6 +173,7 @@ public final class NetworkInterface {
         InetAddress[] local_addrs = new InetAddress[addrs.length];
         boolean trusted = true;
 
+        @SuppressWarnings("removal")
         SecurityManager sec = System.getSecurityManager();
         if (sec != null) {
             try {
@@ -163,7 +195,7 @@ public final class NetworkInterface {
     }
 
     /**
-     * Get a List of all or a subset of the {@code InterfaceAddresses}
+     * Get a List of all, or a subset, of the {@code InterfaceAddresses}
      * of this network interface.
      * <p>
      * If there is a security manager, its {@code checkConnect}
@@ -171,13 +203,14 @@ public final class NetworkInterface {
      * Only InterfaceAddresses where the {@code checkConnect} doesn't throw
      * a SecurityException will be returned in the List.
      *
-     * @return a {@code List} object with all or a subset of the
-     *         InterfaceAddresss of this network interface
+     * @return a {@code List} object with all, or a subset, of the
+     *         InterfaceAddress of this network interface
      * @since 1.6
      */
     public java.util.List<InterfaceAddress> getInterfaceAddresses() {
         java.util.List<InterfaceAddress> lst = new java.util.ArrayList<>(1);
         if (bindings != null) {
+            @SuppressWarnings("removal")
             SecurityManager sec = System.getSecurityManager();
             for (int j=0; j<bindings.length; j++) {
                 try {
@@ -226,7 +259,7 @@ public final class NetworkInterface {
      * @return The {@code NetworkInterface} this interface is attached to.
      * @since 1.6
      */
-    public NetworkInterface getParent() {
+    public @Nullable NetworkInterface getParent() {
         return parent;
     }
 
@@ -253,13 +286,19 @@ public final class NetworkInterface {
      * @return a non-empty string representing the display name of this network
      *         interface, or null if no display name is available.
      */
-    public String getDisplayName() {
+    public @Nullable String getDisplayName() {
         /* strict TCK conformance */
         return "".equals(displayName) ? null : displayName;
     }
 
     /**
      * Searches for the network interface with the specified name.
+     *
+     * @apiNote
+     * The returned interface instance may reflect a snapshot of the
+     * configuration taken at the time the instance is created.
+     * See the general discussion of {@linkplain NetworkInterface##lookup
+     * snapshots and configuration} for the semantics of the returned interface.
      *
      * @param   name
      *          The name of the network interface.
@@ -274,7 +313,7 @@ public final class NetworkInterface {
      * @throws  NullPointerException
      *          If the specified name is {@code null}.
      */
-    public static NetworkInterface getByName(String name) throws SocketException {
+    public static @Nullable NetworkInterface getByName(String name) throws SocketException {
         if (name == null)
             throw new NullPointerException();
         return getByName0(name);
@@ -282,6 +321,12 @@ public final class NetworkInterface {
 
     /**
      * Get a network interface given its index.
+     *
+     * @apiNote
+     * The returned interface instance may reflect a snapshot of the
+     * configuration taken at the time the instance is created.
+     * See the general discussion of {@linkplain NetworkInterface##lookup
+     * snapshots and configuration} for the semantics of the returned interface.
      *
      * @param index an integer, the index of the interface
      * @return the NetworkInterface obtained from its index, or {@code null} if
@@ -291,7 +336,7 @@ public final class NetworkInterface {
      * @see #getIndex()
      * @since 1.7
      */
-    public static NetworkInterface getByIndex(int index) throws SocketException {
+    public static @Nullable NetworkInterface getByIndex(int index) throws SocketException {
         if (index < 0)
             throw new IllegalArgumentException("Interface index can't be negative");
         return getByIndex0(index);
@@ -306,6 +351,12 @@ public final class NetworkInterface {
      * interfaces it is not defined which network interface is
      * returned.
      *
+     * @apiNote
+     * The returned interface instance may reflect a snapshot of the
+     * configuration taken at the time the instance is created.
+     * See the general discussion of {@linkplain NetworkInterface##lookup
+     * snapshots and configuration} for the semantics of the returned interface.
+     *
      * @param   addr
      *          The {@code InetAddress} to search with.
      *
@@ -319,12 +370,23 @@ public final class NetworkInterface {
      * @throws  NullPointerException
      *          If the specified address is {@code null}.
      */
-    public static NetworkInterface getByInetAddress(InetAddress addr) throws SocketException {
+    public static @Nullable NetworkInterface getByInetAddress(InetAddress addr) throws SocketException {
         if (addr == null) {
             throw new NullPointerException();
         }
-        if (!(addr instanceof Inet4Address || addr instanceof Inet6Address)) {
-            throw new IllegalArgumentException ("invalid address type");
+
+        if (addr.holder.family == InetAddress.IPv4) {
+            if (!(addr instanceof Inet4Address)) {
+                throw new IllegalArgumentException("invalid family type: "
+                        + addr.holder.family);
+            }
+        } else if (addr.holder.family == InetAddress.IPv6) {
+            if (!(addr instanceof Inet6Address)) {
+                throw new IllegalArgumentException("invalid family type: "
+                        + addr.holder.family);
+            }
+        } else {
+            throw new IllegalArgumentException("invalid address type: " + addr);
         }
         return getByInetAddress0(addr);
     }
@@ -335,11 +397,17 @@ public final class NetworkInterface {
      * a loopback interface that only supports communication between entities on
      * this machine.
      *
-     * @apiNote this method can be used in combination with
-     * {@link #getInetAddresses()} to obtain all IP addresses for this node
+     * @apiNote
+     * This method can be used in combination with
+     * {@link #getInetAddresses()} to obtain all IP addresses for this node.
+     * <p>
+     * The returned interface instances may reflect a snapshot of the
+     * configuration taken at the time the instance is created.
+     * See the general discussion of {@linkplain NetworkInterface##lookup
+     * snapshots and configuration} for the semantics of the returned interface.
      *
      * @return an Enumeration of NetworkInterfaces found on this machine
-     * @exception  SocketException  if an I/O error occurs,
+     * @throws     SocketException  if an I/O error occurs,
      *             or if the platform does not have at least one configured
      *             network interface.
      * @see #networkInterfaces()
@@ -360,16 +428,21 @@ public final class NetworkInterface {
      * loopback interface that only supports communication between entities on
      * this machine.
      *
-     * @apiNote this method can be used in combination with
+     * @apiNote This method can be used in combination with
      * {@link #inetAddresses()}} to obtain a stream of all IP addresses for
      * this node, for example:
      * <pre> {@code
      * Stream<InetAddress> addrs = NetworkInterface.networkInterfaces()
      *     .flatMap(NetworkInterface::inetAddresses);
      * }</pre>
+     * <p>
+     * The returned interface instances may reflect a snapshot of the
+     * configuration taken at the time the instance is created.
+     * See the general discussion of {@linkplain NetworkInterface##lookup
+     * snapshots and configuration} for the semantics of the returned interface.
      *
      * @return a Stream of NetworkInterfaces found on this machine
-     * @exception  SocketException  if an I/O error occurs,
+     * @throws     SocketException  if an I/O error occurs,
      *             or if the platform does not have at least one configured
      *             network interface.
      * @since 9
@@ -382,6 +455,23 @@ public final class NetworkInterface {
         }  else {
             throw new SocketException("No network interfaces configured");
         }
+    }
+
+    /**
+     * Checks if the given address is bound to any of the interfaces on this
+     * machine.
+     *
+     * @param   addr
+     *          The {@code InetAddress} to search with.
+     * @return  true iff the addr parameter is currently bound to one of
+     *          the interfaces on this machine.
+     *
+     * @throws  SocketException
+     *          If an I/O error occurs.
+     */
+    /* package-private */ static boolean isBoundInetAddress(InetAddress addr)
+        throws SocketException {
+        return boundInetAddress0(addr);
     }
 
     private static <T> Enumeration<T> enumerationFromArray(T[] a) {
@@ -421,6 +511,9 @@ public final class NetworkInterface {
     private static native NetworkInterface getByIndex0(int index)
         throws SocketException;
 
+    private static native boolean boundInetAddress0(InetAddress addr)
+            throws SocketException;
+
     private static native NetworkInterface getByInetAddress0(InetAddress addr)
         throws SocketException;
 
@@ -428,7 +521,7 @@ public final class NetworkInterface {
      * Returns whether a network interface is up and running.
      *
      * @return  {@code true} if the interface is up and running.
-     * @exception       SocketException if an I/O error occurs.
+     * @throws          SocketException if an I/O error occurs.
      * @since 1.6
      */
 
@@ -440,7 +533,7 @@ public final class NetworkInterface {
      * Returns whether a network interface is a loopback interface.
      *
      * @return  {@code true} if the interface is a loopback interface.
-     * @exception       SocketException if an I/O error occurs.
+     * @throws          SocketException if an I/O error occurs.
      * @since 1.6
      */
 
@@ -455,7 +548,7 @@ public final class NetworkInterface {
      *
      * @return  {@code true} if the interface is a point to point
      *          interface.
-     * @exception       SocketException if an I/O error occurs.
+     * @throws          SocketException if an I/O error occurs.
      * @since 1.6
      */
 
@@ -467,7 +560,7 @@ public final class NetworkInterface {
      * Returns whether a network interface supports multicasting or not.
      *
      * @return  {@code true} if the interface supports Multicasting.
-     * @exception       SocketException if an I/O error occurs.
+     * @throws          SocketException if an I/O error occurs.
      * @since 1.6
      */
 
@@ -486,10 +579,11 @@ public final class NetworkInterface {
      *          manager is set and the caller does not have the permission
      *          NetPermission("getNetworkInformation")
      *
-     * @exception       SocketException if an I/O error occurs.
+     * @throws          SocketException if an I/O error occurs.
      * @since 1.6
      */
-    public byte[] getHardwareAddress() throws SocketException {
+    public byte @Nullable [] getHardwareAddress() throws SocketException {
+        @SuppressWarnings("removal")
         SecurityManager sec = System.getSecurityManager();
         if (sec != null) {
             try {
@@ -500,6 +594,9 @@ public final class NetworkInterface {
                     return null;
                 }
             }
+        }
+        if (isLoopback0(name, index)) {
+            return null;
         }
         for (InetAddress addr : addrs) {
             if (addr instanceof Inet4Address) {
@@ -513,7 +610,7 @@ public final class NetworkInterface {
      * Returns the Maximum Transmission Unit (MTU) of this interface.
      *
      * @return the value of the MTU for that interface.
-     * @exception       SocketException if an I/O error occurs.
+     * @throws          SocketException if an I/O error occurs.
      * @since 1.6
      */
     public int getMTU() throws SocketException {
@@ -551,28 +648,26 @@ public final class NetworkInterface {
      * as this object.
      * <p>
      * Two instances of {@code NetworkInterface} represent the same
-     * NetworkInterface if both name and addrs are the same for both.
+     * NetworkInterface if both the name and the set of {@code InetAddress}es
+     * bound to the interfaces are equal.
+     *
+     * @apiNote two {@code NetworkInterface} objects referring to the same
+     * underlying interface may not compare equal if the addresses
+     * of the underlying interface are being dynamically updated by
+     * the system.
      *
      * @param   obj   the object to compare against.
      * @return  {@code true} if the objects are the same;
      *          {@code false} otherwise.
      * @see     java.net.InetAddress#getAddress()
      */
-    
-    
+    @Override
     public boolean equals(@Nullable Object obj) {
-        if (!(obj instanceof NetworkInterface)) {
+        if (!(obj instanceof NetworkInterface that)) {
             return false;
         }
-        NetworkInterface that = (NetworkInterface)obj;
-        if (this.name != null ) {
-            if (!this.name.equals(that.name)) {
-                return false;
-            }
-        } else {
-            if (that.name != null) {
-                return false;
-            }
+        if (!Objects.equals(this.name, that.name)) {
+            return false;
         }
 
         if (this.addrs == null) {
@@ -587,13 +682,10 @@ public final class NetworkInterface {
             return false;
         }
 
-        InetAddress[] thatAddrs = that.addrs;
-        int count = thatAddrs.length;
-
-        for (int i=0; i<count; i++) {
+        for (InetAddress thisAddr : this.addrs) {
             boolean found = false;
-            for (int j=0; j<count; j++) {
-                if (addrs[i].equals(thatAddrs[j])) {
+            for (InetAddress thatAddr : that.addrs) {
+                if (thisAddr.equals(thatAddr)) {
                     found = true;
                     break;
                 }
@@ -605,8 +697,9 @@ public final class NetworkInterface {
         return true;
     }
 
+    @Override
     public int hashCode() {
-        return name == null? 0: name.hashCode();
+        return Objects.hashCode(name);
     }
 
     public String toString() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,19 @@
  */
 
 /*
-  test
-  @bug       6272324
-  @summary   Modal excluded Window which decorated parent is blocked should be non-focusable.
-  @author    anton.tarasov@sun.com: area=awt.focus
-  @run       applet NonFocusableBlockedOwnerTest.html
+  @test
+  @key headful
+  @bug        6272324
+  @summary    Modal excluded Window which decorated parent is blocked should be non-focusable.
+  @modules java.desktop/sun.awt
+  @run        main NonFocusableBlockedOwnerTest
 */
 
-import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.*;
 import java.lang.reflect.*;
 
-public class NonFocusableBlockedOwnerTest extends Applet {
+public class NonFocusableBlockedOwnerTest {
     Robot robot;
     Frame frame = new Frame("Modal Blocked Frame");
     Dialog dialog = new Dialog(frame, "Modal Dialog", true);
@@ -53,19 +53,9 @@ public class NonFocusableBlockedOwnerTest extends Applet {
         } catch (AWTException e) {
             throw new RuntimeException("Error: unable to create robot", e);
         }
-        // Create instructions for the user here, as well as set up
-        // the environment -- set the layout manager, add buttons,
-        // etc.
-        this.setLayout (new BorderLayout ());
     }
 
     public void start() {
-
-        if ("sun.awt.motif.MToolkit".equals(Toolkit.getDefaultToolkit().getClass().getName())) {
-            System.out.println("No testing on MToolkit.");
-            return;
-        }
-
         try {
             EventQueue.invokeLater(new Runnable() {
                 public void run() {
@@ -89,6 +79,7 @@ public class NonFocusableBlockedOwnerTest extends Applet {
         }
 
         waitTillShown(dialog);
+        robot.delay(500);
         clickOn(button);
         if (frame == KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow()) {
             throw new RuntimeException("Test failed!");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,8 @@ import java.util.WeakHashMap;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import jdk.internal.misc.Unsafe;
+
 import static java.lang.ClassValue.ClassValueMap.probeHomeLocation;
 import static java.lang.ClassValue.ClassValueMap.probeBackupLocations;
 
@@ -41,6 +43,7 @@ import static java.lang.ClassValue.ClassValueMap.probeBackupLocations;
  * table for each class encountered at a message send call site,
  * it can use a {@code ClassValue} to cache information needed to
  * perform the message send quickly, for each class encountered.
+ * @param <T> the type of the derived value
  * @author John Rose, JSR 292 EG
  * @since 1.7
  */
@@ -182,9 +185,9 @@ public abstract @UsesObjectEquals class ClassValue<T> {
         map.changeEntry(this, value);
     }
 
-    /// --------
-    /// Implementation...
-    /// --------
+    //| --------
+    //| Implementation...
+    //| --------
 
     /** Return the cache, if it exists, else a dummy empty cache. */
     private static Entry<?>[] getCacheCarefully(Class<?> type) {
@@ -373,12 +376,22 @@ public abstract @UsesObjectEquals class ClassValue<T> {
     }
 
     private static final Object CRITICAL_SECTION = new Object();
+    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private static ClassValueMap initializeMap(Class<?> type) {
         ClassValueMap map;
         synchronized (CRITICAL_SECTION) {  // private object to avoid deadlocks
             // happens about once per type
-            if ((map = type.classValueMap) == null)
-                type.classValueMap = map = new ClassValueMap();
+            if ((map = type.classValueMap) == null) {
+                map = new ClassValueMap();
+                // Place a Store fence after construction and before publishing to emulate
+                // ClassValueMap containing final fields. This ensures it can be
+                // published safely in the non-volatile field Class.classValueMap,
+                // since stores to the fields of ClassValueMap will not be reordered
+                // to occur after the store to the field type.classValueMap
+                UNSAFE.storeFence();
+
+                type.classValueMap = map;
+            }
         }
         return map;
     }
@@ -526,9 +539,9 @@ public abstract @UsesObjectEquals class ClassValue<T> {
             addToCache(classValue, e);
         }
 
-        /// --------
-        /// Cache management.
-        /// --------
+        //| --------
+        //| Cache management.
+        //| --------
 
         // Statics do not need synchronization.
 
@@ -677,7 +690,7 @@ public abstract @UsesObjectEquals class ClassValue<T> {
             if (haveReplacement >= 0) {
                 if (cache[(replacementPos+1) & mask] != null) {
                     // Be conservative, to avoid breaking up a non-null run.
-                    cache[replacementPos & mask] = (Entry<?>) Entry.DEAD_ENTRY;
+                    cache[replacementPos & mask] = Entry.DEAD_ENTRY;
                 } else {
                     cache[replacementPos & mask] = null;
                     cacheLoad -= 1;

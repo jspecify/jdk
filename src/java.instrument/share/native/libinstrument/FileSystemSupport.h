@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,6 @@
 #include "FileSystemSupport_md.h"
 
 /**
- * Return the local filesystem's path-separator character.
- */
-char pathSeparator();
-
-/**
- * Compare two filenames represent and tell if they represent the same file
- * or not.
- */
-int filenameStrcmp(const char* s1, const char* s2);
-
-/**
  * Post-process the given URI path string if necessary.  This is used on
  * win32, e.g., to transform "/c:/foo" into "c:/foo".  The path string
  * still has slash separators; code in the File class will translate them
@@ -54,7 +43,7 @@ char* basePath(const char* path);
  * Convert the given pathname string to normal form.  If the string is
  * already in normal form then it is simply returned.
  */
-char* normalize(const char* path);
+char* normalize_path(const char* path);
 
 /**
  * Tell whether or not the given abstract pathname is absolute.

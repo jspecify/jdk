@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_INTERPRETER_TEMPLATEINTERPRETER_HPP
-#define SHARE_VM_INTERPRETER_TEMPLATEINTERPRETER_HPP
+#ifndef SHARE_INTERPRETER_TEMPLATEINTERPRETER_HPP
+#define SHARE_INTERPRETER_TEMPLATEINTERPRETER_HPP
 
 #include "interpreter/abstractInterpreter.hpp"
 #include "interpreter/templateTable.hpp"
@@ -31,7 +31,7 @@
 // This file contains the platform-independent parts
 // of the template interpreter and the template interpreter generator.
 
-#ifndef CC_INTERP
+#ifndef ZERO
 
 class InterpreterMacroAssembler;
 class InterpreterCodelet;
@@ -48,7 +48,8 @@ class EntryPoint {
   // Construction
   EntryPoint();
   EntryPoint(address bentry, address zentry, address centry, address sentry, address aentry, address ientry, address lentry, address fentry, address dentry, address ventry);
-
+  // Will use the ientry for each of [bzcs]entry
+  EntryPoint(address aentry, address ientry, address lentry, address fentry, address dentry, address ventry);
   // Attributes
   address entry(TosState state) const;                // return target address for a given tosca state
   void    set_entry(TosState state, address entry);   // set    target address for a given tosca state
@@ -75,7 +76,7 @@ class DispatchTable {
   void       set_entry(int i, EntryPoint& entry);     // set    entry point for a given bytecode i
   address*   table_for(TosState state)          { return _table[state]; }
   address*   table_for()                        { return table_for((TosState)0); }
-  int        distance_from(address *table)      { return table - table_for(); }
+  int        distance_from(address *table)      { return (int)(table - table_for()); }
   int        distance_from(TosState state)      { return distance_from(table_for(state)); }
 
   // Comparison
@@ -111,9 +112,7 @@ class TemplateInterpreter: public AbstractInterpreter {
   static address    _throw_StackOverflowError_entry;
 
   static address    _remove_activation_entry;                   // continuation address if an exception is not handled by current frame
-#ifdef HOTSWAP
   static address    _remove_activation_preserving_args_entry;   // continuation address when current frame is being popped
-#endif // HOTSWAP
 
 #ifndef PRODUCT
   static EntryPoint _trace_code;
@@ -136,9 +135,10 @@ class TemplateInterpreter: public AbstractInterpreter {
 
  public:
   // Initialization/debugging
-  static void       initialize();
+  static void       initialize_stub();
+  static void       initialize_code();
   // this only returns whether a pc is within generated code for the interpreter.
-  static bool       contains(address pc)                        { return _code != NULL && _code->contains(pc); }
+  static bool       contains(address pc)                        { return _code != nullptr && _code->contains(pc); }
   // Debugging/printing
   static InterpreterCodelet* codelet_containing(address pc);
 
@@ -146,9 +146,7 @@ class TemplateInterpreter: public AbstractInterpreter {
  public:
 
   static address    remove_activation_early_entry(TosState state) { return _earlyret_entry.entry(state); }
-#ifdef HOTSWAP
-  static address    remove_activation_preserving_args_entry()   { return _remove_activation_preserving_args_entry; }
-#endif // HOTSWAP
+  static address    remove_activation_preserving_args_entry()     { return _remove_activation_preserving_args_entry; }
 
   static address    remove_activation_entry()                   { return _remove_activation_entry; }
   static address    throw_exception_entry()                     { return _throw_exception_entry; }
@@ -198,6 +196,6 @@ class TemplateInterpreter: public AbstractInterpreter {
   static int InterpreterCodeSize;
 };
 
-#endif // !CC_INTERP
+#endif // !ZERO
 
-#endif // SHARE_VM_INTERPRETER_TEMPLATEINTERPRETER_HPP
+#endif // SHARE_INTERPRETER_TEMPLATEINTERPRETER_HPP

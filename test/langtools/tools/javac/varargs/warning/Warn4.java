@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,10 +28,7 @@
  *  temporarily workaround combo tests are causing time out in several platforms
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.code
- *          jdk.compiler/com.sun.tools.javac.comp
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.util
  * @build combo.ComboTestHelper
  * @run main Warn4
@@ -73,14 +70,12 @@ public class Warn4 extends ComboInstance<Warn4> {
                 ModifierKind modKind) {
             switch(this) {
                 case VARARGS:
-                    return source.compareTo(SourceLevel.JDK_7) < 0 ||
-                            suppressLevelDecl == SuppressLevel.UNCHECKED ||
-                            trustMe == TrustMe.TRUST;
+                    return  suppressLevelDecl == SuppressLevel.UNCHECKED ||
+                        trustMe == TrustMe.TRUST;
                 case UNCHECKED:
                     return suppressLevelClient == SuppressLevel.UNCHECKED ||
                         (trustMe == TrustMe.TRUST &&
-                         (((modKind == ModifierKind.FINAL || modKind == ModifierKind.STATIC) &&
-                           source.compareTo( SourceLevel.JDK_7) >= 0 ) ||
+                         (((modKind == ModifierKind.FINAL || modKind == ModifierKind.STATIC) ) ||
                           (modKind == ModifierKind.PRIVATE && source.compareTo( SourceLevel.JDK_9) >= 0 )));
             }
 
@@ -93,9 +88,8 @@ public class Warn4 extends ComboInstance<Warn4> {
     }
 
     enum SourceLevel {
-        JDK_6("6"),
-        JDK_7("7"),
-        JDK_9("9");
+        JDK_9("9"),
+        LATEST(Integer.toString(javax.lang.model.SourceVersion.latest().runtimeVersion().feature()));
 
         String sourceKey;
 
@@ -223,17 +217,19 @@ public class Warn4 extends ComboInstance<Warn4> {
         return sigs[0].isApplicableTo(sigs[1]);
     }
 
-    final String template = "import java.util.List;\n" +
-                            "class Test {\n" +
-                            "   #{TRUSTME} #{SUPPRESS[0]} #{MOD} #{MTH[0].VARARG}\n" +
-                            "   #{SUPPRESS[1]} #{MTH[1].CLIENT}\n" +
-                            "}";
+    final String template = """
+        import java.util.List;
+        class Test {
+           #{TRUSTME} #{SUPPRESS[0]} #{MOD} #{MTH[0].VARARG}
+           #{SUPPRESS[1]} #{MTH[1].CLIENT}
+        }
+        """;
 
     @Override
     public void doWork() throws IOException {
         newCompilationTask()
                 .withOption("-Xlint:unchecked")
-                .withOption("-source")
+                .withOption("--release")
                 .withOption(sourceLevel.sourceKey)
                 .withSourceFromTemplate(template)
                 .analyze(this::check);

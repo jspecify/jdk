@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package jdk.internal.module;
 
 import java.lang.module.ModuleDescriptor;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
@@ -68,15 +67,5 @@ class ExplodedSystemModules implements SystemModules {
     @Override
     public Map<String, Set<String>> moduleReads() {
         throw new InternalError();
-    }
-
-    @Override
-    public  Map<String, Set<String>> concealedPackagesToOpen() {
-        return Collections.emptyMap();
-    }
-
-    @Override
-    public  Map<String, Set<String>> exportedPackagesToOpen() {
-        return Collections.emptyMap();
     }
 }

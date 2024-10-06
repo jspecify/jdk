@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP
-#define SHARE_VM_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP
+#ifndef SHARE_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP
+#define SHARE_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP
 
 #include "memory/memRegion.hpp"
 #include "memory/virtualspace.hpp"
 #include "utilities/align.hpp"
 #include "utilities/bitMap.hpp"
 
-class WorkGang;
+class WorkerThreads;
 
 // Virtual space management helper for a virtual space with an OS page allocation
 // granularity.
@@ -71,9 +71,6 @@ class G1PageBasedVirtualSpace {
   // os::commit_memory() or os::uncommit_memory() have no function.
   bool _special;
 
-  // Indicates whether the committed space should be executable.
-  bool _executable;
-
   // Helper function for committing memory. Commit the given memory range by using
   // _page_size pages as much as possible and the remainder with small sized pages.
   void commit_internal(size_t start_page, size_t end_page);
@@ -86,14 +83,6 @@ class G1PageBasedVirtualSpace {
 
   // Uncommit the given memory range.
   void uncommit_internal(size_t start_page, size_t end_page);
-
-  // Pretouch the given memory range.
-  void pretouch_internal(size_t start_page, size_t end_page);
-
-  // Returns the index of the page which contains the given address.
-  size_t  addr_to_page_index(char* addr) const;
-  // Returns the address of the given page index.
-  char*  page_start(size_t index) const;
 
   // Is the given page index the last page?
   bool is_last_page(size_t index) const { return index == (_committed.size() - 1); }
@@ -119,7 +108,7 @@ class G1PageBasedVirtualSpace {
   // Uncommit the given area of pages starting at start being size_in_pages large.
   void uncommit(size_t start_page, size_t size_in_pages);
 
-  void pretouch(size_t start_page, size_t size_in_pages, WorkGang* pretouch_gang = NULL);
+  void pretouch(size_t start_page, size_t size_in_pages, WorkerThreads* pretouch_workers = nullptr);
 
   // Initialize the given reserved space with the given base address and the size
   // actually used.
@@ -145,9 +134,13 @@ class G1PageBasedVirtualSpace {
 
   void check_for_contiguity() PRODUCT_RETURN;
 
+  // Returns the address of the given page index.
+  char*  page_start(size_t index) const;
+  size_t page_size() const;
+
   // Debugging
   void print_on(outputStream* out) PRODUCT_RETURN;
   void print();
 };
 
-#endif // SHARE_VM_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP
+#endif // SHARE_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP

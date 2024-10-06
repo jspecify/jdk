@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,12 +32,15 @@
  *          java.base/jdk.internal.org.objectweb.asm.tree
  *          jdk.internal.vm.ci/jdk.vm.ci.hotspot
  *          jdk.internal.vm.ci/jdk.vm.ci.code
+ *          jdk.internal.vm.ci/jdk.vm.ci.meta
+ *          jdk.internal.vm.ci/jdk.vm.ci.runtime
+ *
  * @build jdk.internal.vm.ci/jdk.vm.ci.hotspot.CompilerToVMHelper
- *        sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ *        jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *     -XX:+WhiteBoxAPI -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -Xbatch
+ *     -XX:+WhiteBoxAPI -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -Xbatch -XX:CompileThresholdScaling=1.0
+ *     -XX:CompileCommand=dontinline,compiler.jvmci.common.testcases.SimpleClass::testMethod
  *     compiler.jvmci.compilerToVM.IsMatureVsReprofileTest
  */
 
@@ -47,7 +50,7 @@ import compiler.jvmci.common.CTVMUtilities;
 import compiler.jvmci.common.testcases.SimpleClass;
 import jdk.vm.ci.hotspot.CompilerToVMHelper;
 import jdk.test.lib.Asserts;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 import compiler.whitebox.CompilerWhiteBoxTest;
 import java.lang.reflect.Executable;
 import jdk.vm.ci.hotspot.HotSpotResolvedJavaMethod;
@@ -81,7 +84,7 @@ public class IsMatureVsReprofileTest {
         isMature = CompilerToVMHelper.isMature(metaspaceMethodData);
         /* a method is not mature for -Xcomp and -Tiered,
            see NonTieredCompPolicy::is_mature */
-        Asserts.assertEQ(!IS_XCOMP || TIERED, isMature,
+        Asserts.assertEQ(!IS_XCOMP, isMature,
                 "Unexpected isMature state for compiled method");
         HotSpotResolvedJavaMethod resolvedMethod
                 = CTVMUtilities.getResolvedMethod(method);
@@ -92,7 +95,7 @@ public class IsMatureVsReprofileTest {
         isMature = CompilerToVMHelper.isMature(metaspaceMethodData);
         Asserts.assertNE(metaspaceMethodData, 0L,
                 "Got null MDO after reprofile");
-        Asserts.assertEQ(TIERED && IS_XCOMP, isMature,
+        Asserts.assertFalse(isMature,
                 "Got unexpected isMature state after reprofiling");
     }
 }

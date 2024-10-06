@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -154,13 +154,13 @@ enum SSLTrafficKeyDerivation implements SSLKeyDerivationGenerator {
                         ks.getKeyLength(cs),
                         ks.getAlgorithm(cs, algorithm));
             } catch (GeneralSecurityException gse) {
-                throw (SSLHandshakeException)(new SSLHandshakeException(
-                    "Could not generate secret").initCause(gse));
+                throw new SSLHandshakeException(
+                        "Could not generate secret", gse);
             }
         }
 
         private static byte[] createHkdfInfo(
-                byte[] label, int length) throws IOException {
+                byte[] label, int length) {
             byte[] info = new byte[4 + label.length];
             ByteBuffer m = ByteBuffer.wrap(info);
             try {
@@ -185,7 +185,7 @@ enum SSLTrafficKeyDerivation implements SSLKeyDerivationGenerator {
         private final byte[] label;
         private final boolean isIv;
 
-        private KeySchedule(String label, boolean isIv) {
+        KeySchedule(String label, boolean isIv) {
             this.label = ("tls13 " + label).getBytes();
             this.isIv = isIv;
         }
@@ -203,14 +203,10 @@ enum SSLTrafficKeyDerivation implements SSLKeyDerivationGenerator {
 
     @SuppressWarnings("deprecation")
     static final class LegacyTrafficKeyDerivation implements SSLKeyDerivation {
-        private final HandshakeContext context;
-        private final SecretKey masterSecret;
         private final TlsKeyMaterialSpec keyMaterialSpec;
 
         LegacyTrafficKeyDerivation(
                 HandshakeContext context, SecretKey masterSecret) {
-            this.context = context;
-            this.masterSecret = masterSecret;
 
             CipherSuite cipherSuite = context.negotiatedCipherSuite;
             ProtocolVersion protocolVersion = context.negotiatedProtocol;
@@ -280,7 +276,7 @@ enum SSLTrafficKeyDerivation implements SSLKeyDerivationGenerator {
                     hashAlg.name, hashAlg.hashLength, hashAlg.blockSize);
 
             try {
-                KeyGenerator kg = JsseJce.getKeyGenerator(keyMaterialAlg);
+                KeyGenerator kg = KeyGenerator.getInstance(keyMaterialAlg);
                 kg.init(spec);
 
                 this.keyMaterialSpec = (TlsKeyMaterialSpec)kg.generateKey();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,19 @@
  * questions.
  */
 
+import jdk.internal.javac.ParticipatesInPreview;
+
 /**
- * This module provides support for
- * Java Programming Language 'snippet' evaluating tools, such as
- * Read-Eval-Print Loops (REPLs), including the <em>{@index jshell jshell tool}</em> tool.
+ * Provides the <em>{@index jshell jshell tool}</em> tool for evaluating
+ * snippets of Java code, and defines a JDK-specific API for modeling and
+ * executing snippets.
+ * The JShell API supports Java Programming Language 'snippet' evaluating
+ * tools, such as Read-Eval-Print Loops (REPLs).
  * Separate packages support building tools, configuring the execution of tools,
  * and programmatically launching the existing Java shell tool.
  * <p>
  *     The {@link jdk.jshell} is the package for creating 'snippet' evaluating tools.
- *     Generally, this is only package that would be needed for creating tools.
+ *     Generally, this is the only package that would be needed for creating tools.
  * </p>
  * <p>
  *     The {@link jdk.jshell.spi} package specifies a Service Provider Interface (SPI)
@@ -52,10 +56,7 @@
  *     definitions.
  * </p>
  *
- * <dl style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">
- * <dt class="simpleTagLabel">Tool Guides:
- * <dd>{@extLink jshell_tool_reference jshell}
- * </dl>
+ * @toolGuide jshell
  *
  * @provides javax.tools.Tool
  * @provides jdk.jshell.spi.ExecutionControlProvider
@@ -64,11 +65,13 @@
  * @moduleGraph
  * @since 9
  */
+@ParticipatesInPreview
 module jdk.jshell {
     requires java.logging;
     requires jdk.compiler;
     requires jdk.internal.ed;
     requires jdk.internal.le;
+    requires jdk.internal.md;
     requires jdk.internal.opt;
 
     requires transitive java.compiler;
@@ -89,4 +92,5 @@ module jdk.jshell {
         jdk.jshell.execution.JdiExecutionControlProvider,
         jdk.jshell.execution.LocalExecutionControlProvider,
         jdk.jshell.execution.FailOverExecutionControlProvider;
+    provides jdk.internal.io.JdkConsoleProvider with jdk.jshell.execution.impl.ConsoleImpl.ConsoleProviderImpl;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,13 +48,13 @@ class WindbgCDebugInfoBuilder
   private DebugVC50SSSegMap segMap;
 
   // Canonicalization of primitive types
-  private Map primIndexToTypeMap;
+  private Map<Integer, BasicType> primIndexToTypeMap;
 
   // Global unnamed enumeration
   // (FIXME: must figure out how to handle nested type descriptions)
   private BasicEnumType unnamedEnum;
 
-  private Stack blockStack;
+  private Stack<BlockSym> blockStack;
   private int   endsToSkip;
 
   private static final int POINTER_SIZE = 4;
@@ -72,8 +72,8 @@ class WindbgCDebugInfoBuilder
 
     segMap = getSegMap();
 
-    primIndexToTypeMap = new HashMap();
-    blockStack = new Stack();
+    primIndexToTypeMap = new HashMap<>();
+    blockStack = new Stack<>();
     endsToSkip = 0;
 
     db = new BasicCDebugInfoDataBase();
@@ -417,7 +417,6 @@ class WindbgCDebugInfoBuilder
     // and UDT references to understand how to build the global
     // database vs. the module-by-module one)
     DebugVC50SubsectionDirectory dir = vc50.getSubsectionDirectory();
-    int moduleNumber = 0; // Debugging
     for (int i = 0; i < dir.getNumEntries(); i++) {
       DebugVC50Subsection ss = dir.getSubsection(i);
       int ssType = ss.getSubsectionType();
@@ -664,7 +663,7 @@ class WindbgCDebugInfoBuilder
   }
 
   private void putType(Type t) {
-    db.addType(new Integer(iter.getTypeIndex()), t);
+    db.addType(iter.getTypeIndex(), t);
   }
 
   private Address newAddress(int offset, short segment) {
@@ -682,11 +681,11 @@ class WindbgCDebugInfoBuilder
   }
 
   private BasicType getTypeByIndex(int intIndex) {
-    Integer index = new Integer(intIndex);
+    Integer index = intIndex;
 
     // Handle primitive types here.
     if (intIndex <= 0x0FFF) {
-      BasicType type = (BasicType) primIndexToTypeMap.get(index);
+      BasicType type = primIndexToTypeMap.get(index);
       if (type != null) {
         return type;
       }
@@ -781,7 +780,7 @@ class WindbgCDebugInfoBuilder
   }
 
   private void addBlock(BlockSym block) {
-    db.addBlock(new Integer(symIter.getOffset()), block);
+    db.addBlock(symIter.getOffset(), block);
     blockStack.push(block);
   }
 
@@ -794,7 +793,7 @@ class WindbgCDebugInfoBuilder
       return null;
     }
 
-    return new LazyBlockSym(new Integer(offset));
+    return new LazyBlockSym(offset);
   }
 
   private int memberAttributeToAccessControl(short memberAttribute) {

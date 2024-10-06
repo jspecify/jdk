@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,29 +26,95 @@
 
 #include "gc/z/zLock.hpp"
 
-inline ZLock::ZLock() {
-  pthread_mutex_init(&_lock, NULL);
-}
+#include "runtime/atomic.hpp"
+#include "runtime/javaThread.hpp"
+#include "runtime/os.inline.hpp"
+#include "utilities/debug.hpp"
 
 inline void ZLock::lock() {
-  pthread_mutex_lock(&_lock);
+  _lock.lock();
 }
 
 inline bool ZLock::try_lock() {
-  return pthread_mutex_trylock(&_lock) == 0;
+  return _lock.try_lock();
 }
 
 inline void ZLock::unlock() {
-  pthread_mutex_unlock(&_lock);
+  _lock.unlock();
 }
 
-inline ZLocker::ZLocker(ZLock* lock) :
-    _lock(lock) {
-  _lock->lock();
+inline ZReentrantLock::ZReentrantLock()
+  : _lock(),
+    _owner(nullptr),
+    _count(0) {}
+
+inline void ZReentrantLock::lock() {
+  Thread* const thread = Thread::current();
+  Thread* const owner = Atomic::load(&_owner);
+
+  if (owner != thread) {
+    _lock.lock();
+    Atomic::store(&_owner, thread);
+  }
+
+  _count++;
 }
 
-inline ZLocker::~ZLocker() {
-  _lock->unlock();
+inline void ZReentrantLock::unlock() {
+  assert(is_owned(), "Invalid owner");
+  assert(_count > 0, "Invalid count");
+
+  _count--;
+
+  if (_count == 0) {
+    Atomic::store(&_owner, (Thread*)nullptr);
+    _lock.unlock();
+  }
+}
+
+inline bool ZReentrantLock::is_owned() const {
+  Thread* const thread = Thread::current();
+  Thread* const owner = Atomic::load(&_owner);
+  return owner == thread;
+}
+
+inline void ZConditionLock::lock() {
+  _lock.lock();
+}
+
+inline bool ZConditionLock::try_lock() {
+  return _lock.try_lock();
+}
+
+inline void ZConditionLock::unlock() {
+  _lock.unlock();
+}
+
+inline bool ZConditionLock::wait(uint64_t millis) {
+  return _lock.wait(millis) == OS_OK;
+}
+
+inline void ZConditionLock::notify() {
+  _lock.notify();
+}
+
+inline void ZConditionLock::notify_all() {
+  _lock.notify_all();
+}
+
+template <typename T>
+inline ZLocker<T>::ZLocker(T* lock)
+  : _lock(lock) {
+  if (_lock != nullptr) {
+    _lock->lock();
+  }
+}
+
+template <typename T>
+inline ZLocker<T>::~ZLocker() {
+  if (_lock != nullptr) {
+    _lock->unlock();
+  }
 }
 
 #endif // SHARE_GC_Z_ZLOCK_INLINE_HPP

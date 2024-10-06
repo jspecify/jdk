@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_NUMBERSEQ_HPP
-#define SHARE_VM_UTILITIES_NUMBERSEQ_HPP
+#ifndef SHARE_UTILITIES_NUMBERSEQ_HPP
+#define SHARE_UTILITIES_NUMBERSEQ_HPP
 
 #include "memory/allocation.hpp"
 
@@ -40,7 +40,7 @@
  **      of the sequence and calculates avg, max, and sd only over them
  **/
 
-#define DEFAULT_ALPHA_VALUE 0.7
+#define DEFAULT_ALPHA_VALUE 0.3
 
 class AbsSeq: public CHeapObj<mtInternal> {
 private:
@@ -131,4 +131,4 @@ public:
   virtual void dump_on(outputStream* s);
 };
 
-#endif // SHARE_VM_UTILITIES_NUMBERSEQ_HPP
+#endif // SHARE_UTILITIES_NUMBERSEQ_HPP

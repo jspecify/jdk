@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -45,6 +43,8 @@ import jdk.test.lib.jfr.Events;
 public class TestFieldAccess {
 
     private static class MyEvent extends Event {
+        byte byteField = 42;
+        char charField = 'X';
         String stringField = "Hello";
         int intField = 4711;
         long longField = 4712L;
@@ -65,13 +65,19 @@ public class TestFieldAccess {
             r.stop();
             List<RecordedEvent> events = Events.fromRecording(r);
             Events.hasEvents(events);
-            RecordedEvent event = events.get(0);
+            RecordedEvent event = events.getFirst();
             testHasField(event);
             testGetField(event, myEvent);
         }
     }
 
     private static void testGetField(RecordedEvent event, MyEvent myEvent) {
+        char charField = event.getValue("charField");
+        Asserts.assertEquals(charField, myEvent.charField);
+
+        byte byteField = event.getValue("byteField");
+        Asserts.assertEquals(byteField, myEvent.byteField);
+
         String stringField = event.getValue("stringField");
         Asserts.assertEquals(stringField, myEvent.stringField);
 
@@ -103,7 +109,6 @@ public class TestFieldAccess {
         String className = event.getValue("classField.name");
         Asserts.assertEquals(classField.getName(), className.replace("/", "."));
 
-
         try {
             event.getValue("doesnotexist");
         } catch (IllegalArgumentException iae) {
@@ -125,6 +130,8 @@ public class TestFieldAccess {
 
     private static void testHasField(RecordedEvent event) {
         System.out.println(event);
+        Asserts.assertTrue(event.hasField("charField"));
+        Asserts.assertTrue(event.hasField("byteField"));
         Asserts.assertTrue(event.hasField("stringField"));
         Asserts.assertTrue(event.hasField("intField"));
         Asserts.assertTrue(event.hasField("longField"));

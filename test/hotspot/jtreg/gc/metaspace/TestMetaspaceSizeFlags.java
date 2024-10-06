@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,18 +21,20 @@
  * questions.
  */
 
+package gc.metaspace;
+
 import jdk.test.lib.Asserts;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 
 /*
  * @test TestMetaspaceSizeFlags
- * @key gc
  * @bug 8024650
  * @summary Test that metaspace size flags can be set correctly
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @run driver gc.metaspace.TestMetaspaceSizeFlags
  */
 public class TestMetaspaceSizeFlags {
   public static final long K = 1024L;
@@ -82,13 +84,12 @@ public class TestMetaspaceSizeFlags {
   }
 
   private static OutputAnalyzer run(long maxMetaspaceSize, long metaspaceSize) throws Exception {
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+    return ProcessTools.executeLimitedTestJava(
         "-XX:MaxMetaspaceSize=" + maxMetaspaceSize,
         "-XX:MetaspaceSize=" + metaspaceSize,
         "-XX:-UseLargePages", // Prevent us from using 2GB large pages on solaris + sparc.
         "-XX:+PrintFlagsFinal",
         "-version");
-    return new OutputAnalyzer(pb.start());
   }
 
   private static class MetaspaceFlags {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_BREAKPOINT_HPP
-#define SHARE_VM_UTILITIES_BREAKPOINT_HPP
-
-// Provide BREAKPOINT macro for requesting stop in the debugger.
-
-// We presently only have one non-default definition, so it's not
-// worth going through the COMPILER_HEADER() dispatch, with all
-// non-visCPP files being empty.
-#ifdef TARGET_COMPILER_visCPP
-#ifndef _WIN64
-#define BREAKPOINT __asm { int 3 }
-#endif // _WIN64
-#endif //  TARGET_COMPILER_visCPP
+#ifndef SHARE_UTILITIES_BREAKPOINT_HPP
+#define SHARE_UTILITIES_BREAKPOINT_HPP
 
 // If no more specific definition provided, default to calling a
 // function that is defined per-platform.  See also os::breakpoint().
@@ -43,4 +32,4 @@ extern "C" void breakpoint();
 #define BREAKPOINT ::breakpoint()
 #endif
 
-#endif // SHARE_VM_UTILITIES_BREAKPOINT_HPP
+#endif // SHARE_UTILITIES_BREAKPOINT_HPP

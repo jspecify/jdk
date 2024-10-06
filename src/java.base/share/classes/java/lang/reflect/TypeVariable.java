@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,8 @@ package java.lang.reflect;
  * A type variable is created the first time it is needed by a reflective
  * method, as specified in this package.  If a type variable t is referenced
  * by a type (i.e, class, interface or annotation type) T, and T is declared
- * by the nth enclosing class of T (see JLS 8.1.2), then the creation of t
- * requires the resolution (see JVMS 5) of the ith enclosing class of T,
+ * by the n<sup>th</sup> enclosing class of T (see JLS {@jls 8.1.2}), then the creation of t
+ * requires the resolution (see JVMS {@jvms 5}) of the i<sup>th</sup> enclosing class of T,
  * for i = 0 to n, inclusive. Creating a type variable must not cause the
  * creation of its bounds. Repeated creation of a type variable has no effect.
  *
@@ -46,6 +46,7 @@ package java.lang.reflect;
  * @param <D> the type of generic declaration that declared the
  * underlying type variable.
  *
+ * @jls 4.4 Type Variables
  * @since 1.5
  */
 public interface TypeVariable<D extends GenericDeclaration> extends Type, AnnotatedElement {
@@ -72,7 +73,7 @@ public interface TypeVariable<D extends GenericDeclaration> extends Type, Annota
 
     /**
      * Returns the {@code GenericDeclaration} object representing the
-     * generic declaration declared this type variable.
+     * generic declaration declared for this type variable.
      *
      * @return the generic declaration declared for this type variable.
      *

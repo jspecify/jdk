@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ import java.security.spec.InvalidKeySpecException;
  * (transparent representations of the underlying key material), and vice
  * versa.
  *
- * <P> Key factories are bi-directional. That is, they allow you to build an
+ * <P> Key factories are bidirectional. That is, they allow you to build an
  * opaque key object from a given key specification (key material), or to
  * retrieve the underlying key material of a key object in a suitable format.
  *
@@ -74,6 +74,11 @@ import java.security.spec.InvalidKeySpecException;
 public abstract @UsesObjectEquals class KeyFactorySpi {
 
     /**
+     * Constructor for subclasses to call.
+     */
+    public KeyFactorySpi() {}
+
+    /**
      * Generates a public key object from the provided key
      * specification (key material).
      *
@@ -81,7 +86,7 @@ public abstract @UsesObjectEquals class KeyFactorySpi {
      *
      * @return the public key.
      *
-     * @exception InvalidKeySpecException if the given key specification
+     * @throws    InvalidKeySpecException if the given key specification
      * is inappropriate for this key factory to produce a public key.
      */
     protected abstract PublicKey engineGeneratePublic(KeySpec keySpec)
@@ -95,7 +100,7 @@ public abstract @UsesObjectEquals class KeyFactorySpi {
      *
      * @return the private key.
      *
-     * @exception InvalidKeySpecException if the given key specification
+     * @throws    InvalidKeySpecException if the given key specification
      * is inappropriate for this key factory to produce a private key.
      */
     protected abstract PrivateKey engineGeneratePrivate(KeySpec keySpec)
@@ -119,8 +124,8 @@ public abstract @UsesObjectEquals class KeyFactorySpi {
      *
      * @return the underlying key specification (key material) in an instance
      * of the requested specification class.
-
-     * @exception InvalidKeySpecException if the requested key specification is
+     *
+     * @throws    InvalidKeySpecException if the requested key specification is
      * inappropriate for the given key, or the given key cannot be dealt with
      * (e.g., the given key has an unrecognized format).
      */
@@ -137,7 +142,7 @@ public abstract @UsesObjectEquals class KeyFactorySpi {
      *
      * @return the translated key.
      *
-     * @exception InvalidKeyException if the given key cannot be processed
+     * @throws    InvalidKeyException if the given key cannot be processed
      * by this key factory.
      */
     protected abstract Key engineTranslateKey(Key key)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,8 +45,7 @@ import java.util.Vector;
 import sun.text.UCompactIntArray;
 import sun.text.IntHashtable;
 import sun.text.ComposedCharIter;
-import sun.text.CollatorUtilities;
-import sun.text.normalizer.NormalizerImpl;
+import jdk.internal.icu.impl.NormalizerImpl;
 
 /**
  * This class contains all the code to parse a RuleBasedCollator pattern
@@ -76,21 +75,18 @@ final @UsesObjectEquals class RBTableBuilder {
      * stores them back in the RBCollationTables object.  It is called
      * ONLY by the RBCollationTables constructor.
      * @see RuleBasedCollator#RuleBasedCollator
-     * @exception ParseException If the rules format is incorrect.
+     * @throws    ParseException If the rules format is incorrect.
      */
 
-    public void build(String pattern, int decmp) throws ParseException
-    {
-        boolean isSource = true;
-        int i = 0;
+    public void build(String pattern, int decmp) throws ParseException {
         String expChars;
         String groupChars;
-        if (pattern.length() == 0)
+        if (pattern.isEmpty())
             throw new ParseException("Build rules empty.", 0);
 
         // This array maps Unicode characters to their collation ordering
         mapping = new UCompactIntArray(RBCollationTables.UNMAPPED);
-        // Normalize the build rules.  Find occurances of all decomposed characters
+        // Normalize the build rules.  Find occurrences of all decomposed characters
         // and normalize the rules before feeding into the builder.  By "normalize",
         // we mean that all precomposed Unicode characters must be converted into
         // a base character and one or more combining characters (such as accents).
@@ -123,8 +119,7 @@ final @UsesObjectEquals class RBTableBuilder {
         int order = 0;
 
         // Now walk though each entry and add it to my own tables
-        for (i = 0; i < mPattern.getCount(); ++i)
-        {
+        for (int i = 0; i < mPattern.getCount(); ++i) {
             PatternEntry entry = mPattern.getItemAt(i);
             if (entry != null) {
                 groupChars = entry.getChars();
@@ -144,7 +139,7 @@ final @UsesObjectEquals class RBTableBuilder {
                 order = increment(entry.getStrength(), order);
                 expChars = entry.getExtension();
 
-                if (expChars.length() != 0) {
+                if (!expChars.isEmpty()) {
                     addExpandOrder(groupChars, expChars, order);
                 } else if (groupChars.length() > 1) {
                     char ch = groupChars.charAt(0);
@@ -410,7 +405,7 @@ final @UsesObjectEquals class RBTableBuilder {
         // can work right
         if (fwd && groupChars.length() > 1) {
             addContractFlags(groupChars);
-            addContractOrder(new StringBuffer(groupChars).reverse().toString(),
+            addContractOrder(new StringBuilder(groupChars).reverse().toString(),
                              anOrder, false);
         }
     }
@@ -512,7 +507,7 @@ final @UsesObjectEquals class RBTableBuilder {
 
     /**
      * Create a new entry in the expansion table that contains the orderings
-     * for the given characers.  If anOrder is valid, it is added to the
+     * for the given characters.  If anOrder is valid, it is added to the
      * beginning of the expanded list of orders.
      */
     private int addExpansion(int anOrder, String expandChars) {

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/*
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,13 +21,7 @@
  * questions.
  */
 
-import java.security.Signature;
-import java.security.SignedObject;
-import java.security.KeyPairGenerator;
-import java.security.KeyPair;
-import java.security.NoSuchProviderException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
+import java.security.*;
 import java.security.spec.*;
 import java.util.*;
 import jdk.test.lib.SigTestUtil;
@@ -77,6 +71,13 @@ public class Chain {
         SHA1withDSA("SHA1withDSA"),
         SHA224withDSA("SHA224withDSA"),
         SHA256withDSA("SHA256withDSA"),
+        SHA384withDSA("SHA384withDSA"),
+        SHA512withDSA("SHA512withDSA"),
+
+        SHA3_224withDSA("SHA3-224withDSA"),
+        SHA3_256withDSA("SHA3-256withDSA"),
+        SHA3_384withDSA("SHA3-384withDSA"),
+        SHA3_512withDSA("SHA3-512withDSA"),
 
         SHA1withRSA("Sha1withrSA"),
         SHA224withRSA("SHA224withRSA"),
@@ -85,12 +86,20 @@ public class Chain {
         SHA512withRSA("SHA512withRSA"),
         SHA512_224withRSA("SHA512/224withRSA"),
         SHA512_256withRSA("SHA512/256withRSA"),
+        SHA3_224withRSA("SHA3-224withRSA"),
+        SHA3_256withRSA("SHA3-256withRSA"),
+        SHA3_384withRSA("SHA3-384withRSA"),
+        SHA3_512withRSA("SHA3-512withRSA"),
 
         SHA1withECDSA("SHA1withECDSA"),
-        SHA256withECDSA("SHA256withECDSA"),
         SHA224withECDSA("SHA224withECDSA"),
+        SHA256withECDSA("SHA256withECDSA"),
         SHA384withECDSA("SHA384withECDSA"),
         SHA512withECDSA("SHA512withECDSA"),
+        SHA3_224withECDSA("SHA3-224withECDSA"),
+        SHA3_256withECDSA("SHA3-256withECDSA"),
+        SHA3_384withECDSA("SHA3-384withECDSA"),
+        SHA3_512withECDSA("SHA3-512withECDSA"),
 
         MD5andSHA1withRSA("MD5andSHA1withRSA"),
 
@@ -153,7 +162,10 @@ public class Chain {
         new Test(SigAlg.SHA1withDSA, KeyAlg.DSA, Provider.Default, 1024),
         new Test(SigAlg.MD2withRSA, KeyAlg.RSA, Provider.Default),
         new Test(SigAlg.MD5withRSA, KeyAlg.RSA, Provider.Default),
-        new Test(SigAlg.SHA1withRSA, KeyAlg.RSA, Provider.Default),
+        new Test(SigAlg.SHA3_224withRSA, KeyAlg.RSA, Provider.Default),
+        new Test(SigAlg.SHA3_256withRSA, KeyAlg.RSA, Provider.Default),
+        new Test(SigAlg.SHA3_384withRSA, KeyAlg.RSA, Provider.Default),
+        new Test(SigAlg.SHA3_512withRSA, KeyAlg.RSA, Provider.Default),
         new Test(SigAlg.SHA1withDSA, KeyAlg.DSA, Provider.Sun, 1024),
         new Test(SigAlg.SHA224withDSA, KeyAlg.DSA, Provider.Sun, 2048),
         new Test(SigAlg.SHA256withDSA, KeyAlg.DSA, Provider.Sun, 2048),
@@ -197,8 +209,15 @@ public class Chain {
             if (test.provider != Provider.Default) {
                 signature = Signature.getInstance(test.sigAlg.name,
                         test.provider.name);
-                kpg = KeyPairGenerator.getInstance(
-                    test.keyAlg.name, test.provider.name);
+                // try using the same provider first, if not, fallback
+                // to the first available impl
+                try {
+                    kpg = KeyPairGenerator.getInstance(
+                        test.keyAlg.name, test.provider.name);
+                } catch (NoSuchAlgorithmException nsae) {
+                    kpg = KeyPairGenerator.getInstance(
+                        test.keyAlg.name);
+                }
             } else {
                 signature = Signature.getInstance(test.sigAlg.name);
                 kpg = KeyPairGenerator.getInstance(test.keyAlg.name);

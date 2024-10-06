@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,12 +57,11 @@ ConNode *ConNode::make(const Type *t) {
   case T_NARROWKLASS: return new ConNKlassNode( t->is_narrowklass() );
   case T_METADATA:    return new ConPNode( t->is_ptr() );
     // Expected cases:  TypePtr::NULL_PTR, any is_rawptr()
-    // Also seen: AnyPtr(TopPTR *+top); from command line:
-    //   r -XX:+PrintOpto -XX:CIStart=285 -XX:+CompileTheWorld -XX:CompileTheWorldStartAt=660
+    // Also seen: AnyPtr(TopPTR *+top);
     // %%%% Stop using TypePtr::NULL_PTR to represent nulls:  use either TypeRawPtr::NULL_PTR
     // or else TypeOopPtr::NULL_PTR.  Then set Type::_basic_type[AnyPtr] = T_ILLEGAL
   default:
     ShouldNotReachHere();
-    return NULL;
+    return nullptr;
   }
 }

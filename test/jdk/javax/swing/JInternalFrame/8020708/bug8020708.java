@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,22 +41,22 @@ import javax.swing.UIManager;
  * @summary NLS: mnemonics missing in SwingSet2/JInternalFrame demo
  * @library ../../regtesthelpers
  * @build Util
- * @run main bug8020708
+ * @run main/timeout=300 bug8020708
  */
 public class bug8020708 {
 
     private static final Locale[] SUPPORTED_LOCALES = {
         Locale.ENGLISH,
-        new Locale("de"),
-        new Locale("es"),
-        new Locale("fr"),
-        new Locale("it"),
-        new Locale("ja"),
-        new Locale("ko"),
-        new Locale("pt", "BR"),
-        new Locale("sv"),
-        new Locale("zh", "CN"),
-        new Locale("zh", "TW")
+        Locale.of("de"),
+        Locale.of("es"),
+        Locale.of("fr"),
+        Locale.of("it"),
+        Locale.of("ja"),
+        Locale.of("ko"),
+        Locale.of("pt", "BR"),
+        Locale.of("sv"),
+        Locale.of("zh", "CN"),
+        Locale.of("zh", "TW")
     };
     private static final String[] LOOK_AND_FEELS = {
         "Nimbus",
@@ -68,25 +68,29 @@ public class bug8020708 {
 
     public static void main(String[] args) throws Exception {
         for (Locale locale : SUPPORTED_LOCALES) {
+            System.out.println("locale: " + locale);
             for (String laf : LOOK_AND_FEELS) {
                 Locale.setDefault(locale);
                 if (!installLookAndFeel(laf)) {
                     continue;
                 }
-                testInternalFrameMnemonic();
+                testInternalFrameMnemonic(locale);
             }
         }
     }
 
-    static void testInternalFrameMnemonic() throws Exception {
+    static void testInternalFrameMnemonic(Locale locale) throws Exception {
         Robot robot = new Robot();
-        robot.setAutoDelay(50);
+        robot.setAutoDelay(100);
+        robot.setAutoWaitForIdle(true);
 
         SwingUtilities.invokeAndWait(new Runnable() {
             @Override
             public void run() {
                 frame = new JFrame("Test");
                 frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                frame.setUndecorated(true);
+                frame.setLocationRelativeTo(null);
                 frame.setSize(300, 200);
 
                 JDesktopPane desktop = new JDesktopPane();
@@ -108,10 +112,11 @@ public class bug8020708 {
         robot.mouseMove(clickPoint.x, clickPoint.y);
         robot.mousePress(InputEvent.BUTTON1_MASK);
         robot.mouseRelease(InputEvent.BUTTON1_MASK);
-        robot.waitForIdle();
+        robot.delay(500);
 
         Util.hitKeys(robot, KeyEvent.VK_SHIFT, KeyEvent.VK_ESCAPE);
-        robot.waitForIdle();
+        robot.delay(500);
+
         int keyCode = KeyEvent.VK_C;
         String mnemonic = UIManager
                 .getString("InternalFrameTitlePane.closeButton.mnemonic");
@@ -119,25 +124,26 @@ public class bug8020708 {
             keyCode = Integer.parseInt(mnemonic);
         } catch (NumberFormatException e) {
         }
+        System.out.println("keyCode " + keyCode);
         Util.hitKeys(robot, keyCode);
-        robot.waitForIdle();
-        robot.delay(500);
 
         SwingUtilities.invokeAndWait(new Runnable() {
             @Override
             public void run() {
                 if (internalFrame.isVisible()) {
-                    throw new RuntimeException("Close mnemonic does not work in "+UIManager.getLookAndFeel());
+                    throw new RuntimeException("Close mnemonic does not work in "+UIManager.getLookAndFeel() + " for locale " + locale);
                 }
                 frame.dispose();
             }
         });
+        robot.delay(500);
     }
 
     static final boolean installLookAndFeel(String lafName) throws Exception {
         UIManager.LookAndFeelInfo[] infos = UIManager.getInstalledLookAndFeels();
         for (UIManager.LookAndFeelInfo info : infos) {
             if (info.getClassName().contains(lafName)) {
+                System.out.println("LookAndFeel: " + info.getClassName());
                 UIManager.setLookAndFeel(info.getClassName());
                 return true;
             }

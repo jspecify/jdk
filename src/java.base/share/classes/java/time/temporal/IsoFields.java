@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,7 +94,7 @@ import sun.util.locale.provider.LocaleResources;
  * <p>
  * This class defines fields and units that are specific to the ISO calendar system.
  *
- * <h3>Quarter of year</h3>
+ * <h2>Quarter of year</h2>
  * The ISO-8601 standard is based on the standard civic 12 month year.
  * This is commonly divided into four quarters, often abbreviated as Q1, Q2, Q3 and Q4.
  * <p>
@@ -110,7 +110,7 @@ import sun.util.locale.provider.LocaleResources;
  * <li>{@link ChronoField#YEAR YEAR} - the standard ISO year
  * </ul>
  *
- * <h3>Week based years</h3>
+ * <h2>Week based years</h2>
  * The ISO-8601 standard was originally intended as a data interchange format,
  * defining a string format for dates and times. However, it also defines an
  * alternate way of expressing the date, based on the concept of week-based-year.
@@ -550,7 +550,10 @@ public final class IsoFields {
                 if (isSupportedBy(temporal) == false) {
                     throw new UnsupportedTemporalTypeException("Unsupported field: WeekBasedYear");
                 }
-                return super.rangeRefinedBy(temporal);
+                var range = super.rangeRefinedBy(temporal);
+                var chronoRange = Chronology.from(temporal).range(YEAR);
+                return ValueRange.of(Math.max(range.getMinimum(), chronoRange.getMinimum()),
+                        Math.min(range.getMaximum(), chronoRange.getMaximum()));
             }
             @SuppressWarnings("unchecked")
             @Override
@@ -594,12 +597,6 @@ public final class IsoFields {
         //-------------------------------------------------------------------------
         private static final int[] QUARTER_DAYS = {0, 90, 181, 273, 0, 91, 182, 274};
 
-
-        private static void ensureIso(TemporalAccessor temporal) {
-            if (isIso(temporal) == false) {
-                throw new DateTimeException("Resolve requires IsoChronology");
-            }
-        }
 
         private static ValueRange getWeekRange(LocalDate date) {
             int wby = getWeekBasedYear(date);
@@ -707,16 +704,13 @@ public final class IsoFields {
         @SuppressWarnings("unchecked")
         @Override
         public <R extends Temporal> R addTo(R temporal, long amount) {
-            switch (this) {
-                case WEEK_BASED_YEARS:
-                    return (R) temporal.with(WEEK_BASED_YEAR,
-                            Math.addExact(temporal.get(WEEK_BASED_YEAR), amount));
-                case QUARTER_YEARS:
-                    return (R) temporal.plus(amount / 4, YEARS)
-                            .plus((amount % 4) * 3, MONTHS);
-                default:
-                    throw new IllegalStateException("Unreachable");
-            }
+            return switch (this) {
+                case WEEK_BASED_YEARS -> (R) temporal.with(WEEK_BASED_YEAR,
+                                          Math.addExact(temporal.get(WEEK_BASED_YEAR), amount));
+                case QUARTER_YEARS -> (R) temporal.plus(amount / 4, YEARS)
+                                       .plus((amount % 4) * 3, MONTHS);
+                default -> throw new IllegalStateException("Unreachable");
+            };
         }
 
         @Override
@@ -724,15 +718,12 @@ public final class IsoFields {
             if (temporal1Inclusive.getClass() != temporal2Exclusive.getClass()) {
                 return temporal1Inclusive.until(temporal2Exclusive, this);
             }
-            switch(this) {
-                case WEEK_BASED_YEARS:
-                    return Math.subtractExact(temporal2Exclusive.getLong(WEEK_BASED_YEAR),
-                            temporal1Inclusive.getLong(WEEK_BASED_YEAR));
-                case QUARTER_YEARS:
-                    return temporal1Inclusive.until(temporal2Exclusive, MONTHS) / 3;
-                default:
-                    throw new IllegalStateException("Unreachable");
-            }
+            return switch (this) {
+                case WEEK_BASED_YEARS -> Math.subtractExact(temporal2Exclusive.getLong(WEEK_BASED_YEAR),
+                                          temporal1Inclusive.getLong(WEEK_BASED_YEAR));
+                case QUARTER_YEARS -> temporal1Inclusive.until(temporal2Exclusive, MONTHS) / 3;
+                default -> throw new IllegalStateException("Unreachable");
+            };
         }
 
         @Override
@@ -741,7 +732,14 @@ public final class IsoFields {
         }
     }
 
-    static boolean isIso(TemporalAccessor temporal) {
-        return Chronology.from(temporal).equals(IsoChronology.INSTANCE);
+    private static void ensureIso(TemporalAccessor temporal) {
+        if (!isIso(temporal)) {
+            throw new DateTimeException("Resolve requires ISO based chronology: " +
+                    Chronology.from(temporal));
+        }
+    }
+
+    private static boolean isIso(TemporalAccessor temporal) {
+        return Chronology.from(temporal).isIsoBased();
     }
 }

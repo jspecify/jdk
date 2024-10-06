@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,11 @@ package build.tools.generatecurrencydata;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 import java.io.DataOutputStream;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -134,18 +137,43 @@ public class GenerateCurrencyData {
     private static String currenciesWithMinorUnitsUndefined;
 
     public static void main(String[] args) {
-
+        InputStream in = System.in;
         // Look for "-o outputfilename" option
-        if ( args.length == 2 && args[0].equals("-o") ) {
-            try {
-                out = new DataOutputStream(new FileOutputStream(args[1]));
-            } catch ( FileNotFoundException e ) {
-                System.err.println("Error: " + e.getMessage());
-                e.printStackTrace(System.err);
+        for (int n = 0; n < args.length; ++n) {
+            if (args[n].equals("-o")) {
+                ++n;
+                if (n >= args.length) {
+                    System.err.println("Error: Invalid argument format");
+                    System.exit(1);
+                }
+                try {
+                    out = new DataOutputStream(new FileOutputStream(args[n]));
+                } catch ( FileNotFoundException e ) {
+                    System.err.println("Error: " + e.getMessage());
+                    e.printStackTrace(System.err);
+                    System.exit(1);
+                }
+            } else if (args[n].equals("-i")) {
+                ++n;
+                if (n >= args.length) {
+                    System.err.println("Error: Invalid argument format");
+                    System.exit(1);
+                }
+                try {
+                    in = new FileInputStream(args[n]);
+                } catch ( FileNotFoundException e ) {
+                    System.err.println("Error: " + e.getMessage());
+                    e.printStackTrace(System.err);
+                    System.exit(1);
+                }
+            } else {
+                System.err.println("Error: Invalid argument " + args[n]);
                 System.exit(1);
             }
-        } else {
-            System.err.println("Error: Illegal arg count");
+        }
+
+        if (out == null) {
+            System.err.println("Error: Invalid argument format");
             System.exit(1);
         }
 
@@ -154,7 +182,7 @@ public class GenerateCurrencyData {
         format.setLenient(false);
 
         try {
-            readInput();
+            readInput(in);
             buildMainAndSpecialCaseTables();
             buildOtherTables();
             writeOutput();
@@ -167,9 +195,9 @@ public class GenerateCurrencyData {
         }
     }
 
-    private static void readInput() throws IOException {
+    private static void readInput(InputStream in) throws IOException {
         currencyData = new Properties();
-        currencyData.load(System.in);
+        currencyData.load(in);
 
         // initialize other lookup strings
         formatVersion = (String) currencyData.get("formatVersion");
@@ -284,9 +312,6 @@ public class GenerateCurrencyData {
             checkCurrencyCode(newCurrency);
             String timeString = currencyInfo.substring(4, length - 4);
             long time = format.parse(timeString).getTime();
-            if (Math.abs(time - System.currentTimeMillis()) > ((long) 10) * 365 * 24 * 60 * 60 * 1000) {
-                throw new RuntimeException("time is more than 10 years from present: " + time);
-            }
             specialCaseCutOverTimes[specialCaseCount] = time;
             specialCaseOldCurrencies[specialCaseCount] = oldCurrency;
             specialCaseOldCurrenciesDefaultFractionDigits[specialCaseCount] = getDefaultFractionDigits(oldCurrency);
@@ -295,7 +320,7 @@ public class GenerateCurrencyData {
             specialCaseNewCurrenciesDefaultFractionDigits[specialCaseCount] = getDefaultFractionDigits(newCurrency);
             specialCaseNewCurrenciesNumericCode[specialCaseCount] = getNumericCode(newCurrency);
         }
-        specialCaseMap.put(currencyInfo, new Integer(specialCaseCount));
+        specialCaseMap.put(currencyInfo, Integer.valueOf(specialCaseCount));
         return specialCaseCount++;
     }
 
@@ -312,9 +337,15 @@ public class GenerateCurrencyData {
                 validCurrencyCodes.substring(i * 7 + 3, i * 7 + 6));
             checkCurrencyCode(currencyCode);
             int tableEntry = mainTable[(currencyCode.charAt(0) - 'A') * A_TO_Z + (currencyCode.charAt(1) - 'A')];
-            if (tableEntry == INVALID_COUNTRY_ENTRY ||
-                    (tableEntry & SPECIAL_CASE_COUNTRY_MASK) != 0 ||
-                    (tableEntry & SIMPLE_CASE_COUNTRY_FINAL_CHAR_MASK) != (currencyCode.charAt(2) - 'A')) {
+
+            // Do not allow a future currency to be classified as an otherCurrency,
+            // otherwise it will leak out into Currency:getAvailableCurrencies
+            boolean futureCurrency = Arrays.asList(specialCaseNewCurrencies).contains(currencyCode);
+            boolean simpleCurrency = (tableEntry & SIMPLE_CASE_COUNTRY_FINAL_CHAR_MASK) == (currencyCode.charAt(2) - 'A');
+
+            // If neither a simple currency, or one defined in the future
+            // then the current currency is applicable to be added to the otherTable
+            if (!futureCurrency && !simpleCurrency) {
                 if (otherCurrenciesCount == maxOtherCurrencies) {
                     throw new RuntimeException("too many other currencies");
                 }

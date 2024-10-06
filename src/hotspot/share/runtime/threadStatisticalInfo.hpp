@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_THREADSTATISTICS_HPP
-#define SHARE_VM_RUNTIME_THREADSTATISTICS_HPP
+#ifndef SHARE_RUNTIME_THREADSTATISTICALINFO_HPP
+#define SHARE_RUNTIME_THREADSTATISTICALINFO_HPP
 
 #include "jni.h"
 #include "runtime/os.hpp"
@@ -37,12 +37,10 @@ class ThreadStatisticalInfo {
   uint64_t _define_class_count;
 
 public:
-  ThreadStatisticalInfo() : _start_time_stamp(os::javaTimeMillis()), _define_class_count(0) {}
-  uint64_t getStartTime() const             { return _start_time_stamp; }
-  uint64_t getDefineClassCount() const                    { return  _define_class_count; }
-  void     setDefineClassCount(uint64_t defineClassCount) { _define_class_count = defineClassCount; }
-  void     incr_define_class_count()                      { _define_class_count += 1; }
-  uint64_t getElapsedTime() const           { return os::javaTimeMillis() - getStartTime(); }
+  ThreadStatisticalInfo() : _start_time_stamp(os::javaTimeNanos()), _define_class_count(0) {}
+  uint64_t getDefineClassCount() const { return  _define_class_count; }
+  void     incr_define_class_count() { _define_class_count += 1; }
+  uint64_t getElapsedTime() const { return nanos_to_millis(os::javaTimeNanos() - _start_time_stamp); }
 };
 
-#endif // SHARE_VM_RUNTIME_THREADSTATISTICS_HPP
+#endif // SHARE_RUNTIME_THREADSTATISTICALINFO_HPP

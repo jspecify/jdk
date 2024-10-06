@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -423,9 +423,9 @@ public class BasicInternalFrameUI extends InternalFrameUI
      * and adds it to the frame.
      * Reverse process for the <code>currentPane</code>.
      *
-     * @param currentPane this {@code Jcomponent} is the current pane being
+     * @param currentPane this {@code JComponent} is the current pane being
      * viewed that has mouse handlers installed
-     * @param newPane this {@code Jcomponent} is the pane which will be added
+     * @param newPane this {@code JComponent} is the pane which will be added
      * and have mouse handlers installed
      */
     protected void replacePane(JComponent currentPane, JComponent newPane) {
@@ -578,9 +578,8 @@ public class BasicInternalFrameUI extends InternalFrameUI
      * @param c the new north pane
      */
     public void setNorthPane(JComponent c) {
-        if (northPane != null &&
-                northPane instanceof BasicInternalFrameTitlePane) {
-            ((BasicInternalFrameTitlePane)northPane).uninstallListeners();
+        if (northPane instanceof BasicInternalFrameTitlePane tp) {
+            tp.uninstallListeners();
         }
         replacePane(northPane, c);
         northPane = c;
@@ -647,6 +646,10 @@ public class BasicInternalFrameUI extends InternalFrameUI
         // new functionality add it to the Handler, but make sure this
         // class calls into the Handler.
         /**
+         * Constructs an {@code InternalFramePropertyChangeListener}.
+         */
+        public InternalFramePropertyChangeListener() {}
+        /**
          * Detects changes in state from the JInternalFrame and handles
          * actions.
          */
@@ -663,6 +666,11 @@ public class BasicInternalFrameUI extends InternalFrameUI
     // its functionality has been moved into Handler. If you need to add
     // new functionality add it to the Handler, but make sure this
     // class calls into the Handler.
+    /**
+     * Constructs an {@code InternalFrameLayout}.
+     */
+    public InternalFrameLayout() {}
+
       /**
        * {@inheritDoc}
        */
@@ -842,6 +850,15 @@ public class BasicInternalFrameUI extends InternalFrameUI
 
         int resizeCornerSize = 16;
 
+        /**
+         * Constructs a {@code BorderListener}.
+         */
+        protected BorderListener() {}
+
+        /**
+         * {@inheritDoc java.awt.event.MouseListener}
+         * @param e {@inheritDoc java.awt.event.MouseListener}
+         */
         public void mouseClicked(MouseEvent e) {
             if(e.getClickCount() > 1 && e.getSource() == getNorthPane()) {
                 if(frame.isIconifiable() && frame.isIcon()) {
@@ -898,10 +915,18 @@ public class BasicInternalFrameUI extends InternalFrameUI
             discardRelease = true;
         }
 
+        /**
+         * {@inheritDoc java.awt.event.MouseListener}
+         * @param e {@inheritDoc java.awt.event.MouseListener}
+         */
         public void mouseReleased(MouseEvent e) {
             finishMouseReleased();
         }
 
+        /**
+         * {@inheritDoc java.awt.event.MouseListener}
+         * @param e {@inheritDoc java.awt.event.MouseListener}
+         */
         public void mousePressed(MouseEvent e) {
             Point p = SwingUtilities.convertPoint((Component)e.getSource(),
                         e.getX(), e.getY(), null);
@@ -1287,10 +1312,18 @@ public class BasicInternalFrameUI extends InternalFrameUI
             updateFrameCursor();
         }
 
+        /**
+         * {@inheritDoc java.awt.event.MouseListener}
+         * @param e {@inheritDoc java.awt.event.MouseListener}
+         */
         public void mouseEntered(MouseEvent e)    {
             updateFrameCursor();
         }
 
+        /**
+         * {@inheritDoc java.awt.event.MouseListener}
+         * @param e {@inheritDoc java.awt.event.MouseListener}
+         */
         public void mouseExited(MouseEvent e)    {
             updateFrameCursor();
         }
@@ -1305,6 +1338,11 @@ public class BasicInternalFrameUI extends InternalFrameUI
       // its functionality has been moved into Handler. If you need to add
       // new functionality add it to the Handler, but make sure this
       // class calls into the Handler.
+      /**
+       * Constructs a {@code ComponentHandler}.
+       */
+      protected ComponentHandler() {}
+
       /** Invoked when a JInternalFrame's parent's size changes. */
       public void componentResized(ComponentEvent e) {
           getHandler().componentResized(e);
@@ -1347,6 +1385,11 @@ public class BasicInternalFrameUI extends InternalFrameUI
         // its functionality has been moved into Handler. If you need to add
         // new functionality add it to the Handler, but make sure this
         // class calls into the Handler.
+        /**
+         * Constructs a {@code GlassPaneDispatcher}.
+         */
+        protected GlassPaneDispatcher() {}
+
         /**
          * {@inheritDoc}
          */
@@ -1414,6 +1457,11 @@ public class BasicInternalFrameUI extends InternalFrameUI
       // its functionality has been moved into Handler. If you need to add
       // new functionality add it to the Handler, but make sure this
       // class calls into the Handler.
+      /**
+       * Constructs a {@code BasicInternalFrameListener}.
+       */
+      protected BasicInternalFrameListener() {}
+
         /**
          * {@inheritDoc}
          */
@@ -1585,9 +1633,8 @@ public class BasicInternalFrameUI extends InternalFrameUI
             // account the title pane since you are allowed to resize
             // the frames to the point where just the title pane is visible.
             Dimension result = new Dimension();
-            if (getNorthPane() != null &&
-                getNorthPane() instanceof BasicInternalFrameTitlePane) {
-                  result = new Dimension(getNorthPane().getMinimumSize());
+            if (getNorthPane() instanceof BasicInternalFrameTitlePane tp) {
+                  result = new Dimension(tp.getMinimumSize());
             }
             Insets i = frame.getInsets();
             result.width += i.left + i.right;

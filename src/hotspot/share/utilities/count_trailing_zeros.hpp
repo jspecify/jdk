@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,20 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_COUNTTRAILINGZEROS_HPP
-#define SHARE_VM_UTILITIES_COUNTTRAILINGZEROS_HPP
+#ifndef SHARE_UTILITIES_COUNT_TRAILING_ZEROS_HPP
+#define SHARE_UTILITIES_COUNT_TRAILING_ZEROS_HPP
 
+#include "metaprogramming/enableIf.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-// unsigned count_trailing_zeros(uintx x)
+// unsigned count_trailing_zeros(T x)
+
 // Return the number of trailing zeros in x, e.g. the zero-based index
 // of the least significant set bit in x.
 // Precondition: x != 0.
+
+// We implement and support variants for 8, 16, 32 and 64 bit integral types.
 
 // Dispatch on toolchain to select implementation.
 
@@ -40,10 +44,12 @@
  *****************************************************************************/
 #if defined(TARGET_COMPILER_gcc)
 
-inline unsigned count_trailing_zeros(uintx x) {
-  STATIC_ASSERT(sizeof(unsigned long) == sizeof(uintx));
-  assert(x != 0, "precondition");
-  return __builtin_ctzl(x);
+inline unsigned count_trailing_zeros_32(uint32_t x) {
+  return __builtin_ctz(x);
+}
+
+inline unsigned count_trailing_zeros_64(uint64_t x) {
+  return __builtin_ctzll(x);
 }
 
 /*****************************************************************************
@@ -53,49 +59,30 @@ inline unsigned count_trailing_zeros(uintx x) {
 
 #include <intrin.h>
 
+#pragma intrinsic(_BitScanForward)
 #ifdef _LP64
 #pragma intrinsic(_BitScanForward64)
-#else
-#pragma intrinsic(_BitScanForward)
 #endif
 
-inline unsigned count_trailing_zeros(uintx x) {
-  assert(x != 0, "precondition");
+inline unsigned count_trailing_zeros_32(uint32_t x) {
+  unsigned long index;
+  _BitScanForward(&index, x);
+  return index;
+}
+
+inline unsigned count_trailing_zeros_64(uint64_t x) {
   unsigned long index;
 #ifdef _LP64
   _BitScanForward64(&index, x);
 #else
-  _BitScanForward(&index, x);
+  if (_BitScanForward(&index, static_cast<uint32_t>(x)) == 0) {
+    // no bit found? If so, try the upper dword. Otherwise index already contains the result
+    _BitScanForward(&index, static_cast<uint32_t>(x >> 32));
+    index += 32;
+  }
 #endif
   return index;
 }
-
-/*****************************************************************************
- * IBM XL C/C++
- *****************************************************************************/
-#elif defined(TARGET_COMPILER_xlc)
-
-#include <builtins.h>
-
-inline unsigned count_trailing_zeros(uintx x) {
-  assert(x != 0, "precondition");
-#ifdef _LP64
-  return __cnttz8(x);
-#else
-  return __cnttz4(x);
-#endif
-}
-
-/*****************************************************************************
- * Oracle Studio
- *****************************************************************************/
-#elif defined(TARGET_COMPILER_sparcWorks)
-
-// No compiler built-in / intrinsic, so use inline assembler.
-
-#include "utilities/macros.hpp"
-
-#include OS_CPU_HEADER(count_trailing_zeros)
 
 /*****************************************************************************
  * Unknown toolchain
@@ -105,4 +92,15 @@ inline unsigned count_trailing_zeros(uintx x) {
 
 #endif // Toolchain dispatch
 
-#endif // include guard
+template<typename T,
+         ENABLE_IF(std::is_integral<T>::value),
+         ENABLE_IF(sizeof(T) <= sizeof(uint64_t))>
+inline unsigned count_trailing_zeros(T x) {
+  assert(x != 0, "precondition");
+  return (sizeof(x) <= sizeof(uint32_t)) ?
+         count_trailing_zeros_32(static_cast<uint32_t>(x)) :
+         count_trailing_zeros_64(x);
+}
+
+
+#endif // SHARE_UTILITIES_COUNT_TRAILING_ZEROS_HPP

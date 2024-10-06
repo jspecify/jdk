@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,7 @@ import java.io.StreamCorruptedException;
 
 import java.lang.reflect.Modifier;
 
+import java.net.MalformedURLException;
 import java.net.URL;
 
 import java.util.Enumeration;
@@ -64,6 +65,11 @@ import java.util.Vector;
 public  class Beans {
 
     /**
+     * Constructs a {@code Beans}.
+     */
+    public Beans() {}
+
+    /**
      * <p>
      * Instantiate a JavaBean.
      * </p>
@@ -74,9 +80,9 @@ public  class Beans {
      * @param     beanName    the name of the bean within the class-loader.
      *                        For example "sun.beanbox.foobah"
      *
-     * @exception ClassNotFoundException if the class of a serialized
+     * @throws ClassNotFoundException if the class of a serialized
      *              object could not be found.
-     * @exception IOException if an I/O error occurs.
+     * @throws IOException if an I/O error occurs.
      */
 
     public static Object instantiate(@Nullable ClassLoader cls, String beanName) throws IOException, ClassNotFoundException {
@@ -96,12 +102,14 @@ public  class Beans {
      *                        For example "sun.beanbox.foobah"
      * @param     beanContext The BeanContext in which to nest the new bean
      *
-     * @exception ClassNotFoundException if the class of a serialized
+     * @throws ClassNotFoundException if the class of a serialized
      *              object could not be found.
-     * @exception IOException if an I/O error occurs.
+     * @throws IOException if an I/O error occurs.
      * @since 1.2
+     * @deprecated this method will be removed when java.beans.beancontext is removed
      */
-    @SuppressWarnings("deprecation")
+    @Deprecated(since = "23", forRemoval = true)
+    @SuppressWarnings({"deprecation", "removal"})
     public static Object instantiate(@Nullable ClassLoader cls, String beanName,
                                      @Nullable BeanContext beanContext)
             throws IOException, ClassNotFoundException {
@@ -134,7 +142,7 @@ public  class Beans {
      * a classname the applet's "init" method is called.  (If the bean was
      * deserialized this step is skipped.)
      * <p>
-     * Note that for beans which are applets, it is the caller's responsiblity
+     * Note that for beans which are applets, it is the caller's responsibility
      * to call "start" on the applet.  For correct behaviour, this should be done
      * after the applet has been added into a visible AWT container.
      * <p>
@@ -155,9 +163,9 @@ public  class Beans {
      * @param     beanContext The BeanContext in which to nest the new bean
      * @param     initializer The AppletInitializer for the new bean
      *
-     * @exception ClassNotFoundException if the class of a serialized
+     * @throws ClassNotFoundException if the class of a serialized
      *              object could not be found.
-     * @exception IOException if an I/O error occurs.
+     * @throws IOException if an I/O error occurs.
      * @since 1.2
      *
      * @deprecated It is recommended to use
@@ -166,7 +174,8 @@ public  class Beans {
      * <a href="../../java/applet/package-summary.html"> java.applet package
      * documentation</a> for further information.
      */
-    @Deprecated(since = "9")
+    @Deprecated(since = "9", forRemoval = true)
+    @SuppressWarnings("removal")
     public static Object instantiate(@Nullable ClassLoader cls, String beanName,
                                      @Nullable BeanContext beanContext,
                                      @Nullable AppletInitializer initializer)
@@ -199,7 +208,7 @@ public  class Beans {
         else
             ins =  cls.getResourceAsStream(serName);
         if (ins != null) {
-            try {
+            try (ins) {
                 if (cls == null) {
                     oins = new ObjectInputStream(ins);
                 } else {
@@ -209,13 +218,9 @@ public  class Beans {
                 serialized = true;
                 oins.close();
             } catch (IOException ex) {
-                ins.close();
                 // Drop through and try opening the class.  But remember
                 // the exception in case we can't find the class either.
                 serex = ex;
-            } catch (ClassNotFoundException ex) {
-                ins.close();
-                throw ex;
             }
         }
 
@@ -269,7 +274,7 @@ public  class Beans {
                     // massaging the URL.
 
                     // First find the "resource name" corresponding to the bean
-                    // itself.  So a serialzied bean "a.b.c" would imply a
+                    // itself.  So a serialized bean "a.b.c" would imply a
                     // resource name of "a/b/c.ser" and a classname of "x.y"
                     // would imply a resource name of "x/y.class".
 
@@ -287,7 +292,7 @@ public  class Beans {
                     URL codeBase  = null;
                     URL docBase   = null;
 
-                    // Now get the URL correponding to the resource name.
+                    // Now get the URL corresponding to the resource name.
                     if (cls == null) {
                         objectUrl = ClassLoader.getSystemResource(resourceName);
                     } else
@@ -306,13 +311,13 @@ public  class Beans {
 
                         if (s.endsWith(resourceName)) {
                             int ix   = s.length() - resourceName.length();
-                            codeBase = new URL(s.substring(0,ix));
+                            codeBase = newURL(s.substring(0,ix));
                             docBase  = codeBase;
 
                             ix = s.lastIndexOf('/');
 
                             if (ix >= 0) {
-                                docBase = new URL(s.substring(0,ix+1));
+                                docBase = newURL(s.substring(0,ix+1));
                             }
                         }
                     }
@@ -353,9 +358,15 @@ public  class Beans {
         return result;
     }
 
-    @SuppressWarnings("unchecked")
+    @Deprecated(since = "23", forRemoval = true)
+    @SuppressWarnings({ "unchecked", "removal" })
     private static void unsafeBeanContextAdd(BeanContext beanContext, Object res) {
         beanContext.add(res);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static URL newURL(String spec) throws MalformedURLException {
+        return new URL(spec);
     }
 
     /**
@@ -434,7 +445,7 @@ public  class Beans {
      * method is called. This could result in a SecurityException.
      *
      * @param isDesignTime  True if we're in an application builder tool.
-     * @exception  SecurityException  if a security manager exists and its
+     * @throws  SecurityException  if a security manager exists and its
      *             {@code checkPropertiesAccess} method doesn't allow setting
      *              of system properties.
      * @see SecurityManager#checkPropertiesAccess
@@ -442,6 +453,7 @@ public  class Beans {
 
     public static void setDesignTime(boolean isDesignTime)
                         throws SecurityException {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPropertiesAccess();
@@ -460,7 +472,7 @@ public  class Beans {
      * method is called. This could result in a SecurityException.
      *
      * @param isGuiAvailable  True if GUI interaction is available.
-     * @exception  SecurityException  if a security manager exists and its
+     * @throws  SecurityException  if a security manager exists and its
      *             {@code checkPropertiesAccess} method doesn't allow setting
      *              of system properties.
      * @see SecurityManager#checkPropertiesAccess
@@ -468,6 +480,7 @@ public  class Beans {
 
     public static void setGuiAvailable(boolean isGuiAvailable)
                         throws SecurityException {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPropertiesAccess();
@@ -515,7 +528,8 @@ class ObjectInputStreamWithLoader extends ObjectInputStream
  * Package private support class.  This provides a default AppletContext
  * for beans which are applets.
  */
-@Deprecated(since = "9")
+@Deprecated(since = "9", forRemoval = true)
+@SuppressWarnings("removal")
 class BeansAppletContext implements AppletContext {
     Applet target;
     Hashtable<URL,Object> imageCache = new Hashtable<>();
@@ -600,7 +614,8 @@ class BeansAppletContext implements AppletContext {
  * Package private support class.  This provides an AppletStub
  * for beans which are applets.
  */
-@Deprecated(since = "9")
+@Deprecated(since = "9", forRemoval = true)
+@SuppressWarnings("removal")
 class BeansAppletStub implements AppletStub {
     transient boolean active;
     transient Applet target;

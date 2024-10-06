@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1CONCURRENTMARKTHREAD_INLINE_HPP
-#define SHARE_VM_GC_G1_G1CONCURRENTMARKTHREAD_INLINE_HPP
+#ifndef SHARE_GC_G1_G1CONCURRENTMARKTHREAD_INLINE_HPP
+#define SHARE_GC_G1_G1CONCURRENTMARKTHREAD_INLINE_HPP
+
+#include "gc/g1/g1ConcurrentMarkThread.hpp"
 
 #include "gc/g1/g1ConcurrentMark.hpp"
-#include "gc/g1/g1ConcurrentMarkThread.hpp"
 
   // Total virtual time so far.
 inline double G1ConcurrentMarkThread::vtime_accum() {
@@ -35,7 +36,32 @@ inline double G1ConcurrentMarkThread::vtime_accum() {
 
 // Marking virtual time so far
 inline double G1ConcurrentMarkThread::vtime_mark_accum() {
-  return _vtime_mark_accum + _cm->all_task_accum_vtime();
+  return _cm->all_task_accum_vtime();
 }
 
-#endif // SHARE_VM_GC_G1_G1CONCURRENTMARKTHREAD_INLINE_HPP
+inline void G1ConcurrentMarkThread::set_idle() {
+  assert(_state == FullMark || _state == UndoMark, "must not be starting a new cycle");
+  _state = Idle;
+}
+
+inline void G1ConcurrentMarkThread::start_full_mark() {
+  assert(_state == Idle, "cycle in progress");
+  _state = FullMark;
+}
+
+inline void G1ConcurrentMarkThread::start_undo_mark() {
+  assert(_state == Idle, "cycle in progress");
+  _state = UndoMark;
+}
+
+inline bool G1ConcurrentMarkThread::idle() const { return _state == Idle; }
+
+inline bool G1ConcurrentMarkThread::in_progress() const {
+  return !idle();
+}
+
+inline bool G1ConcurrentMarkThread::in_undo_mark() const {
+  return _state == UndoMark;
+}
+
+#endif // SHARE_GC_G1_G1CONCURRENTMARKTHREAD_INLINE_HPP

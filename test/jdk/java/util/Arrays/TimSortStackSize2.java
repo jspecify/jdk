@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,11 @@
  * @test
  * @bug 8072909
  * @summary Test TimSort stack size on big arrays
- * @key intermittent
- * @library /lib/testlibrary /test/lib
+ * @library /test/lib
  * @modules java.management
- *          java.base/jdk.internal
- * @build jdk.testlibrary.*
+ * @requires (vm.debug == false)
  * @build TimSortStackSize2
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *     -XX:+WhiteBoxAPI TimSortStackSize2
  */
@@ -41,10 +38,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.Utils;
-import sun.hotspot.WhiteBox;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.whitebox.WhiteBox;
 
 public class TimSortStackSize2 {
 

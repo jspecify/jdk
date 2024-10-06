@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.model;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -32,6 +33,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import javax.lang.model.AnnotatedConstruct;
@@ -60,6 +62,7 @@ import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.processing.PrintingProcessor;
+import com.sun.tools.javac.tree.DocCommentTable;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.TreeInfo;
@@ -70,9 +73,9 @@ import com.sun.tools.javac.util.Name;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
+import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.comp.Modules;
 import com.sun.tools.javac.comp.Resolve;
-import com.sun.tools.javac.comp.Resolve.RecoveryLoadClass;
 import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
@@ -92,6 +95,7 @@ public class JavacElements implements Elements {
     private final Names names;
     private final Types types;
     private final Enter enter;
+    private final Attr attr;
     private final Resolve resolve;
     private final JavacTaskImpl javacTaskImpl;
     private final Log log;
@@ -104,6 +108,7 @@ public class JavacElements implements Elements {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected JavacElements(Context context) {
         context.put(JavacElements.class, this);
         javaCompiler = JavaCompiler.instance(context);
@@ -112,9 +117,10 @@ public class JavacElements implements Elements {
         names = Names.instance(context);
         types = Types.instance(context);
         enter = Enter.instance(context);
+        attr = Attr.instance(context);
         resolve = Resolve.instance(context);
         JavacTask t = context.get(JavacTask.class);
-        javacTaskImpl = t instanceof JavacTaskImpl ? (JavacTaskImpl) t : null;
+        javacTaskImpl = t instanceof JavacTaskImpl taskImpl ? taskImpl : null;
         log = Log.instance(context);
         Source source = Source.instance(context);
         allowModules = Feature.MODULES.allowedInSource(source);
@@ -198,43 +204,48 @@ public class JavacElements implements Elements {
 
         return (S) resultCache.computeIfAbsent(Pair.of(methodName, nameStr), p -> {
             Set<S> found = new LinkedHashSet<>();
+            Set<ModuleSymbol> allModules = new HashSet<>(modules.allModules());
 
-            for (ModuleSymbol msym : modules.allModules()) {
-                S sym = nameToSymbol(msym, nameStr, clazz);
+            allModules.removeAll(modules.getRootModules());
 
-                if (sym == null)
-                    continue;
+            for (Set<ModuleSymbol> modules : Arrays.asList(modules.getRootModules(), allModules)) {
+                for (ModuleSymbol msym : modules) {
+                    S sym = nameToSymbol(msym, nameStr, clazz);
 
-                if (clazz == ClassSymbol.class) {
-                    // Always include classes
-                    found.add(sym);
-                } else if (clazz == PackageSymbol.class) {
-                    // In module mode, ignore the "spurious" empty packages that "enclose" module-specific packages.
-                    // For example, if a module contains classes or package info in package p.q.r, it will also appear
-                    // to have additional packages p.q and p, even though these packages have no content other
-                    // than the subpackage.  We don't want those empty packages showing up in searches for p or p.q.
-                    if (!sym.members().isEmpty() || ((PackageSymbol) sym).package_info != null) {
+                    if (sym == null)
+                        continue;
+
+                    if (clazz == ClassSymbol.class) {
+                        // Always include classes
                         found.add(sym);
+                    } else if (clazz == PackageSymbol.class) {
+                        // In module mode, ignore the "spurious" empty packages that "enclose" module-specific packages.
+                        // For example, if a module contains classes or package info in package p.q.r, it will also appear
+                        // to have additional packages p.q and p, even though these packages have no content other
+                        // than the subpackage.  We don't want those empty packages showing up in searches for p or p.q.
+                        if (!sym.members().isEmpty() || ((PackageSymbol) sym).package_info != null) {
+                            found.add(sym);
+                        }
                     }
                 }
-            }
 
-            if (found.size() == 1) {
-                return Optional.of(found.iterator().next());
-            } else if (found.size() > 1) {
-                //more than one element found, produce a note:
-                if (alreadyWarnedDuplicates.add(methodName + ":" + nameStr)) {
-                    String moduleNames = found.stream()
-                                              .map(s -> s.packge().modle)
-                                              .map(m -> m.toString())
-                                              .collect(Collectors.joining(", "));
-                    log.note(Notes.MultipleElements(methodName, nameStr, moduleNames));
+                if (found.size() == 1) {
+                    return Optional.of(found.iterator().next());
+                } else if (found.size() > 1) {
+                    //more than one element found, produce a note:
+                    if (alreadyWarnedDuplicates.add(methodName + ":" + nameStr)) {
+                        String moduleNames = found.stream()
+                                                  .map(s -> s.packge().modle)
+                                                  .map(m -> m.toString())
+                                                  .collect(Collectors.joining(", "));
+                        log.note(Notes.MultipleElements(methodName, nameStr, moduleNames));
+                    }
+                    return Optional.empty();
+                } else {
+                    //not found, try another option
                 }
-                return Optional.empty();
-            } else {
-                //not found:
-                return Optional.empty();
             }
+            return Optional.empty();
         }).orElse(null);
     }
 
@@ -277,6 +288,9 @@ public class JavacElements implements Elements {
         Symbol sym = cast(Symbol.class, e);
         class Vis extends JCTree.Visitor {
             List<JCAnnotation> result = null;
+            public void visitModuleDef(JCModuleDecl tree) {
+                result = tree.mods.annotations;
+            }
             public void visitPackageDef(JCPackageDecl tree) {
                 result = tree.annotations;
             }
@@ -420,6 +434,15 @@ public class JavacElements implements Elements {
 
     @DefinedBy(Api.LANGUAGE_MODEL)
     public String getDocComment(Element e) {
+        return getDocCommentItem(e, ((docCommentTable, tree) -> docCommentTable.getCommentText(tree)));
+    }
+
+    @DefinedBy(Api.LANGUAGE_MODEL)
+    public DocCommentKind getDocCommentKind(Element e) {
+        return getDocCommentItem(e, ((docCommentTable, tree) -> docCommentTable.getCommentKind(tree)));
+    }
+
+    private <R> R getDocCommentItem(Element e, BiFunction<DocCommentTable, JCTree, R> f) {
         // Our doc comment is contained in a map in our toplevel,
         // indexed by our tree.  Find our enter environment, which gives
         // us our toplevel.  It also gives us a tree that contains our
@@ -431,12 +454,13 @@ public class JavacElements implements Elements {
         JCCompilationUnit toplevel = treeTop.snd;
         if (toplevel.docComments == null)
             return null;
-        return toplevel.docComments.getCommentText(tree);
+        return f.apply(toplevel.docComments, tree);
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)
     public PackageElement getPackageOf(Element e) {
-        return cast(Symbol.class, e).packge();
+        Symbol sym = cast(Symbol.class, e);
+        return (sym.kind == MDL || sym.owner.kind == MDL) ? null : sym.packge();
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)
@@ -444,7 +468,9 @@ public class JavacElements implements Elements {
         Symbol sym = cast(Symbol.class, e);
         if (modules.getDefaultModule() == syms.noModule)
             return null;
-        return (sym.kind == MDL) ? ((ModuleElement) e) : sym.packge().modle;
+        return (sym.kind == MDL) ? ((ModuleElement) e)
+                : (sym.owner.kind == MDL) ? (ModuleElement) sym.owner
+                : sym.packge().modle;
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)
@@ -458,6 +484,8 @@ public class JavacElements implements Elements {
     public Origin getOrigin(Element e) {
         Symbol sym = cast(Symbol.class, e);
         if ((sym.flags() & Flags.GENERATEDCONSTR) != 0)
+            return Origin.MANDATED;
+        if ((sym.flags() & Flags.MANDATED) != 0)
             return Origin.MANDATED;
         //TypeElement.getEnclosedElements does not return synthetic elements,
         //and most synthetic elements are not read from the classfile anyway:
@@ -523,9 +551,6 @@ public class JavacElements implements Elements {
         return valmap;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @DefinedBy(Api.LANGUAGE_MODEL)
     public FilteredMemberList getAllMembers(TypeElement element) {
         Symbol sym = cast(Symbol.class, element);
@@ -556,6 +581,12 @@ public class JavacElements implements Elements {
                     scope.enter(e);
             }
         }
+
+    @DefinedBy(Api.LANGUAGE_MODEL)
+    public TypeElement getOutermostTypeElement(Element e) {
+        Symbol sym = cast(Symbol.class, e);
+        return sym.outermostClass();
+    }
 
     /**
      * Returns all annotations of an element, whether
@@ -701,12 +732,89 @@ public class JavacElements implements Elements {
         }
     }
 
+    @Override @DefinedBy(Api.LANGUAGE_MODEL)
+    public boolean isAutomaticModule(ModuleElement module) {
+        ModuleSymbol msym = (ModuleSymbol) module;
+        return (msym.flags() & Flags.AUTOMATIC_MODULE) != 0;
+    }
+
+    @Override @DefinedBy(Api.LANGUAGE_MODEL)
+    public TypeElement getEnumConstantBody(VariableElement enumConstant) {
+        if (enumConstant.getKind() == ElementKind.ENUM_CONSTANT) {
+            JCTree enumBodyTree = getTreeAlt(enumConstant);
+            JCTree enclosingEnumTree = getTreeAlt(enumConstant.getEnclosingElement());
+
+            if (enumBodyTree instanceof JCVariableDecl decl
+                && enclosingEnumTree instanceof JCClassDecl clazz
+                && decl.init instanceof JCNewClass nc
+                && nc.def != null) {
+                if ((clazz.sym.flags_field & Flags.UNATTRIBUTED) != 0) {
+                    attr.attribClass(clazz.pos(), clazz.sym);
+                }
+                return nc.def.sym; // ClassSymbol for enum constant body
+            } else {
+                return null;
+            }
+        } else {
+            throw new IllegalArgumentException("Argument not an enum constant");
+        }
+    }
+
+    private JCTree getTreeAlt(Element e) {
+        Symbol sym = cast(Symbol.class, e);
+        Env<AttrContext> enterEnv = getEnterEnv(sym);
+        if (enterEnv == null)
+            return null;
+        JCTree tree = TreeInfo.declarationFor(sym, enterEnv.tree);
+        return tree;
+    }
+
+    @Override @DefinedBy(Api.LANGUAGE_MODEL)
+    public boolean isCompactConstructor(ExecutableElement e) {
+        return (((MethodSymbol)e).flags() & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0;
+    }
+
+    @Override @DefinedBy(Api.LANGUAGE_MODEL)
+    public boolean isCanonicalConstructor(ExecutableElement e) {
+        return (((MethodSymbol)e).flags() & Flags.RECORD) != 0;
+    }
+
+    @Override @DefinedBy(Api.LANGUAGE_MODEL)
+    public JavaFileObject getFileObjectOf(Element e) {
+        Symbol sym = (Symbol) e;
+        return switch(sym.kind) {
+            case PCK -> {
+                PackageSymbol psym = (PackageSymbol) sym;
+                if (psym.package_info == null) {
+                    yield null;
+                }
+                yield psym.package_info.classfile;
+            }
+
+            case MDL -> {
+                ModuleSymbol msym = (ModuleSymbol) sym;
+                if (msym.module_info == null) {
+                    yield null;
+                }
+                yield msym.module_info.classfile;
+            }
+            case TYP -> ((ClassSymbol) sym).classfile;
+            default -> sym.enclClass().classfile;
+        };
+    }
+
     /**
      * Returns the tree node and compilation unit corresponding to this
      * element, or null if they can't be found.
      */
     private Pair<JCTree, JCCompilationUnit> getTreeAndTopLevel(Element e) {
         Symbol sym = cast(Symbol.class, e);
+        if (sym.kind == PCK) {
+            TypeSymbol pkgInfo = ((PackageSymbol) sym).package_info;
+            if (pkgInfo != null) {
+                pkgInfo.complete();
+            }
+        }
         Env<AttrContext> enterEnv = getEnterEnv(sym);
         if (enterEnv == null)
             return null;

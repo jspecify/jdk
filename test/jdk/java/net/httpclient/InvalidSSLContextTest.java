@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@
  * @test
  * @summary Test to ensure the HTTP client throws an appropriate SSL exception
  *          when SSL context is not valid.
- * @library /lib/testlibrary
- * @build jdk.testlibrary.SimpleSSLContext
+ * @library /test/lib
+ * @build jdk.test.lib.net.SimpleSSLContext
  * @run testng/othervm -Djdk.internal.httpclient.debug=true InvalidSSLContextTest
  */
 
@@ -37,6 +37,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.net.SocketException;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -47,7 +48,7 @@ import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
-import jdk.testlibrary.SimpleSSLContext;
+import jdk.test.lib.net.SimpleSSLContext;
 import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
@@ -173,8 +174,8 @@ public class InvalidSSLContextTest {
                         s.startHandshake();
                         s.close();
                         Assert.fail("SERVER: UNEXPECTED ");
-                    } catch (SSLException he) {
-                        System.out.println("SERVER: caught expected " + he);
+                    } catch (SSLException | SocketException se) {
+                        System.out.println("SERVER: caught expected " + se);
                     } catch (IOException e) {
                         System.out.println("SERVER: caught: " + e);
                         if (!sslServerSocket.isClosed()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import jdk.internal.misc.VM;
  */
 public class ResourcesMgr {
     // intended for java.security, javax.security and sun.security resources
-    private final static Map<String, ResourceBundle> bundles = new ConcurrentHashMap<>();
+    private static final Map<String, ResourceBundle> bundles = new ConcurrentHashMap<>();
 
     public static String getString(String s) {
         return getBundle("sun.security.util.Resources").getString(s);
@@ -48,7 +48,7 @@ public class ResourcesMgr {
         if (!VM.isBooted()) {
             // don't expect this be called before the system is fully initialized.
             // This triggers loading of any resource bundle that should be
-            // be done during initialization of system class loader.
+            // done during initialization of system class loader.
             throw new InternalError("Expected to use ResourceBundle only after booted");
         }
         return bundles.computeIfAbsent(bundleName, ResourceBundle::getBundle);

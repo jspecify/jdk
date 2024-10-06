@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,21 +23,30 @@
  */
 
 // no precompiled headers
-#include "runtime/handles.inline.hpp"
-#include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
 #include "runtime/osThread.hpp"
-#include "runtime/safepoint.hpp"
-#include "runtime/vmThread.hpp"
 
 void OSThread::pd_initialize() {
-  set_thread_handle(NULL);
-  set_thread_id(NULL);
-  set_interrupt_event(NULL);
+  set_thread_handle(nullptr);
+  set_thread_id(0);
+  set_interrupt_event(nullptr);
 }
 
-// TODO: this is not well encapsulated; creation and deletion of the
-// interrupt_event are done in os_win32.cpp, create_thread and
-// free_thread. Should follow pattern of Linux/Solaris code here.
 void OSThread::pd_destroy() {
+  if (_interrupt_event != nullptr) {
+    CloseHandle(_interrupt_event);
+  }
+}
+
+// We need to specialize this to interact with the _interrupt_event.
+
+void OSThread::set_interrupted(bool z) {
+  if (z) {
+    SetEvent(_interrupt_event);
+  }
+  else {
+    // We should only ever clear the interrupt if we are in fact interrupted,
+    // and this can only be done by the current thread on itself.
+    ResetEvent(_interrupt_event);
+  }
 }

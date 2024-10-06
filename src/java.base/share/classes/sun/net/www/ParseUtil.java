@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,18 +26,20 @@
 package sun.net.www;
 
 import java.io.File;
-import java.net.URL;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
-
-import sun.nio.cs.ThreadLocalCoders;
 import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
+import java.util.HexFormat;
+
+import sun.nio.cs.UTF_8;
 
 /**
  * A class that contains useful routines common to sun.net.www
@@ -45,6 +47,8 @@ import java.nio.charset.CodingErrorAction;
  */
 
 public final class ParseUtil {
+
+    private static final HexFormat HEX_UPPERCASE = HexFormat.of().withUpperCase();
 
     private ParseUtil() {}
 
@@ -146,7 +150,7 @@ public final class ParseUtil {
 
     /**
      * Appends the URL escape sequence for the specified char to the
-     * specified StringBuffer.
+     * specified character array.
      */
     private static int escape(char[] cc, char c, int index) {
         cc[index++] = '%';
@@ -176,9 +180,9 @@ public final class ParseUtil {
         StringBuilder sb = new StringBuilder(n);
         ByteBuffer bb = ByteBuffer.allocate(n);
         CharBuffer cb = CharBuffer.allocate(n);
-        CharsetDecoder dec = ThreadLocalCoders.decoderFor("UTF-8")
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT);
+        CharsetDecoder dec = UTF_8.INSTANCE.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT);
 
         char c = s.charAt(0);
         for (int i = 0; i < n;) {
@@ -193,11 +197,14 @@ public final class ParseUtil {
             bb.clear();
             int ui = i;
             for (;;) {
-                assert (n - i >= 2);
+                if (n - i < 2) {
+                    throw new IllegalArgumentException("Malformed escape pair: " + s);
+                }
+
                 try {
                     bb.put(unescape(s, i));
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException();
+                } catch (NumberFormatException | IndexOutOfBoundsException e) {
+                    throw new IllegalArgumentException("Malformed escape pair: " + s);
                 }
                 i += 3;
                 if (i >= n)
@@ -221,49 +228,6 @@ public final class ParseUtil {
         return sb.toString();
     }
 
-    /**
-     * Returns a canonical version of the specified string.
-     */
-    public static String canonizeString(String file) {
-        int len = file.length();
-        if (len == 0 || (file.indexOf("./") == -1 && file.charAt(len - 1) != '.')) {
-            return file;
-        } else {
-            return doCanonize(file);
-        }
-    }
-
-    private static String doCanonize(String file) {
-        int i, lim;
-
-        // Remove embedded /../
-        while ((i = file.indexOf("/../")) >= 0) {
-            if ((lim = file.lastIndexOf('/', i - 1)) >= 0) {
-                file = file.substring(0, lim) + file.substring(i + 3);
-            } else {
-                file = file.substring(i + 3);
-            }
-        }
-        // Remove embedded /./
-        while ((i = file.indexOf("/./")) >= 0) {
-            file = file.substring(0, i) + file.substring(i + 2);
-        }
-        // Remove trailing ..
-        while (file.endsWith("/..")) {
-            i = file.indexOf("/..");
-            if ((lim = file.lastIndexOf('/', i - 1)) >= 0) {
-                file = file.substring(0, lim+1);
-            } else {
-                file = file.substring(0, i);
-            }
-        }
-        // Remove trailing .
-        if (file.endsWith("/."))
-            file = file.substring(0, file.length() -1);
-
-        return file;
-    }
-
     public static URL fileToEncodedURL(File file)
         throws MalformedURLException
     {
@@ -275,7 +239,9 @@ public final class ParseUtil {
         if (!path.endsWith("/") && file.isDirectory()) {
             path = path + "/";
         }
-        return new URL("file", "", path);
+        @SuppressWarnings("deprecation")
+        var result = new URL("file", "", path);
+        return result;
     }
 
     public static java.net.URI toURI(URL url) {
@@ -336,7 +302,7 @@ public final class ParseUtil {
                             String query,
                             String fragment)
     {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         if (scheme != null) {
             sb.append(scheme);
             sb.append(':');
@@ -348,7 +314,7 @@ public final class ParseUtil {
         return sb.toString();
     }
 
-    private static void appendSchemeSpecificPart(StringBuffer sb,
+    private static void appendSchemeSpecificPart(StringBuilder sb,
                                           String opaquePart,
                                           String authority,
                                           String userInfo,
@@ -389,7 +355,7 @@ public final class ParseUtil {
         }
     }
 
-    private static void appendAuthority(StringBuffer sb,
+    private static void appendAuthority(StringBuilder sb,
                                  String authority,
                                  String userInfo,
                                  String host,
@@ -437,7 +403,7 @@ public final class ParseUtil {
         }
     }
 
-    private static void appendFragment(StringBuffer sb, String fragment) {
+    private static void appendFragment(StringBuilder sb, String fragment) {
         if (fragment != null) {
             sb.append('#');
             sb.append(quote(fragment, L_URIC, H_URIC));
@@ -449,14 +415,15 @@ public final class ParseUtil {
     //
     private static String quote(String s, long lowMask, long highMask) {
         int n = s.length();
-        StringBuffer sb = null;
+        StringBuilder sb = null;
+        CharsetEncoder encoder = null;
         boolean allowNonASCII = ((lowMask & L_ESCAPED) != 0);
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             if (c < '\u0080') {
                 if (!match(c, lowMask, highMask) && !isEscaped(s, i)) {
                     if (sb == null) {
-                        sb = new StringBuffer();
+                        sb = new StringBuilder();
                         sb.append(s, 0, i);
                     }
                     appendEscape(sb, (byte)c);
@@ -467,11 +434,14 @@ public final class ParseUtil {
             } else if (allowNonASCII
                        && (Character.isSpaceChar(c)
                            || Character.isISOControl(c))) {
+                if (encoder == null) {
+                    encoder = UTF_8.INSTANCE.newEncoder();
+                }
                 if (sb == null) {
-                    sb = new StringBuffer();
+                    sb = new StringBuilder();
                     sb.append(s, 0, i);
                 }
-                appendEncoded(sb, c);
+                appendEncoded(encoder, sb, c);
             } else {
                 if (sb != null)
                     sb.append(c);
@@ -493,11 +463,11 @@ public final class ParseUtil {
                && match(s.charAt(pos + 2), L_HEX, H_HEX);
     }
 
-    private static void appendEncoded(StringBuffer sb, char c) {
+    private static void appendEncoded(CharsetEncoder encoder,
+                                      StringBuilder sb, char c) {
         ByteBuffer bb = null;
         try {
-            bb = ThreadLocalCoders.encoderFor("UTF-8")
-                .encode(CharBuffer.wrap("" + c));
+            bb = encoder.encode(CharBuffer.wrap("" + c));
         } catch (CharacterCodingException x) {
             assert false;
         }
@@ -510,15 +480,9 @@ public final class ParseUtil {
         }
     }
 
-    private static final char[] hexDigits = {
-        '0', '1', '2', '3', '4', '5', '6', '7',
-        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-    };
-
-    private static void appendEscape(StringBuffer sb, byte b) {
+    private static void appendEscape(StringBuilder sb, byte b) {
         sb.append('%');
-        sb.append(hexDigits[(b >> 4) & 0x0f]);
-        sb.append(hexDigits[(b >> 0) & 0x0f]);
+        HEX_UPPERCASE.toHexDigits(sb, b);
     }
 
     // Tell whether the given character is permitted by the given mask pair
@@ -536,8 +500,7 @@ public final class ParseUtil {
         throws URISyntaxException
     {
         if (scheme != null) {
-            if ((path != null)
-                && ((path.length() > 0) && (path.charAt(0) != '/')))
+            if (path != null && !path.isEmpty() && path.charAt(0) != '/')
                 throw new URISyntaxException(s,
                                              "Relative path in absolute URI");
         }

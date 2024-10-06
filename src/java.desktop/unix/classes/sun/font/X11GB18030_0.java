@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,7 @@ public class X11GB18030_0 extends Charset {
     }
 
     /* Seems like supporting a decoder is required, but we aren't going
-     * to be publically exposing this class, so no need to waste work
+     * to be publicly exposing this class, so no need to waste work
      */
     public CharsetDecoder newDecoder() {
         throw new Error("Decoder is not implemented for X11GB18030_0 Charset");
@@ -4234,7 +4234,7 @@ public class X11GB18030_0 extends Charset {
             "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"+
             "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
 
-        private static final short index1[] = {
+        private static final short[] index1 = {
             1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             6, 7, 8, 9, 10, 11, 12, 0, 0, 0, 0, 0, 0, 0, 13, 14,
@@ -4253,7 +4253,7 @@ public class X11GB18030_0 extends Charset {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 126, 127, 0, 0, 0, 128, 129
         };
 
-        private static final String index2[] = {
+        private static final String[] index2 = {
             innerIndex0,
             innerIndex1,
             innerIndex2,

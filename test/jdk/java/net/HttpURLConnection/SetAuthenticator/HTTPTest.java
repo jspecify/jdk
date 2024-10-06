@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -41,16 +39,17 @@ import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
-import jdk.testlibrary.SimpleSSLContext;
+import jdk.test.lib.net.SimpleSSLContext;
+import static java.net.Proxy.NO_PROXY;
 
 /*
  * @test
  * @bug 8169415
- * @library /lib/testlibrary/
+ * @library /test/lib
  * @modules java.logging
  *          java.base/sun.net.www
  *          jdk.httpserver/sun.net.httpserver
- * @build jdk.testlibrary.SimpleSSLContext HTTPTest HTTPTestServer HTTPTestClient
+ * @build jdk.test.lib.net.SimpleSSLContext HTTPTest HTTPTestServer HTTPTestClient
  * @summary A simple HTTP test that starts an echo server supporting Digest
  *          authentication, then starts a regular HTTP client to invoke it.
  *          The client first does a GET request on "/", then follows on
@@ -64,15 +63,16 @@ import jdk.testlibrary.SimpleSSLContext;
  *                    server that perform Digest authentication;
  *            PROXY305: The server attempts to redirect
  *                    the client to a proxy using 305 code;
- * @run main/othervm HTTPTest SERVER
- * @run main/othervm HTTPTest PROXY
- * @run main/othervm HTTPTest SERVER307
- * @run main/othervm HTTPTest PROXY305
+ * @run main/othervm -Dtest.debug=true -Dtest.digest.algorithm=SHA-512 HTTPTest SERVER
+ * @run main/othervm -Dtest.debug=true -Dtest.digest.algorithm=SHA-256 HTTPTest SERVER
+ * @run main/othervm -Dtest.debug=true -Dhttp.auth.digest.reEnabledAlgorithms=MD5 HTTPTest SERVER
+ * @run main/othervm -Dtest.debug=true -Dhttp.auth.digest.reEnabledAlgorithms=MD5 HTTPTest PROXY
+ * @run main/othervm -Dtest.debug=true -Dhttp.auth.digest.reEnabledAlgorithms=MD5 HTTPTest SERVER307
+ * @run main/othervm -Dtest.debug=true -Dhttp.auth.digest.reEnabledAlgorithms=MD5 HTTPTest PROXY305
  *
  * @author danielfuchs
  */
 public class HTTPTest {
-
     public static final boolean DEBUG =
          Boolean.parseBoolean(System.getProperty("test.debug", "false"));
     public static enum HttpAuthType { SERVER, PROXY, SERVER307, PROXY305 };
@@ -91,8 +91,10 @@ public class HTTPTest {
         // count will be incremented every time getPasswordAuthentication()
         // is called from the client side.
         final AtomicInteger count = new AtomicInteger();
+        private final String name;
 
-        public HttpTestAuthenticator(String realm, String username) {
+        public HttpTestAuthenticator(String name, String realm, String username) {
+            this.name = name;
             this.realm = realm;
             this.username = username;
         }
@@ -100,7 +102,7 @@ public class HTTPTest {
         @Override
         protected PasswordAuthentication getPasswordAuthentication() {
             if (skipCount.get() == null || skipCount.get().booleanValue() == false) {
-                System.out.println("Authenticator called: " + count.incrementAndGet());
+                System.out.println("Authenticator " + name + " called: " + count.incrementAndGet());
             }
             return new PasswordAuthentication(getUserName(),
                     new char[] {'b','a','r'});
@@ -120,6 +122,11 @@ public class HTTPTest {
             throw new SecurityException("User unknown: " + user);
         }
 
+        @Override
+        public String toString() {
+            return super.toString() + "[name=\"" + name + "\"]";
+        }
+
         public final String getUserName() {
             return username;
         }
@@ -130,7 +137,7 @@ public class HTTPTest {
     }
     public static final HttpTestAuthenticator AUTHENTICATOR;
     static {
-        AUTHENTICATOR = new HttpTestAuthenticator("dublin", "foox");
+        AUTHENTICATOR = new HttpTestAuthenticator("AUTHENTICATOR","dublin", "foox");
         Authenticator.setDefault(AUTHENTICATOR);
     }
 
@@ -188,6 +195,10 @@ public class HTTPTest {
             // silently skip unsupported test combination
             return;
         }
+        String digestalg = System.getProperty("test.digest.algorithm");
+        if (digestalg == null || "".equals(digestalg))
+            digestalg = "MD5";
+
         System.out.println("\n**** Testing " + protocol + " "
                            + mode + " mode ****\n");
         int authCount = AUTHENTICATOR.count.get();
@@ -199,7 +210,9 @@ public class HTTPTest {
                     HTTPTestServer.create(protocol,
                                           mode,
                                           AUTHENTICATOR,
-                                          getHttpSchemeType());
+                                          getHttpSchemeType(),
+                                          null,
+                                          digestalg);
             try {
                 expectedIncrement += run(server, protocol, mode);
             } finally {
@@ -260,14 +273,27 @@ public class HTTPTest {
     public static URL url(HttpProtocolType protocol, InetSocketAddress address,
                           String path) throws MalformedURLException {
         return new URL(protocol(protocol),
-                       address.getHostString(),
+                       address.getAddress().getHostAddress(),
                        address.getPort(), path);
     }
 
     public static Proxy proxy(HTTPTestServer server, HttpAuthType authType) {
-        return (authType == HttpAuthType.PROXY)
-               ? new Proxy(Proxy.Type.HTTP, server.getAddress())
-               : null;
+        if (authType != HttpAuthType.PROXY) return null;
+
+        InetSocketAddress proxyAddress = server.getProxyAddress();
+        if (!proxyAddress.isUnresolved()) {
+            // Forces the proxy to use an unresolved address created
+            // from the actual IP address to avoid using the proxy
+            // address hostname which would result in resolving to
+            // a posibly different address. For instance we want to
+            // avoid cases such as:
+            //    ::1 => "localhost" => 127.0.0.1
+            proxyAddress = InetSocketAddress.
+                createUnresolved(proxyAddress.getAddress().getHostAddress(),
+                                 proxyAddress.getPort());
+        }
+
+        return new Proxy(Proxy.Type.HTTP, proxyAddress);
     }
 
     public static HttpURLConnection openConnection(URL url,
@@ -278,7 +304,7 @@ public class HTTPTest {
         HttpURLConnection conn = (HttpURLConnection)
                 (authType == HttpAuthType.PROXY
                     ? url.openConnection(proxy)
-                    : url.openConnection());
+                    : url.openConnection(NO_PROXY));
         return conn;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,14 +57,11 @@ public:
     static jfieldID securityWarningWidthID;
     static jfieldID securityWarningHeightID;
 
-    // The coordinates at the peer.
-    static jfieldID sysXID;
-    static jfieldID sysYID;
-    static jfieldID sysWID;
-    static jfieldID sysHID;
-
+    /* sun.awt.windows.WWindowPeer field and method IDs */
     static jfieldID windowTypeID;
+    static jmethodID notifyWindowStateChangedMID;
 
+    /* java.awt.Window method IDs */
     static jmethodID getWarningStringMID;
     static jmethodID calculateSecurityWarningPositionMID;
     static jmethodID windowTypeNameMID;
@@ -126,6 +123,7 @@ public:
         return FALSE;
     }
 
+    virtual void Reshape(int x, int y, int w, int h);
     virtual void Invalidate(RECT* r);
     virtual void Show();
     virtual void SetResizable(BOOL isResizable);
@@ -133,7 +131,7 @@ public:
     virtual void RecalcNonClient();
     virtual void RedrawNonClient();
     virtual int  GetScreenImOn();
-    virtual void CheckIfOnNewScreen();
+    virtual void CheckIfOnNewScreen(BOOL force);
     virtual void Grab();
     virtual void Ungrab();
     virtual void Ungrab(BOOL doPost);
@@ -149,6 +147,7 @@ public:
     void SendComponentEvent(jint eventId);
     void SendWindowEvent(jint id, HWND opposite = NULL,
                          jint oldState = 0, jint newState = 0);
+    void NotifyWindowStateChanged(jint oldState, jint newState);
 
     BOOL IsFocusableWindow();
 
@@ -211,7 +210,7 @@ public:
                              (LPARAM) oppositeHWnd);
     }
 
-    void moveToDefaultLocation(); /* moves Window to X,Y specified by Window Manger */
+    void moveToDefaultLocation(); /* moves Window to X,Y specified by Window Manager */
 
     void UpdateWindow(JNIEnv* env, jintArray data, int width, int height,
                       HBITMAP hNewBitmap = NULL);
@@ -244,7 +243,6 @@ public:
     static void _RepositionSecurityWarning(void* param);
     static void _SetFullScreenExclusiveModeState(void* param);
     static void _GetNativeWindowSize(void* param);
-    static void _WindowDPIChange(void* param);
     static void _OverrideHandle(void *param);
 
     inline static BOOL IsResizing() {
@@ -371,8 +369,8 @@ public:
 protected:
     BOOL m_isResizable;
     static AwtWindow* m_grabbedWindow; // Current grabbing window
-    HICON m_hIcon;            /* Icon for this window. It can be set explicitely or inherited from the owner */
-    HICON m_hIconSm;          /* Small icon for this window. It can be set explicitely or inherited from the owner */
+    HICON m_hIcon;            /* Icon for this window. It can be set explicitly or inherited from the owner */
+    HICON m_hIconSm;          /* Small icon for this window. It can be set explicitly or inherited from the owner */
     BOOL m_iconInherited;     /* TRUE if icon is inherited from the owner */
     BOOL m_filterFocusAndActivation; /* Used in the WH_CBT hook */
 
@@ -405,8 +403,7 @@ private:
 
     void InitOwner(AwtWindow *owner);
     void CheckWindowDPIChange();
-    void WindowDPIChange(int prevScreen, float prevScaleX, float prevScaleY,
-                         int newScreen, float scaleX, float scaleY);
+    void WmDPIChanged(const LPARAM &lParam);
 
     Type m_windowType;
     void InitType(JNIEnv *env, jobject peer);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,35 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP
-#define SHARE_VM_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP
+#ifndef SHARE_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP
+#define SHARE_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP
 
 #include "jni.h"
-#include "memory/allocation.hpp"
+#include "jfr/utilities/jfrTypes.hpp"
+#include "memory/allStatic.hpp"
+#include "utilities/exceptions.hpp"
 
 class JavaThread;
+class JfrBuffer;
 class Thread;
 
 class JfrJavaEventWriter : AllStatic {
-  friend class JfrCheckpointThreadClosure;
+  friend class JfrNotifyClosure;
   friend class JfrJavaEventWriterNotifyOperation;
   friend class JfrJavaEventWriterNotificationClosure;
+  friend class JfrRecorder;
  private:
+  static bool initialize();
   static void notify(JavaThread* jt);
 
  public:
-  static bool initialize();
   static void notify();
-  static jobject event_writer(Thread* t);
+  static void exclude(traceid tid, const JavaThread* jt);
+  static void include(traceid tid, const JavaThread* jt);
+  static jobject event_writer(JavaThread* t);
   static jobject new_event_writer(TRAPS);
-  static jboolean flush(jobject writer, jint used, jint requested, JavaThread* jt);
+  static void flush(jobject writer, jint used, jint requested, JavaThread* jt);
+  static jlong commit(jlong next_position);
 };
 
-#endif // SHARE_VM_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP
+#endif // SHARE_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP

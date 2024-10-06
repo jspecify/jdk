@@ -24,7 +24,7 @@
 /**
  * @test
  * @summary Test java.util.zip behavior with ~64k entries
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm EntryCount64k
  * @run main/othervm -Djdk.util.zip.inhibitZip64=true EntryCount64k
  * @run main/othervm -Djdk.util.zip.inhibitZip64=false EntryCount64k
@@ -37,15 +37,14 @@ import java.nio.file.Files;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.RandomAccessFile;
-import java.nio.file.Paths;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
 public class EntryCount64k {
     public static class Main {
@@ -161,13 +160,9 @@ public class EntryCount64k {
         }
 
         // Check java -jar
-        String javaHome = System.getProperty("java.home");
-        String java = Paths.get(javaHome, "bin", "java").toString();
-        String[] cmd = { java, "-jar", zipFile.getName() };
-        ProcessBuilder pb = new ProcessBuilder(cmd);
-        OutputAnalyzer a = ProcessTools.executeProcess(pb);
+        OutputAnalyzer a = ProcessTools.executeTestJava("-jar", zipFile.getName());
         a.shouldHaveExitValue(0);
         a.stdoutShouldMatch("\\AMain\\Z");
-        a.stderrShouldMatch("\\A\\Z");
+        a.stderrShouldMatchIgnoreDeprecatedWarnings("\\A\\Z");
     }
 }

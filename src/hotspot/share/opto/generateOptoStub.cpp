@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/type.hpp"
+#include "runtime/stubRoutines.hpp"
 
 //--------------------gen_stub-------------------------------
 void GraphKit::gen_stub(address C_function,
@@ -92,22 +93,15 @@ void GraphKit::gen_stub(address C_function,
                                             thread,
                                             in_bytes(JavaThread::frame_anchor_offset()) +
                                             in_bytes(JavaFrameAnchor::last_Java_pc_offset()));
-#if defined(SPARC)
-  Node* adr_flags = basic_plus_adr(top(),
-                                   thread,
-                                   in_bytes(JavaThread::frame_anchor_offset()) +
-                                   in_bytes(JavaFrameAnchor::flags_offset()));
-#endif /* defined(SPARC) */
-
 
   // Drop in the last_Java_sp.  last_Java_fp is not touched.
   // Always do this after the other "last_Java_frame" fields are set since
-  // as soon as last_Java_sp != NULL the has_last_Java_frame is true and
+  // as soon as last_Java_sp != nullptr the has_last_Java_frame is true and
   // users will look at the other fields.
   //
   Node *adr_sp = basic_plus_adr(top(), thread, in_bytes(JavaThread::last_Java_sp_offset()));
-  Node *last_sp = basic_plus_adr(top(), frameptr(), (intptr_t) STACK_BIAS);
-  store_to_memory(NULL, adr_sp, last_sp, T_ADDRESS, NoAlias, MemNode::unordered);
+  Node *last_sp = frameptr();
+  store_to_memory(control(), adr_sp, last_sp, T_ADDRESS, NoAlias, MemNode::unordered);
 
   // Set _thread_in_native
   // The order of stores into TLS is critical!  Setting _thread_in_native MUST
@@ -171,11 +165,10 @@ void GraphKit::gen_stub(address C_function,
 
   //-----------------------------
   // Make the call node.
-  CallRuntimeNode *call = new CallRuntimeNode(c_sig, C_function, name, TypePtr::BOTTOM);
+  CallRuntimeNode* call = new CallRuntimeNode(c_sig, C_function, name, TypePtr::BOTTOM, new (C) JVMState(0));
   //-----------------------------
 
   // Fix-up the debug info for the call.
-  call->set_jvms(new (C) JVMState(0));
   call->jvms()->set_bci(0);
   call->jvms()->set_offsets(cnt);
 
@@ -200,7 +193,7 @@ void GraphKit::gen_stub(address C_function,
     call->init_req(cnt++, returnadr());
   }
 
-  _gvn.transform_no_reclaim(call);
+  _gvn.transform(call);
 
   //-----------------------------
   // Now set up the return results
@@ -228,15 +221,12 @@ void GraphKit::gen_stub(address C_function,
   //-----------------------------
 
   // Clear last_Java_sp
-  store_to_memory(NULL, adr_sp, null(), T_ADDRESS, NoAlias, MemNode::unordered);
-  // Clear last_Java_pc and (optionally)_flags
-  store_to_memory(NULL, adr_last_Java_pc, null(), T_ADDRESS, NoAlias, MemNode::unordered);
-#if defined(SPARC)
-  store_to_memory(NULL, adr_flags, intcon(0), T_INT, NoAlias, MemNode::unordered);
-#endif /* defined(SPARC) */
+  store_to_memory(control(), adr_sp, null(), T_ADDRESS, NoAlias, MemNode::unordered);
+  // Clear last_Java_pc
+  store_to_memory(control(), adr_last_Java_pc, null(), T_ADDRESS, NoAlias, MemNode::unordered);
 #if (defined(IA64) && !defined(AIX))
   Node* adr_last_Java_fp = basic_plus_adr(top(), thread, in_bytes(JavaThread::last_Java_fp_offset()));
-  store_to_memory(NULL, adr_last_Java_fp, null(), T_ADDRESS, NoAlias, MemNode::unordered);
+  store_to_memory(control(), adr_last_Java_fp, null(), T_ADDRESS, NoAlias, MemNode::unordered);
 #endif
 
   // For is-fancy-jump, the C-return value is also the branch target
@@ -244,16 +234,16 @@ void GraphKit::gen_stub(address C_function,
   // Runtime call returning oop in TLS?  Fetch it out
   if( pass_tls ) {
     Node* adr = basic_plus_adr(top(), thread, in_bytes(JavaThread::vm_result_offset()));
-    Node* vm_result = make_load(NULL, adr, TypeOopPtr::BOTTOM, T_OBJECT, NoAlias, MemNode::unordered);
+    Node* vm_result = make_load(nullptr, adr, TypeOopPtr::BOTTOM, T_OBJECT, NoAlias, MemNode::unordered);
     map()->set_req(TypeFunc::Parms, vm_result); // vm_result passed as result
     // clear thread-local-storage(tls)
-    store_to_memory(NULL, adr, null(), T_ADDRESS, NoAlias, MemNode::unordered);
+    store_to_memory(control(), adr, null(), T_ADDRESS, NoAlias, MemNode::unordered);
   }
 
   //-----------------------------
   // check exception
   Node* adr = basic_plus_adr(top(), thread, in_bytes(Thread::pending_exception_offset()));
-  Node* pending = make_load(NULL, adr, TypeOopPtr::BOTTOM, T_OBJECT, NoAlias, MemNode::unordered);
+  Node* pending = make_load(nullptr, adr, TypeOopPtr::BOTTOM, T_OBJECT, NoAlias, MemNode::unordered);
 
   Node* exit_memory = reset_memory();
 
@@ -264,20 +254,18 @@ void GraphKit::gen_stub(address C_function,
   Node* if_null     = _gvn.transform( new IfFalseNode(iff) );
   Node* if_not_null = _gvn.transform( new IfTrueNode(iff)  );
 
-  assert (StubRoutines::forward_exception_entry() != NULL, "must be generated before");
-  Node *exc_target = makecon(TypeRawPtr::make( StubRoutines::forward_exception_entry() ));
-  Node *to_exc = new TailCallNode(if_not_null,
-                                  i_o(),
-                                  exit_memory,
-                                  frameptr(),
-                                  returnadr(),
-                                  exc_target, null());
+  assert (StubRoutines::forward_exception_entry() != nullptr, "must be generated before");
+  Node *to_exc = new ForwardExceptionNode(if_not_null,
+                                          i_o(),
+                                          exit_memory,
+                                          frameptr(),
+                                          returnadr());
   root()->add_req(_gvn.transform(to_exc));  // bind to root to keep live
-  C->init_start(start);
+  C->verify_start(start);
 
   //-----------------------------
   // If this is a normal subroutine return, issue the return and be done.
-  Node *ret = NULL;
+  Node *ret = nullptr;
   switch( is_fancy_jump ) {
   case 0:                       // Make a return instruction
     // Return to caller, free any space for return address

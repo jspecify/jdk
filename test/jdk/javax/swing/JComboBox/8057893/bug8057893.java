@@ -35,7 +35,6 @@ import javax.swing.WindowConstants;
  * @test
  * @key headful
  * @bug 8057893
- * @author Alexander Scherbatiy
  * @summary JComboBox actionListener never receives "comboBoxEdited"
  *   from getActionCommand
  * @run main bug8057893
@@ -43,13 +42,14 @@ import javax.swing.WindowConstants;
 public class bug8057893 {
 
     private static volatile boolean isComboBoxEdited = false;
+    private static JFrame frame;
 
     public static void main(String[] args) throws Exception {
         Robot robot = new Robot();
-        robot.setAutoDelay(50);
+        robot.setAutoDelay(100);
 
         EventQueue.invokeAndWait(() -> {
-            JFrame frame = new JFrame();
+            frame = new JFrame();
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
             JComboBox<String> comboBox = new JComboBox<>(new String[]{"one", "two"});
             comboBox.setEditable(true);
@@ -65,10 +65,12 @@ public class bug8057893 {
             frame.add(comboBox);
             frame.pack();
             frame.setVisible(true);
+            frame.setLocationRelativeTo(null);
             comboBox.requestFocusInWindow();
         });
 
         robot.waitForIdle();
+        robot.delay(1000);
 
         robot.keyPress(KeyEvent.VK_A);
         robot.keyRelease(KeyEvent.VK_A);
@@ -76,6 +78,7 @@ public class bug8057893 {
         robot.keyRelease(KeyEvent.VK_ENTER);
         robot.waitForIdle();
 
+        if (frame != null) EventQueue.invokeAndWait(() -> frame.dispose());
         if(!isComboBoxEdited){
             throw new RuntimeException("ComboBoxEdited event is not fired!");
         }

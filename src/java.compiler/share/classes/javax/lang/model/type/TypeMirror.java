@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@ package javax.lang.model.type;
 
 import java.lang.annotation.Annotation;
 import java.util.List;
+
+import javax.lang.model.AnnotatedConstruct;
 import javax.lang.model.element.*;
 import javax.lang.model.util.Types;
 
@@ -50,19 +52,62 @@ import javax.lang.model.util.Types;
  * hierarchy since an implementation may choose to have a single
  * object implement multiple {@code TypeMirror} subinterfaces.
  *
- * @author Joseph D. Darcy
- * @author Scott Seligman
- * @author Peter von der Ah&eacute;
  * @see Element
  * @see Types
+ * @jls 4.1 The Kinds of Types and Values
+ * @jls 4.2 Primitive Types and Values
+ * @jls 4.3 Reference Types and Values
+ * @jls 4.4 Type Variables
+ * @jls 4.5 Parameterized Types
+ * @jls 4.8 Raw Types
+ * @jls 4.9 Intersection Types
+ * @jls 10.1 Array Types
  * @since 1.6
  */
-public interface TypeMirror extends javax.lang.model.AnnotatedConstruct {
+public interface TypeMirror extends AnnotatedConstruct {
 
     /**
-     * Returns the {@code kind} of this type.
+     * {@return the {@code kind} of this type}
      *
-     * @return the kind of this type
+     * <ul>
+     *
+     * <li> The kind of a {@linkplain PrimitiveType primitive type} is
+     * one of the kinds for which {@link TypeKind#isPrimitive} returns
+     * {@code true}.
+     *
+     * <li> The kind of a {@linkplain NullType null type} is {@link
+     * TypeKind#NULL NULL}.
+     *
+     * <li> The kind of an {@linkplain ArrayType array type} is {@link
+     * TypeKind#ARRAY ARRAY}.
+     *
+     * <li> The kind of a {@linkplain DeclaredType declared type} is
+     * {@link TypeKind#DECLARED DECLARED}.
+     *
+     * <li> The kind of an {@linkplain ErrorType error type} is {@link
+     * TypeKind#ERROR ERROR}.
+     *
+     * <li> The kind of a {@linkplain TypeVariable type variable} is
+     * {@link TypeKind#TYPEVAR TYPEVAR}.
+     *
+     * <li> The kind of a {@linkplain WildcardType wildcard type} is
+     * {@link TypeKind#WILDCARD WILDCARD}.
+     *
+     * <li> The kind of an {@linkplain ExecutableType executable type}
+     * is {@link TypeKind#EXECUTABLE EXECUTABLE}.
+     *
+     * <li> The kind of a {@linkplain NoType pseudo-type} is one
+     * of {@link TypeKind#VOID VOID}, {@link TypeKind#PACKAGE
+     * PACKAGE}, {@link TypeKind#MODULE MODULE}, or {@link
+     * TypeKind#NONE NONE}.
+     *
+     * <li> The kind of a {@linkplain UnionType union type} is {@link
+     * TypeKind#UNION UNION}.
+     *
+     * <li> The kind of an {@linkplain IntersectionType intersection
+     * type} is {@link TypeKind#INTERSECTION INTERSECTION}.
+     *
+     * </ul>
      */
     TypeKind getKind();
 
@@ -96,6 +141,39 @@ public interface TypeMirror extends javax.lang.model.AnnotatedConstruct {
      * @return a string representation of this type
      */
     String toString();
+
+    /**
+     * {@inheritDoc AnnotatedConstruct}
+     *
+     * <p>Note that any annotations returned by this method are type
+     * annotations.
+     *
+     * @since 1.8
+     */
+    @Override
+    List<? extends AnnotationMirror> getAnnotationMirrors();
+
+    /**
+     * {@inheritDoc AnnotatedConstruct}
+     *
+     * <p>Note that any annotation returned by this method is a type
+     * annotation.
+     *
+     * @since 1.8
+     */
+    @Override
+    <A extends Annotation> A getAnnotation(Class<A> annotationType);
+
+    /**
+     * {@inheritDoc AnnotatedConstruct}
+     *
+     * <p>Note that any annotations returned by this method are type
+     * annotations.
+     *
+     * @since 1.8
+     */
+    @Override
+    <A extends Annotation> A[] getAnnotationsByType(Class<A> annotationType);
 
     /**
      * Applies a visitor to this type.

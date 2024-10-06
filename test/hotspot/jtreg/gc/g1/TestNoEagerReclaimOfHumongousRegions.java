@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+package gc.g1;
+
 /*
  * @test TestNoEagerReclaimOfHumongousRegions
  * @bug 8139424
@@ -28,18 +30,16 @@
  *          8139424 and the test will crash if an eager reclaim occur. The test is not 100% deterministic and
  *          might pass even if there are problems in the code, but it will never crash unless there is a problem.
  * @requires vm.gc.G1
- * @key gc
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xbootclasspath/a:. -Xlog:gc,gc+humongous=debug -XX:+UseG1GC -XX:MaxTenuringThreshold=0 -XX:G1RSetSparseRegionEntries=32 -XX:G1HeapRegionSize=1m -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI TestNoEagerReclaimOfHumongousRegions
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -Xlog:gc,gc+humongous=debug -XX:+UseG1GC -XX:MaxTenuringThreshold=0 -XX:+UnlockExperimentalVMOptions -XX:G1RemSetArrayOfCardsEntries=32 -XX:G1HeapRegionSize=1m -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI gc.g1.TestNoEagerReclaimOfHumongousRegions
  */
 
 import java.util.LinkedList;
 
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 public class TestNoEagerReclaimOfHumongousRegions {
     // Helper class to keep reference to humongous byte[].
@@ -78,10 +78,7 @@ public class TestNoEagerReclaimOfHumongousRegions {
         garbageAndRefList.clear();
 
         // Run a concurrent mark cycle to mark all references but the static one as dead.
-        wb.g1StartConcMarkCycle();
-        while (wb.g1InConcurrentMark()) {
-            Thread.sleep(100);
-        }
+        wb.g1RunConcurrentGC();
 
         // Run a young collection to make sure humongous object still can't be eagerly reclaimed.
         wb.youngGC();

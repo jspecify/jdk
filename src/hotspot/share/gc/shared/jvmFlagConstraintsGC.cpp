@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,27 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/serial/cardTableRS.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/collectorPolicy.hpp"
+#include "gc/shared/gcArguments.hpp"
 #include "gc/shared/gcConfig.hpp"
 #include "gc/shared/jvmFlagConstraintsGC.hpp"
 #include "gc/shared/plab.hpp"
 #include "gc/shared/threadLocalAllocBuffer.hpp"
+#include "gc/shared/tlab_globals.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
-#include "runtime/thread.inline.hpp"
+#include "runtime/javaThread.hpp"
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_CMSGC
-#include "gc/cms/jvmFlagConstraintsCMS.hpp"
-#endif
+#include "utilities/powerOfTwo.hpp"
 #if INCLUDE_G1GC
 #include "gc/g1/jvmFlagConstraintsG1.hpp"
 #endif
 #if INCLUDE_PARALLELGC
 #include "gc/parallel/jvmFlagConstraintsParallel.hpp"
 #endif
-#ifdef COMPILER1
-#include "c1/c1_globals.hpp"
-#endif // COMPILER1
-#ifdef COMPILER2
-#include "opto/c2_globals.hpp"
-#endif // COMPILER2
 
 // Some flags that have default values that indicate that the
 // JVM should automatically determine an appropriate value
@@ -59,47 +53,9 @@
 // checking functions,  FLAG_IS_CMDLINE() is used to check if
 // the flag has been set by the user and so should be checked.
 
-// As ParallelGCThreads differs among GC modes, we need constraint function.
-JVMFlag::Error ParallelGCThreadsConstraintFunc(uint value, bool verbose) {
-  JVMFlag::Error status = JVMFlag::SUCCESS;
-
-#if INCLUDE_PARALLELGC
-  status = ParallelGCThreadsConstraintFuncParallel(value, verbose);
-  if (status != JVMFlag::SUCCESS) {
-    return status;
-  }
-#endif
-
-#if INCLUDE_CMSGC
-  status = ParallelGCThreadsConstraintFuncCMS(value, verbose);
-  if (status != JVMFlag::SUCCESS) {
-    return status;
-  }
-#endif
-
-  return status;
-}
-
-// As ConcGCThreads should be smaller than ParallelGCThreads,
-// we need constraint function.
-JVMFlag::Error ConcGCThreadsConstraintFunc(uint value, bool verbose) {
-  // CMS and G1 GCs use ConcGCThreads.
-  if ((GCConfig::is_gc_selected(CollectedHeap::CMS) ||
-       GCConfig::is_gc_selected(CollectedHeap::G1)) && (value > ParallelGCThreads)) {
-    JVMFlag::printError(verbose,
-                        "ConcGCThreads (" UINT32_FORMAT ") must be "
-                        "less than or equal to ParallelGCThreads (" UINT32_FORMAT ")\n",
-                        value, ParallelGCThreads);
-    return JVMFlag::VIOLATES_CONSTRAINT;
-  }
-
-  return JVMFlag::SUCCESS;
-}
-
 static JVMFlag::Error MinPLABSizeBounds(const char* name, size_t value, bool verbose) {
-  if ((GCConfig::is_gc_selected(CollectedHeap::CMS) ||
-       GCConfig::is_gc_selected(CollectedHeap::G1)  ||
-       GCConfig::is_gc_selected(CollectedHeap::Parallel)) && (value < PLAB::min_size())) {
+  if ((GCConfig::is_gc_selected(CollectedHeap::G1) || GCConfig::is_gc_selected(CollectedHeap::Parallel)) &&
+      (value < PLAB::min_size())) {
     JVMFlag::printError(verbose,
                         "%s (" SIZE_FORMAT ") must be "
                         "greater than or equal to ergonomic PLAB minimum size (" SIZE_FORMAT ")\n",
@@ -111,8 +67,7 @@ static JVMFlag::Error MinPLABSizeBounds(const char* name, size_t value, bool ver
 }
 
 JVMFlag::Error MaxPLABSizeBounds(const char* name, size_t value, bool verbose) {
-  if ((GCConfig::is_gc_selected(CollectedHeap::CMS) ||
-       GCConfig::is_gc_selected(CollectedHeap::G1)  ||
+  if ((GCConfig::is_gc_selected(CollectedHeap::G1) ||
        GCConfig::is_gc_selected(CollectedHeap::Parallel)) && (value > PLAB::max_size())) {
     JVMFlag::printError(verbose,
                         "%s (" SIZE_FORMAT ") must be "
@@ -138,18 +93,7 @@ JVMFlag::Error YoungPLABSizeConstraintFunc(size_t value, bool verbose) {
 }
 
 JVMFlag::Error OldPLABSizeConstraintFunc(size_t value, bool verbose) {
-  JVMFlag::Error status = JVMFlag::SUCCESS;
-
-#if INCLUDE_CMSGC
-  if (UseConcMarkSweepGC) {
-    return OldPLABSizeConstraintFuncCMS(value, verbose);
-  } else
-#endif
-  {
-    status = MinMaxPLABSizeBounds("OldPLABSize", value, verbose);
-  }
-
-  return status;
+  return MinMaxPLABSizeBounds("OldPLABSize", value, verbose);
 }
 
 JVMFlag::Error MinHeapFreeRatioConstraintFunc(uintx value, bool verbose) {
@@ -194,6 +138,7 @@ JVMFlag::Error SoftRefLRUPolicyMSPerMBConstraintFunc(intx value, bool verbose) {
 }
 
 JVMFlag::Error MarkStackSizeConstraintFunc(size_t value, bool verbose) {
+  // value == 0 is handled by the range constraint.
   if (value > MarkStackSizeMax) {
     JVMFlag::printError(verbose,
                         "MarkStackSize (" SIZE_FORMAT ") must be "
@@ -205,11 +150,11 @@ JVMFlag::Error MarkStackSizeConstraintFunc(size_t value, bool verbose) {
   }
 }
 
-JVMFlag::Error MinMetaspaceFreeRatioConstraintFunc(uintx value, bool verbose) {
+JVMFlag::Error MinMetaspaceFreeRatioConstraintFunc(uint value, bool verbose) {
   if (value > MaxMetaspaceFreeRatio) {
     JVMFlag::printError(verbose,
-                        "MinMetaspaceFreeRatio (" UINTX_FORMAT ") must be "
-                        "less than or equal to MaxMetaspaceFreeRatio (" UINTX_FORMAT ")\n",
+                        "MinMetaspaceFreeRatio (%u) must be "
+                        "less than or equal to MaxMetaspaceFreeRatio (%u)\n",
                         value, MaxMetaspaceFreeRatio);
     return JVMFlag::VIOLATES_CONSTRAINT;
   } else {
@@ -217,11 +162,11 @@ JVMFlag::Error MinMetaspaceFreeRatioConstraintFunc(uintx value, bool verbose) {
   }
 }
 
-JVMFlag::Error MaxMetaspaceFreeRatioConstraintFunc(uintx value, bool verbose) {
+JVMFlag::Error MaxMetaspaceFreeRatioConstraintFunc(uint value, bool verbose) {
   if (value < MinMetaspaceFreeRatio) {
     JVMFlag::printError(verbose,
-                        "MaxMetaspaceFreeRatio (" UINTX_FORMAT ") must be "
-                        "greater than or equal to MinMetaspaceFreeRatio (" UINTX_FORMAT ")\n",
+                        "MaxMetaspaceFreeRatio (%u) must be "
+                        "greater than or equal to MinMetaspaceFreeRatio (%u)\n",
                         value, MinMetaspaceFreeRatio);
     return JVMFlag::VIOLATES_CONSTRAINT;
   } else {
@@ -229,7 +174,7 @@ JVMFlag::Error MaxMetaspaceFreeRatioConstraintFunc(uintx value, bool verbose) {
   }
 }
 
-JVMFlag::Error InitialTenuringThresholdConstraintFunc(uintx value, bool verbose) {
+JVMFlag::Error InitialTenuringThresholdConstraintFunc(uint value, bool verbose) {
 #if INCLUDE_PARALLELGC
   JVMFlag::Error status = InitialTenuringThresholdConstraintFuncParallel(value, verbose);
   if (status != JVMFlag::SUCCESS) {
@@ -240,7 +185,7 @@ JVMFlag::Error InitialTenuringThresholdConstraintFunc(uintx value, bool verbose)
   return JVMFlag::SUCCESS;
 }
 
-JVMFlag::Error MaxTenuringThresholdConstraintFunc(uintx value, bool verbose) {
+JVMFlag::Error MaxTenuringThresholdConstraintFunc(uint value, bool verbose) {
 #if INCLUDE_PARALLELGC
   JVMFlag::Error status = MaxTenuringThresholdConstraintFuncParallel(value, verbose);
   if (status != JVMFlag::SUCCESS) {
@@ -283,18 +228,6 @@ JVMFlag::Error GCPauseIntervalMillisConstraintFunc(uintx value, bool verbose) {
   return JVMFlag::SUCCESS;
 }
 
-JVMFlag::Error InitialBootClassLoaderMetaspaceSizeConstraintFunc(size_t value, bool verbose) {
-  size_t aligned_max = align_down(max_uintx/2, Metaspace::reserve_alignment_words());
-  if (value > aligned_max) {
-    JVMFlag::printError(verbose,
-                        "InitialBootClassLoaderMetaspaceSize (" SIZE_FORMAT ") must be "
-                        "less than or equal to aligned maximum value (" SIZE_FORMAT ")\n",
-                        value, aligned_max);
-    return JVMFlag::VIOLATES_CONSTRAINT;
-  }
-  return JVMFlag::SUCCESS;
-}
-
 // To avoid an overflow by 'align_up(value, alignment)'.
 static JVMFlag::Error MaxSizeForAlignment(const char* name, size_t value, size_t alignment, bool verbose) {
   size_t aligned_max = ((max_uintx - alignment) & ~(alignment-1));
@@ -313,15 +246,19 @@ static JVMFlag::Error MaxSizeForHeapAlignment(const char* name, size_t value, bo
 
 #if INCLUDE_G1GC
   if (UseG1GC) {
-    // For G1 GC, we don't know until G1CollectorPolicy is created.
+    // For G1 GC, we don't know until G1CollectedHeap is created.
     heap_alignment = MaxSizeForHeapAlignmentG1();
   } else
 #endif
   {
-    heap_alignment = CollectorPolicy::compute_heap_alignment();
+    heap_alignment = GCArguments::compute_heap_alignment();
   }
 
   return MaxSizeForAlignment(name, value, heap_alignment, verbose);
+}
+
+JVMFlag::Error MinHeapSizeConstraintFunc(size_t value, bool verbose) {
+  return MaxSizeForHeapAlignment("MinHeapSize", value, verbose);
 }
 
 JVMFlag::Error InitialHeapSizeConstraintFunc(size_t value, bool verbose) {
@@ -335,6 +272,15 @@ JVMFlag::Error MaxHeapSizeConstraintFunc(size_t value, bool verbose) {
     status = CheckMaxHeapSizeAndSoftRefLRUPolicyMSPerMB(value, SoftRefLRUPolicyMSPerMB, verbose);
   }
   return status;
+}
+
+JVMFlag::Error SoftMaxHeapSizeConstraintFunc(size_t value, bool verbose) {
+  if (value > MaxHeapSize) {
+    JVMFlag::printError(verbose, "SoftMaxHeapSize must be less than or equal to the maximum heap size\n");
+    return JVMFlag::VIOLATES_CONSTRAINT;
+  }
+
+  return JVMFlag::SUCCESS;
 }
 
 JVMFlag::Error HeapBaseMinAddressConstraintFunc(size_t value, bool verbose) {
@@ -422,12 +368,12 @@ JVMFlag::Error TLABWasteIncrementConstraintFunc(uintx value, bool verbose) {
 
 JVMFlag::Error SurvivorRatioConstraintFunc(uintx value, bool verbose) {
   if (FLAG_IS_CMDLINE(SurvivorRatio) &&
-      (value > (MaxHeapSize / Universe::heap()->collector_policy()->space_alignment()))) {
+      (value > (MaxHeapSize / SpaceAlignment))) {
     JVMFlag::printError(verbose,
                         "SurvivorRatio (" UINTX_FORMAT ") must be "
                         "less than or equal to ergonomic SurvivorRatio maximum (" SIZE_FORMAT ")\n",
                         value,
-                        (MaxHeapSize / Universe::heap()->collector_policy()->space_alignment()));
+                        (MaxHeapSize / SpaceAlignment));
     return JVMFlag::VIOLATES_CONSTRAINT;
   } else {
     return JVMFlag::SUCCESS;
@@ -458,22 +404,14 @@ JVMFlag::Error MaxMetaspaceSizeConstraintFunc(size_t value, bool verbose) {
   }
 }
 
-JVMFlag::Error SurvivorAlignmentInBytesConstraintFunc(intx value, bool verbose) {
-  if (value != 0) {
-    if (!is_power_of_2(value)) {
-      JVMFlag::printError(verbose,
-                          "SurvivorAlignmentInBytes (" INTX_FORMAT ") must be "
-                          "power of 2\n",
-                          value);
-      return JVMFlag::VIOLATES_CONSTRAINT;
-    }
-    if (value < ObjectAlignmentInBytes) {
-      JVMFlag::printError(verbose,
-                          "SurvivorAlignmentInBytes (" INTX_FORMAT ") must be "
-                          "greater than or equal to ObjectAlignmentInBytes (" INTX_FORMAT ")\n",
-                          value, ObjectAlignmentInBytes);
-      return JVMFlag::VIOLATES_CONSTRAINT;
-    }
+JVMFlag::Error GCCardSizeInBytesConstraintFunc(uint value, bool verbose) {
+  if (!is_power_of_2(value)) {
+    JVMFlag::printError(verbose,
+                        "GCCardSizeInBytes ( %u ) must be "
+                        "a power of 2\n",
+                        value);
+    return JVMFlag::VIOLATES_CONSTRAINT;
+  } else {
+    return JVMFlag::SUCCESS;
   }
-  return JVMFlag::SUCCESS;
 }

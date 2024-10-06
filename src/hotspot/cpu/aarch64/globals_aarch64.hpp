@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2015, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
-#define CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
+#ifndef CPU_AARCH64_GLOBALS_AARCH64_HPP
+#define CPU_AARCH64_GLOBALS_AARCH64_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -32,17 +32,15 @@
 // Sets the default values for platform dependent flags used by the runtime system.
 // (see globals.hpp)
 
-define_pd_global(bool, ShareVtableStubs,         true);
-define_pd_global(bool, NeedsDeoptSuspend,        false); // only register window machines need this
-
 define_pd_global(bool, ImplicitNullChecks,       true);  // Generate code for implicit null checks
-define_pd_global(bool, TrapBasedNullChecks,  false);
-define_pd_global(bool, UncommonNullCast,         true);  // Uncommon-trap NULLs past to check cast
+define_pd_global(bool, TrapBasedNullChecks,     false);
+define_pd_global(bool, UncommonNullCast,         true);  // Uncommon-trap nulls past to check cast
 
-define_pd_global(uintx, CodeCacheSegmentSize,    64 TIERED_ONLY(+64)); // Tiered compilation has large code-entry alignment.
+define_pd_global(bool, DelayCompilerStubsGeneration, COMPILER2_OR_JVMCI);
+
+define_pd_global(uintx, CodeCacheSegmentSize,    64 COMPILER1_AND_COMPILER2_PRESENT(+64)); // Tiered compilation has large code-entry alignment.
 define_pd_global(intx, CodeEntryAlignment,       64);
 define_pd_global(intx, OptoLoopAlignment,        16);
-define_pd_global(intx, InlineFrequencyCount,     100);
 
 #define DEFAULT_STACK_YELLOW_PAGES (2)
 #define DEFAULT_STACK_RED_PAGES (1)
@@ -57,6 +55,8 @@ define_pd_global(intx, InlineFrequencyCount,     100);
 #define MIN_STACK_SHADOW_PAGES DEFAULT_STACK_SHADOW_PAGES
 #define MIN_STACK_RESERVED_PAGES (0)
 
+define_pd_global(bool, VMContinuations, true);
+
 define_pd_global(intx, StackYellowPages, DEFAULT_STACK_YELLOW_PAGES);
 define_pd_global(intx, StackRedPages, DEFAULT_STACK_RED_PAGES);
 define_pd_global(intx, StackShadowPages, DEFAULT_STACK_SHADOW_PAGES);
@@ -65,12 +65,7 @@ define_pd_global(intx, StackReservedPages, DEFAULT_STACK_RESERVED_PAGES);
 define_pd_global(bool, RewriteBytecodes,     true);
 define_pd_global(bool, RewriteFrequentPairs, true);
 
-define_pd_global(bool, UseMembar,            true);
-
 define_pd_global(bool, PreserveFramePointer, false);
-
-// GC Ergo Flags
-define_pd_global(uintx, CMSYoungGenPerWorker, 64*M);  // default max size of CMS young gen, per GC worker thread
 
 define_pd_global(uintx, TypeProfileLevel, 111);
 
@@ -79,93 +74,59 @@ define_pd_global(bool, CompactStrings, true);
 // Clear short arrays bigger than one word in an arch-specific way
 define_pd_global(intx, InitArrayShortSize, BytesPerLong);
 
-define_pd_global(bool, ThreadLocalHandshakes, true);
-
 #if defined(COMPILER1) || defined(COMPILER2)
 define_pd_global(intx, InlineSmallCode,          1000);
 #endif
 
-#ifdef BUILTIN_SIM
-#define UseBuiltinSim           true
-#define ARCH_FLAGS(develop, \
-                   product, \
-                   diagnostic, \
-                   experimental, \
-                   notproduct, \
-                   range, \
-                   constraint, \
-                   writeable) \
-                                                                        \
-  product(bool, NotifySimulator, UseBuiltinSim,                         \
-         "tell the AArch64 sim where we are in method code")            \
-                                                                        \
-  product(bool, UseSimulatorCache, false,                               \
-         "tell sim to cache memory updates until exclusive op occurs")  \
-                                                                        \
-  product(bool, DisableBCCheck, true,                                   \
-          "tell sim not to invoke bccheck callback")                    \
+#define ARCH_FLAGS(develop,                                             \
+                   product,                                             \
+                   range,                                               \
+                   constraint)                                          \
                                                                         \
   product(bool, NearCpool, true,                                        \
          "constant pool is close to instructions")                      \
-                                                                        \
-  product(bool, UseBarriersForVolatile, false,                          \
-          "Use memory barriers to implement volatile accesses")         \
-                                                                        \
   product(bool, UseCRC32, false,                                        \
           "Use CRC32 instructions for CRC32 computation")               \
-                                                                        \
-  product(bool, UseLSE, false,                                          \
-          "Use LSE instructions")                                       \
-
-// Don't attempt to use Neon on builtin sim until builtin sim supports it
-#define UseCRC32 false
-#define UseSIMDForMemoryOps    false
-#define AvoidUnalignedAcesses false
-
-#else
-#define UseBuiltinSim           false
-#define NotifySimulator         false
-#define UseSimulatorCache       false
-#define DisableBCCheck          true
-#define ARCH_FLAGS(develop, \
-                   product, \
-                   diagnostic, \
-                   experimental, \
-                   notproduct, \
-                   range, \
-                   constraint, \
-                   writeable) \
-                                                                        \
-  product(bool, NearCpool, true,                                        \
-         "constant pool is close to instructions")                      \
-                                                                        \
-  product(bool, UseBarriersForVolatile, false,                          \
-          "Use memory barriers to implement volatile accesses")         \
-  product(bool, UseNeon, false,                                         \
-          "Use Neon for CRC32 computation")                             \
-  product(bool, UseCRC32, false,                                        \
-          "Use CRC32 instructions for CRC32 computation")               \
+  product(bool, UseCryptoPmullForCRC32, false,                          \
+          "Use Crypto PMULL instructions for CRC32 computation")        \
   product(bool, UseSIMDForMemoryOps, false,                             \
           "Use SIMD instructions in generated memory move code")        \
   product(bool, UseSIMDForArrayEquals, true,                            \
           "Use SIMD instructions in generated array equals code")       \
   product(bool, UseSimpleArrayEquals, false,                            \
-          "Use simpliest and shortest implementation for array equals") \
+          "Use simplest and shortest implementation for array equals")  \
+  product(bool, UseSIMDForBigIntegerShiftIntrinsics, true,              \
+          "Use SIMD instructions for left/right shift of BigInteger")   \
   product(bool, AvoidUnalignedAccesses, false,                          \
           "Avoid generating unaligned memory accesses")                 \
   product(bool, UseLSE, false,                                          \
           "Use LSE instructions")                                       \
+  product(uint, UseSVE, 0,                                              \
+          "Highest supported SVE instruction set version")              \
+          range(0, 2)                                                   \
   product(bool, UseBlockZeroing, true,                                  \
           "Use DC ZVA for block zeroing")                               \
   product(intx, BlockZeroingLowLimit, 256,                              \
           "Minimum size in bytes when block zeroing will be used")      \
-          range(1, max_jint)                                            \
+          range(wordSize, max_jint)                                     \
   product(bool, TraceTraps, false, "Trace all traps the signal handler")\
   product(int, SoftwarePrefetchHintDistance, -1,                        \
           "Use prfm hint with specified distance in compiled code."     \
           "Value -1 means off.")                                        \
-          range(-1, 4096)
-#endif
+          range(-1, 4096)                                               \
+  product(ccstr, OnSpinWaitInst, "yield", DIAGNOSTIC,                   \
+          "The instruction to use to implement "                        \
+          "java.lang.Thread.onSpinWait()."                              \
+          "Options: none, nop, isb, yield.")                            \
+  product(uint, OnSpinWaitInstCount, 1, DIAGNOSTIC,                     \
+          "The number of OnSpinWaitInst instructions to generate."      \
+          "It cannot be used with OnSpinWaitInst=none.")                \
+          range(1, 99)                                                  \
+  product(ccstr, UseBranchProtection, "none",                           \
+          "Branch Protection to use: none, standard, pac-ret")          \
+  product(bool, AlwaysMergeDMB, true, DIAGNOSTIC,                       \
+          "Always merge DMB instructions in code emission")             \
 
+// end of ARCH_FLAGS
 
-#endif // CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
+#endif // CPU_AARCH64_GLOBALS_AARCH64_HPP

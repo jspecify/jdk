@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_JAVAFRAMEANCHOR_ZERO_HPP
-#define CPU_ZERO_VM_JAVAFRAMEANCHOR_ZERO_HPP
+#ifndef CPU_ZERO_JAVAFRAMEANCHOR_ZERO_HPP
+#define CPU_ZERO_JAVAFRAMEANCHOR_ZERO_HPP
 
  private:
   ZeroFrame* volatile _last_Java_fp;
@@ -35,15 +35,15 @@
   //  1 - initializing a new state (thread creation, javaCalls)
   //  2 - saving a current state (javaCalls)
   //  3 - restoring an old state (javaCalls)
-  // Note that whenever _last_Java_sp != NULL other anchor fields
+  // Note that whenever _last_Java_sp != null other anchor fields
   // must be valid.  The profiler apparently depends on this.
 
   void clear() {
     // clearing _last_Java_sp must be first
-    _last_Java_sp = NULL;
+    _last_Java_sp = nullptr;
     // fence?
-    _last_Java_fp = NULL;
-    _last_Java_pc = NULL;
+    _last_Java_fp = nullptr;
+    _last_Java_pc = nullptr;
   }
 
   void copy(JavaFrameAnchor* src) {
@@ -56,11 +56,11 @@
     // data
     //
     // Hack Alert: Temporary bugfix for 4717480/4721647 To act like
-    // previous version (pd_cache_state) don't NULL _last_Java_sp
+    // previous version (pd_cache_state) don't null _last_Java_sp
     // unless the value is changing
     //
     if (_last_Java_sp != sp)
-      _last_Java_sp = NULL;
+      _last_Java_sp = nullptr;
 
     _last_Java_fp = fp;
     _last_Java_pc = pc;
@@ -73,7 +73,7 @@
     return true;
   }
 
-  void make_walkable(JavaThread* thread) {
+  void make_walkable() {
     // nothing to do
   }
 
@@ -93,4 +93,6 @@
     return byte_offset_of(JavaFrameAnchor, _last_Java_fp);
   }
 
-#endif // CPU_ZERO_VM_JAVAFRAMEANCHOR_ZERO_HPP
+  void set_last_Java_sp(intptr_t* sp)   { _last_Java_sp = sp; }
+
+#endif // CPU_ZERO_JAVAFRAMEANCHOR_ZERO_HPP

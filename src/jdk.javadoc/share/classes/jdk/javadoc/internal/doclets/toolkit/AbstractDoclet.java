@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package jdk.javadoc.internal.doclets.toolkit;
 
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.function.Function;
 
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.PackageElement;
@@ -34,10 +35,6 @@ import javax.lang.model.element.TypeElement;
 
 import jdk.javadoc.doclet.Doclet;
 import jdk.javadoc.doclet.DocletEnvironment;
-import jdk.javadoc.doclet.StandardDoclet;
-import jdk.javadoc.internal.doclets.formats.html.HtmlDoclet;
-import jdk.javadoc.internal.doclets.toolkit.builders.AbstractBuilder;
-import jdk.javadoc.internal.doclets.toolkit.builders.BuilderFactory;
 import jdk.javadoc.internal.doclets.toolkit.util.ClassTree;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
 import jdk.javadoc.internal.doclets.toolkit.util.UncheckedDocletException;
@@ -51,13 +48,6 @@ import static javax.tools.Diagnostic.Kind.*;
 
 /**
  * An abstract implementation of a Doclet.
- *
- *  <p><b>This is NOT part of any supported API.
- *  If you write code that depends on this, you do so at your own risk.
- *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
- *
- * @author Jamie Ho
  */
 public abstract class AbstractDoclet implements Doclet {
 
@@ -74,25 +64,6 @@ public abstract class AbstractDoclet implements Doclet {
     protected Utils utils;
 
     /**
-     * The only doclet that may use this toolkit is {@value}
-     */
-    private static final String TOOLKIT_DOCLET_NAME =
-        jdk.javadoc.internal.doclets.formats.html.HtmlDoclet.class.getName();
-
-    /**
-     * Verify that the only doclet that is using this toolkit is
-     * #TOOLKIT_DOCLET_NAME.
-     */
-    private boolean isValidDoclet() {
-        if (!getClass().getName().equals(TOOLKIT_DOCLET_NAME)) {
-            messages.error("doclet.Toolkit_Usage_Violation",
-                TOOLKIT_DOCLET_NAME);
-            return false;
-        }
-        return true;
-    }
-
-    /**
      * The method that starts the execution of the doclet.
      *
      * @param docEnv   the {@link DocletEnvironment}.
@@ -101,17 +72,14 @@ public abstract class AbstractDoclet implements Doclet {
     @Override
     public boolean run(DocletEnvironment docEnv) {
         configuration = getConfiguration();
-        configuration.initConfiguration(docEnv);
+        configuration.initConfiguration(docEnv, getResourceKeyMapper(docEnv));
         utils = configuration.utils;
         messages = configuration.getMessages();
-
-        if (!isValidDoclet()) {
-            return false;
-        }
+        BaseOptions options = configuration.getOptions();
 
         try {
             try {
-                startGeneration(docEnv);
+                generateFiles();
                 return true;
             } catch (UncheckedDocletException e) {
                 throw (DocletException) e.getCause();
@@ -127,16 +95,16 @@ public abstract class AbstractDoclet implements Doclet {
                     messages.error("doclet.exception.write.file",
                             e.fileName.getPath(), e.getCause());
             }
-            dumpStack(configuration.dumpOnError, e);
+            dumpStack(options.dumpOnError(), e);
 
         } catch (ResourceIOException e) {
             messages.error("doclet.exception.read.resource",
                     e.resource.getPath(), e.getCause());
-            dumpStack(configuration.dumpOnError, e);
+            dumpStack(options.dumpOnError(), e);
 
         } catch (SimpleDocletException e) {
             configuration.reporter.print(ERROR, e.getMessage());
-            dumpStack(configuration.dumpOnError, e);
+            dumpStack(options.dumpOnError(), e);
 
         } catch (InternalException e) {
             configuration.reporter.print(ERROR, e.getMessage());
@@ -150,9 +118,13 @@ public abstract class AbstractDoclet implements Doclet {
         return false;
     }
 
+    protected Function<String, String> getResourceKeyMapper(DocletEnvironment docEnv) {
+        return null;
+    }
+
     private void reportInternalError(Throwable t) {
-        if (getClass().equals(StandardDoclet.class) || getClass().equals(HtmlDoclet.class)) {
-            System.err.println(configuration.getResources().getText("doclet.internal.report.bug"));
+        if (getClass().getModule() == AbstractDoclet.class.getModule()) {
+            System.err.println(configuration.getDocResources().getText("doclet.internal.report.bug"));
         }
         dumpStack(true, t);
     }
@@ -188,7 +160,7 @@ public abstract class AbstractDoclet implements Doclet {
      *
      * @throws DocletException if there is a problem while generating the documentation
      */
-    private void startGeneration(DocletEnvironment docEnv) throws DocletException {
+    protected void generateFiles() throws DocletException {
 
         // Modules with no documented classes may be specified on the
         // command line to specify a service provider, allow these.
@@ -202,33 +174,24 @@ public abstract class AbstractDoclet implements Doclet {
         }
         messages.notice("doclet.build_version",
             configuration.getDocletVersion());
-        ClassTree classtree = new ClassTree(configuration, configuration.nodeprecated);
+        ClassTree classTree = new ClassTree(configuration);
 
-        generateClassFiles(docEnv, classtree);
+        generateClassFiles(classTree);
 
         ElementListWriter.generate(configuration);
-        generatePackageFiles(classtree);
+        generatePackageFiles(classTree);
         generateModuleFiles();
 
-        generateOtherFiles(docEnv, classtree);
-        configuration.tagletManager.printReport();
+        generateOtherFiles(classTree);
     }
 
     /**
      * Generate additional documentation that is added to the API documentation.
      *
-     * @param docEnv     the DocletEnvironment
-     * @param classtree the data structure representing the class tree
+     * @param classTree the data structure representing the class tree
      * @throws DocletException if there is a problem while generating the documentation
      */
-    protected void generateOtherFiles(DocletEnvironment docEnv, ClassTree classtree)
-            throws DocletException {
-        BuilderFactory builderFactory = configuration.getBuilderFactory();
-        AbstractBuilder constantsSummaryBuilder = builderFactory.getConstantsSummaryBuilder();
-        constantsSummaryBuilder.build();
-        AbstractBuilder serializedFormBuilder = builderFactory.getSerializedFormBuilder();
-        serializedFormBuilder.build();
-    }
+    protected void generateOtherFiles(ClassTree classTree) throws DocletException { }
 
     /**
      * Generate the module documentation.
@@ -241,49 +204,45 @@ public abstract class AbstractDoclet implements Doclet {
     /**
      * Generate the package documentation.
      *
-     * @param classtree the data structure representing the class tree
+     * @param classTree the data structure representing the class tree
      * @throws DocletException if there is a problem while generating the documentation
      */
-    protected abstract void generatePackageFiles(ClassTree classtree) throws DocletException;
+    protected abstract void generatePackageFiles(ClassTree classTree) throws DocletException;
 
     /**
      * Generate the class documentation.
      *
      * @param arr the set of types to be documented
-     * @param classtree the data structure representing the class tree
+     * @param classTree the data structure representing the class tree
      * @throws DocletException if there is a problem while generating the documentation
      */
-    protected abstract void generateClassFiles(SortedSet<TypeElement> arr, ClassTree classtree)
+    protected abstract void generateClassFiles(SortedSet<TypeElement> arr, ClassTree classTree)
             throws DocletException;
 
     /**
      * Iterate through all classes and construct documentation for them.
      *
-     * @param docEnv      the DocletEnvironment
-     * @param classtree the data structure representing the class tree
+     * @param classTree the data structure representing the class tree
      * @throws DocletException if there is a problem while generating the documentation
      */
-    protected void generateClassFiles(DocletEnvironment docEnv, ClassTree classtree)
+    protected void generateClassFiles(ClassTree classTree)
             throws DocletException {
-        generateClassFiles(classtree);
-        SortedSet<PackageElement> packages = new TreeSet<>(utils.makePackageComparator());
+
+        SortedSet<TypeElement> classes = new TreeSet<>(utils.comparators.generalPurposeComparator());
+
+        // handle classes specified as files on the command line
+        for (PackageElement pkg : configuration.typeElementCatalog.packages()) {
+            classes.addAll(configuration.typeElementCatalog.allClasses(pkg));
+        }
+
+        // handle classes specified in modules and packages on the command line
+        SortedSet<PackageElement> packages = new TreeSet<>(utils.comparators.packageComparator());
         packages.addAll(configuration.getSpecifiedPackageElements());
         configuration.modulePackages.values().stream().forEach(packages::addAll);
         for (PackageElement pkg : packages) {
-            generateClassFiles(utils.getAllClasses(pkg), classtree);
+            classes.addAll(utils.getAllClasses(pkg));
         }
-    }
 
-    /**
-     * Generate the class files for single classes specified on the command line.
-     *
-     * @param classtree the data structure representing the class tree
-     * @throws DocletException if there is a problem while generating the documentation
-     */
-    private void generateClassFiles(ClassTree classtree) throws DocletException {
-        SortedSet<PackageElement> packages = configuration.typeElementCatalog.packages();
-        for (PackageElement pkg : packages) {
-            generateClassFiles(configuration.typeElementCatalog.allClasses(pkg), classtree);
-        }
+        generateClassFiles(classes, classTree);
     }
 }

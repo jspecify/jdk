@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import sun.security.x509.NetscapeCertTypeExtension;
 import sun.security.util.DerValue;
 import sun.security.util.DerInputStream;
 import sun.security.util.ObjectIdentifier;
+import sun.security.util.KnownOIDs;
 
 import sun.security.provider.certpath.AlgorithmChecker;
 import sun.security.provider.certpath.UntrustedChecker;
@@ -60,24 +61,28 @@ public final class SimpleValidator extends Validator {
 
     // Constants for the OIDs we need
 
-    static final String OID_BASIC_CONSTRAINTS = "2.5.29.19";
+    static final String OID_BASIC_CONSTRAINTS =
+            KnownOIDs.BasicConstraints.value();
 
-    static final String OID_NETSCAPE_CERT_TYPE = "2.16.840.1.113730.1.1";
+    static final String OID_NETSCAPE_CERT_TYPE =
+            KnownOIDs.NETSCAPE_CertType.value();
 
-    static final String OID_KEY_USAGE = "2.5.29.15";
+    static final String OID_KEY_USAGE = KnownOIDs.KeyUsage.value();
 
-    static final String OID_EXTENDED_KEY_USAGE = "2.5.29.37";
+    static final String OID_EXTENDED_KEY_USAGE =
+            KnownOIDs.extendedKeyUsage.value();
 
-    static final String OID_EKU_ANY_USAGE = "2.5.29.37.0";
+    static final String OID_EKU_ANY_USAGE =
+            KnownOIDs.anyExtendedKeyUsage.value();
 
     static final ObjectIdentifier OBJID_NETSCAPE_CERT_TYPE =
-        NetscapeCertTypeExtension.NetscapeCertType_Id;
+            NetscapeCertTypeExtension.NetscapeCertType_Id;
 
     private static final String NSCT_SSL_CA =
-                                NetscapeCertTypeExtension.SSL_CA;
+            NetscapeCertTypeExtension.SSL_CA;
 
     private static final String NSCT_CODE_SIGNING_CA =
-                                NetscapeCertTypeExtension.OBJECT_SIGNING_CA;
+            NetscapeCertTypeExtension.OBJECT_SIGNING_CA;
 
     /**
      * The trusted certificates as:
@@ -98,13 +103,13 @@ public final class SimpleValidator extends Validator {
         super(TYPE_SIMPLE, variant);
         this.trustedCerts = trustedCerts;
         trustedX500Principals =
-                        new HashMap<X500Principal, List<X509Certificate>>();
+                new HashMap<>();
         for (X509Certificate cert : trustedCerts) {
             X500Principal principal = cert.getSubjectX500Principal();
             List<X509Certificate> list = trustedX500Principals.get(principal);
             if (list == null) {
                 // this actually should be a set, but duplicate entries
-                // are not a problem and we can avoid the Set overhead
+                // are not a problem, and we can avoid the Set overhead
                 list = new ArrayList<X509Certificate>(2);
                 trustedX500Principals.put(principal, list);
             }
@@ -162,7 +167,7 @@ public final class SimpleValidator extends Validator {
         AlgorithmChecker appAlgChecker = null;
         if (constraints != null) {
             appAlgChecker = new AlgorithmChecker(anchor, constraints, null,
-                    null, variant);
+                    variant);
         }
 
         // verify top down, starting at the certificate issued by
@@ -176,7 +181,7 @@ public final class SimpleValidator extends Validator {
             try {
                 // Untrusted checker does not care about the unresolved
                 // critical extensions.
-                untrustedChecker.check(cert, Collections.<String>emptySet());
+                untrustedChecker.check(cert, Collections.emptySet());
             } catch (CertPathValidatorException cpve) {
                 throw new ValidatorException(
                     "Untrusted certificate: " + cert.getSubjectX500Principal(),
@@ -187,9 +192,9 @@ public final class SimpleValidator extends Validator {
             try {
                 // Algorithm checker does not care about the unresolved
                 // critical extensions.
-                defaultAlgChecker.check(cert, Collections.<String>emptySet());
+                defaultAlgChecker.check(cert, Collections.emptySet());
                 if (appAlgChecker != null) {
-                    appAlgChecker.check(cert, Collections.<String>emptySet());
+                    appAlgChecker.check(cert, Collections.emptySet());
                 }
             } catch (CertPathValidatorException cpve) {
                 throw new ValidatorException
@@ -197,14 +202,14 @@ public final class SimpleValidator extends Validator {
             }
 
             // no validity check for code signing certs
-            if ((variant.equals(VAR_CODE_SIGNING) == false)
-                        && (variant.equals(VAR_JCE_SIGNING) == false)) {
+            if ((!variant.equals(VAR_CODE_SIGNING))
+                        && (!variant.equals(VAR_JCE_SIGNING))) {
                 cert.checkValidity(date);
             }
 
             // check name chaining
-            if (cert.getIssuerX500Principal().equals(
-                        issuerCert.getSubjectX500Principal()) == false) {
+            if (!cert.getIssuerX500Principal().equals(
+                    issuerCert.getSubjectX500Principal())) {
                 throw new ValidatorException
                         (ValidatorException.T_NAME_CHAINING, cert);
             }
@@ -230,7 +235,7 @@ public final class SimpleValidator extends Validator {
             throws CertificateException {
         Set<String> critSet = cert.getCriticalExtensionOIDs();
         if (critSet == null) {
-            critSet = Collections.<String>emptySet();
+            critSet = Collections.emptySet();
         }
 
         // Check the basic constraints extension
@@ -258,7 +263,7 @@ public final class SimpleValidator extends Validator {
             // nothing
         } else if (variant.equals(VAR_TLS_CLIENT)
                 || variant.equals(VAR_TLS_SERVER)) {
-            if (getNetscapeCertTypeBit(cert, NSCT_SSL_CA) == false) {
+            if (!getNetscapeCertTypeBit(cert, NSCT_SSL_CA)) {
                 throw new ValidatorException
                         ("Invalid Netscape CertType extension for SSL CA "
                         + "certificate",
@@ -267,7 +272,7 @@ public final class SimpleValidator extends Validator {
             critSet.remove(OID_NETSCAPE_CERT_TYPE);
         } else if (variant.equals(VAR_CODE_SIGNING)
                 || variant.equals(VAR_JCE_SIGNING)) {
-            if (getNetscapeCertTypeBit(cert, NSCT_CODE_SIGNING_CA) == false) {
+            if (!getNetscapeCertTypeBit(cert, NSCT_CODE_SIGNING_CA)) {
                 throw new ValidatorException
                         ("Invalid Netscape CertType extension for code "
                         + "signing CA certificate",
@@ -286,10 +291,9 @@ public final class SimpleValidator extends Validator {
     static boolean getNetscapeCertTypeBit(X509Certificate cert, String type) {
         try {
             NetscapeCertTypeExtension ext;
-            if (cert instanceof X509CertImpl) {
-                X509CertImpl certImpl = (X509CertImpl)cert;
-                ObjectIdentifier oid = OBJID_NETSCAPE_CERT_TYPE;
-                ext = (NetscapeCertTypeExtension)certImpl.getExtension(oid);
+            if (cert instanceof X509CertImpl certImpl) {
+                ext = (NetscapeCertTypeExtension)certImpl.
+                        getExtension(OBJID_NETSCAPE_CERT_TYPE);
                 if (ext == null) {
                     return true;
                 }
@@ -304,8 +308,7 @@ public final class SimpleValidator extends Validator {
                                                                 .toByteArray();
                 ext = new NetscapeCertTypeExtension(encoded);
             }
-            Boolean val = ext.get(type);
-            return val.booleanValue();
+            return ext.get(type);
         } catch (IOException e) {
             return false;
         }
@@ -355,7 +358,7 @@ public final class SimpleValidator extends Validator {
         boolean[] keyUsageInfo = cert.getKeyUsage();
         if (keyUsageInfo != null) {
             // keyUsageInfo[5] is for keyCertSign.
-            if ((keyUsageInfo.length < 6) || (keyUsageInfo[5] == false)) {
+            if ((keyUsageInfo.length < 6) || (!keyUsageInfo[5])) {
                 throw new ValidatorException
                         ("Wrong key usage: expected keyCertSign",
                         ValidatorException.T_CA_EXTENSIONS, cert);
@@ -370,7 +373,7 @@ public final class SimpleValidator extends Validator {
      */
     private X509Certificate[] buildTrustedChain(X509Certificate[] chain)
             throws CertificateException {
-        List<X509Certificate> c = new ArrayList<X509Certificate>(chain.length);
+        List<X509Certificate> c = new ArrayList<>(chain.length);
         // scan chain starting at EE cert
         // if a trusted certificate is found, append it and return
         for (int i = 0; i < chain.length; i++) {
@@ -394,7 +397,7 @@ public final class SimpleValidator extends Validator {
             KeyIdentifier akid = certImpl.getAuthKeyId();
             if (akid != null) {
                 for (X509Certificate sup : list) {
-                    // Look for a best match issuer.
+                    // Look for the best match issuer.
                     X509CertImpl supCert = X509CertImpl.toImpl(sup);
                     if (akid.equals(supCert.getSubjectKeyId())) {
                         matchedCert = sup;

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,9 @@
 *
 */
 
+#ifndef CPU_X86_CRC32C_H
+#define CPU_X86_CRC32C_H
+
 enum {
   // S. Gueron / Information Processing Letters 112 (2012) 184
   // shows than anything above 6K and below 32K is a good choice
@@ -36,15 +39,15 @@ enum {
   // based on ubench study using methodology described in
   // V. Gopal et al. / Fast CRC Computation for iSCSI Polynomial Using CRC32 Instruction April 2011 8
   //
-  // arbitrary value between 27 and 256
-  CRC32C_MIDDLE = 8 * 86,
+  // arbitrary value between 9 and 256
+  CRC32C_MIDDLE = 8 * 74,
 
   // V. Gopal et al. / Fast CRC Computation for iSCSI Polynomial Using CRC32 Instruction April 2011 9
-  // shows that 240 and 1024 are equally good choices as the 216==8*27
+  // shows that 240 and 1024 are equally good choices as the 216==8*9*3
   //
   // Selecting the smallest value which resulted in a significant performance improvement over
   // sequential version
-  CRC32C_LOW = 8 * 27,
+  CRC32C_LOW = 8 * 9,
 
   CRC32C_NUM_ChunkSizeInBytes = 3,
 
@@ -64,3 +67,5 @@ enum {
 // a) constants table generation (hotspot/src/cpu/x86/vm/stubRoutines_x86.cpp)
 // b) constant fetch from that table (macroAssembler_x86.cpp)
 // c) unrolled for loop (macroAssembler_x86.cpp)
+
+#endif /* !CPU_X86_CRC32C_H */

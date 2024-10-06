@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package com.sun.tools.javac.file;
-
-import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -180,13 +178,6 @@ public abstract class PathFileObject implements JavaFileObject {
             return toBinaryName(root.relativize(path));
         }
 
-        @Override @DefinedBy(Api.COMPILER)
-        public URI toUri() {
-            // Work around bug JDK-8134451:
-            // path.toUri() returns double-encoded URIs, that cannot be opened by URLConnection
-            return createJarUri(userJarPath, path.toString());
-        }
-
         @Override
         public String toString() {
             return "JarFileObject[" + userJarPath + ":" + path + "]";
@@ -198,17 +189,6 @@ public abstract class PathFileObject implements JavaFileObject {
                     path.resolveSibling(baseName),
                     userJarPath
             );
-        }
-
-        private static URI createJarUri(Path jarFile, String entryName) {
-            URI jarURI = jarFile.toUri().normalize();
-            String separator = entryName.startsWith("/") ? "!" : "!/";
-            try {
-                // The jar URI convention appears to be not to re-encode the jarURI
-                return new URI("jar:" + jarURI + separator + entryName);
-            } catch (URISyntaxException e) {
-                throw new CannotCreateUriError(jarURI + separator + entryName, e);
-            }
         }
     }
 
@@ -288,6 +268,11 @@ public abstract class PathFileObject implements JavaFileObject {
         @Override @DefinedBy(Api.COMPILER)
         public String getName() {
             return userPath.toString();
+        }
+
+        @Override @DefinedBy(Api.COMPILER)
+        public String getShortName() {
+            return userPath.getFileName().toString();
         }
 
         @Override
@@ -463,7 +448,9 @@ public abstract class PathFileObject implements JavaFileObject {
         fileManager.updateLastUsedTime();
         fileManager.flushCache(this);
         ensureParentDirectoriesExist();
-        return Files.newOutputStream(path);
+        OutputStream output = Files.newOutputStream(path);
+        fileManager.newOutputToPath(path);
+        return output;
     }
 
     @Override @DefinedBy(Api.COMPILER)
@@ -498,7 +485,9 @@ public abstract class PathFileObject implements JavaFileObject {
         fileManager.updateLastUsedTime();
         fileManager.flushCache(this);
         ensureParentDirectoriesExist();
-        return new OutputStreamWriter(Files.newOutputStream(path), fileManager.getEncodingName());
+        Writer writer = new OutputStreamWriter(Files.newOutputStream(path), fileManager.getEncodingName());
+        fileManager.newOutputToPath(path);
+        return writer;
     }
 
     @Override @DefinedBy(Api.COMPILER)
@@ -528,10 +517,8 @@ public abstract class PathFileObject implements JavaFileObject {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object other) {
-        return (other instanceof PathFileObject && path.equals(((PathFileObject) other).path));
+    public boolean equals(Object other) {
+        return (other instanceof PathFileObject pathFileObject && path.equals(pathFileObject.path));
     }
 
     @Override

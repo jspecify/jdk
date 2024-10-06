@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ import java.beans.PropertyChangeEvent;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -55,6 +55,12 @@ public class SynthTextFieldUI extends BasicTextFieldUI implements SynthUI {
     private Handler handler = new Handler();
     private SynthStyle style;
     private boolean updateKBAction = true;
+
+    /**
+     *
+     * Constructs a {@code SynthTextFieldUI}.
+     */
+    public SynthTextFieldUI() {}
 
     /**
      * Creates a UI for a JTextField.
@@ -141,8 +147,7 @@ public class SynthTextFieldUI extends BasicTextFieldUI implements SynthUI {
         Caret caret = comp.getCaret();
         if (caret instanceof UIResource) {
             Object o = style.get(context, prefix + ".caretBlinkRate");
-            if (o != null && o instanceof Integer) {
-                Integer rate = (Integer)o;
+            if (o instanceof Integer rate) {
                 caret.setBlinkRate(rate.intValue());
             }
         }
@@ -217,7 +222,7 @@ public class SynthTextFieldUI extends BasicTextFieldUI implements SynthUI {
      */
     @Override
     protected void paintBackground(Graphics g) {
-        // Overriden to do nothing, all our painting is done from update/paint.
+        // Overridden to do nothing, all our painting is done from update/paint.
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,22 +23,41 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
+#include "cds/cdsConfig.hpp"
+#include "cds/cds_globals.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoaderHierarchyDCmd.hpp"
 #include "classfile/classLoaderStats.hpp"
-#include "classfile/compactHashtable.hpp"
+#include "classfile/javaClasses.hpp"
+#include "classfile/systemDictionary.hpp"
+#include "classfile/vmClasses.hpp"
+#include "code/codeCache.hpp"
+#include "compiler/compilationMemoryStatistic.hpp"
+#include "compiler/compiler_globals.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/directivesParser.hpp"
-#include "gc/shared/vmGCOperations.hpp"
+#include "gc/shared/gcVMOperations.hpp"
+#include "jvm.h"
 #include "memory/metaspace/metaspaceDCmd.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
+#include "nmt/memMapPrinter.hpp"
+#include "nmt/memTracker.hpp"
+#include "nmt/nmtDCmd.hpp"
+#include "oops/instanceKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "prims/jvmtiAgentList.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/jniHandles.hpp"
 #include "runtime/os.hpp"
+#include "runtime/vmOperations.hpp"
+#include "runtime/vm_version.hpp"
 #include "services/diagnosticArgument.hpp"
 #include "services/diagnosticCommand.hpp"
 #include "services/diagnosticFramework.hpp"
@@ -46,9 +65,16 @@
 #include "services/management.hpp"
 #include "services/writeableFlags.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/events.hpp"
 #include "utilities/formatBuffer.hpp"
 #include "utilities/macros.hpp"
-
+#include "utilities/parseInteger.hpp"
+#ifdef LINUX
+#include "os_posix.hpp"
+#include "mallocInfoDcmd.hpp"
+#include "trimCHeapDCmd.hpp"
+#include <errno.h>
+#endif
 
 static void loadAgentModule(TRAPS) {
   ResourceMark rm(THREAD);
@@ -57,14 +83,14 @@ static void loadAgentModule(TRAPS) {
   JavaValue result(T_OBJECT);
   Handle h_module_name = java_lang_String::create_from_str("jdk.management.agent", CHECK);
   JavaCalls::call_static(&result,
-                         SystemDictionary::module_Modules_klass(),
+                         vmClasses::module_Modules_klass(),
                          vmSymbols::loadModule_name(),
                          vmSymbols::loadModule_signature(),
                          h_module_name,
                          THREAD);
 }
 
-void DCmdRegistrant::register_dcmds(){
+void DCmd::register_dcmds(){
   // Registration of the diagnostic commands
   // First argument specifies which interfaces will export the command
   // Second argument specifies if the command is enabled
@@ -87,12 +113,13 @@ void DCmdRegistrant::register_dcmds(){
 #if INCLUDE_SERVICES
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<HeapDumpDCmd>(DCmd_Source_Internal | DCmd_Source_AttachAPI, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassHistogramDCmd>(full_export, true, false));
-  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassStatsDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SystemDictionaryDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassHierarchyDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassesDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SymboltableDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<StringtableDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<metaspace::MetaspaceDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<EventLogDCmd>(full_export, true, false));
 #if INCLUDE_JVMTI // Both JVMTI and SERVICES have to be enabled to have this dcmd
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JVMTIAgentLoadDCmd>(full_export, true, false));
 #endif // INCLUDE_JVMTI
@@ -101,18 +128,28 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JVMTIDataDumpDCmd>(full_export, true, false));
 #endif // INCLUDE_JVMTI
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ThreadDumpDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ThreadDumpToFileDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassLoaderStatsDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassLoaderHierarchyDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CompileQueueDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CodeListDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CodeCacheDCmd>(full_export, true, false));
-  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<TouchedMethodsDCmd>(full_export, true, false));
+#ifdef LINUX
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PerfMapDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<TrimCLibcHeapDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<MallocInfoDcmd>(full_export, true, false));
+#endif // LINUX
+#if defined(LINUX) || defined(_WIN64)
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SystemMapDCmd>(full_export, true,false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SystemDumpMapDCmd>(full_export, true,false));
+#endif // LINUX or WINDOWS
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CodeHeapAnalyticsDCmd>(full_export, true, false));
 
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CompilerDirectivesPrintDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CompilerDirectivesAddDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CompilerDirectivesRemoveDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CompilerDirectivesClearDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CompilationMemoryStatisticDCmd>(full_export, true, false));
 
   // Enhanced JMX Agent Support
   // These commands won't be exported via the DiagnosticCommandMBean until an
@@ -123,14 +160,17 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JMXStopRemoteDCmd>(jmx_agent_export_flags, true,false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JMXStatusDCmd>(jmx_agent_export_flags, true,false));
 
-}
+  // Debug on cmd (only makes sense with JVMTI since the agentlib needs it).
+#if INCLUDE_JVMTI
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<DebugOnCmdStartDCmd>(full_export, true, true));
+#endif // INCLUDE_JVMTI
 
-#ifndef HAVE_EXTRA_DCMD
-void DCmdRegistrant::register_dcmds_ext(){
-   // Do nothing here
-}
-#endif
+#if INCLUDE_CDS
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<DumpSharedArchiveDCmd>(full_export, true, false));
+#endif // INCLUDE_CDS
 
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<NMTDCmd>(full_export, true, false));
+}
 
 HelpDCmd::HelpDCmd(outputStream* output, bool heap) : DCmdWithParser(output, heap),
   _all("-all", "Show help for all commands", "BOOLEAN", false, "false"),
@@ -159,27 +199,17 @@ void HelpDCmd::execute(DCmdSource source, TRAPS) {
       factory = factory->next();
     }
   } else if (_cmd.has_value()) {
-    DCmd* cmd = NULL;
+    DCmd* cmd = nullptr;
     DCmdFactory* factory = DCmdFactory::factory(source, _cmd.value(),
                                                 strlen(_cmd.value()));
-    if (factory != NULL) {
+    if (factory != nullptr) {
       output()->print_cr("%s%s", factory->name(),
                          factory->is_enabled() ? "" : " [disabled]");
       output()->print_cr("%s", factory->description());
       output()->print_cr("\nImpact: %s", factory->impact());
-      JavaPermission p = factory->permission();
-      if(p._class != NULL) {
-        if(p._action != NULL) {
-          output()->print_cr("\nPermission: %s(%s, %s)",
-                  p._class, p._name == NULL ? "null" : p._name, p._action);
-        } else {
-          output()->print_cr("\nPermission: %s(%s)",
-                  p._class, p._name == NULL ? "null" : p._name);
-        }
-      }
       output()->cr();
       cmd = factory->create_resource_instance(output());
-      if (cmd != NULL) {
+      if (cmd != nullptr) {
         DCmdMark mark(cmd);
         cmd->print_help(factory->name());
       }
@@ -201,20 +231,9 @@ void HelpDCmd::execute(DCmdSource source, TRAPS) {
   }
 }
 
-int HelpDCmd::num_arguments() {
-  ResourceMark rm;
-  HelpDCmd* dcmd = new HelpDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
-}
-
 void VersionDCmd::execute(DCmdSource source, TRAPS) {
-  output()->print_cr("%s version %s", Abstract_VM_Version::vm_name(),
-          Abstract_VM_Version::vm_release());
+  output()->print_cr("%s version %s", VM_Version::vm_name(),
+          VM_Version::vm_release());
   JDK_Version jdk_version = JDK_Version::current();
   if (jdk_version.patch_version() > 0) {
     output()->print_cr("JDK %d.%d.%d.%d", jdk_version.major_version(),
@@ -240,17 +259,6 @@ void PrintVMFlagsDCmd::execute(DCmdSource source, TRAPS) {
   }
 }
 
-int PrintVMFlagsDCmd::num_arguments() {
-    ResourceMark rm;
-    PrintVMFlagsDCmd* dcmd = new PrintVMFlagsDCmd(NULL, false);
-    if (dcmd != NULL) {
-      DCmdMark mark(dcmd);
-      return dcmd->_dcmdparser.num_arguments();
-    } else {
-      return 0;
-    }
-}
-
 SetVMFlagDCmd::SetVMFlagDCmd(outputStream* output, bool heap) :
                                    DCmdWithParser(output, heap),
   _flag("flag name", "The name of the flag we want to set",
@@ -261,27 +269,16 @@ SetVMFlagDCmd::SetVMFlagDCmd(outputStream* output, bool heap) :
 }
 
 void SetVMFlagDCmd::execute(DCmdSource source, TRAPS) {
-  const char* val = NULL;
-  if (_value.value() != NULL) {
+  const char* val = nullptr;
+  if (_value.value() != nullptr) {
     val = _value.value();
   }
 
   FormatBuffer<80> err_msg("%s", "");
-  int ret = WriteableFlags::set_flag(_flag.value(), val, JVMFlag::MANAGEMENT, err_msg);
+  int ret = WriteableFlags::set_flag(_flag.value(), val, JVMFlagOrigin::MANAGEMENT, err_msg);
 
   if (ret != JVMFlag::SUCCESS) {
     output()->print_cr("%s", err_msg.buffer());
-  }
-}
-
-int SetVMFlagDCmd::num_arguments() {
-  ResourceMark rm;
-  SetVMFlagDCmd* dcmd = new SetVMFlagDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
   }
 }
 
@@ -292,6 +289,7 @@ void JVMTIDataDumpDCmd::execute(DCmdSource source, TRAPS) {
 }
 
 #if INCLUDE_SERVICES
+#if INCLUDE_JVMTI
 JVMTIAgentLoadDCmd::JVMTIAgentLoadDCmd(outputStream* output, bool heap) :
                                        DCmdWithParser(output, heap),
   _libpath("library path", "Absolute path of the JVMTI agent to load.",
@@ -303,18 +301,17 @@ JVMTIAgentLoadDCmd::JVMTIAgentLoadDCmd(outputStream* output, bool heap) :
 
 void JVMTIAgentLoadDCmd::execute(DCmdSource source, TRAPS) {
 
-  if (_libpath.value() == NULL) {
+  if (_libpath.value() == nullptr) {
     output()->print_cr("JVMTI.agent_load dcmd needs library path.");
     return;
   }
 
   char *suffix = strrchr(_libpath.value(), '.');
-  bool is_java_agent = (suffix != NULL) && (strncmp(".jar", suffix, 4) == 0);
+  bool is_java_agent = (suffix != nullptr) && (strncmp(".jar", suffix, 4) == 0);
 
   if (is_java_agent) {
-    if (_option.value() == NULL) {
-      JvmtiExport::load_agent_library("instrument", "false",
-                                      _libpath.value(), output());
+    if (_option.value() == nullptr) {
+      JvmtiAgentList::load_agent("instrument", false, _libpath.value(), output());
     } else {
       size_t opt_len = strlen(_libpath.value()) + strlen(_option.value()) + 2;
       if (opt_len > 4096) {
@@ -323,7 +320,7 @@ void JVMTIAgentLoadDCmd::execute(DCmdSource source, TRAPS) {
       }
 
       char *opt = (char *)os::malloc(opt_len, mtInternal);
-      if (opt == NULL) {
+      if (opt == nullptr) {
         output()->print_cr("JVMTI agent attach failed: "
                            "Could not allocate " SIZE_FORMAT " bytes for argument.",
                            opt_len);
@@ -331,26 +328,16 @@ void JVMTIAgentLoadDCmd::execute(DCmdSource source, TRAPS) {
       }
 
       jio_snprintf(opt, opt_len, "%s=%s", _libpath.value(), _option.value());
-      JvmtiExport::load_agent_library("instrument", "false", opt, output());
+      JvmtiAgentList::load_agent("instrument", false, opt, output());
 
       os::free(opt);
     }
   } else {
-    JvmtiExport::load_agent_library(_libpath.value(), "true",
-                                    _option.value(), output());
+    JvmtiAgentList::load_agent(_libpath.value(), true, _option.value(), output());
   }
 }
 
-int JVMTIAgentLoadDCmd::num_arguments() {
-  ResourceMark rm;
-  JVMTIAgentLoadDCmd* dcmd = new JVMTIAgentLoadDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
-}
+#endif // INCLUDE_JVMTI
 #endif // INCLUDE_SERVICES
 
 void PrintSystemPropertiesDCmd::execute(DCmdSource source, TRAPS) {
@@ -372,7 +359,7 @@ void PrintSystemPropertiesDCmd::execute(DCmdSource source, TRAPS) {
   JavaValue result(T_OBJECT);
   JavaCallArguments args;
 
-  Symbol* signature = vmSymbols::serializePropertiesToByteArray_signature();
+  Symbol* signature = vmSymbols::void_byte_array_signature();
   JavaCalls::call_static(&result,
                          ik,
                          vmSymbols::serializePropertiesToByteArray_name(),
@@ -387,7 +374,7 @@ void PrintSystemPropertiesDCmd::execute(DCmdSource source, TRAPS) {
   }
 
   // The result should be a [B
-  oop res = (oop)result.get_jobject();
+  oop res = result.get_oop();
   assert(res->is_typeArray(), "just checking");
   assert(TypeArrayKlass::cast(res->klass())->element_type() == T_BYTE, "just checking");
 
@@ -412,17 +399,6 @@ void VMUptimeDCmd::execute(DCmdSource source, TRAPS) {
   output()->print_cr(" s");
 }
 
-int VMUptimeDCmd::num_arguments() {
-  ResourceMark rm;
-  VMUptimeDCmd* dcmd = new VMUptimeDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
-}
-
 void VMInfoDCmd::execute(DCmdSource source, TRAPS) {
   VMError::print_vm_info(_output);
 }
@@ -432,8 +408,7 @@ void SystemGCDCmd::execute(DCmdSource source, TRAPS) {
 }
 
 void RunFinalizationDCmd::execute(DCmdSource source, TRAPS) {
-  Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_System(),
-                                                 true, CHECK);
+  Klass* k = vmClasses::System_klass();
   JavaValue result(T_VOID);
   JavaCalls::call_static(&result, k,
                          vmSymbols::run_finalization_name(),
@@ -441,12 +416,17 @@ void RunFinalizationDCmd::execute(DCmdSource source, TRAPS) {
 }
 
 void HeapInfoDCmd::execute(DCmdSource source, TRAPS) {
-  MutexLocker hl(Heap_lock);
+  MutexLocker hl(THREAD, Heap_lock);
   Universe::heap()->print_on(output());
 }
 
 void FinalizerInfoDCmd::execute(DCmdSource source, TRAPS) {
-  ResourceMark rm;
+  ResourceMark rm(THREAD);
+
+  if (!InstanceKlass::is_finalization_enabled()) {
+    output()->print_cr("Finalization is disabled");
+    return;
+  }
 
   Klass* k = SystemDictionary::resolve_or_fail(
     vmSymbols::finalizer_histogram_klass(), true, CHECK);
@@ -460,7 +440,7 @@ void FinalizerInfoDCmd::execute(DCmdSource source, TRAPS) {
                          vmSymbols::get_finalizer_histogram_name(),
                          vmSymbols::void_finalizer_histogram_entry_array_signature(), CHECK);
 
-  objArrayOop result_oop = (objArrayOop) result.get_jobject();
+  objArrayOop result_oop = (objArrayOop) result.get_oop();
   if (result_oop->length() == 0) {
     output()->print_cr("No instances waiting for finalization found");
     return;
@@ -477,7 +457,7 @@ void FinalizerInfoDCmd::execute(DCmdSource source, TRAPS) {
   Klass* name_res = ik->find_field(
     vmSymbols::finalizer_histogram_entry_name_field(), vmSymbols::string_signature(), &name_fd);
 
-  assert(count_res != NULL && name_res != NULL, "Unexpected layout of FinalizerHistogramEntry");
+  assert(count_res != nullptr && name_res != nullptr, "Unexpected layout of FinalizerHistogramEntry");
 
   output()->print_cr("Unreachable instances waiting for finalization");
   output()->print_cr("#instances  class name");
@@ -495,119 +475,86 @@ void FinalizerInfoDCmd::execute(DCmdSource source, TRAPS) {
 #if INCLUDE_SERVICES // Heap dumping/inspection supported
 HeapDumpDCmd::HeapDumpDCmd(outputStream* output, bool heap) :
                            DCmdWithParser(output, heap),
-  _filename("filename","Name of the dump file", "STRING",true),
+  _filename("filename","Name of the dump file", "FILE",true),
   _all("-all", "Dump all objects, including unreachable objects",
-       "BOOLEAN", false, "false") {
+       "BOOLEAN", false, "false"),
+  _gzip("-gz", "If specified, the heap dump is written in gzipped format "
+               "using the given compression level. 1 (recommended) is the fastest, "
+               "9 the strongest compression.", "INT", false, "1"),
+  _overwrite("-overwrite", "If specified, the dump file will be overwritten if it exists",
+           "BOOLEAN", false, "false"),
+  _parallel("-parallel", "Number of parallel threads to use for heap dump. The VM "
+                          "will try to use the specified number of threads, but might use fewer.",
+            "INT", false, "1") {
   _dcmdparser.add_dcmd_option(&_all);
   _dcmdparser.add_dcmd_argument(&_filename);
+  _dcmdparser.add_dcmd_option(&_gzip);
+  _dcmdparser.add_dcmd_option(&_overwrite);
+  _dcmdparser.add_dcmd_option(&_parallel);
 }
 
 void HeapDumpDCmd::execute(DCmdSource source, TRAPS) {
+  jlong level = -1; // -1 means no compression.
+  jlong parallel = HeapDumper::default_num_of_dump_threads();
+
+  if (_gzip.is_set()) {
+    level = _gzip.value();
+
+    if (level < 1 || level > 9) {
+      output()->print_cr("Compression level out of range (1-9): " JLONG_FORMAT, level);
+      return;
+    }
+  }
+
+  if (_parallel.is_set()) {
+    parallel = _parallel.value();
+
+    if (parallel < 0) {
+      output()->print_cr("Invalid number of parallel dump threads.");
+      return;
+    } else if (parallel == 0) {
+      // 0 implies to disable parallel heap dump, in such case, we use serial dump instead
+      parallel = 1;
+    }
+  }
+
   // Request a full GC before heap dump if _all is false
   // This helps reduces the amount of unreachable objects in the dump
   // and makes it easier to browse.
   HeapDumper dumper(!_all.value() /* request GC if _all is false*/);
-  int res = dumper.dump(_filename.value());
-  if (res == 0) {
-    output()->print_cr("Heap dump file created");
-  } else {
-    // heap dump failed
-    ResourceMark rm;
-    char* error = dumper.error_as_C_string();
-    if (error == NULL) {
-      output()->print_cr("Dump failed - reason unknown");
-    } else {
-      output()->print_cr("%s", error);
-    }
-  }
-}
-
-int HeapDumpDCmd::num_arguments() {
-  ResourceMark rm;
-  HeapDumpDCmd* dcmd = new HeapDumpDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
+  dumper.dump(_filename.value(), output(), (int) level, _overwrite.value(), (uint)parallel);
 }
 
 ClassHistogramDCmd::ClassHistogramDCmd(outputStream* output, bool heap) :
                                        DCmdWithParser(output, heap),
   _all("-all", "Inspect all objects, including unreachable objects",
-       "BOOLEAN", false, "false") {
+       "BOOLEAN", false, "false"),
+  _parallel_thread_num("-parallel",
+       "Number of parallel threads to use for heap inspection. "
+       "0 (the default) means let the VM determine the number of threads to use. "
+       "1 means use one thread (disable parallelism). "
+       "For any other value the VM will try to use the specified number of "
+       "threads, but might use fewer.",
+       "INT", false, "0") {
   _dcmdparser.add_dcmd_option(&_all);
+  _dcmdparser.add_dcmd_option(&_parallel_thread_num);
 }
 
 void ClassHistogramDCmd::execute(DCmdSource source, TRAPS) {
+  jlong num = _parallel_thread_num.value();
+  if (num < 0) {
+    output()->print_cr("Parallel thread number out of range (>=0): " JLONG_FORMAT, num);
+    return;
+  }
+  uint parallel_thread_num = num == 0
+      ? MAX2<uint>(1, (uint)os::initial_active_processor_count() * 3 / 8)
+      : num;
   VM_GC_HeapInspection heapop(output(),
-                              !_all.value() /* request full gc if false */);
+                              !_all.value(), /* request full gc if false */
+                              parallel_thread_num);
   VMThread::execute(&heapop);
 }
 
-int ClassHistogramDCmd::num_arguments() {
-  ResourceMark rm;
-  ClassHistogramDCmd* dcmd = new ClassHistogramDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
-}
-
-#define DEFAULT_COLUMNS "InstBytes,KlassBytes,CpAll,annotations,MethodCount,Bytecodes,MethodAll,ROAll,RWAll,Total"
-ClassStatsDCmd::ClassStatsDCmd(outputStream* output, bool heap) :
-                                       DCmdWithParser(output, heap),
-  _csv("-csv", "Print in CSV (comma-separated values) format for spreadsheets",
-       "BOOLEAN", false, "false"),
-  _all("-all", "Show all columns",
-       "BOOLEAN", false, "false"),
-  _help("-help", "Show meaning of all the columns",
-       "BOOLEAN", false, "false"),
-  _columns("columns", "Comma-separated list of all the columns to show. "
-           "If not specified, the following columns are shown: " DEFAULT_COLUMNS,
-           "STRING", false) {
-  _dcmdparser.add_dcmd_option(&_all);
-  _dcmdparser.add_dcmd_option(&_csv);
-  _dcmdparser.add_dcmd_option(&_help);
-  _dcmdparser.add_dcmd_argument(&_columns);
-}
-
-void ClassStatsDCmd::execute(DCmdSource source, TRAPS) {
-  VM_GC_HeapInspection heapop(output(),
-                              true /* request_full_gc */);
-  heapop.set_csv_format(_csv.value());
-  heapop.set_print_help(_help.value());
-  heapop.set_print_class_stats(true);
-  if (_all.value()) {
-    if (_columns.has_value()) {
-      output()->print_cr("Cannot specify -all and individual columns at the same time");
-      return;
-    } else {
-      heapop.set_columns(NULL);
-    }
-  } else {
-    if (_columns.has_value()) {
-      heapop.set_columns(_columns.value());
-    } else {
-      heapop.set_columns(DEFAULT_COLUMNS);
-    }
-  }
-  VMThread::execute(&heapop);
-}
-
-int ClassStatsDCmd::num_arguments() {
-  ResourceMark rm;
-  ClassStatsDCmd* dcmd = new ClassStatsDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
-}
 #endif // INCLUDE_SERVICES
 
 ThreadDumpDCmd::ThreadDumpDCmd(outputStream* output, bool heap) :
@@ -619,28 +566,13 @@ ThreadDumpDCmd::ThreadDumpDCmd(outputStream* output, bool heap) :
 }
 
 void ThreadDumpDCmd::execute(DCmdSource source, TRAPS) {
-  // thread stacks
-  VM_PrintThreads op1(output(), _locks.value(), _extended.value());
+  // thread stacks and JNI global handles
+  VM_PrintThreads op1(output(), _locks.value(), _extended.value(), true /* print JNI handle info */);
   VMThread::execute(&op1);
 
-  // JNI global handles
-  VM_PrintJNI op2(output());
-  VMThread::execute(&op2);
-
   // Deadlock detection
-  VM_FindDeadlocks op3(output());
-  VMThread::execute(&op3);
-}
-
-int ThreadDumpDCmd::num_arguments() {
-  ResourceMark rm;
-  ThreadDumpDCmd* dcmd = new ThreadDumpDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
+  VM_FindDeadlocks op2(output());
+  VMThread::execute(&op2);
 }
 
 // Enhanced JMX Agent support
@@ -703,7 +635,7 @@ JMXStartRemoteDCmd::JMXStartRemoteDCmd(outputStream *output, bool heap_allocated
 
   _jmxremote_ssl_config_file
   ("jmxremote.ssl.config.file",
-   "set com.sun.management.jmxremote.ssl_config_file", "STRING", false),
+   "set com.sun.management.jmxremote.ssl.config.file", "STRING", false),
 
 // JDP Protocol support
   _jmxremote_autodiscovery
@@ -758,19 +690,6 @@ JMXStartRemoteDCmd::JMXStartRemoteDCmd(outputStream *output, bool heap_allocated
     _dcmdparser.add_dcmd_option(&_jdp_name);
 }
 
-
-int JMXStartRemoteDCmd::num_arguments() {
-  ResourceMark rm;
-  JMXStartRemoteDCmd* dcmd = new JMXStartRemoteDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
-}
-
-
 void JMXStartRemoteDCmd::execute(DCmdSource source, TRAPS) {
     ResourceMark rm(THREAD);
     HandleMark hm(THREAD);
@@ -794,7 +713,7 @@ void JMXStartRemoteDCmd::execute(DCmdSource source, TRAPS) {
     char comma[2] = {0,0};
 
     // Leave default values on Agent.class side and pass only
-    // agruments explicitly set by user. All arguments passed
+    // arguments explicitly set by user. All arguments passed
     // to jcmd override properties with the same name set by
     // command line with -D or by managmenent.properties
     // file.
@@ -899,11 +818,12 @@ void JMXStatusDCmd::execute(DCmdSource source, TRAPS) {
   JavaCalls::call_static(&result, k, vmSymbols::getAgentStatus_name(), vmSymbols::void_string_signature(), CHECK);
 
   jvalue* jv = (jvalue*) result.get_value_addr();
-  oop str = (oop) jv->l;
-  if (str != NULL) {
+  oop str = cast_to_oop(jv->l);
+  if (str != nullptr) {
       char* out = java_lang_String::as_utf8_string(str);
       if (out) {
-          output()->print_cr("%s", out);
+          // Avoid using print_cr() because length maybe longer than O_BUFLEN
+          output()->print_raw_cr(out);
           return;
       }
   }
@@ -933,30 +853,66 @@ void CodeCacheDCmd::execute(DCmdSource source, TRAPS) {
   CodeCache::print_layout(output());
 }
 
+#ifdef LINUX
+PerfMapDCmd::PerfMapDCmd(outputStream* output, bool heap) :
+             DCmdWithParser(output, heap),
+  _filename("filename", "Name of the map file", "FILE", false, DEFAULT_PERFMAP_FILENAME)
+{
+  _dcmdparser.add_dcmd_argument(&_filename);
+}
+
+void PerfMapDCmd::execute(DCmdSource source, TRAPS) {
+  CodeCache::write_perf_map(_filename.value(), output());
+}
+#endif // LINUX
+
 //---<  BEGIN  >--- CodeHeap State Analytics.
 CodeHeapAnalyticsDCmd::CodeHeapAnalyticsDCmd(outputStream* output, bool heap) :
                                              DCmdWithParser(output, heap),
   _function("function", "Function to be performed (aggregate, UsedSpace, FreeSpace, MethodCount, MethodSpace, MethodAge, MethodNames, discard", "STRING", false, "all"),
-  _granularity("granularity", "Detail level - smaller value -> more detail", "STRING", false, "4096") {
+  _granularity("granularity", "Detail level - smaller value -> more detail", "INT", false, "4096") {
   _dcmdparser.add_dcmd_argument(&_function);
   _dcmdparser.add_dcmd_argument(&_granularity);
 }
 
 void CodeHeapAnalyticsDCmd::execute(DCmdSource source, TRAPS) {
-  CompileBroker::print_heapinfo(output(), _function.value(), _granularity.value());
-}
-
-int CodeHeapAnalyticsDCmd::num_arguments() {
-  ResourceMark rm;
-  CodeHeapAnalyticsDCmd* dcmd = new CodeHeapAnalyticsDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
+  jlong granularity = _granularity.value();
+  if (granularity < 1) {
+    Exceptions::fthrow(THREAD_AND_LOCATION, vmSymbols::java_lang_IllegalArgumentException(),
+                       "Invalid granularity value " JLONG_FORMAT  ". Should be positive.\n", granularity);
+    return;
   }
+
+  CompileBroker::print_heapinfo(output(), _function.value(), granularity);
 }
 //---<  END  >--- CodeHeap State Analytics.
+
+EventLogDCmd::EventLogDCmd(outputStream* output, bool heap) :
+  DCmdWithParser(output, heap),
+  _log("log", "Name of log to be printed. If omitted, all logs are printed.", "STRING", false, nullptr),
+  _max("max", "Maximum number of events to be printed (newest first). If omitted, all events are printed.", "STRING", false, nullptr)
+{
+  _dcmdparser.add_dcmd_option(&_log);
+  _dcmdparser.add_dcmd_option(&_max);
+}
+
+void EventLogDCmd::execute(DCmdSource source, TRAPS) {
+  const char* max_value = _max.value();
+  int max = -1;
+  if (max_value != nullptr) {
+    char* endptr = nullptr;
+    if (!parse_integer(max_value, &max)) {
+      output()->print_cr("Invalid max option: \"%s\".", max_value);
+      return;
+    }
+  }
+  const char* log_name = _log.value();
+  if (log_name != nullptr) {
+    Events::print_one(output(), log_name, max);
+  } else {
+    Events::print_all(output(), max);
+  }
+}
 
 void CompilerDirectivesPrintDCmd::execute(DCmdSource source, TRAPS) {
   DirectivesStack::print(output());
@@ -969,18 +925,7 @@ CompilerDirectivesAddDCmd::CompilerDirectivesAddDCmd(outputStream* output, bool 
 }
 
 void CompilerDirectivesAddDCmd::execute(DCmdSource source, TRAPS) {
-  DirectivesParser::parse_from_file(_filename.value(), output());
-}
-
-int CompilerDirectivesAddDCmd::num_arguments() {
-  ResourceMark rm;
-  CompilerDirectivesAddDCmd* dcmd = new CompilerDirectivesAddDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
+  DirectivesParser::parse_from_file(_filename.value(), output(), true);
 }
 
 void CompilerDirectivesRemoveDCmd::execute(DCmdSource source, TRAPS) {
@@ -994,8 +939,9 @@ void CompilerDirectivesClearDCmd::execute(DCmdSource source, TRAPS) {
 ClassHierarchyDCmd::ClassHierarchyDCmd(outputStream* output, bool heap) :
                                        DCmdWithParser(output, heap),
   _print_interfaces("-i", "Inherited interfaces should be printed.", "BOOLEAN", false, "false"),
-  _print_subclasses("-s", "If a classname is specified, print its subclasses. "
-                    "Otherwise only its superclasses are printed.", "BOOLEAN", false, "false"),
+  _print_subclasses("-s", "If a classname is specified, print its subclasses "
+                    "in addition to its superclasses. Without this option only the "
+                    "superclasses will be printed.", "BOOLEAN", false, "false"),
   _classname("classname", "Name of class whose hierarchy should be printed. "
              "If not specified, all class hierarchies are printed.",
              "STRING", false) {
@@ -1009,48 +955,263 @@ void ClassHierarchyDCmd::execute(DCmdSource source, TRAPS) {
                                                _print_subclasses.value(), _classname.value());
   VMThread::execute(&printClassHierarchyOp);
 }
-
-int ClassHierarchyDCmd::num_arguments() {
-  ResourceMark rm;
-  ClassHierarchyDCmd* dcmd = new ClassHierarchyDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
-}
-
 #endif
 
-class VM_DumpTouchedMethods : public VM_Operation {
+ClassesDCmd::ClassesDCmd(outputStream* output, bool heap) :
+                                     DCmdWithParser(output, heap),
+  _verbose("-verbose",
+           "Dump the detailed content of a Java class. "
+           "Some classes are annotated with flags: "
+           "F = has, or inherits, a non-empty finalize method, "
+           "f = has final method, "
+           "W = methods rewritten, "
+           "C = marked with @Contended annotation, "
+           "R = has been redefined, "
+           "S = is shared class",
+           "BOOLEAN", false, "false") {
+  _dcmdparser.add_dcmd_option(&_verbose);
+}
+
+class VM_PrintClasses : public VM_Operation {
 private:
   outputStream* _out;
+  bool _verbose;
 public:
-  VM_DumpTouchedMethods(outputStream* out) {
-    _out = out;
-  }
+  VM_PrintClasses(outputStream* out, bool verbose) : _out(out), _verbose(verbose) {}
 
-  virtual VMOp_Type type() const { return VMOp_DumpTouchedMethods; }
+  virtual VMOp_Type type() const { return VMOp_PrintClasses; }
 
   virtual void doit() {
-    Method::print_touched_methods(_out);
+    PrintClassClosure closure(_out, _verbose);
+    ClassLoaderDataGraph::classes_do(&closure);
   }
 };
 
-TouchedMethodsDCmd::TouchedMethodsDCmd(outputStream* output, bool heap) :
-                                       DCmdWithParser(output, heap)
-{}
+void ClassesDCmd::execute(DCmdSource source, TRAPS) {
+  VM_PrintClasses vmop(output(), _verbose.value());
+  VMThread::execute(&vmop);
+}
 
-void TouchedMethodsDCmd::execute(DCmdSource source, TRAPS) {
-  if (!LogTouchedMethods) {
-    output()->print_cr("VM.print_touched_methods command requires -XX:+LogTouchedMethods");
+#if INCLUDE_CDS
+#define DEFAULT_CDS_ARCHIVE_FILENAME "java_pid%p_<subcmd>.jsa"
+
+DumpSharedArchiveDCmd::DumpSharedArchiveDCmd(outputStream* output, bool heap) :
+                                     DCmdWithParser(output, heap),
+  _suboption("subcmd", "static_dump | dynamic_dump", "STRING", true),
+  _filename("filename", "Name of shared archive to be dumped", "FILE", false,
+            DEFAULT_CDS_ARCHIVE_FILENAME)
+{
+  _dcmdparser.add_dcmd_argument(&_suboption);
+  _dcmdparser.add_dcmd_argument(&_filename);
+}
+
+void DumpSharedArchiveDCmd::execute(DCmdSource source, TRAPS) {
+  jboolean is_static;
+  const char* scmd = _suboption.value();
+
+  // The check for _filename.is_set() is because we don't want to use
+  // DEFAULT_CDS_ARCHIVE_FILENAME, since it is meant as a description
+  // of the default, not the actual default.
+  const char* file = _filename.is_set() ? _filename.value() : nullptr;
+
+  if (strcmp(scmd, "static_dump") == 0) {
+    is_static = JNI_TRUE;
+    output()->print("Static dump: ");
+  } else if (strcmp(scmd, "dynamic_dump") == 0) {
+    is_static = JNI_FALSE;
+    output()->print("Dynamic dump: ");
+    if (!CDSConfig::is_using_archive()) {
+      output()->print_cr("Dynamic dump is unsupported when base CDS archive is not loaded");
+      return;
+    }
+    if (!RecordDynamicDumpInfo) {
+      output()->print_cr("Dump dynamic should run with -XX:+RecordDynamicDumpInfo");
+      return;
+    }
+  } else {
+    output()->print_cr("Invalid command for VM.cds, valid input is static_dump or dynamic_dump");
     return;
   }
-  VM_DumpTouchedMethods dumper(output());
-  VMThread::execute(&dumper);
+
+  // call CDS.dumpSharedArchive
+  Handle fileh;
+  if (file != nullptr) {
+    fileh = java_lang_String::create_from_str(file, CHECK);
+  }
+  Symbol* cds_name  = vmSymbols::jdk_internal_misc_CDS();
+  Klass*  cds_klass = SystemDictionary::resolve_or_fail(cds_name, true /*throw error*/,  CHECK);
+  JavaValue result(T_OBJECT);
+  JavaCallArguments args;
+  args.push_int(is_static);
+  args.push_oop(fileh);
+  JavaCalls::call_static(&result,
+                         cds_klass,
+                         vmSymbols::dumpSharedArchive(),
+                         vmSymbols::dumpSharedArchive_signature(),
+                         &args, CHECK);
+  if (!HAS_PENDING_EXCEPTION) {
+    assert(result.get_type() == T_OBJECT, "Sanity check");
+    // result contains the archive name
+    char* archive_name = java_lang_String::as_utf8_string(result.get_oop());
+    output()->print_cr("%s", archive_name);
+  }
+}
+#endif // INCLUDE_CDS
+
+#if INCLUDE_JVMTI
+extern "C" typedef char const* (JNICALL *debugInit_startDebuggingViaCommandPtr)(JNIEnv* env, jthread thread, char const** transport_name,
+                                                                                char const** address, jboolean* first_start);
+static debugInit_startDebuggingViaCommandPtr dvc_start_ptr = nullptr;
+
+void DebugOnCmdStartDCmd::execute(DCmdSource source, TRAPS) {
+  char const* transport = nullptr;
+  char const* addr = nullptr;
+  jboolean is_first_start = JNI_FALSE;
+  JavaThread* thread = THREAD;
+  jthread jt = JNIHandles::make_local(thread->threadObj());
+  ThreadToNativeFromVM ttn(thread);
+  const char *error = "Could not find jdwp agent.";
+
+  if (!dvc_start_ptr) {
+    JvmtiAgentList::Iterator it = JvmtiAgentList::agents();
+    while (it.has_next()) {
+      JvmtiAgent* agent = it.next();
+      if ((strcmp("jdwp", agent->name()) == 0) && (dvc_start_ptr == nullptr)) {
+        char const* func = "debugInit_startDebuggingViaCommand";
+        dvc_start_ptr = (debugInit_startDebuggingViaCommandPtr) os::find_agent_function(agent, false, &func, 1);
+      }
+    }
+  }
+
+  if (dvc_start_ptr) {
+    error = dvc_start_ptr(thread->jni_environment(), jt, &transport, &addr, &is_first_start);
+  }
+
+  if (error != nullptr) {
+    output()->print_cr("Debugging has not been started: %s", error);
+  } else {
+    output()->print_cr(is_first_start ? "Debugging has been started." : "Debugging is already active.");
+    output()->print_cr("Transport : %s", transport ? transport : "#unknown");
+    output()->print_cr("Address : %s", addr ? addr : "#unknown");
+  }
+}
+#endif // INCLUDE_JVMTI
+
+ThreadDumpToFileDCmd::ThreadDumpToFileDCmd(outputStream* output, bool heap) :
+                                           DCmdWithParser(output, heap),
+  _overwrite("-overwrite", "May overwrite existing file", "BOOLEAN", false, "false"),
+  _format("-format", "Output format (\"plain\" or \"json\")", "STRING", false, "plain"),
+  _filepath("filepath", "The file path to the output file", "FILE", true) {
+  _dcmdparser.add_dcmd_option(&_overwrite);
+  _dcmdparser.add_dcmd_option(&_format);
+  _dcmdparser.add_dcmd_argument(&_filepath);
 }
 
-int TouchedMethodsDCmd::num_arguments() {
-  return 0;
+void ThreadDumpToFileDCmd::execute(DCmdSource source, TRAPS) {
+  bool json = (_format.value() != nullptr) && (strcmp(_format.value(), "json") == 0);
+  char* path = _filepath.value();
+  bool overwrite = _overwrite.value();
+  Symbol* name = (json) ? vmSymbols::dumpThreadsToJson_name() : vmSymbols::dumpThreads_name();
+  dumpToFile(name, vmSymbols::string_bool_byte_array_signature(), path, overwrite, CHECK);
 }
+
+void ThreadDumpToFileDCmd::dumpToFile(Symbol* name, Symbol* signature, const char* path, bool overwrite, TRAPS) {
+  ResourceMark rm(THREAD);
+  HandleMark hm(THREAD);
+
+  Handle h_path = java_lang_String::create_from_str(path, CHECK);
+
+  Symbol* sym = vmSymbols::jdk_internal_vm_ThreadDumper();
+  Klass* k = SystemDictionary::resolve_or_fail(sym, true, CHECK);
+  InstanceKlass* ik = InstanceKlass::cast(k);
+  if (HAS_PENDING_EXCEPTION) {
+    java_lang_Throwable::print(PENDING_EXCEPTION, output());
+    output()->cr();
+    CLEAR_PENDING_EXCEPTION;
+    return;
+  }
+
+  // invoke the ThreadDump method to dump to file
+  JavaValue result(T_OBJECT);
+  JavaCallArguments args;
+  args.push_oop(h_path);
+  args.push_int(overwrite ? JNI_TRUE : JNI_FALSE);
+  JavaCalls::call_static(&result,
+                         k,
+                         name,
+                         signature,
+                         &args,
+                         THREAD);
+  if (HAS_PENDING_EXCEPTION) {
+    java_lang_Throwable::print(PENDING_EXCEPTION, output());
+    output()->cr();
+    CLEAR_PENDING_EXCEPTION;
+    return;
+  }
+
+  // check that result is byte array
+  oop res = cast_to_oop(result.get_jobject());
+  assert(res->is_typeArray(), "just checking");
+  assert(TypeArrayKlass::cast(res->klass())->element_type() == T_BYTE, "just checking");
+
+  // copy the bytes to the output stream
+  typeArrayOop ba = typeArrayOop(res);
+  jbyte* addr = typeArrayOop(res)->byte_at_addr(0);
+  output()->print_raw((const char*)addr, ba->length());
+}
+
+CompilationMemoryStatisticDCmd::CompilationMemoryStatisticDCmd(outputStream* output, bool heap) :
+    DCmdWithParser(output, heap),
+  _human_readable("-H", "Human readable format", "BOOLEAN", false, "false"),
+  _minsize("-s", "Minimum memory size", "MEMORY SIZE", false, "0") {
+  _dcmdparser.add_dcmd_option(&_human_readable);
+  _dcmdparser.add_dcmd_option(&_minsize);
+}
+
+void CompilationMemoryStatisticDCmd::execute(DCmdSource source, TRAPS) {
+  const bool human_readable = _human_readable.value();
+  const size_t minsize = _minsize.has_value() ? _minsize.value()._size : 0;
+  CompilationMemoryStatistic::print_all_by_size(output(), human_readable, minsize);
+}
+
+#if defined(LINUX) || defined(_WIN64)
+
+SystemMapDCmd::SystemMapDCmd(outputStream* output, bool heap) : DCmd(output, heap) {}
+
+void SystemMapDCmd::execute(DCmdSource source, TRAPS) {
+  MemMapPrinter::print_all_mappings(output());
+}
+
+static constexpr char default_filename[] = "vm_memory_map_%p.txt";
+
+SystemDumpMapDCmd::SystemDumpMapDCmd(outputStream* output, bool heap) :
+  DCmdWithParser(output, heap),
+  _filename("-F", "file path", "FILE", false, default_filename) {
+  _dcmdparser.add_dcmd_option(&_filename);
+}
+
+void SystemDumpMapDCmd::execute(DCmdSource source, TRAPS) {
+  const char* name = _filename.value();
+  if (name == nullptr || name[0] == 0) {
+    output()->print_cr("filename is empty or not specified.  No file written");
+    return;
+  }
+  fileStream fs(name);
+  if (fs.is_open()) {
+    if (!MemTracker::enabled()) {
+      output()->print_cr("(NMT is disabled, will not annotate mappings).");
+    }
+    MemMapPrinter::print_all_mappings(&fs);
+#ifndef _WIN64
+    // For the readers convenience, resolve path name.
+    char tmp[JVM_MAXPATHLEN];
+    const char* absname = os::Posix::realpath(name, tmp, sizeof(tmp));
+    name = absname != nullptr ? absname : name;
+#endif
+    output()->print_cr("Memory map dumped to \"%s\".", name);
+  } else {
+    output()->print_cr("Failed to open \"%s\" for writing (%s).", name, os::strerror(errno));
+  }
+}
+
+#endif // LINUX

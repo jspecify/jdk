@@ -42,13 +42,7 @@ public class StorageResolver {
         com.sun.org.slf4j.internal.LoggerFactory.getLogger(StorageResolver.class);
 
     /** Field storageResolvers */
-    private List<StorageResolverSpi> storageResolvers;
-
-    /**
-     * Constructor StorageResolver
-     *
-     */
-    public StorageResolver() {}
+    private final List<StorageResolverSpi> storageResolvers = new ArrayList<>();
 
     /**
      * Constructor StorageResolver
@@ -60,24 +54,30 @@ public class StorageResolver {
     }
 
     /**
-     * Method addResolver
-     *
-     * @param resolver
-     */
-    public void add(StorageResolverSpi resolver) {
-        if (storageResolvers == null) {
-            storageResolvers = new ArrayList<>();
-        }
-        this.storageResolvers.add(resolver);
-    }
-
-    /**
      * Constructor StorageResolver
      *
      * @param keyStore
      */
     public StorageResolver(KeyStore keyStore) {
         this.add(keyStore);
+    }
+
+    /**
+     * Constructor StorageResolver
+     *
+     * @param x509certificate
+     */
+    public StorageResolver(X509Certificate x509certificate) {
+        this.add(x509certificate);
+    }
+
+    /**
+     * Method addResolver
+     *
+     * @param resolver
+     */
+    public void add(StorageResolverSpi resolver) {
+        this.storageResolvers.add(resolver);
     }
 
     /**
@@ -91,15 +91,6 @@ public class StorageResolver {
         } catch (StorageResolverException ex) {
             LOG.error("Could not add KeyStore because of: ", ex);
         }
-    }
-
-    /**
-     * Constructor StorageResolver
-     *
-     * @param x509certificate
-     */
-    public StorageResolver(X509Certificate x509certificate) {
-        this.add(x509certificate);
     }
 
     /**
@@ -126,10 +117,10 @@ public class StorageResolver {
     static class StorageResolverIterator implements Iterator<Certificate> {
 
         /** Field resolvers */
-        Iterator<StorageResolverSpi> resolvers = null;
+        private final Iterator<StorageResolverSpi> resolvers;
 
         /** Field currentResolver */
-        Iterator<Certificate> currentResolver = null;
+        private Iterator<Certificate> currentResolver;
 
         /**
          * Constructor StorageResolverIterator
@@ -142,6 +133,7 @@ public class StorageResolver {
         }
 
         /** {@inheritDoc} */
+        @Override
         public boolean hasNext() {
             if (currentResolver == null) {
                 return false;
@@ -156,6 +148,7 @@ public class StorageResolver {
         }
 
         /** {@inheritDoc} */
+        @Override
         public Certificate next() {
             if (hasNext()) {
                 return currentResolver.next();
@@ -167,6 +160,7 @@ public class StorageResolver {
         /**
          * Method remove
          */
+        @Override
         public void remove() {
             throw new UnsupportedOperationException("Can't remove keys from KeyStore");
         }

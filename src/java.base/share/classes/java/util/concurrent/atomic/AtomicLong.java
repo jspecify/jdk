@@ -38,6 +38,7 @@ package java.util.concurrent.atomic;
 import java.lang.invoke.VarHandle;
 import java.util.function.LongBinaryOperator;
 import java.util.function.LongUnaryOperator;
+import jdk.internal.misc.Unsafe;
 
 /**
  * A {@code long} value that may be updated atomically.  See the
@@ -54,26 +55,13 @@ import java.util.function.LongUnaryOperator;
 public class AtomicLong extends Number implements java.io.Serializable {
     private static final long serialVersionUID = 1927816293512124184L;
 
-    /**
-     * Records whether the underlying JVM supports lockless
-     * compareAndSet for longs. While the intrinsic compareAndSetLong
-     * method works in either case, some constructions should be
-     * handled at Java level to avoid locking user-visible locks.
-     */
-    static final boolean VM_SUPPORTS_LONG_CAS = VMSupportsCS8();
-
-    /**
-     * Returns whether underlying JVM supports lockless CompareAndSet
-     * for longs. Called only once and cached in VM_SUPPORTS_LONG_CAS.
-     */
-    private static native boolean VMSupportsCS8();
-
     /*
      * This class intended to be implemented using VarHandles, but there
      * are unresolved cyclic startup dependencies.
      */
-    private static final jdk.internal.misc.Unsafe U = jdk.internal.misc.Unsafe.getUnsafe();
-    private static final long VALUE = U.objectFieldOffset(AtomicLong.class, "value");
+    private static final Unsafe U = Unsafe.getUnsafe();
+    private static final long VALUE
+        = U.objectFieldOffset(AtomicLong.class, "value");
 
     private volatile long value;
 
@@ -353,8 +341,7 @@ public class AtomicLong extends Number implements java.io.Serializable {
     }
 
     /**
-     * Returns the String representation of the current value.
-     * @return the String representation of the current value
+     * {@return the String representation of the current value}
      */
     public String toString() {
         return Long.toString(get());
@@ -364,7 +351,7 @@ public class AtomicLong extends Number implements java.io.Serializable {
      * Returns the current value of this {@code AtomicLong} as an {@code int}
      * after a narrowing primitive conversion,
      * with memory effects as specified by {@link VarHandle#getVolatile}.
-     * @jls 5.1.3 Narrowing Primitive Conversions
+     * @jls 5.1.3 Narrowing Primitive Conversion
      */
     public int intValue() {
         return (int)get();
@@ -383,7 +370,7 @@ public class AtomicLong extends Number implements java.io.Serializable {
      * Returns the current value of this {@code AtomicLong} as a {@code float}
      * after a widening primitive conversion,
      * with memory effects as specified by {@link VarHandle#getVolatile}.
-     * @jls 5.1.2 Widening Primitive Conversions
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     public float floatValue() {
         return (float)get();
@@ -393,7 +380,7 @@ public class AtomicLong extends Number implements java.io.Serializable {
      * Returns the current value of this {@code AtomicLong} as a {@code double}
      * after a widening primitive conversion,
      * with memory effects as specified by {@link VarHandle#getVolatile}.
-     * @jls 5.1.2 Widening Primitive Conversions
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     public double doubleValue() {
         return (double)get();
@@ -476,7 +463,7 @@ public class AtomicLong extends Number implements java.io.Serializable {
      *
      * @param expectedValue the expected value
      * @param newValue the new value
-     * @return the witness value, which will be the same as the
+     * @return the <em>witness value</em>, which will be the same as the
      * expected value if successful
      * @since 9
      */
@@ -492,7 +479,7 @@ public class AtomicLong extends Number implements java.io.Serializable {
      *
      * @param expectedValue the expected value
      * @param newValue the new value
-     * @return the witness value, which will be the same as the
+     * @return the <em>witness value</em>, which will be the same as the
      * expected value if successful
      * @since 9
      */
@@ -508,7 +495,7 @@ public class AtomicLong extends Number implements java.io.Serializable {
      *
      * @param expectedValue the expected value
      * @param newValue the new value
-     * @return the witness value, which will be the same as the
+     * @return the <em>witness value</em>, which will be the same as the
      * expected value if successful
      * @since 9
      */

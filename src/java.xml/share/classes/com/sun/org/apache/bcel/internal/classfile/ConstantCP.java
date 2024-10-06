@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -26,14 +26,13 @@ import java.io.IOException;
 import com.sun.org.apache.bcel.internal.Const;
 
 /**
- * Abstract super class for Fieldref, Methodref, InterfaceMethodref and
- * InvokeDynamic constants.
+ * Abstract super class for Fieldref, Methodref, InterfaceMethodref and InvokeDynamic constants.
  *
- * @version $Id: ConstantCP.java 1747278 2016-06-07 17:28:43Z britter $
- * @see ConstantFieldref
- * @see ConstantMethodref
- * @see ConstantInterfaceMethodref
- * @see ConstantInvokeDynamic
+ * @see     ConstantFieldref
+ * @see     ConstantMethodref
+ * @see     ConstantInterfaceMethodref
+ * @see     ConstantInvokeDynamic
+ * @LastModified: Jun 2019
  */
 public abstract class ConstantCP extends Constant {
 
@@ -42,77 +41,60 @@ public abstract class ConstantCP extends Constant {
      */
     // Note that this field is used to store the
     // bootstrap_method_attr_index of a ConstantInvokeDynamic.
-    private int class_index;
+    /**
+     * @deprecated (since 6.0) will be made private; do not access directly, use getter/setter
+     */
+    @java.lang.Deprecated
+    protected int class_index; // TODO make private (has getter & setter)
     // This field has the same meaning for all subclasses.
-    private int name_and_type_index;
 
     /**
-     * Initialize from another object.
+     * @deprecated (since 6.0) will be made private; do not access directly, use getter/setter
      */
-    public ConstantCP(final ConstantCP c) {
-        this(c.getTag(), c.getClassIndex(), c.getNameAndTypeIndex());
-    }
+    @java.lang.Deprecated
+    protected int name_and_type_index; // TODO make private (has getter & setter)
 
     /**
      * Initialize instance from file data.
      *
      * @param tag Constant type tag
      * @param file Input stream
-     * @throws IOException
+     * @throws IOException if an I/O error occurs.
      */
     ConstantCP(final byte tag, final DataInput file) throws IOException {
         this(tag, file.readUnsignedShort(), file.readUnsignedShort());
     }
 
     /**
-     * @param class_index Reference to the class containing the field
-     * @param name_and_type_index and the field signature
+     * @param classIndex Reference to the class containing the field
+     * @param nameAndTypeIndex and the field signature
      */
-    protected ConstantCP(final byte tag, final int class_index, final int name_and_type_index) {
+    protected ConstantCP(final byte tag, final int classIndex, final int nameAndTypeIndex) {
         super(tag);
-        this.class_index = class_index;
-        this.name_and_type_index = name_and_type_index;
+        this.class_index = classIndex;
+        this.name_and_type_index = nameAndTypeIndex;
+    }
+
+    /**
+     * Initialize from another object.
+     *
+     * @param c Source to copy.
+     */
+    public ConstantCP(final ConstantCP c) {
+        this(c.getTag(), c.getClassIndex(), c.getNameAndTypeIndex());
     }
 
     /**
      * Dump constant field reference to file stream in binary format.
      *
      * @param file Output file stream
-     * @throws IOException
+     * @throws IOException if an I/O error occurs.
      */
     @Override
     public final void dump(final DataOutputStream file) throws IOException {
         file.writeByte(super.getTag());
         file.writeShort(class_index);
         file.writeShort(name_and_type_index);
-    }
-
-    /**
-     * @return Reference (index) to class this constant refers to.
-     */
-    public final int getClassIndex() {
-        return class_index;
-    }
-
-    /**
-     * @param class_index points to Constant_class
-     */
-    public final void setClassIndex(final int class_index) {
-        this.class_index = class_index;
-    }
-
-    /**
-     * @return Reference (index) to signature of the field.
-     */
-    public final int getNameAndTypeIndex() {
-        return name_and_type_index;
-    }
-
-    /**
-     * @param name_and_type_index points to Constant_NameAndType
-     */
-    public final void setNameAndTypeIndex(final int name_and_type_index) {
-        this.name_and_type_index = name_and_type_index;
     }
 
     /**
@@ -123,13 +105,40 @@ public abstract class ConstantCP extends Constant {
     }
 
     /**
+     * @return Reference (index) to class this constant refers to.
+     */
+    public final int getClassIndex() {
+        return class_index;
+    }
+
+    /**
+     * @return Reference (index) to signature of the field.
+     */
+    public final int getNameAndTypeIndex() {
+        return name_and_type_index;
+    }
+
+    /**
+     * @param classIndex points to Constant_class
+     */
+    public final void setClassIndex(final int classIndex) {
+        this.class_index = classIndex;
+    }
+
+    /**
+     * @param nameAndTypeIndex points to Constant_NameAndType
+     */
+    public final void setNameAndTypeIndex(final int nameAndTypeIndex) {
+        this.name_and_type_index = nameAndTypeIndex;
+    }
+
+    /**
      * @return String representation.
      *
-     * not final as ConstantInvokeDynamic needs to modify
+     *         not final as ConstantInvokeDynamic needs to modify
      */
     @Override
     public String toString() {
-        return super.toString() + "(class_index = " + class_index + ", name_and_type_index = "
-                + name_and_type_index + ")";
+        return super.toString() + "(class_index = " + class_index + ", name_and_type_index = " + name_and_type_index + ")";
     }
 }

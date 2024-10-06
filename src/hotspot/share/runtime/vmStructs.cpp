@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,19 +23,24 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/filemap.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciSymbol.hpp"
-#include "classfile/compactHashtable.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.hpp"
+#include "classfile/javaThreadStatus.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "classfile/vmClasses.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "code/codeBlob.hpp"
 #include "code/codeCache.hpp"
+#include "code/compiledIC.hpp"
 #include "code/compressedStream.hpp"
 #include "code/location.hpp"
 #include "code/nmethod.hpp"
@@ -44,32 +49,33 @@
 #include "code/vmreg.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/oopMap.hpp"
+#include "gc/shared/stringdedup/stringDedupThread.hpp"
 #include "gc/shared/vmStructs_gc.hpp"
-#include "interpreter/bytecodeInterpreter.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "interpreter/interpreter.hpp"
+#include "logging/logAsyncWriter.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/heap.hpp"
-#include "memory/metaspace/metablock.hpp"
 #include "memory/padded.hpp"
 #include "memory/referenceType.hpp"
 #include "memory/universe.hpp"
 #include "memory/virtualspace.hpp"
-#include "memory/filemap.hpp"
 #include "oops/array.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
-#include "oops/compiledICHolder.hpp"
 #include "oops/constMethod.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/cpCache.hpp"
+#include "oops/fieldInfo.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/instanceOop.hpp"
+#include "oops/instanceStackChunkKlass.hpp"
 #include "oops/klass.hpp"
-#include "oops/markOop.hpp"
+#include "oops/klassVtable.hpp"
+#include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/methodCounters.hpp"
 #include "oops/methodData.hpp"
@@ -77,6 +83,9 @@
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/oopHandle.hpp"
+#include "oops/resolvedFieldEntry.hpp"
+#include "oops/resolvedIndyEntry.hpp"
+#include "oops/resolvedMethodEntry.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.hpp"
@@ -87,27 +96,25 @@
 #include "runtime/globals.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/javaThread.hpp"
+#include "runtime/jniHandles.hpp"
+#include "runtime/monitorDeflationThread.hpp"
+#include "runtime/notificationThread.hpp"
 #include "runtime/os.hpp"
+#include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/serviceThread.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/thread.inline.hpp"
+#include "runtime/synchronizer.hpp"
+#include "runtime/threadSMR.hpp"
 #include "runtime/vframeArray.hpp"
 #include "runtime/vmStructs.hpp"
+#include "runtime/vm_version.hpp"
+#include "services/attachListener.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "utilities/hashtable.hpp"
 #include "utilities/macros.hpp"
-
-#include CPU_HEADER(vmStructs)
-#include OS_HEADER(vmStructs)
-#include OS_CPU_HEADER(vmStructs)
-
-#if INCLUDE_JVMCI
-# include "jvmci/vmStructs_jvmci.hpp"
-#endif
-
-
+#include "utilities/vmError.hpp"
 #ifdef COMPILER2
 #include "opto/addnode.hpp"
 #include "opto/block.hpp"
@@ -136,6 +143,10 @@
 #include "opto/vectornode.hpp"
 #endif // COMPILER2
 
+#include CPU_HEADER(vmStructs)
+#include OS_HEADER(vmStructs)
+#include OS_CPU_HEADER(vmStructs)
+
 // Note: the cross-product of (c1, c2, product, nonproduct, ...),
 // (nonstatic, static), and (unchecked, checked) has not been taken.
 // Only the macros currently needed have been defined.
@@ -160,17 +171,6 @@
   #define JVMTI_STRUCTS(static_field)
 #endif // INCLUDE_JVMTI
 
-typedef HashtableEntry<intptr_t, mtInternal>  IntptrHashtableEntry;
-typedef Hashtable<intptr_t, mtInternal>       IntptrHashtable;
-typedef Hashtable<Symbol*, mtSymbol>          SymbolHashtable;
-typedef HashtableEntry<Symbol*, mtClass>      SymbolHashtableEntry;
-typedef Hashtable<InstanceKlass*, mtClass>       KlassHashtable;
-typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
-typedef CompactHashtable<Symbol*, char>       SymbolCompactHashTable;
-typedef RehashableHashtable<Symbol*, mtSymbol>   RehashableSymbolHashtable;
-
-typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
-
 //--------------------------------------------------------------------------------
 // VM_STRUCTS
 //
@@ -181,7 +181,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
 
 #define VM_STRUCTS(nonstatic_field,                                                                                                  \
                    static_field,                                                                                                     \
-                   static_ptr_volatile_field,                                                                                        \
+                   volatile_static_field,                                                                                            \
                    unchecked_nonstatic_field,                                                                                        \
                    volatile_nonstatic_field,                                                                                         \
                    nonproduct_nonstatic_field,                                                                                       \
@@ -195,6 +195,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /*************/                                                                                                                    \
                                                                                                                                      \
   VM_STRUCTS_GC(nonstatic_field,                                                                                                     \
+                volatile_static_field,                                                                                               \
                 volatile_nonstatic_field,                                                                                            \
                 static_field,                                                                                                        \
                 unchecked_nonstatic_field)                                                                                           \
@@ -203,53 +204,55 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* OopDesc and Klass hierarchies (NOTE: MethodData* incomplete)   */                                                               \
   /******************************************************************/                                                               \
                                                                                                                                      \
-  volatile_nonstatic_field(oopDesc,            _mark,                                         markOop)                               \
+  volatile_nonstatic_field(oopDesc,            _mark,                                         markWord)                              \
   volatile_nonstatic_field(oopDesc,            _metadata._klass,                              Klass*)                                \
   volatile_nonstatic_field(oopDesc,            _metadata._compressed_klass,                   narrowKlass)                           \
   static_field(BarrierSet,                     _barrier_set,                                  BarrierSet*)                           \
   nonstatic_field(ArrayKlass,                  _dimension,                                    int)                                   \
-  volatile_nonstatic_field(ArrayKlass,         _higher_dimension,                             Klass*)                                \
-  volatile_nonstatic_field(ArrayKlass,         _lower_dimension,                              Klass*)                                \
-  nonstatic_field(CompiledICHolder,            _holder_metadata,                              Metadata*)                             \
-  nonstatic_field(CompiledICHolder,            _holder_klass,                                 Klass*)                                \
+  volatile_nonstatic_field(ArrayKlass,         _higher_dimension,                             ObjArrayKlass*)                        \
+  volatile_nonstatic_field(ArrayKlass,         _lower_dimension,                              ArrayKlass*)                           \
   nonstatic_field(ConstantPool,                _tags,                                         Array<u1>*)                            \
   nonstatic_field(ConstantPool,                _cache,                                        ConstantPoolCache*)                    \
   nonstatic_field(ConstantPool,                _pool_holder,                                  InstanceKlass*)                        \
   nonstatic_field(ConstantPool,                _operands,                                     Array<u2>*)                            \
   nonstatic_field(ConstantPool,                _resolved_klasses,                             Array<Klass*>*)                        \
   nonstatic_field(ConstantPool,                _length,                                       int)                                   \
+  nonstatic_field(ConstantPool,                _minor_version,                                u2)                                    \
+  nonstatic_field(ConstantPool,                _major_version,                                u2)                                    \
+  nonstatic_field(ConstantPool,                _generic_signature_index,                      u2)                                    \
+  nonstatic_field(ConstantPool,                _source_file_name_index,                       u2)                                    \
   nonstatic_field(ConstantPoolCache,           _resolved_references,                          OopHandle)                             \
   nonstatic_field(ConstantPoolCache,           _reference_map,                                Array<u2>*)                            \
-  nonstatic_field(ConstantPoolCache,           _length,                                       int)                                   \
   nonstatic_field(ConstantPoolCache,           _constant_pool,                                ConstantPool*)                         \
-  volatile_nonstatic_field(InstanceKlass,      _array_klasses,                                Klass*)                                \
+  nonstatic_field(ConstantPoolCache,           _resolved_field_entries,                       Array<ResolvedFieldEntry>*)            \
+  nonstatic_field(ResolvedFieldEntry,          _cpool_index,                                  u2)                                    \
+  nonstatic_field(ConstantPoolCache,           _resolved_method_entries,                      Array<ResolvedMethodEntry>*)           \
+  nonstatic_field(ResolvedMethodEntry,         _cpool_index,                                  u2)                                    \
+  nonstatic_field(ConstantPoolCache,           _resolved_indy_entries,                        Array<ResolvedIndyEntry>*)             \
+  nonstatic_field(ResolvedIndyEntry,           _cpool_index,                                  u2)                                    \
+  volatile_nonstatic_field(InstanceKlass,      _array_klasses,                                ObjArrayKlass*)                        \
   nonstatic_field(InstanceKlass,               _methods,                                      Array<Method*>*)                       \
   nonstatic_field(InstanceKlass,               _default_methods,                              Array<Method*>*)                       \
-  nonstatic_field(InstanceKlass,               _local_interfaces,                             Array<Klass*>*)                        \
-  nonstatic_field(InstanceKlass,               _transitive_interfaces,                        Array<Klass*>*)                        \
-  nonstatic_field(InstanceKlass,               _fields,                                       Array<u2>*)                            \
-  nonstatic_field(InstanceKlass,               _java_fields_count,                            u2)                                    \
+  nonstatic_field(InstanceKlass,               _local_interfaces,                             Array<InstanceKlass*>*)                \
+  nonstatic_field(InstanceKlass,               _transitive_interfaces,                        Array<InstanceKlass*>*)                \
+  nonstatic_field(InstanceKlass,               _fieldinfo_stream,                             Array<u1>*)                            \
   nonstatic_field(InstanceKlass,               _constants,                                    ConstantPool*)                         \
-  nonstatic_field(InstanceKlass,               _source_file_name_index,                       u2)                                    \
   nonstatic_field(InstanceKlass,               _source_debug_extension,                       const char*)                           \
   nonstatic_field(InstanceKlass,               _inner_classes,                                Array<jushort>*)                       \
+  nonstatic_field(InstanceKlass,               _nest_members,                                 Array<jushort>*)                       \
   nonstatic_field(InstanceKlass,               _nonstatic_field_size,                         int)                                   \
   nonstatic_field(InstanceKlass,               _static_field_size,                            int)                                   \
   nonstatic_field(InstanceKlass,               _static_oop_field_count,                       u2)                                    \
   nonstatic_field(InstanceKlass,               _nonstatic_oop_map_size,                       int)                                   \
-  nonstatic_field(InstanceKlass,               _is_marked_dependent,                          bool)                                  \
-  nonstatic_field(InstanceKlass,               _misc_flags,                                   u2)                                    \
-  nonstatic_field(InstanceKlass,               _minor_version,                                u2)                                    \
-  nonstatic_field(InstanceKlass,               _major_version,                                u2)                                    \
-  nonstatic_field(InstanceKlass,               _init_state,                                   u1)                                    \
-  nonstatic_field(InstanceKlass,               _init_thread,                                  Thread*)                               \
+  volatile_nonstatic_field(InstanceKlass,      _init_state,                                   InstanceKlass::ClassState)             \
+  volatile_nonstatic_field(InstanceKlass,      _init_thread,                                  JavaThread*)                           \
   nonstatic_field(InstanceKlass,               _itable_len,                                   int)                                   \
+  nonstatic_field(InstanceKlass,               _nest_host_index,                              u2)                                    \
   nonstatic_field(InstanceKlass,               _reference_type,                               u1)                                    \
   volatile_nonstatic_field(InstanceKlass,      _oop_map_cache,                                OopMapCache*)                          \
   nonstatic_field(InstanceKlass,               _jni_ids,                                      JNIid*)                                \
   nonstatic_field(InstanceKlass,               _osr_nmethods_head,                            nmethod*)                              \
   JVMTI_ONLY(nonstatic_field(InstanceKlass,    _breakpoints,                                  BreakpointInfo*))                      \
-  nonstatic_field(InstanceKlass,               _generic_signature_index,                      u2)                                    \
   volatile_nonstatic_field(InstanceKlass,      _methods_jmethod_ids,                          jmethodID*)                            \
   volatile_nonstatic_field(InstanceKlass,      _idnum_allocated_count,                        u2)                                    \
   nonstatic_field(InstanceKlass,               _annotations,                                  Annotations*)                          \
@@ -262,12 +265,11 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(Klass,                       _java_mirror,                                  OopHandle)                             \
   nonstatic_field(Klass,                       _modifier_flags,                               jint)                                  \
   nonstatic_field(Klass,                       _super,                                        Klass*)                                \
-  nonstatic_field(Klass,                       _subklass,                                     Klass*)                                \
+  volatile_nonstatic_field(Klass,              _subklass,                                     Klass*)                                \
   nonstatic_field(Klass,                       _layout_helper,                                jint)                                  \
   nonstatic_field(Klass,                       _name,                                         Symbol*)                               \
   nonstatic_field(Klass,                       _access_flags,                                 AccessFlags)                           \
-  nonstatic_field(Klass,                       _prototype_header,                             markOop)                               \
-  nonstatic_field(Klass,                       _next_sibling,                                 Klass*)                                \
+  volatile_nonstatic_field(Klass,              _next_sibling,                                 Klass*)                                \
   nonstatic_field(Klass,                       _next_link,                                    Klass*)                                \
   nonstatic_field(Klass,                       _vtable_len,                                   int)                                   \
   nonstatic_field(Klass,                       _class_loader_data,                            ClassLoaderData*)                      \
@@ -277,10 +279,10 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(MethodData,                  _data_size,                                    int)                                   \
   nonstatic_field(MethodData,                  _data[0],                                      intptr_t)                              \
   nonstatic_field(MethodData,                  _parameters_type_data_di,                      int)                                   \
-  nonstatic_field(MethodData,                  _nof_decompiles,                               uint)                                  \
-  nonstatic_field(MethodData,                  _nof_overflow_recompiles,                      uint)                                  \
-  nonstatic_field(MethodData,                  _nof_overflow_traps,                           uint)                                  \
-  nonstatic_field(MethodData,                  _trap_hist._array[0],                          u1)                                    \
+  nonstatic_field(MethodData,                  _compiler_counters._nof_decompiles,            uint)                                  \
+  nonstatic_field(MethodData,                  _compiler_counters._nof_overflow_recompiles,   uint)                                  \
+  nonstatic_field(MethodData,                  _compiler_counters._nof_overflow_traps,        uint)                                  \
+  nonstatic_field(MethodData,                  _compiler_counters._trap_hist._array[0],       u1)                                    \
   nonstatic_field(MethodData,                  _eflags,                                       intx)                                  \
   nonstatic_field(MethodData,                  _arg_local,                                    intx)                                  \
   nonstatic_field(MethodData,                  _arg_stack,                                    intx)                                  \
@@ -293,13 +295,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(DataLayout,                  _header._struct._bci,                          u2)                                    \
   nonstatic_field(DataLayout,                  _header._struct._traps,                        u4)                                    \
   nonstatic_field(DataLayout,                  _cells[0],                                     intptr_t)                              \
-  nonstatic_field(MethodCounters,              _nmethod_age,                                  int)                                   \
-  nonstatic_field(MethodCounters,              _interpreter_invocation_limit,                 int)                                   \
-  nonstatic_field(MethodCounters,              _interpreter_backward_branch_limit,            int)                                   \
-  nonstatic_field(MethodCounters,              _interpreter_profile_limit,                    int)                                   \
   nonstatic_field(MethodCounters,              _invoke_mask,                                  int)                                   \
   nonstatic_field(MethodCounters,              _backedge_mask,                                int)                                   \
-  COMPILER2_OR_JVMCI_PRESENT(nonstatic_field(MethodCounters, _interpreter_invocation_count,   int))                                  \
   COMPILER2_OR_JVMCI_PRESENT(nonstatic_field(MethodCounters, _interpreter_throwout_count,     u2))                                   \
   JVMTI_ONLY(nonstatic_field(MethodCounters,   _number_of_breakpoints,                        u2))                                   \
   nonstatic_field(MethodCounters,              _invocation_counter,                           InvocationCounter)                     \
@@ -310,9 +307,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(Method,                      _access_flags,                                 AccessFlags)                           \
   nonstatic_field(Method,                      _vtable_index,                                 int)                                   \
   nonstatic_field(Method,                      _intrinsic_id,                                 u2)                                    \
-  nonstatic_field(Method,                      _flags,                                        u2)                                    \
-  nonproduct_nonstatic_field(Method,           _compiled_invocation_count,                    int)                                   \
-  volatile_nonstatic_field(Method,             _code,                                         CompiledMethod*)                       \
+  volatile_nonstatic_field(Method,             _code,                                         nmethod*)                              \
   nonstatic_field(Method,                      _i2i_entry,                                    address)                               \
   volatile_nonstatic_field(Method,             _from_compiled_entry,                          address)                               \
   volatile_nonstatic_field(Method,             _from_interpreted_entry,                       address)                               \
@@ -320,7 +315,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(ConstMethod,                 _constants,                                    ConstantPool*)                         \
   nonstatic_field(ConstMethod,                 _stackmap_data,                                Array<u1>*)                            \
   nonstatic_field(ConstMethod,                 _constMethod_size,                             int)                                   \
-  nonstatic_field(ConstMethod,                 _flags,                                        u2)                                    \
+  nonstatic_field(ConstMethod,                 _flags._flags,                                 u4)                                    \
   nonstatic_field(ConstMethod,                 _code_size,                                    u2)                                    \
   nonstatic_field(ConstMethod,                 _name_index,                                   u2)                                    \
   nonstatic_field(ConstMethod,                 _signature_index,                              u2)                                    \
@@ -328,27 +323,23 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(ConstMethod,                 _max_stack,                                    u2)                                    \
   nonstatic_field(ConstMethod,                 _max_locals,                                   u2)                                    \
   nonstatic_field(ConstMethod,                 _size_of_parameters,                           u2)                                    \
+  nonstatic_field(ConstMethod,                 _num_stack_arg_slots,                          u2)                                    \
   nonstatic_field(ObjArrayKlass,               _element_klass,                                Klass*)                                \
   nonstatic_field(ObjArrayKlass,               _bottom_klass,                                 Klass*)                                \
-  volatile_nonstatic_field(Symbol,             _refcount,                                     short)                                 \
-  nonstatic_field(Symbol,                      _identity_hash,                                short)                                 \
-  nonstatic_field(Symbol,                      _length,                                       unsigned short)                        \
-  unchecked_nonstatic_field(Symbol,            _body,                                         sizeof(jbyte)) /* NOTE: no type */     \
-  nonstatic_field(Symbol,                      _body[0],                                      jbyte)                                 \
+  volatile_nonstatic_field(Symbol,             _hash_and_refcount,                            unsigned int)                          \
+  nonstatic_field(Symbol,                      _length,                                       u2)                                    \
+  unchecked_nonstatic_field(Symbol,            _body,                                         sizeof(u1)) /* NOTE: no type */        \
+  nonstatic_field(Symbol,                      _body[0],                                      u1)                                    \
   nonstatic_field(TypeArrayKlass,              _max_length,                                   jint)                                  \
+  nonstatic_field(OopHandle,                   _obj,                                          oop*)                                  \
+  nonstatic_field(Annotations,                 _class_annotations,                            Array<u1>*)                            \
+  nonstatic_field(Annotations,                 _fields_annotations,                           Array<Array<u1>*>*)                    \
+  nonstatic_field(Annotations,                 _class_type_annotations,                       Array<u1>*)                            \
+  nonstatic_field(Annotations,                 _fields_type_annotations,                      Array<Array<u1>*>*)                    \
                                                                                                                                      \
-  /***********************/                                                                                                          \
-  /* Constant Pool Cache */                                                                                                          \
-  /***********************/                                                                                                          \
-                                                                                                                                     \
-  volatile_nonstatic_field(ConstantPoolCacheEntry,      _indices,                             intx)                                  \
-  volatile_nonstatic_field(ConstantPoolCacheEntry,      _f1,                                  Metadata*)                             \
-  volatile_nonstatic_field(ConstantPoolCacheEntry,      _f2,                                  intx)                                  \
-  volatile_nonstatic_field(ConstantPoolCacheEntry,      _flags,                               intx)                                  \
-                                                                                                                                     \
-  /********************************/                                                                                                 \
-  /* MethodOop-related structures */                                                                                                 \
-  /********************************/                                                                                                 \
+  /*****************************/                                                                                                    \
+  /* Method related structures */                                                                                                    \
+  /*****************************/                                                                                                    \
                                                                                                                                      \
   nonstatic_field(CheckedExceptionElement,     class_cp_index,                                u2)                                    \
   nonstatic_field(LocalVariableTableElement,   start_bci,                                     u2)                                    \
@@ -373,49 +364,32 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(JNIid,                       _holder,                                       Klass*)                                \
   nonstatic_field(JNIid,                       _next,                                         JNIid*)                                \
   nonstatic_field(JNIid,                       _offset,                                       int)                                   \
+                                                                                                                                     \
   /************/                                                                                                                     \
   /* Universe */                                                                                                                     \
   /************/                                                                                                                     \
-                                                                                                                                     \
-     static_field(Universe,                    _boolArrayKlassObj,                            Klass*)                                \
-     static_field(Universe,                    _byteArrayKlassObj,                            Klass*)                                \
-     static_field(Universe,                    _charArrayKlassObj,                            Klass*)                                \
-     static_field(Universe,                    _intArrayKlassObj,                             Klass*)                                \
-     static_field(Universe,                    _shortArrayKlassObj,                           Klass*)                                \
-     static_field(Universe,                    _longArrayKlassObj,                            Klass*)                                \
-     static_field(Universe,                    _singleArrayKlassObj,                          Klass*)                                \
-     static_field(Universe,                    _doubleArrayKlassObj,                          Klass*)                                \
-     static_field(Universe,                    _mirrors[0],                                   oop)                                   \
-     static_field(Universe,                    _main_thread_group,                            oop)                                   \
-     static_field(Universe,                    _system_thread_group,                          oop)                                   \
-     static_field(Universe,                    _the_empty_class_klass_array,                  objArrayOop)                           \
-     static_field(Universe,                    _null_ptr_exception_instance,                  oop)                                   \
-     static_field(Universe,                    _arithmetic_exception_instance,                oop)                                   \
-     static_field(Universe,                    _vm_exception,                                 oop)                                   \
      static_field(Universe,                    _collectedHeap,                                CollectedHeap*)                        \
-     static_field(Universe,                    _base_vtable_size,                             int)                                   \
-     static_field(Universe,                    _bootstrapping,                                bool)                                  \
-     static_field(Universe,                    _fully_initialized,                            bool)                                  \
-     static_field(Universe,                    _verify_count,                                 int)                                   \
-     static_field(Universe,                    _verify_oop_mask,                              uintptr_t)                             \
-     static_field(Universe,                    _verify_oop_bits,                              uintptr_t)                             \
-     static_field(Universe,                    _non_oop_bits,                                 intptr_t)                              \
-     static_field(Universe,                    _narrow_oop._base,                             address)                               \
-     static_field(Universe,                    _narrow_oop._shift,                            int)                                   \
-     static_field(Universe,                    _narrow_oop._use_implicit_null_checks,         bool)                                  \
-     static_field(Universe,                    _narrow_klass._base,                           address)                               \
-     static_field(Universe,                    _narrow_klass._shift,                          int)                                   \
+  /******************/                                                                                                               \
+  /* CompressedOops */                                                                                                               \
+  /******************/                                                                                                               \
                                                                                                                                      \
-  /******/                                                                                                                           \
-  /* os */                                                                                                                           \
-  /******/                                                                                                                           \
+     static_field(CompressedOops,              _base,                                         address)                               \
+     static_field(CompressedOops,              _shift,                                        int)                                   \
+     static_field(CompressedOops,              _use_implicit_null_checks,                     bool)                                  \
                                                                                                                                      \
-     static_field(os,                          _polling_page,                                 address)                               \
+  /***************************/                                                                                                      \
+  /* CompressedKlassPointers */                                                                                                      \
+  /***************************/                                                                                                      \
+                                                                                                                                     \
+     static_field(CompressedKlassPointers,     _base,                                         address)                               \
+     static_field(CompressedKlassPointers,     _shift,                                        int)                                   \
                                                                                                                                      \
   /**********/                                                                                                                       \
   /* Memory */                                                                                                                       \
   /**********/                                                                                                                       \
                                                                                                                                      \
+     static_field(MetaspaceObj,                _shared_metaspace_base,                        void*)                                 \
+     static_field(MetaspaceObj,                _shared_metaspace_top,                         void*)                                 \
   nonstatic_field(ThreadLocalAllocBuffer,      _start,                                        HeapWord*)                             \
   nonstatic_field(ThreadLocalAllocBuffer,      _top,                                          HeapWord*)                             \
   nonstatic_field(ThreadLocalAllocBuffer,      _end,                                          HeapWord*)                             \
@@ -425,8 +399,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
      static_field(ThreadLocalAllocBuffer,      _reserve_for_allocation_prefetch,              int)                                   \
      static_field(ThreadLocalAllocBuffer,      _target_refills,                               unsigned)                              \
   nonstatic_field(ThreadLocalAllocBuffer,      _number_of_refills,                            unsigned)                              \
-  nonstatic_field(ThreadLocalAllocBuffer,      _fast_refill_waste,                            unsigned)                              \
-  nonstatic_field(ThreadLocalAllocBuffer,      _slow_refill_waste,                            unsigned)                              \
+  nonstatic_field(ThreadLocalAllocBuffer,      _refill_waste,                                 unsigned)                              \
   nonstatic_field(ThreadLocalAllocBuffer,      _gc_waste,                                     unsigned)                              \
   nonstatic_field(ThreadLocalAllocBuffer,      _slow_allocations,                             unsigned)                              \
   nonstatic_field(VirtualSpace,                _low_boundary,                                 char*)                                 \
@@ -466,72 +439,27 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
      static_field(PerfMemory,                  _top,                                          char*)                                 \
      static_field(PerfMemory,                  _capacity,                                     size_t)                                \
      static_field(PerfMemory,                  _prologue,                                     PerfDataPrologue*)                     \
-     static_field(PerfMemory,                  _initialized,                                  int)                                   \
-                                                                                                                                     \
-  /***************/                                                                                                                  \
-  /* SymbolTable */                                                                                                                  \
-  /***************/                                                                                                                  \
-                                                                                                                                     \
-     static_field(SymbolTable,                 _the_table,                                    SymbolTable*)                          \
-     static_field(SymbolTable,                 _shared_table,                                 SymbolCompactHashTable)                \
-     static_field(RehashableSymbolHashtable,   _seed,                                         juint)                                 \
-                                                                                                                                     \
-  /********************/                                                                                                             \
-  /* CompactHashTable */                                                                                                             \
-  /********************/                                                                                                             \
-                                                                                                                                     \
-  nonstatic_field(SymbolCompactHashTable,      _base_address,                                 address)                               \
-  nonstatic_field(SymbolCompactHashTable,      _entry_count,                                  u4)                                    \
-  nonstatic_field(SymbolCompactHashTable,      _bucket_count,                                 u4)                                    \
-  nonstatic_field(SymbolCompactHashTable,      _buckets,                                      u4*)                                   \
-  nonstatic_field(SymbolCompactHashTable,      _entries,                                      u4*)                                   \
+     volatile_static_field(PerfMemory,         _initialized,                                  int)                                   \
                                                                                                                                      \
   /********************/                                                                                                             \
   /* SystemDictionary */                                                                                                             \
   /********************/                                                                                                             \
                                                                                                                                      \
-     static_field(SystemDictionary,            _shared_dictionary,                            Dictionary*)                           \
-     static_field(SystemDictionary,            _system_loader_lock_obj,                       oop)                                   \
-     static_field(SystemDictionary,            WK_KLASS(Object_klass),                        InstanceKlass*)                        \
-     static_field(SystemDictionary,            WK_KLASS(String_klass),                        InstanceKlass*)                        \
-     static_field(SystemDictionary,            WK_KLASS(Class_klass),                         InstanceKlass*)                        \
-     static_field(SystemDictionary,            WK_KLASS(ClassLoader_klass),                   InstanceKlass*)                        \
-     static_field(SystemDictionary,            WK_KLASS(System_klass),                        InstanceKlass*)                        \
-     static_field(SystemDictionary,            WK_KLASS(Thread_klass),                        InstanceKlass*)                        \
-     static_field(SystemDictionary,            WK_KLASS(ThreadGroup_klass),                   InstanceKlass*)                        \
-     static_field(SystemDictionary,            WK_KLASS(MethodHandle_klass),                  InstanceKlass*)                        \
-     static_field(SystemDictionary,            _java_system_loader,                           oop)                                   \
+     static_field(vmClasses,                   VM_CLASS_AT(Object_klass),                        InstanceKlass*)                     \
+     static_field(vmClasses,                   VM_CLASS_AT(String_klass),                        InstanceKlass*)                     \
+     static_field(vmClasses,                   VM_CLASS_AT(Class_klass),                         InstanceKlass*)                     \
+     static_field(vmClasses,                   VM_CLASS_AT(ClassLoader_klass),                   InstanceKlass*)                     \
+     static_field(vmClasses,                   VM_CLASS_AT(System_klass),                        InstanceKlass*)                     \
+     static_field(vmClasses,                   VM_CLASS_AT(Thread_klass),                        InstanceKlass*)                     \
+     static_field(vmClasses,                   VM_CLASS_AT(Thread_FieldHolder_klass),            InstanceKlass*)                     \
+     static_field(vmClasses,                   VM_CLASS_AT(ThreadGroup_klass),                   InstanceKlass*)                     \
+     static_field(vmClasses,                   VM_CLASS_AT(MethodHandle_klass),                  InstanceKlass*)                     \
                                                                                                                                      \
   /*************/                                                                                                                    \
   /* vmSymbols */                                                                                                                    \
   /*************/                                                                                                                    \
                                                                                                                                      \
-     static_field(vmSymbols,                   _symbols[0],                                   Symbol*)                               \
-                                                                                                                                     \
-  /*******************/                                                                                                              \
-  /* HashtableBucket */                                                                                                              \
-  /*******************/                                                                                                              \
-                                                                                                                                     \
-  nonstatic_field(HashtableBucket<mtInternal>, _entry,                                        BasicHashtableEntry<mtInternal>*)      \
-                                                                                                                                     \
-  /******************/                                                                                                               \
-  /* HashtableEntry */                                                                                                               \
-  /******************/                                                                                                               \
-                                                                                                                                     \
-  nonstatic_field(BasicHashtableEntry<mtInternal>, _next,                                     BasicHashtableEntry<mtInternal>*)      \
-  nonstatic_field(BasicHashtableEntry<mtInternal>, _hash,                                     unsigned int)                          \
-  nonstatic_field(IntptrHashtableEntry,            _literal,                                  intptr_t)                              \
-                                                                                                                                     \
-  /*************/                                                                                                                    \
-  /* Hashtable */                                                                                                                    \
-  /*************/                                                                                                                    \
-                                                                                                                                     \
-  nonstatic_field(BasicHashtable<mtInternal>,  _table_size,                                   int)                                   \
-  nonstatic_field(BasicHashtable<mtInternal>,  _buckets,                                      HashtableBucket<mtInternal>*)          \
-  volatile_nonstatic_field(BasicHashtable<mtInternal>,  _free_list,                           BasicHashtableEntry<mtInternal>*)      \
-  nonstatic_field(BasicHashtable<mtInternal>,  _first_free_entry,                             char*)                                 \
-  nonstatic_field(BasicHashtable<mtInternal>,  _end_block,                                    char*)                                 \
-  nonstatic_field(BasicHashtable<mtInternal>,  _entry_size,                                   int)                                   \
+     static_field(Symbol,                      _vm_symbols[0],                                Symbol*)                               \
                                                                                                                                      \
   /*******************/                                                                                                              \
   /* ClassLoaderData */                                                                                                              \
@@ -539,10 +467,9 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(ClassLoaderData,             _class_loader,                                 OopHandle)                             \
   nonstatic_field(ClassLoaderData,             _next,                                         ClassLoaderData*)                      \
   volatile_nonstatic_field(ClassLoaderData,    _klasses,                                      Klass*)                                \
-  nonstatic_field(ClassLoaderData,             _is_anonymous,                                 bool)                                  \
-  volatile_nonstatic_field(ClassLoaderData,    _dictionary,                                   Dictionary*)                           \
+  nonstatic_field(ClassLoaderData,             _has_class_mirror_holder,                      bool)                                  \
                                                                                                                                      \
-     static_field(ClassLoaderDataGraph,        _head,                                         ClassLoaderData*)                      \
+  volatile_static_field(ClassLoaderDataGraph, _head,                                          ClassLoaderData*)                      \
                                                                                                                                      \
   /**********/                                                                                                                       \
   /* Arrays */                                                                                                                       \
@@ -550,14 +477,19 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
                                                                                                                                      \
   nonstatic_field(Array<Klass*>,               _length,                                       int)                                   \
   nonstatic_field(Array<Klass*>,               _data[0],                                      Klass*)                                \
+  nonstatic_field(Array<ResolvedFieldEntry>,   _length,                                       int)                                   \
+  nonstatic_field(Array<ResolvedFieldEntry>,   _data[0],                                      ResolvedFieldEntry)                    \
+  nonstatic_field(Array<ResolvedMethodEntry>,  _length,                                       int)                                   \
+  nonstatic_field(Array<ResolvedMethodEntry>,  _data[0],                                      ResolvedMethodEntry)                   \
+  nonstatic_field(Array<ResolvedIndyEntry>,    _length,                                       int)                                   \
+  nonstatic_field(Array<ResolvedIndyEntry>,    _data[0],                                      ResolvedIndyEntry)                     \
                                                                                                                                      \
   /*******************/                                                                                                              \
   /* GrowableArrays  */                                                                                                              \
   /*******************/                                                                                                              \
                                                                                                                                      \
-  nonstatic_field(GenericGrowableArray,        _len,                                          int)                                   \
-  nonstatic_field(GenericGrowableArray,        _max,                                          int)                                   \
-  nonstatic_field(GenericGrowableArray,        _arena,                                        Arena*)                                \
+  nonstatic_field(GrowableArrayBase,           _len,                                          int)                                   \
+  nonstatic_field(GrowableArrayBase,           _capacity,                                     int)                                   \
   nonstatic_field(GrowableArray<int>,          _data,                                         int*)                                  \
                                                                                                                                      \
   /********************************/                                                                                                 \
@@ -567,7 +499,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
      static_field(CodeCache,                   _heaps,                                        GrowableArray<CodeHeap*>*)             \
      static_field(CodeCache,                   _low_bound,                                    address)                               \
      static_field(CodeCache,                   _high_bound,                                   address)                               \
-     static_field(CodeCache,                   _scavenge_root_nmethods,                       nmethod*)                              \
                                                                                                                                      \
   /*******************************/                                                                                                  \
   /* CodeHeap (NOTE: incomplete) */                                                                                                  \
@@ -577,7 +508,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(CodeHeap,                    _segmap,                                       VirtualSpace)                          \
   nonstatic_field(CodeHeap,                    _log2_segment_size,                            int)                                   \
   nonstatic_field(HeapBlock,                   _header,                                       HeapBlock::Header)                     \
-  nonstatic_field(HeapBlock::Header,           _length,                                       size_t)                                \
+  nonstatic_field(HeapBlock::Header,           _length,                                       uint32_t)                              \
   nonstatic_field(HeapBlock::Header,           _used,                                         bool)                                  \
                                                                                                                                      \
   /**********************************/                                                                                               \
@@ -600,69 +531,10 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(InterpreterCodelet,          _bytecode,                                     Bytecodes::Code)                       \
                                                                                                                                      \
   /***********************************/                                                                                              \
-  /* StubRoutines (NOTE: incomplete) */                                                                                              \
+  /* StubRoutine for stack walking.  */                                                                                              \
   /***********************************/                                                                                              \
                                                                                                                                      \
-     static_field(StubRoutines,                _verify_oop_count,                             jint)                                  \
      static_field(StubRoutines,                _call_stub_return_address,                     address)                               \
-     static_field(StubRoutines,                _aescrypt_encryptBlock,                        address)                               \
-     static_field(StubRoutines,                _aescrypt_decryptBlock,                        address)                               \
-     static_field(StubRoutines,                _cipherBlockChaining_encryptAESCrypt,          address)                               \
-     static_field(StubRoutines,                _cipherBlockChaining_decryptAESCrypt,          address)                               \
-     static_field(StubRoutines,                _counterMode_AESCrypt,                         address)                               \
-     static_field(StubRoutines,                _ghash_processBlocks,                          address)                               \
-     static_field(StubRoutines,                _base64_encodeBlock,                           address)                               \
-     static_field(StubRoutines,                _updateBytesCRC32,                             address)                               \
-     static_field(StubRoutines,                _crc_table_adr,                                address)                               \
-     static_field(StubRoutines,                _crc32c_table_addr,                            address)                               \
-     static_field(StubRoutines,                _updateBytesCRC32C,                            address)                               \
-     static_field(StubRoutines,                _multiplyToLen,                                address)                               \
-     static_field(StubRoutines,                _squareToLen,                                  address)                               \
-     static_field(StubRoutines,                _mulAdd,                                       address)                               \
-     static_field(StubRoutines,                _dexp,                                         address)                               \
-     static_field(StubRoutines,                _dlog,                                         address)                               \
-     static_field(StubRoutines,                _dlog10,                                       address)                               \
-     static_field(StubRoutines,                _dpow,                                         address)                               \
-     static_field(StubRoutines,                _dsin,                                         address)                               \
-     static_field(StubRoutines,                _dcos,                                         address)                               \
-     static_field(StubRoutines,                _dtan,                                         address)                               \
-     static_field(StubRoutines,                _vectorizedMismatch,                           address)                               \
-     static_field(StubRoutines,                _jbyte_arraycopy,                              address)                               \
-     static_field(StubRoutines,                _jshort_arraycopy,                             address)                               \
-     static_field(StubRoutines,                _jint_arraycopy,                               address)                               \
-     static_field(StubRoutines,                _jlong_arraycopy,                              address)                               \
-     static_field(StubRoutines,                _oop_arraycopy,                                address)                               \
-     static_field(StubRoutines,                _oop_arraycopy_uninit,                         address)                               \
-     static_field(StubRoutines,                _jbyte_disjoint_arraycopy,                     address)                               \
-     static_field(StubRoutines,                _jshort_disjoint_arraycopy,                    address)                               \
-     static_field(StubRoutines,                _jint_disjoint_arraycopy,                      address)                               \
-     static_field(StubRoutines,                _jlong_disjoint_arraycopy,                     address)                               \
-     static_field(StubRoutines,                _oop_disjoint_arraycopy,                       address)                               \
-     static_field(StubRoutines,                _oop_disjoint_arraycopy_uninit,                address)                               \
-     static_field(StubRoutines,                _arrayof_jbyte_arraycopy,                      address)                               \
-     static_field(StubRoutines,                _arrayof_jshort_arraycopy,                     address)                               \
-     static_field(StubRoutines,                _arrayof_jint_arraycopy,                       address)                               \
-     static_field(StubRoutines,                _arrayof_jlong_arraycopy,                      address)                               \
-     static_field(StubRoutines,                _arrayof_oop_arraycopy,                        address)                               \
-     static_field(StubRoutines,                _arrayof_oop_arraycopy_uninit,                 address)                               \
-     static_field(StubRoutines,                _arrayof_jbyte_disjoint_arraycopy,             address)                               \
-     static_field(StubRoutines,                _arrayof_jshort_disjoint_arraycopy,            address)                               \
-     static_field(StubRoutines,                _arrayof_jint_disjoint_arraycopy,              address)                               \
-     static_field(StubRoutines,                _arrayof_jlong_disjoint_arraycopy,             address)                               \
-     static_field(StubRoutines,                _arrayof_oop_disjoint_arraycopy,               address)                               \
-     static_field(StubRoutines,                _arrayof_oop_disjoint_arraycopy_uninit,        address)                               \
-     static_field(StubRoutines,                _checkcast_arraycopy,                          address)                               \
-     static_field(StubRoutines,                _checkcast_arraycopy_uninit,                   address)                               \
-     static_field(StubRoutines,                _unsafe_arraycopy,                             address)                               \
-     static_field(StubRoutines,                _generic_arraycopy,                            address)                               \
-                                                                                                                                     \
-  /*****************/                                                                                                                \
-  /* SharedRuntime */                                                                                                                \
-  /*****************/                                                                                                                \
-                                                                                                                                     \
-     static_field(SharedRuntime,               _wrong_method_blob,                            RuntimeStub*)                          \
-     static_field(SharedRuntime,               _ic_miss_blob,                                 RuntimeStub*)                          \
-     static_field(SharedRuntime,               _deopt_blob,                                   DeoptimizationBlob*)                   \
                                                                                                                                      \
   /***************************************/                                                                                          \
   /* PcDesc and other compiled code info */                                                                                          \
@@ -677,59 +549,52 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* CodeBlobs (NOTE: incomplete, but only a little) */                                                                              \
   /***************************************************/                                                                              \
                                                                                                                                      \
-  nonstatic_field(CodeBlob,                 _name,                                   const char*)                                    \
-  nonstatic_field(CodeBlob,                 _size,                                   int)                                            \
-  nonstatic_field(CodeBlob,                 _header_size,                            int)                                            \
-  nonstatic_field(CodeBlob,                 _frame_complete_offset,                  int)                                            \
-  nonstatic_field(CodeBlob,                 _data_offset,                            int)                                            \
-  nonstatic_field(CodeBlob,                 _frame_size,                             int)                                            \
-  nonstatic_field(CodeBlob,                 _oop_maps,                               ImmutableOopMapSet*)                            \
-  nonstatic_field(CodeBlob,                 _code_begin,                             address)                                        \
-  nonstatic_field(CodeBlob,                 _code_end,                               address)                                        \
-  nonstatic_field(CodeBlob,                 _content_begin,                          address)                                        \
-  nonstatic_field(CodeBlob,                 _data_end,                               address)                                        \
+  nonstatic_field(CodeBlob,                    _name,                                         const char*)                           \
+  nonstatic_field(CodeBlob,                    _size,                                         int)                                   \
+  nonstatic_field(CodeBlob,                    _header_size,                                  u2)                                    \
+  nonstatic_field(CodeBlob,                    _relocation_size,                              int)                                   \
+  nonstatic_field(CodeBlob,                    _content_offset,                               int)                                   \
+  nonstatic_field(CodeBlob,                    _code_offset,                                  int)                                   \
+  nonstatic_field(CodeBlob,                    _frame_complete_offset,                        int16_t)                               \
+  nonstatic_field(CodeBlob,                    _data_offset,                                  int)                                   \
+  nonstatic_field(CodeBlob,                    _frame_size,                                   int)                                   \
+  nonstatic_field(CodeBlob,                    _oop_maps,                                     ImmutableOopMapSet*)                   \
+  nonstatic_field(CodeBlob,                    _caller_must_gc_arguments,                     bool)                                  \
                                                                                                                                      \
   nonstatic_field(DeoptimizationBlob,          _unpack_offset,                                int)                                   \
                                                                                                                                      \
-  nonstatic_field(RuntimeStub,                 _caller_must_gc_arguments,                     bool)                                  \
+  /*****************************************************/                                                                            \
+  /* UpcallStubs (NOTE: incomplete, but only a little) */                                                                            \
+  /*****************************************************/                                                                            \
                                                                                                                                      \
-  /********************************************************/                                                                         \
-  /* CompiledMethod (NOTE: incomplete, but only a little) */                                                                         \
-  /********************************************************/                                                                         \
-                                                                                                                                     \
-  nonstatic_field(CompiledMethod,                     _method,                                       Method*)                        \
-  volatile_nonstatic_field(CompiledMethod,            _exception_cache,                              ExceptionCache*)                \
-  nonstatic_field(CompiledMethod,                     _scopes_data_begin,                            address)                        \
-  nonstatic_field(CompiledMethod,                     _deopt_handler_begin,                          address)                        \
-  nonstatic_field(CompiledMethod,                     _deopt_mh_handler_begin,                       address)                        \
+  nonstatic_field(UpcallStub,                  _frame_data_offset,                            ByteSize)                              \
                                                                                                                                      \
   /**************************************************/                                                                               \
   /* NMethods (NOTE: incomplete, but only a little) */                                                                               \
   /**************************************************/                                                                               \
                                                                                                                                      \
+  nonstatic_field(nmethod,                     _method,                                       Method*)                               \
   nonstatic_field(nmethod,                     _entry_bci,                                    int)                                   \
   nonstatic_field(nmethod,                     _osr_link,                                     nmethod*)                              \
-  nonstatic_field(nmethod,                     _scavenge_root_link,                           nmethod*)                              \
-  nonstatic_field(nmethod,                     _scavenge_root_state,                          jbyte)                                 \
   nonstatic_field(nmethod,                     _state,                                        volatile signed char)                  \
   nonstatic_field(nmethod,                     _exception_offset,                             int)                                   \
+  nonstatic_field(nmethod,                     _deopt_handler_offset,                         int)                                   \
+  nonstatic_field(nmethod,                     _deopt_mh_handler_offset,                      int)                                   \
   nonstatic_field(nmethod,                     _orig_pc_offset,                               int)                                   \
   nonstatic_field(nmethod,                     _stub_offset,                                  int)                                   \
-  nonstatic_field(nmethod,                     _consts_offset,                                int)                                   \
-  nonstatic_field(nmethod,                     _oops_offset,                                  int)                                   \
-  nonstatic_field(nmethod,                     _metadata_offset,                              int)                                   \
-  nonstatic_field(nmethod,                     _scopes_pcs_offset,                            int)                                   \
-  nonstatic_field(nmethod,                     _dependencies_offset,                          int)                                   \
-  nonstatic_field(nmethod,                     _handler_table_offset,                         int)                                   \
-  nonstatic_field(nmethod,                     _nul_chk_table_offset,                         int)                                   \
-  nonstatic_field(nmethod,                     _nmethod_end_offset,                           int)                                   \
-  nonstatic_field(nmethod,                     _entry_point,                                  address)                               \
-  nonstatic_field(nmethod,                     _verified_entry_point,                         address)                               \
+  nonstatic_field(nmethod,                     _metadata_offset,                              u2)                                    \
+  nonstatic_field(nmethod,                     _scopes_pcs_offset,                            int)                                    \
+  nonstatic_field(nmethod,                     _scopes_data_offset,                           int)                                   \
+  nonstatic_field(nmethod,                     _handler_table_offset,                         u2)                                    \
+  nonstatic_field(nmethod,                     _nul_chk_table_offset,                         u2)                                    \
+  nonstatic_field(nmethod,                     _entry_offset,                                 u2)                                    \
+  nonstatic_field(nmethod,                     _verified_entry_offset,                        u2)                                    \
   nonstatic_field(nmethod,                     _osr_entry_point,                              address)                               \
-  volatile_nonstatic_field(nmethod,            _lock_count,                                   jint)                                  \
-  volatile_nonstatic_field(nmethod,            _stack_traversal_mark,                         long)                                  \
+  nonstatic_field(nmethod,                     _immutable_data,                               address)                               \
+  nonstatic_field(nmethod,                     _immutable_data_size,                          int)                                   \
   nonstatic_field(nmethod,                     _compile_id,                                   int)                                   \
-  nonstatic_field(nmethod,                     _comp_level,                                   int)                                   \
+  nonstatic_field(nmethod,                     _comp_level,                                   CompLevel)                             \
+  volatile_nonstatic_field(nmethod,            _exception_cache,                              ExceptionCache*)                       \
                                                                                                                                      \
   unchecked_c2_static_field(Deoptimization,    _trap_reason_name,                             void*)                                 \
                                                                                                                                      \
@@ -760,33 +625,38 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* Threads (NOTE: incomplete) */                                                                                                   \
   /******************************/                                                                                                   \
                                                                                                                                      \
-     static_field(Threads,                     _thread_list,                                  JavaThread*)                           \
-     static_field(Threads,                     _number_of_threads,                            int)                                   \
-     static_field(Threads,                     _number_of_non_daemon_threads,                 int)                                   \
-     static_field(Threads,                     _return_code,                                  int)                                   \
+  static_field(Threads,                     _number_of_threads,                               int)                                   \
+  static_field(Threads,                     _number_of_non_daemon_threads,                    int)                                   \
+  static_field(Threads,                     _return_code,                                     int)                                   \
+                                                                                                                                     \
+  volatile_static_field(ThreadsSMRSupport, _java_thread_list,                                 ThreadsList*)                          \
+  nonstatic_field(ThreadsList,                 _length,                                       const uint)                            \
+  nonstatic_field(ThreadsList,                 _threads,                                      JavaThread *const *const)              \
                                                                                                                                      \
   nonstatic_field(ThreadShadow,                _pending_exception,                            oop)                                   \
   nonstatic_field(ThreadShadow,                _exception_file,                               const char*)                           \
   nonstatic_field(ThreadShadow,                _exception_line,                               int)                                   \
-  volatile_nonstatic_field(Thread,             _suspend_flags,                                uint32_t)                              \
-  nonstatic_field(Thread,                      _active_handles,                               JNIHandleBlock*)                       \
   nonstatic_field(Thread,                      _tlab,                                         ThreadLocalAllocBuffer)                \
   nonstatic_field(Thread,                      _allocated_bytes,                              jlong)                                 \
-  nonstatic_field(Thread,                      _current_pending_monitor,                      ObjectMonitor*)                        \
-  nonstatic_field(Thread,                      _current_pending_monitor_is_from_java,         bool)                                  \
-  nonstatic_field(Thread,                      _current_waiting_monitor,                      ObjectMonitor*)                        \
+  nonstatic_field(JavaThread,                  _lock_stack,                                   LockStack)                             \
+  nonstatic_field(LockStack,                   _top,                                          uint32_t)                              \
+  nonstatic_field(LockStack,                   _base[0],                                      oop)                                   \
   nonstatic_field(NamedThread,                 _name,                                         char*)                                 \
-  nonstatic_field(NamedThread,                 _processed_thread,                             JavaThread*)                           \
-  nonstatic_field(JavaThread,                  _next,                                         JavaThread*)                           \
-  nonstatic_field(JavaThread,                  _threadObj,                                    oop)                                   \
+  nonstatic_field(NamedThread,                 _processed_thread,                             Thread*)                               \
+  nonstatic_field(JavaThread,                  _threadObj,                                    OopHandle)                             \
+  nonstatic_field(JavaThread,                  _vthread,                                      OopHandle)                             \
+  nonstatic_field(JavaThread,                  _jvmti_vthread,                                OopHandle)                             \
+  nonstatic_field(JavaThread,                  _scopedValueCache,                              OopHandle)                             \
   nonstatic_field(JavaThread,                  _anchor,                                       JavaFrameAnchor)                       \
   nonstatic_field(JavaThread,                  _vm_result,                                    oop)                                   \
   nonstatic_field(JavaThread,                  _vm_result_2,                                  Metadata*)                             \
-  nonstatic_field(JavaThread,                  _pending_async_exception,                      oop)                                   \
+  volatile_nonstatic_field(JavaThread,         _current_pending_monitor,                      ObjectMonitor*)                        \
+  nonstatic_field(JavaThread,                  _current_pending_monitor_is_from_java,         bool)                                  \
+  volatile_nonstatic_field(JavaThread,         _current_waiting_monitor,                      ObjectMonitor*)                        \
+  volatile_nonstatic_field(JavaThread,         _suspend_flags,                                uint32_t)                              \
   volatile_nonstatic_field(JavaThread,         _exception_oop,                                oop)                                   \
   volatile_nonstatic_field(JavaThread,         _exception_pc,                                 address)                               \
   volatile_nonstatic_field(JavaThread,         _is_method_handle_return,                      int)                                   \
-  nonstatic_field(JavaThread,                  _special_runtime_exit_condition,               JavaThread::AsyncRequests)             \
   nonstatic_field(JavaThread,                  _saved_exception_pc,                           address)                               \
   volatile_nonstatic_field(JavaThread,         _thread_state,                                 JavaThreadState)                       \
   nonstatic_field(JavaThread,                  _osthread,                                     OSThread*)                             \
@@ -794,6 +664,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(JavaThread,                  _stack_size,                                   size_t)                                \
   nonstatic_field(JavaThread,                  _vframe_array_head,                            vframeArray*)                          \
   nonstatic_field(JavaThread,                  _vframe_array_last,                            vframeArray*)                          \
+  nonstatic_field(JavaThread,                  _active_handles,                               JNIHandleBlock*)                       \
   volatile_nonstatic_field(JavaThread,         _terminated,                                   JavaThread::TerminatedTypes)           \
   nonstatic_field(Thread,                      _resource_area,                                ResourceArea*)                         \
   nonstatic_field(CompilerThread,              _env,                                          ciEnv*)                                \
@@ -802,19 +673,11 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* OSThread */                                                                                                                     \
   /************/                                                                                                                     \
                                                                                                                                      \
-  volatile_nonstatic_field(OSThread,           _interrupted,                                  jint)                                  \
   volatile_nonstatic_field(OSThread,           _state,                                        ThreadState)                           \
                                                                                                                                      \
   /************************/                                                                                                         \
-  /* OopMap and OopMapSet */                                                                                                         \
+  /* ImmutableOopMap      */                                                                                                         \
   /************************/                                                                                                         \
-                                                                                                                                     \
-  nonstatic_field(OopMap,                      _pc_offset,                                    int)                                   \
-  nonstatic_field(OopMap,                      _omv_count,                                    int)                                   \
-  nonstatic_field(OopMap,                      _write_stream,                                 CompressedWriteStream*)                \
-  nonstatic_field(OopMapSet,                   _om_count,                                     int)                                   \
-  nonstatic_field(OopMapSet,                   _om_size,                                      int)                                   \
-  nonstatic_field(OopMapSet,                   _om_data,                                      OopMap**)                              \
                                                                                                                                      \
   nonstatic_field(ImmutableOopMapSet,          _count,                                        int)                                   \
   nonstatic_field(ImmutableOopMapSet,          _size,                                         int)                                   \
@@ -857,9 +720,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* CI */                                                                                                                           \
   /************/                                                                                                                     \
                                                                                                                                      \
-  nonstatic_field(ciEnv,                       _system_dictionary_modification_counter,       int)                                   \
   nonstatic_field(ciEnv,                       _compiler_data,                                void*)                                 \
-  nonstatic_field(ciEnv,                       _failure_reason,                               const char*)                           \
   nonstatic_field(ciEnv,                       _factory,                                      ciObjectFactory*)                      \
   nonstatic_field(ciEnv,                       _dependencies,                                 Dependencies*)                         \
   nonstatic_field(ciEnv,                       _task,                                         CompileTask*)                          \
@@ -888,7 +749,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
                                                                                                                                      \
   nonstatic_field(ciMethod,                    _interpreter_invocation_count,                 int)                                   \
   nonstatic_field(ciMethod,                    _interpreter_throwout_count,                   int)                                   \
-  nonstatic_field(ciMethod,                    _instructions_size,                            int)                                   \
+  nonstatic_field(ciMethod,                    _inline_instructions_size,                     int)                                   \
                                                                                                                                      \
   nonstatic_field(ciMethodData,                _data_size,                                    int)                                   \
   nonstatic_field(ciMethodData,                _state,                                        u_char)                                \
@@ -899,8 +760,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(ciMethodData,                _arg_local,                                    intx)                                  \
   nonstatic_field(ciMethodData,                _arg_stack,                                    intx)                                  \
   nonstatic_field(ciMethodData,                _arg_returned,                                 intx)                                  \
-  nonstatic_field(ciMethodData,                _current_mileage,                              int)                                   \
-  nonstatic_field(ciMethodData,                _orig,                                         MethodData)                            \
+  nonstatic_field(ciMethodData,                _orig,                                         MethodData::CompilerCounters)          \
                                                                                                                                      \
   nonstatic_field(ciField,                     _holder,                                       ciInstanceKlass*)                      \
   nonstatic_field(ciField,                     _name,                                         ciSymbol*)                             \
@@ -909,9 +769,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(ciField,                     _is_constant,                                  bool)                                  \
   nonstatic_field(ciField,                     _constant_value,                               ciConstant)                            \
                                                                                                                                      \
-  nonstatic_field(ciObjectFactory,             _ci_metadata,                                  GrowableArray<ciMetadata*>*)           \
-  nonstatic_field(ciObjectFactory,             _symbols,                                      GrowableArray<ciSymbol*>*)             \
-  nonstatic_field(ciObjectFactory,             _unloaded_methods,                             GrowableArray<ciMethod*>*)             \
+  nonstatic_field(ciObjectFactory,             _ci_metadata,                                  GrowableArray<ciMetadata*>)            \
+  nonstatic_field(ciObjectFactory,             _symbols,                                      GrowableArray<ciSymbol*>)              \
                                                                                                                                      \
   nonstatic_field(ciConstant,                  _type,                                         BasicType)                             \
   nonstatic_field(ciConstant,                  _value._int,                                   jint)                                  \
@@ -924,17 +783,18 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* Monitors */                                                                                                                     \
   /************/                                                                                                                     \
                                                                                                                                      \
-  volatile_nonstatic_field(ObjectMonitor,      _header,                                       markOop)                               \
+  volatile_nonstatic_field(ObjectMonitor,      _metadata,                                     uintptr_t)                             \
   unchecked_nonstatic_field(ObjectMonitor,     _object,                                       sizeof(void *)) /* NOTE: no type */    \
   unchecked_nonstatic_field(ObjectMonitor,     _owner,                                        sizeof(void *)) /* NOTE: no type */    \
-  volatile_nonstatic_field(ObjectMonitor,      _count,                                        jint)                                  \
-  volatile_nonstatic_field(ObjectMonitor,      _waiters,                                      jint)                                  \
-  volatile_nonstatic_field(ObjectMonitor,      _recursions,                                   intptr_t)                              \
-  nonstatic_field(ObjectMonitor,               FreeNext,                                      ObjectMonitor*)                        \
-  volatile_nonstatic_field(BasicLock,          _displaced_header,                             markOop)                               \
+  volatile_nonstatic_field(ObjectMonitor,      _next_om,                                      ObjectMonitor*)                        \
+  volatile_nonstatic_field(BasicLock,          _metadata,                                     uintptr_t)                             \
+  nonstatic_field(ObjectMonitor,               _contentions,                                  int)                                   \
+  volatile_nonstatic_field(ObjectMonitor,      _waiters,                                      int)                                   \
+  volatile_nonstatic_field(ObjectMonitor,      _recursions,                                   intx)                                  \
   nonstatic_field(BasicObjectLock,             _lock,                                         BasicLock)                             \
   nonstatic_field(BasicObjectLock,             _obj,                                          oop)                                   \
-  static_ptr_volatile_field(ObjectSynchronizer, gBlockList,                                   PaddedObjectMonitor*)                  \
+  static_field(ObjectSynchronizer,             _in_use_list,                                  MonitorList)                           \
+  volatile_nonstatic_field(MonitorList,        _head,                                         ObjectMonitor*)                        \
                                                                                                                                      \
   /*********************/                                                                                                            \
   /* Matcher (C2 only) */                                                                                                            \
@@ -949,8 +809,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   c2_nonstatic_field(Node,                     _outcnt,                                       node_idx_t)                            \
   c2_nonstatic_field(Node,                     _outmax,                                       node_idx_t)                            \
   c2_nonstatic_field(Node,                     _idx,                                          const node_idx_t)                      \
-  c2_nonstatic_field(Node,                     _class_id,                                     jushort)                               \
-  c2_nonstatic_field(Node,                     _flags,                                        jushort)                               \
+  c2_nonstatic_field(Node,                     _class_id,                                     juint)                                 \
+  c2_nonstatic_field(Node,                     _flags,                                        juint)                                 \
                                                                                                                                      \
   c2_nonstatic_field(Compile,                  _root,                                         RootNode*)                             \
   c2_nonstatic_field(Compile,                  _unique,                                       uint)                                  \
@@ -960,11 +820,14 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   c2_nonstatic_field(Compile,                  _regalloc,                                     PhaseRegAlloc*)                        \
   c2_nonstatic_field(Compile,                  _method,                                       ciMethod*)                             \
   c2_nonstatic_field(Compile,                  _compile_id,                                   const int)                             \
-  c2_nonstatic_field(Compile,                  _save_argument_registers,                      const bool)                            \
-  c2_nonstatic_field(Compile,                  _subsume_loads,                                const bool)                            \
-  c2_nonstatic_field(Compile,                  _do_escape_analysis,                           const bool)                            \
-  c2_nonstatic_field(Compile,                  _eliminate_boxing,                             const bool)                            \
+  c2_nonstatic_field(Compile,                  _options,                                      const Options)                         \
   c2_nonstatic_field(Compile,                  _ilt,                                          InlineTree*)                           \
+                                                                                                                                     \
+  c2_nonstatic_field(Options,                  _subsume_loads,                                const bool)                            \
+  c2_nonstatic_field(Options,                  _do_escape_analysis,                           const bool)                            \
+  c2_nonstatic_field(Options,                  _eliminate_boxing,                             const bool)                            \
+  c2_nonstatic_field(Options,                  _do_locks_coarsening,                          const bool)                            \
+  c2_nonstatic_field(Options,                  _install_code,                                 const bool)                            \
                                                                                                                                      \
   c2_nonstatic_field(InlineTree,               _caller_jvms,                                  JVMState*)                             \
   c2_nonstatic_field(InlineTree,               _method,                                       ciMethod*)                             \
@@ -1005,7 +868,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   c2_nonstatic_field(CallStaticJavaNode,       _name,                                         const char*)                           \
                                                                                                                                      \
   c2_nonstatic_field(MachCallJavaNode,         _method,                                       ciMethod*)                             \
-  c2_nonstatic_field(MachCallJavaNode,         _bci,                                          int)                                   \
                                                                                                                                      \
   c2_nonstatic_field(MachCallStaticJavaNode,   _name,                                         const char*)                           \
                                                                                                                                      \
@@ -1055,7 +917,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* -XX flags         */                                                                                                            \
   /*********************/                                                                                                            \
                                                                                                                                      \
-  nonstatic_field(JVMFlag,                     _type,                                         const char*)                           \
+  nonstatic_field(JVMFlag,                     _type,                                         int)                                   \
   nonstatic_field(JVMFlag,                     _name,                                         const char*)                           \
   unchecked_nonstatic_field(JVMFlag,           _addr,                                         sizeof(void*)) /* NOTE: no type */     \
   nonstatic_field(JVMFlag,                     _flags,                                        JVMFlag::Flags)                        \
@@ -1074,9 +936,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
      static_field(Abstract_VM_Version,         _vm_minor_version,                             int)                                   \
      static_field(Abstract_VM_Version,         _vm_security_version,                          int)                                   \
      static_field(Abstract_VM_Version,         _vm_build_number,                              int)                                   \
-                                                                                                                                     \
-     static_field(JDK_Version,                 _current,                                      JDK_Version)                           \
-  nonstatic_field(JDK_Version,                 _major,                                        unsigned char)                         \
                                                                                                                                      \
   /*************************/                                                                                                        \
   /* JVMTI */                                                                                                                        \
@@ -1098,12 +957,16 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* Array<T> */                                                                                                                     \
   /************/                                                                                                                     \
                                                                                                                                      \
-  nonstatic_field(Array<int>,                  _length,                                       int)                                   \
-  unchecked_nonstatic_field(Array<int>,        _data,                                         sizeof(int))                           \
-  unchecked_nonstatic_field(Array<u1>,         _data,                                         sizeof(u1))                            \
-  unchecked_nonstatic_field(Array<u2>,         _data,                                         sizeof(u2))                            \
-  unchecked_nonstatic_field(Array<Method*>,    _data,                                         sizeof(Method*))                       \
-  unchecked_nonstatic_field(Array<Klass*>,     _data,                                         sizeof(Klass*))                        \
+  nonstatic_field(Array<int>,                          _length,                               int)                                   \
+  unchecked_nonstatic_field(Array<int>,                _data,                                 sizeof(int))                           \
+  unchecked_nonstatic_field(Array<u1>,                 _data,                                 sizeof(u1))                            \
+  unchecked_nonstatic_field(Array<u2>,                 _data,                                 sizeof(u2))                            \
+  unchecked_nonstatic_field(Array<Method*>,            _data,                                 sizeof(Method*))                       \
+  unchecked_nonstatic_field(Array<Klass*>,             _data,                                 sizeof(Klass*))                        \
+  unchecked_nonstatic_field(Array<ResolvedFieldEntry>, _data,                                 sizeof(ResolvedFieldEntry))            \
+  unchecked_nonstatic_field(Array<ResolvedMethodEntry>,_data,                                 sizeof(ResolvedMethodEntry))           \
+  unchecked_nonstatic_field(Array<ResolvedIndyEntry>,  _data,                                 sizeof(ResolvedIndyEntry))             \
+  unchecked_nonstatic_field(Array<Array<u1>*>,         _data,                                 sizeof(Array<u1>*))                    \
                                                                                                                                      \
   /*********************************/                                                                                                \
   /* java_lang_Class fields        */                                                                                                \
@@ -1118,11 +981,13 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* FileMapInfo fields (CDS archive related) */                                                                                     \
   /********************************************/                                                                                     \
                                                                                                                                      \
-  CDS_ONLY(nonstatic_field(FileMapInfo,                            _header,                   FileMapInfo::FileMapHeader*))          \
-  CDS_ONLY(   static_field(FileMapInfo,                            _current_info,             FileMapInfo*))                         \
-  CDS_ONLY(nonstatic_field(FileMapInfo::FileMapHeader,             _space[0],                 FileMapInfo::FileMapHeader::space_info))\
-  CDS_ONLY(nonstatic_field(FileMapInfo::FileMapHeader::space_info, _addr._base,               char*))                                \
-  CDS_ONLY(nonstatic_field(FileMapInfo::FileMapHeader::space_info, _used,                     size_t))                               \
+  CDS_ONLY(nonstatic_field(FileMapInfo,        _header,                   FileMapHeader*))                                           \
+  CDS_ONLY(   static_field(FileMapInfo,        _current_info,             FileMapInfo*))                                             \
+  CDS_ONLY(nonstatic_field(FileMapHeader,      _regions[0],               CDSFileMapRegion))                                         \
+  CDS_ONLY(nonstatic_field(FileMapHeader,      _cloned_vtables_offset,    size_t))                                                   \
+  CDS_ONLY(nonstatic_field(FileMapHeader,      _mapped_base_address,      char*))                                                    \
+  CDS_ONLY(nonstatic_field(CDSFileMapRegion,   _mapped_base,              char*))                                                    \
+  CDS_ONLY(nonstatic_field(CDSFileMapRegion,   _used,                     size_t))                                                   \
                                                                                                                                      \
   /******************/                                                                                                               \
   /* VMError fields */                                                                                                               \
@@ -1137,12 +1002,11 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(CompileTask,                 _method,                                       Method*)                               \
   nonstatic_field(CompileTask,                 _osr_bci,                                      int)                                   \
   nonstatic_field(CompileTask,                 _comp_level,                                   int)                                   \
-  nonstatic_field(CompileTask,                 _compile_id,                                   uint)                                  \
+  nonstatic_field(CompileTask,                 _compile_id,                                   int)                                   \
   nonstatic_field(CompileTask,                 _num_inlined_bytecodes,                        int)                                   \
   nonstatic_field(CompileTask,                 _next,                                         CompileTask*)                          \
   nonstatic_field(CompileTask,                 _prev,                                         CompileTask*)                          \
                                                                                                                                      \
-  nonstatic_field(vframeArray,                 _next,                                         vframeArray*)                          \
   nonstatic_field(vframeArray,                 _original,                                     frame)                                 \
   nonstatic_field(vframeArray,                 _caller,                                       frame)                                 \
   nonstatic_field(vframeArray,                 _frames,                                       int)                                   \
@@ -1154,7 +1018,9 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(AccessFlags,                 _flags,                                        jint)                                  \
   nonstatic_field(elapsedTimer,                _counter,                                      jlong)                                 \
   nonstatic_field(elapsedTimer,                _active,                                       bool)                                  \
-  nonstatic_field(InvocationCounter,           _counter,                                      unsigned int)
+  nonstatic_field(InvocationCounter,           _counter,                                      unsigned int)                          \
+                                                                                                                                     \
+  nonstatic_field(UpcallStub::FrameData,       jfa,                                           JavaFrameAnchor)
 
 //--------------------------------------------------------------------------------
 // VM_TYPES
@@ -1238,6 +1104,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_unsigned_integer_type(u_char)                                   \
   declare_unsigned_integer_type(unsigned int)                             \
   declare_unsigned_integer_type(uint)                                     \
+  declare_unsigned_integer_type(volatile uint)                            \
   declare_unsigned_integer_type(unsigned short)                           \
   declare_unsigned_integer_type(jushort)                                  \
   declare_unsigned_integer_type(unsigned long)                            \
@@ -1271,6 +1138,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_integer_type(ssize_t)                                           \
   declare_integer_type(intx)                                              \
   declare_integer_type(intptr_t)                                          \
+  declare_integer_type(int16_t)                                           \
+  declare_integer_type(int64_t)                                           \
   declare_unsigned_integer_type(uintx)                                    \
   declare_unsigned_integer_type(uintptr_t)                                \
   declare_unsigned_integer_type(uint8_t)                                  \
@@ -1285,13 +1154,11 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
     declare_type(arrayOopDesc, oopDesc)                                   \
       declare_type(objArrayOopDesc, arrayOopDesc)                         \
     declare_type(instanceOopDesc, oopDesc)                                \
-    declare_type(markOopDesc, oopDesc)                                    \
                                                                           \
   /**************************************************/                    \
   /* MetadataOopDesc hierarchy (NOTE: some missing) */                    \
   /**************************************************/                    \
                                                                           \
-  declare_toplevel_type(CompiledICHolder)                                 \
   declare_toplevel_type(MetaspaceObj)                                     \
     declare_type(Metadata, MetaspaceObj)                                  \
     declare_type(Klass, Metadata)                                         \
@@ -1302,12 +1169,16 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
         declare_type(InstanceClassLoaderKlass, InstanceKlass)             \
         declare_type(InstanceMirrorKlass, InstanceKlass)                  \
         declare_type(InstanceRefKlass, InstanceKlass)                     \
+        declare_type(InstanceStackChunkKlass, InstanceKlass)              \
     declare_type(ConstantPool, Metadata)                                  \
     declare_type(ConstantPoolCache, MetaspaceObj)                         \
     declare_type(MethodData, Metadata)                                    \
     declare_type(Method, Metadata)                                        \
     declare_type(MethodCounters, MetaspaceObj)                            \
     declare_type(ConstMethod, MetaspaceObj)                               \
+    declare_type(Annotations, MetaspaceObj)                               \
+                                                                          \
+  declare_toplevel_type(MethodData::CompilerCounters)                     \
                                                                           \
   declare_toplevel_type(narrowKlass)                                      \
                                                                           \
@@ -1323,16 +1194,16 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* Oops */                                                              \
   /********/                                                              \
                                                                           \
-  declare_oop_type(markOop)                                               \
   declare_oop_type(objArrayOop)                                           \
   declare_oop_type(oop)                                                   \
   declare_oop_type(narrowOop)                                             \
   declare_oop_type(typeArrayOop)                                          \
-  declare_oop_type(OopHandle)                                             \
                                                                           \
-  /*************************************/                                 \
-  /* MethodOop-related data structures */                                 \
-  /*************************************/                                 \
+  declare_toplevel_type(OopHandle)                                        \
+                                                                          \
+  /**********************************/                                    \
+  /* Method related data structures */                                    \
+  /**********************************/                                    \
                                                                           \
   declare_toplevel_type(CheckedExceptionElement)                          \
   declare_toplevel_type(LocalVariableTableElement)                        \
@@ -1352,29 +1223,18 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_toplevel_type(PerfMemory)                                       \
   declare_type(PerfData, CHeapObj<mtInternal>)                            \
                                                                           \
-  /*********************************/                                     \
-  /* SymbolTable, SystemDictionary */                                     \
-  /*********************************/                                     \
+  /********************/                                                  \
+  /* SystemDictionary */                                                  \
+  /********************/                                                  \
                                                                           \
-  declare_toplevel_type(BasicHashtable<mtInternal>)                       \
-    declare_type(IntptrHashtable, BasicHashtable<mtInternal>)             \
-  declare_toplevel_type(BasicHashtable<mtSymbol>)                         \
-    declare_type(RehashableSymbolHashtable, BasicHashtable<mtSymbol>)     \
-  declare_type(SymbolTable, SymbolHashtable)                              \
-    declare_type(Dictionary, KlassHashtable)                              \
-  declare_toplevel_type(BasicHashtableEntry<mtInternal>)                  \
-  declare_type(IntptrHashtableEntry, BasicHashtableEntry<mtInternal>)     \
-    declare_type(DictionaryEntry, KlassHashtableEntry)                    \
-  declare_toplevel_type(HashtableBucket<mtInternal>)                      \
   declare_toplevel_type(SystemDictionary)                                 \
+  declare_toplevel_type(vmClasses)                                        \
   declare_toplevel_type(vmSymbols)                                        \
                                                                           \
-  declare_toplevel_type(GenericGrowableArray)                             \
+  declare_toplevel_type(GrowableArrayBase)                                \
   declare_toplevel_type(GrowableArray<int>)                               \
   declare_toplevel_type(Arena)                                            \
     declare_type(ResourceArea, Arena)                                     \
-                                                                          \
-  declare_toplevel_type(SymbolCompactHashTable)                           \
                                                                           \
   /***********************************************************/           \
   /* Thread hierarchy (needed for run-time type information) */           \
@@ -1382,16 +1242,25 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
                                                                           \
   declare_toplevel_type(Threads)                                          \
   declare_toplevel_type(ThreadShadow)                                     \
-           declare_type(Thread, ThreadShadow)                             \
-           declare_type(NamedThread, Thread)                              \
-           declare_type(WatcherThread, Thread)                            \
-           declare_type(JavaThread, Thread)                               \
-           declare_type(JvmtiAgentThread, JavaThread)                     \
-           declare_type(ServiceThread, JavaThread)                        \
-  declare_type(CompilerThread, JavaThread)                                \
-  declare_type(CodeCacheSweeperThread, JavaThread)                        \
+    declare_type(Thread, ThreadShadow)                                    \
+      declare_type(NonJavaThread, Thread)                                 \
+        declare_type(NamedThread, NonJavaThread)                          \
+        declare_type(WatcherThread, NonJavaThread)                        \
+        declare_type(AsyncLogWriter, NonJavaThread)                       \
+      declare_type(JavaThread, Thread)                                    \
+        declare_type(JvmtiAgentThread, JavaThread)                        \
+        declare_type(MonitorDeflationThread, JavaThread)                  \
+        declare_type(ServiceThread, JavaThread)                           \
+        declare_type(NotificationThread, JavaThread)                      \
+        declare_type(CompilerThread, JavaThread)                          \
+        declare_type(StringDedupThread, JavaThread)                       \
+        declare_type(AttachListenerThread, JavaThread)                    \
   declare_toplevel_type(OSThread)                                         \
   declare_toplevel_type(JavaFrameAnchor)                                  \
+                                                                          \
+  declare_toplevel_type(ThreadsSMRSupport)                                \
+  declare_toplevel_type(ThreadsList)                                      \
+  declare_toplevel_type(LockStack)                                        \
                                                                           \
   /***************/                                                       \
   /* Interpreter */                                                       \
@@ -1441,10 +1310,11 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_type(BufferBlob,               RuntimeBlob)                     \
   declare_type(AdapterBlob,              BufferBlob)                      \
   declare_type(MethodHandlesAdapterBlob, BufferBlob)                      \
-  declare_type(CompiledMethod,           CodeBlob)                        \
-  declare_type(nmethod,                  CompiledMethod)                  \
+  declare_type(VtableBlob,               BufferBlob)                      \
+  declare_type(nmethod,                  CodeBlob)                        \
   declare_type(RuntimeStub,              RuntimeBlob)                     \
   declare_type(SingletonBlob,            RuntimeBlob)                     \
+  declare_type(UpcallStub,               RuntimeBlob)                     \
   declare_type(SafepointBlob,            SingletonBlob)                   \
   declare_type(DeoptimizationBlob,       SingletonBlob)                   \
   declare_c2_type(ExceptionBlob,         SingletonBlob)                   \
@@ -1463,11 +1333,9 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_toplevel_type(Deoptimization::UnrollBlock)                      \
                                                                           \
   /************************/                                              \
-  /* OopMap and OopMapSet */                                              \
+  /* ImmutableOopMap      */                                              \
   /************************/                                              \
                                                                           \
-  declare_toplevel_type(OopMap)                                           \
-  declare_toplevel_type(OopMapSet)                                        \
   declare_toplevel_type(ImmutableOopMapSet)                               \
   declare_toplevel_type(ImmutableOopMapPair)                              \
   declare_toplevel_type(ImmutableOopMap)                                  \
@@ -1509,7 +1377,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /************/                                                          \
                                                                           \
   declare_toplevel_type(ObjectMonitor)                                    \
-  declare_toplevel_type(PaddedObjectMonitor)                              \
+  declare_toplevel_type(MonitorList)                                      \
   declare_toplevel_type(ObjectSynchronizer)                               \
   declare_toplevel_type(BasicLock)                                        \
   declare_toplevel_type(BasicObjectLock)                                  \
@@ -1520,6 +1388,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
                                                                           \
   declare_c2_toplevel_type(Matcher)                                       \
   declare_c2_toplevel_type(Compile)                                       \
+  declare_c2_toplevel_type(Options)                                       \
   declare_c2_toplevel_type(InlineTree)                                    \
   declare_c2_toplevel_type(OptoRegPair)                                   \
   declare_c2_toplevel_type(JVMState)                                      \
@@ -1548,6 +1417,12 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(MaxNode, AddNode)                                       \
   declare_c2_type(MaxINode, MaxNode)                                      \
   declare_c2_type(MinINode, MaxNode)                                      \
+  declare_c2_type(MaxLNode, MaxNode)                                      \
+  declare_c2_type(MinLNode, MaxNode)                                      \
+  declare_c2_type(MaxFNode, MaxNode)                                      \
+  declare_c2_type(MinFNode, MaxNode)                                      \
+  declare_c2_type(MaxDNode, MaxNode)                                      \
+  declare_c2_type(MinDNode, MaxNode)                                      \
   declare_c2_type(StartNode, MultiNode)                                   \
   declare_c2_type(StartOSRNode, StartNode)                                \
   declare_c2_type(ParmNode, ProjNode)                                     \
@@ -1555,6 +1430,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(RethrowNode, Node)                                      \
   declare_c2_type(TailCallNode, ReturnNode)                               \
   declare_c2_type(TailJumpNode, ReturnNode)                               \
+  declare_c2_type(ForwardExceptionNode, ReturnNode)                       \
   declare_c2_type(SafePointNode, MultiNode)                               \
   declare_c2_type(CallNode, SafePointNode)                                \
   declare_c2_type(CallJavaNode, CallNode)                                 \
@@ -1563,6 +1439,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(CallRuntimeNode, CallNode)                              \
   declare_c2_type(CallLeafNode, CallRuntimeNode)                          \
   declare_c2_type(CallLeafNoFPNode, CallLeafNode)                         \
+  declare_c2_type(CallLeafVectorNode, CallLeafNode)                       \
   declare_c2_type(AllocateNode, CallNode)                                 \
   declare_c2_type(AllocateArrayNode, AllocateNode)                        \
   declare_c2_type(LockNode, AbstractLockNode)                             \
@@ -1610,6 +1487,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(CastPPNode, ConstraintCastNode)                         \
   declare_c2_type(CheckCastPPNode, TypeNode)                              \
   declare_c2_type(Conv2BNode, Node)                                       \
+  declare_c2_type(ConvertNode, TypeNode)                                  \
   declare_c2_type(ConvD2FNode, Node)                                      \
   declare_c2_type(ConvD2INode, Node)                                      \
   declare_c2_type(ConvD2LNode, Node)                                      \
@@ -1624,7 +1502,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(ConvL2INode, Node)                                      \
   declare_c2_type(CastX2PNode, Node)                                      \
   declare_c2_type(CastP2XNode, Node)                                      \
-  declare_c2_type(SetVectMaskINode, Node)                                 \
   declare_c2_type(MemBarNode, MultiNode)                                  \
   declare_c2_type(MemBarAcquireNode, MemBarNode)                          \
   declare_c2_type(MemBarReleaseNode, MemBarNode)                          \
@@ -1633,10 +1510,10 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(MemBarVolatileNode, MemBarNode)                         \
   declare_c2_type(MemBarCPUOrderNode, MemBarNode)                         \
   declare_c2_type(OnSpinWaitNode, MemBarNode)                             \
+  declare_c2_type(BlackholeNode, MultiNode)                               \
   declare_c2_type(InitializeNode, MemBarNode)                             \
   declare_c2_type(ThreadLocalNode, Node)                                  \
   declare_c2_type(Opaque1Node, Node)                                      \
-  declare_c2_type(Opaque2Node, Node)                                      \
   declare_c2_type(PartialSubtypeCheckNode, Node)                          \
   declare_c2_type(MoveI2FNode, Node)                                      \
   declare_c2_type(MoveL2DNode, Node)                                      \
@@ -1646,13 +1523,19 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(DivLNode, Node)                                         \
   declare_c2_type(DivFNode, Node)                                         \
   declare_c2_type(DivDNode, Node)                                         \
+  declare_c2_type(UDivINode, Node)                                        \
+  declare_c2_type(UDivLNode, Node)                                        \
   declare_c2_type(ModINode, Node)                                         \
   declare_c2_type(ModLNode, Node)                                         \
   declare_c2_type(ModFNode, Node)                                         \
   declare_c2_type(ModDNode, Node)                                         \
+  declare_c2_type(UModINode, Node)                                        \
+  declare_c2_type(UModLNode, Node)                                        \
   declare_c2_type(DivModNode, MultiNode)                                  \
   declare_c2_type(DivModINode, DivModNode)                                \
   declare_c2_type(DivModLNode, DivModNode)                                \
+  declare_c2_type(UDivModINode, DivModNode)                               \
+  declare_c2_type(UDivModLNode, DivModNode)                               \
   declare_c2_type(BoxLockNode, Node)                                      \
   declare_c2_type(LoopNode, RegionNode)                                   \
   declare_c2_type(CountedLoopNode, LoopNode)                              \
@@ -1708,11 +1591,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(StoreNNode, StoreNode)                                  \
   declare_c2_type(StoreNKlassNode, StoreNode)                             \
   declare_c2_type(StoreCMNode, StoreNode)                                 \
-  declare_c2_type(LoadPLockedNode, LoadPNode)                             \
   declare_c2_type(SCMemProjNode, ProjNode)                                \
   declare_c2_type(LoadStoreNode, Node)                                    \
-  declare_c2_type(StorePConditionalNode, LoadStoreNode)                   \
-  declare_c2_type(StoreLConditionalNode, LoadStoreNode)                   \
   declare_c2_type(CompareAndSwapNode, LoadStoreConditionalNode)           \
   declare_c2_type(CompareAndSwapBNode, CompareAndSwapNode)                \
   declare_c2_type(CompareAndSwapSNode, CompareAndSwapNode)                \
@@ -1739,6 +1619,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(MulFNode, MulNode)                                      \
   declare_c2_type(MulDNode, MulNode)                                      \
   declare_c2_type(MulHiLNode, Node)                                       \
+  declare_c2_type(UMulHiLNode, Node)                                      \
   declare_c2_type(AndINode, MulINode)                                     \
   declare_c2_type(AndLNode, MulLNode)                                     \
   declare_c2_type(LShiftINode, Node)                                      \
@@ -1750,7 +1631,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(MultiNode, Node)                                        \
   declare_c2_type(ProjNode, Node)                                         \
   declare_c2_type(TypeNode, Node)                                         \
-  declare_c2_type(NodeHash, StackObj)                                     \
   declare_c2_type(RootNode, LoopNode)                                     \
   declare_c2_type(HaltNode, Node)                                         \
   declare_c2_type(SubNode, Node)                                          \
@@ -1762,11 +1642,13 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(CmpNode, SubNode)                                       \
   declare_c2_type(CmpINode, CmpNode)                                      \
   declare_c2_type(CmpUNode, CmpNode)                                      \
+  declare_c2_type(CmpU3Node, CmpUNode)                                    \
   declare_c2_type(CmpPNode, CmpNode)                                      \
   declare_c2_type(CmpNNode, CmpNode)                                      \
   declare_c2_type(CmpLNode, CmpNode)                                      \
   declare_c2_type(CmpULNode, CmpNode)                                     \
   declare_c2_type(CmpL3Node, CmpLNode)                                    \
+  declare_c2_type(CmpUL3Node, CmpULNode)                                  \
   declare_c2_type(CmpFNode, CmpNode)                                      \
   declare_c2_type(CmpF3Node, CmpFNode)                                    \
   declare_c2_type(CmpDNode, CmpNode)                                      \
@@ -1778,6 +1660,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(AbsDNode, AbsNode)                                      \
   declare_c2_type(CmpLTMaskNode, Node)                                    \
   declare_c2_type(NegNode, Node)                                          \
+  declare_c2_type(NegINode, NegNode)                                      \
+  declare_c2_type(NegLNode, NegNode)                                      \
   declare_c2_type(NegFNode, NegNode)                                      \
   declare_c2_type(NegDNode, NegNode)                                      \
   declare_c2_type(AtanDNode, Node)                                        \
@@ -1787,6 +1671,12 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(ReverseBytesLNode, Node)                                \
   declare_c2_type(ReductionNode, Node)                                    \
   declare_c2_type(VectorNode, Node)                                       \
+  declare_c2_type(AbsVFNode, VectorNode)                                  \
+  declare_c2_type(AbsVDNode, VectorNode)                                  \
+  declare_c2_type(AbsVBNode, VectorNode)                                  \
+  declare_c2_type(AbsVSNode, VectorNode)                                  \
+  declare_c2_type(AbsVINode, VectorNode)                                  \
+  declare_c2_type(AbsVLNode, VectorNode)                                  \
   declare_c2_type(AddVBNode, VectorNode)                                  \
   declare_c2_type(AddVSNode, VectorNode)                                  \
   declare_c2_type(AddVINode, VectorNode)                                  \
@@ -1803,6 +1693,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(SubVLNode, VectorNode)                                  \
   declare_c2_type(SubVFNode, VectorNode)                                  \
   declare_c2_type(SubVDNode, VectorNode)                                  \
+  declare_c2_type(MulVBNode, VectorNode)                                  \
   declare_c2_type(MulVSNode, VectorNode)                                  \
   declare_c2_type(MulVLNode, VectorNode)                                  \
   declare_c2_type(MulReductionVLNode, ReductionNode)                      \
@@ -1811,14 +1702,23 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(MulVFNode, VectorNode)                                  \
   declare_c2_type(MulReductionVFNode, ReductionNode)                      \
   declare_c2_type(MulVDNode, VectorNode)                                  \
+  declare_c2_type(NegVNode, VectorNode)                                   \
+  declare_c2_type(NegVINode, NegVNode)                                    \
+  declare_c2_type(NegVLNode, NegVNode)                                    \
+  declare_c2_type(NegVFNode, NegVNode)                                    \
+  declare_c2_type(NegVDNode, NegVNode)                                    \
   declare_c2_type(FmaVDNode, VectorNode)                                  \
   declare_c2_type(FmaVFNode, VectorNode)                                  \
-  declare_c2_type(CMoveVFNode, VectorNode)                                \
-  declare_c2_type(CMoveVDNode, VectorNode)                                \
+  declare_c2_type(CompressVNode, VectorNode)                              \
+  declare_c2_type(CompressMNode, VectorNode)                              \
+  declare_c2_type(ExpandVNode, VectorNode)                                \
+  declare_c2_type(CompressBitsVNode, VectorNode)                          \
+  declare_c2_type(ExpandBitsVNode, VectorNode)                            \
   declare_c2_type(MulReductionVDNode, ReductionNode)                      \
   declare_c2_type(DivVFNode, VectorNode)                                  \
   declare_c2_type(DivVDNode, VectorNode)                                  \
   declare_c2_type(PopCountVINode, VectorNode)                             \
+  declare_c2_type(PopCountVLNode, VectorNode)                             \
   declare_c2_type(LShiftVBNode, VectorNode)                               \
   declare_c2_type(LShiftVSNode, VectorNode)                               \
   declare_c2_type(LShiftVINode, VectorNode)                               \
@@ -1831,17 +1731,20 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(URShiftVSNode, VectorNode)                              \
   declare_c2_type(URShiftVINode, VectorNode)                              \
   declare_c2_type(URShiftVLNode, VectorNode)                              \
+  declare_c2_type(MinReductionVNode, ReductionNode)                       \
+  declare_c2_type(MaxReductionVNode, ReductionNode)                       \
   declare_c2_type(AndVNode, VectorNode)                                   \
+  declare_c2_type(AndReductionVNode, ReductionNode)                       \
   declare_c2_type(OrVNode, VectorNode)                                    \
+  declare_c2_type(OrReductionVNode, ReductionNode)                        \
   declare_c2_type(XorVNode, VectorNode)                                   \
+  declare_c2_type(XorReductionVNode, ReductionNode)                       \
+  declare_c2_type(MaxVNode, VectorNode)                                   \
+  declare_c2_type(MinVNode, VectorNode)                                   \
   declare_c2_type(LoadVectorNode, LoadNode)                               \
   declare_c2_type(StoreVectorNode, StoreNode)                             \
-  declare_c2_type(ReplicateBNode, VectorNode)                             \
-  declare_c2_type(ReplicateSNode, VectorNode)                             \
-  declare_c2_type(ReplicateINode, VectorNode)                             \
-  declare_c2_type(ReplicateLNode, VectorNode)                             \
-  declare_c2_type(ReplicateFNode, VectorNode)                             \
-  declare_c2_type(ReplicateDNode, VectorNode)                             \
+  declare_c2_type(ReplicateNode, VectorNode)                              \
+  declare_c2_type(PopulateIndexNode, VectorNode)                          \
   declare_c2_type(PackNode, VectorNode)                                   \
   declare_c2_type(PackBNode, PackNode)                                    \
   declare_c2_type(PackSNode, PackNode)                                    \
@@ -1871,6 +1774,47 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(OverflowMulLNode, OverflowLNode)                        \
   declare_c2_type(FmaDNode, Node)                                         \
   declare_c2_type(FmaFNode, Node)                                         \
+  declare_c2_type(CopySignDNode, Node)                                    \
+  declare_c2_type(CopySignFNode, Node)                                    \
+  declare_c2_type(SignumDNode, Node)                                      \
+  declare_c2_type(SignumFNode, Node)                                      \
+  declare_c2_type(IsInfiniteFNode, Node)                                  \
+  declare_c2_type(IsInfiniteDNode, Node)                                  \
+  declare_c2_type(IsFiniteFNode, Node)                                    \
+  declare_c2_type(IsFiniteDNode, Node)                                    \
+  declare_c2_type(LoadVectorGatherNode, LoadVectorNode)                   \
+  declare_c2_type(StoreVectorScatterNode, StoreVectorNode)                \
+  declare_c2_type(VectorLoadMaskNode, VectorNode)                         \
+  declare_c2_type(VectorLoadShuffleNode, VectorNode)                      \
+  declare_c2_type(VectorStoreMaskNode, VectorNode)                        \
+  declare_c2_type(VectorBlendNode, VectorNode)                            \
+  declare_c2_type(VectorRearrangeNode, VectorNode)                        \
+  declare_c2_type(VectorMaskWrapperNode, VectorNode)                      \
+  declare_c2_type(VectorMaskCmpNode, VectorNode)                          \
+  declare_c2_type(VectorCastB2XNode, VectorNode)                          \
+  declare_c2_type(VectorCastS2XNode, VectorNode)                          \
+  declare_c2_type(VectorCastI2XNode, VectorNode)                          \
+  declare_c2_type(VectorCastL2XNode, VectorNode)                          \
+  declare_c2_type(VectorCastF2XNode, VectorNode)                          \
+  declare_c2_type(VectorCastD2XNode, VectorNode)                          \
+  declare_c2_type(VectorUCastB2XNode, VectorNode)                         \
+  declare_c2_type(VectorUCastS2XNode, VectorNode)                         \
+  declare_c2_type(VectorUCastI2XNode, VectorNode)                         \
+  declare_c2_type(VectorInsertNode, VectorNode)                           \
+  declare_c2_type(VectorUnboxNode, VectorNode)                            \
+  declare_c2_type(VectorReinterpretNode, VectorNode)                      \
+  declare_c2_type(VectorMaskCastNode, VectorNode)                         \
+  declare_c2_type(CountLeadingZerosVNode, VectorNode)                     \
+  declare_c2_type(CountTrailingZerosVNode, VectorNode)                    \
+  declare_c2_type(ReverseBytesVNode, VectorNode)                          \
+  declare_c2_type(ReverseVNode, VectorNode)                               \
+  declare_c2_type(MaskAllNode, VectorNode)                                \
+  declare_c2_type(AndVMaskNode, VectorNode)                               \
+  declare_c2_type(OrVMaskNode, VectorNode)                                \
+  declare_c2_type(XorVMaskNode, VectorNode)                               \
+  declare_c2_type(VectorBoxNode, Node)                                    \
+  declare_c2_type(VectorBoxAllocateNode, CallStaticJavaNode)              \
+  declare_c2_type(VectorTestNode, CmpNode)                                \
                                                                           \
   /*********************/                                                 \
   /* Adapter Blob Entries */                                              \
@@ -1917,7 +1861,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /********************/                                                  \
                                                                           \
   declare_toplevel_type(Abstract_VM_Version)                              \
-  declare_toplevel_type(JDK_Version)                                      \
                                                                           \
   /*************/                                                         \
   /* Arguments */                                                         \
@@ -1938,7 +1881,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* all enum types */                                                    \
                                                                           \
    declare_integer_type(Bytecodes::Code)                                  \
-   declare_integer_type(Generation::Name)                                 \
    declare_integer_type(InstanceKlass::ClassState)                        \
    declare_integer_type(JavaThreadState)                                  \
    declare_integer_type(ThreadState)                                      \
@@ -1953,26 +1895,36 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
             declare_type(Array<u2>, MetaspaceObj)                         \
             declare_type(Array<Klass*>, MetaspaceObj)                     \
             declare_type(Array<Method*>, MetaspaceObj)                    \
+            declare_type(Array<ResolvedFieldEntry>, MetaspaceObj)         \
+            declare_type(Array<ResolvedMethodEntry>, MetaspaceObj)        \
+            declare_type(Array<ResolvedIndyEntry>, MetaspaceObj)          \
+            declare_type(Array<Array<u1>*>, MetaspaceObj)                 \
                                                                           \
    declare_toplevel_type(BitMap)                                          \
             declare_type(BitMapView, BitMap)                              \
                                                                           \
-   declare_integer_type(AccessFlags)  /* FIXME: wrong type (not integer) */\
+  declare_integer_type(markWord)                                          \
+  declare_integer_type(AccessFlags)  /* FIXME: wrong type (not integer) */\
   declare_toplevel_type(address)      /* FIXME: should this be an integer type? */\
-   declare_integer_type(BasicType)   /* FIXME: wrong type (not integer) */\
-  declare_toplevel_type(BreakpointInfo)                                   \
-  declare_toplevel_type(BreakpointInfo*)                                  \
+  declare_integer_type(BasicType)   /* FIXME: wrong type (not integer) */ \
+                                                                          \
+  declare_integer_type(CompLevel)                                         \
+  declare_integer_type(ByteSize)                                          \
+  JVMTI_ONLY(declare_toplevel_type(BreakpointInfo))                       \
+  JVMTI_ONLY(declare_toplevel_type(BreakpointInfo*))                      \
   declare_toplevel_type(CodeBlob*)                                        \
   declare_toplevel_type(RuntimeBlob*)                                     \
   declare_toplevel_type(CompressedWriteStream*)                           \
-  declare_toplevel_type(ConstantPoolCacheEntry)                           \
+  declare_toplevel_type(ResolvedFieldEntry)                               \
+  declare_toplevel_type(ResolvedMethodEntry)                              \
+  declare_toplevel_type(ResolvedIndyEntry)                                \
   declare_toplevel_type(elapsedTimer)                                     \
   declare_toplevel_type(frame)                                            \
   declare_toplevel_type(intptr_t*)                                        \
    declare_unsigned_integer_type(InvocationCounter) /* FIXME: wrong type (not integer) */ \
   declare_toplevel_type(JavaThread*)                                      \
+  declare_toplevel_type(JavaThread *const *const)                         \
   declare_toplevel_type(java_lang_Class)                                  \
-  declare_integer_type(JavaThread::AsyncRequests)                         \
   declare_integer_type(JavaThread::TerminatedTypes)                       \
   declare_toplevel_type(jbyte*)                                           \
   declare_toplevel_type(jbyte**)                                          \
@@ -1988,26 +1940,25 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_toplevel_type(nmethod*)                                         \
   COMPILER2_PRESENT(declare_unsigned_integer_type(node_idx_t))            \
   declare_toplevel_type(ObjectMonitor*)                                   \
-  declare_toplevel_type(PaddedObjectMonitor*)                             \
   declare_toplevel_type(oop*)                                             \
-  declare_toplevel_type(OopMap**)                                         \
   declare_toplevel_type(OopMapCache*)                                     \
-  declare_toplevel_type(OopMapSet*)                                       \
   declare_toplevel_type(VMReg)                                            \
   declare_toplevel_type(OSThread*)                                        \
    declare_integer_type(ReferenceType)                                    \
   declare_toplevel_type(StubQueue*)                                       \
   declare_toplevel_type(Thread*)                                          \
   declare_toplevel_type(Universe)                                         \
+  declare_toplevel_type(CompressedOops)                                   \
+  declare_toplevel_type(CompressedKlassPointers)                          \
   declare_toplevel_type(os)                                               \
   declare_toplevel_type(vframeArray)                                      \
   declare_toplevel_type(vframeArrayElement)                               \
   declare_toplevel_type(Annotations*)                                     \
-  declare_type(OopMapValue, StackObj)                                     \
+  declare_toplevel_type(OopMapValue)                                      \
   declare_type(FileMapInfo, CHeapObj<mtInternal>)                         \
-  declare_type(FileMapInfo::FileMapHeaderBase, CHeapObj<mtClass>)         \
-  declare_type(FileMapInfo::FileMapHeader, FileMapInfo::FileMapHeaderBase)\
-  declare_toplevel_type(FileMapInfo::FileMapHeader::space_info)           \
+  declare_toplevel_type(FileMapHeader)                                    \
+  declare_toplevel_type(CDSFileMapRegion)                                 \
+  declare_toplevel_type(UpcallStub::FrameData)                            \
                                                                           \
   /************/                                                          \
   /* GC types */                                                          \
@@ -2045,12 +1996,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
                                                                           \
   declare_preprocessor_constant("ASSERT", DEBUG_ONLY(1) NOT_DEBUG(0))     \
                                                                           \
-  /**************/                                                        \
-  /* Stack bias */                                                        \
-  /**************/                                                        \
-                                                                          \
-  declare_preprocessor_constant("STACK_BIAS", STACK_BIAS)                 \
-                                                                          \
   /****************/                                                      \
   /* Object sizes */                                                      \
   /****************/                                                      \
@@ -2081,29 +2026,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /************************************************************/          \
                                                                           \
   declare_constant(JVM_ACC_WRITTEN_FLAGS)                                 \
-  declare_constant(JVM_ACC_MONITOR_MATCH)                                 \
-  declare_constant(JVM_ACC_HAS_MONITOR_BYTECODES)                         \
-  declare_constant(JVM_ACC_HAS_LOOPS)                                     \
-  declare_constant(JVM_ACC_LOOPS_FLAG_INIT)                               \
-  declare_constant(JVM_ACC_QUEUED)                                        \
-  declare_constant(JVM_ACC_NOT_C2_OSR_COMPILABLE)                         \
-  declare_constant(JVM_ACC_HAS_LINE_NUMBER_TABLE)                         \
-  declare_constant(JVM_ACC_HAS_CHECKED_EXCEPTIONS)                        \
-  declare_constant(JVM_ACC_HAS_JSRS)                                      \
-  declare_constant(JVM_ACC_IS_OLD)                                        \
-  declare_constant(JVM_ACC_IS_OBSOLETE)                                   \
-  declare_constant(JVM_ACC_IS_PREFIXED_NATIVE)                            \
-  declare_constant(JVM_ACC_HAS_MIRANDA_METHODS)                           \
-  declare_constant(JVM_ACC_HAS_VANILLA_CONSTRUCTOR)                       \
-  declare_constant(JVM_ACC_HAS_FINALIZER)                                 \
-  declare_constant(JVM_ACC_IS_CLONEABLE_FAST)                             \
-  declare_constant(JVM_ACC_HAS_LOCAL_VARIABLE_TABLE)                      \
-  declare_constant(JVM_ACC_PROMOTED_FLAGS)                                \
-  declare_constant(JVM_ACC_FIELD_ACCESS_WATCHED)                          \
-  declare_constant(JVM_ACC_FIELD_MODIFICATION_WATCHED)                    \
-  declare_constant(JVM_ACC_FIELD_INTERNAL)                                \
-  declare_constant(JVM_ACC_FIELD_STABLE)                                  \
-  declare_constant(JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE)                   \
                                                                           \
   declare_constant(JVM_CONSTANT_Utf8)                                     \
   declare_constant(JVM_CONSTANT_Unicode)                                  \
@@ -2121,6 +2043,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(JVM_CONSTANT_MethodType)                               \
   declare_constant(JVM_CONSTANT_Dynamic)                                  \
   declare_constant(JVM_CONSTANT_InvokeDynamic)                            \
+  declare_constant(JVM_CONSTANT_Module)                                   \
+  declare_constant(JVM_CONSTANT_Package)                                  \
   declare_constant(JVM_CONSTANT_ExternalMax)                              \
                                                                           \
   declare_constant(JVM_CONSTANT_Invalid)                                  \
@@ -2133,14 +2057,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(JVM_CONSTANT_MethodTypeInError)                        \
   declare_constant(JVM_CONSTANT_DynamicInError)                           \
   declare_constant(JVM_CONSTANT_InternalMax)                              \
-                                                                          \
-  /*****************************/                                         \
-  /* Thread::SuspendFlags enum */                                         \
-  /*****************************/                                         \
-                                                                          \
-  declare_constant(Thread::_external_suspend)                             \
-  declare_constant(Thread::_ext_suspended)                                \
-  declare_constant(Thread::_has_async_exception)                          \
                                                                           \
   /*******************/                                                   \
   /* JavaThreadState */                                                   \
@@ -2191,29 +2107,23 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(Klass::_lh_array_tag_type_value)                       \
   declare_constant(Klass::_lh_array_tag_obj_value)                        \
                                                                           \
+  declare_constant(Method::nonvirtual_vtable_index)                       \
+  declare_constant(Method::extra_stack_entries_for_jsr292)                \
+                                                                          \
   /********************************/                                      \
   /* ConstMethod anon-enum */                                             \
   /********************************/                                      \
                                                                           \
-  declare_constant(Method::_caller_sensitive)                             \
-  declare_constant(Method::_force_inline)                                 \
-  declare_constant(Method::_dont_inline)                                  \
-  declare_constant(Method::_hidden)                                       \
-                                                                          \
-  declare_constant(Method::nonvirtual_vtable_index)                       \
-                                                                          \
-  declare_constant(Method::extra_stack_entries_for_jsr292)                \
-                                                                          \
-  declare_constant(ConstMethod::_has_linenumber_table)                    \
-  declare_constant(ConstMethod::_has_checked_exceptions)                  \
-  declare_constant(ConstMethod::_has_localvariable_table)                 \
-  declare_constant(ConstMethod::_has_exception_table)                     \
-  declare_constant(ConstMethod::_has_generic_signature)                   \
-  declare_constant(ConstMethod::_has_method_parameters)                   \
-  declare_constant(ConstMethod::_has_method_annotations)                  \
-  declare_constant(ConstMethod::_has_parameter_annotations)               \
-  declare_constant(ConstMethod::_has_default_annotations)                 \
-  declare_constant(ConstMethod::_has_type_annotations)                    \
+  declare_constant(ConstMethodFlags::_misc_has_linenumber_table)          \
+  declare_constant(ConstMethodFlags::_misc_has_checked_exceptions)        \
+  declare_constant(ConstMethodFlags::_misc_has_localvariable_table)       \
+  declare_constant(ConstMethodFlags::_misc_has_exception_table)           \
+  declare_constant(ConstMethodFlags::_misc_has_generic_signature)         \
+  declare_constant(ConstMethodFlags::_misc_has_method_parameters)         \
+  declare_constant(ConstMethodFlags::_misc_has_method_annotations)        \
+  declare_constant(ConstMethodFlags::_misc_has_parameter_annotations)     \
+  declare_constant(ConstMethodFlags::_misc_has_default_annotations)       \
+  declare_constant(ConstMethodFlags::_misc_has_type_annotations)          \
                                                                           \
   /**************/                                                        \
   /* DataLayout */                                                        \
@@ -2240,25 +2150,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /*************************************/                                 \
                                                                           \
                                                                           \
-  /*************************************/                                 \
-  /* FieldInfo FieldOffset enum        */                                 \
-  /*************************************/                                 \
-                                                                          \
-  declare_constant(FieldInfo::access_flags_offset)                        \
-  declare_constant(FieldInfo::name_index_offset)                          \
-  declare_constant(FieldInfo::signature_index_offset)                     \
-  declare_constant(FieldInfo::initval_index_offset)                       \
-  declare_constant(FieldInfo::low_packed_offset)                          \
-  declare_constant(FieldInfo::high_packed_offset)                         \
-  declare_constant(FieldInfo::field_slots)                                \
-                                                                          \
-  /*************************************/                                 \
-  /* FieldInfo tag constants           */                                 \
-  /*************************************/                                 \
-                                                                          \
-  declare_preprocessor_constant("FIELDINFO_TAG_SIZE", FIELDINFO_TAG_SIZE) \
-  declare_preprocessor_constant("FIELDINFO_TAG_MASK", FIELDINFO_TAG_MASK) \
-  declare_preprocessor_constant("FIELDINFO_TAG_OFFSET", FIELDINFO_TAG_OFFSET) \
                                                                           \
   /************************************************/                      \
   /* InstanceKlass InnerClassAttributeOffset enum */                      \
@@ -2287,24 +2178,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(InstanceKlass::fully_initialized)                      \
   declare_constant(InstanceKlass::initialization_error)                   \
                                                                           \
-  /***************************************/                               \
-  /* InstanceKlass enums for _misc_flags */                               \
-  /***************************************/                               \
-                                                                          \
-  declare_constant(InstanceKlass::_misc_rewritten)                        \
-  declare_constant(InstanceKlass::_misc_has_nonstatic_fields)             \
-  declare_constant(InstanceKlass::_misc_should_verify_class)              \
-  declare_constant(InstanceKlass::_misc_is_anonymous)                     \
-  declare_constant(InstanceKlass::_misc_is_contended)                     \
-  declare_constant(InstanceKlass::_misc_has_nonstatic_concrete_methods)   \
-  declare_constant(InstanceKlass::_misc_declares_nonstatic_concrete_methods)\
-  declare_constant(InstanceKlass::_misc_has_been_redefined)               \
-  declare_constant(InstanceKlass::_misc_has_passed_fingerprint_check)     \
-  declare_constant(InstanceKlass::_misc_is_scratch_class)                 \
-  declare_constant(InstanceKlass::_misc_is_shared_boot_class)             \
-  declare_constant(InstanceKlass::_misc_is_shared_platform_class)         \
-  declare_constant(InstanceKlass::_misc_is_shared_app_class)              \
-                                                                          \
   /*********************************/                                     \
   /* Symbol* - symbol max length */                                       \
   /*********************************/                                     \
@@ -2318,32 +2191,31 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(ConstantPool::_indy_bsm_offset)                        \
   declare_constant(ConstantPool::_indy_argc_offset)                       \
   declare_constant(ConstantPool::_indy_argv_offset)                       \
-  declare_constant(ConstantPool::CPCACHE_INDEX_TAG)                       \
-                                                                          \
-  /********************************/                                      \
-  /* ConstantPoolCacheEntry enums */                                      \
-  /********************************/                                      \
-                                                                          \
-  declare_constant(ConstantPoolCacheEntry::is_volatile_shift)             \
-  declare_constant(ConstantPoolCacheEntry::is_final_shift)                \
-  declare_constant(ConstantPoolCacheEntry::is_forced_virtual_shift)       \
-  declare_constant(ConstantPoolCacheEntry::is_vfinal_shift)               \
-  declare_constant(ConstantPoolCacheEntry::is_field_entry_shift)          \
-  declare_constant(ConstantPoolCacheEntry::tos_state_shift)               \
                                                                           \
   /***************************************/                               \
-  /* java_lang_Thread::ThreadStatus enum */                               \
+  /* JavaThreadStatus enum               */                               \
   /***************************************/                               \
                                                                           \
-  declare_constant(java_lang_Thread::NEW)                                 \
-  declare_constant(java_lang_Thread::RUNNABLE)                            \
-  declare_constant(java_lang_Thread::SLEEPING)                            \
-  declare_constant(java_lang_Thread::IN_OBJECT_WAIT)                      \
-  declare_constant(java_lang_Thread::IN_OBJECT_WAIT_TIMED)                \
-  declare_constant(java_lang_Thread::PARKED)                              \
-  declare_constant(java_lang_Thread::PARKED_TIMED)                        \
-  declare_constant(java_lang_Thread::BLOCKED_ON_MONITOR_ENTER)            \
-  declare_constant(java_lang_Thread::TERMINATED)                          \
+  declare_constant(JavaThreadStatus::NEW)                                 \
+  declare_constant(JavaThreadStatus::RUNNABLE)                            \
+  declare_constant(JavaThreadStatus::SLEEPING)                            \
+  declare_constant(JavaThreadStatus::IN_OBJECT_WAIT)                      \
+  declare_constant(JavaThreadStatus::IN_OBJECT_WAIT_TIMED)                \
+  declare_constant(JavaThreadStatus::PARKED)                              \
+  declare_constant(JavaThreadStatus::PARKED_TIMED)                        \
+  declare_constant(JavaThreadStatus::BLOCKED_ON_MONITOR_ENTER)            \
+  declare_constant(JavaThreadStatus::TERMINATED)                          \
+                                                                          \
+                                                                          \
+  /******************************/                                        \
+  /* FieldFlags enum            */                                        \
+  /******************************/                                        \
+                                                                          \
+  declare_constant(FieldInfo::FieldFlags::_ff_initialized)                \
+  declare_constant(FieldInfo::FieldFlags::_ff_injected)                   \
+  declare_constant(FieldInfo::FieldFlags::_ff_generic)                    \
+  declare_constant(FieldInfo::FieldFlags::_ff_stable)                     \
+  declare_constant(FieldInfo::FieldFlags::_ff_contended)                  \
                                                                           \
   /******************************/                                        \
   /* Debug info                 */                                        \
@@ -2385,6 +2257,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(Deoptimization::Reason_profile_predicate)              \
   declare_constant(Deoptimization::Reason_unloaded)                       \
   declare_constant(Deoptimization::Reason_uninitialized)                  \
+  declare_constant(Deoptimization::Reason_initialized)                    \
   declare_constant(Deoptimization::Reason_unreached)                      \
   declare_constant(Deoptimization::Reason_unhandled)                      \
   declare_constant(Deoptimization::Reason_constraint)                     \
@@ -2395,9 +2268,9 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(Deoptimization::Reason_speculate_class_check)          \
   declare_constant(Deoptimization::Reason_speculate_null_check)           \
   declare_constant(Deoptimization::Reason_speculate_null_assert)          \
-  declare_constant(Deoptimization::Reason_rtm_state_change)               \
   declare_constant(Deoptimization::Reason_unstable_if)                    \
   declare_constant(Deoptimization::Reason_unstable_fused_if)              \
+  declare_constant(Deoptimization::Reason_receiver_constraint)            \
   NOT_ZERO(JVMCI_ONLY(declare_constant(Deoptimization::Reason_aliasing)))                       \
   NOT_ZERO(JVMCI_ONLY(declare_constant(Deoptimization::Reason_transfer_to_interpreter)))        \
   NOT_ZERO(JVMCI_ONLY(declare_constant(Deoptimization::Reason_not_compiled_exception_handler))) \
@@ -2413,12 +2286,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(Deoptimization::Action_make_not_entrant)               \
   declare_constant(Deoptimization::Action_make_not_compilable)            \
   declare_constant(Deoptimization::Action_LIMIT)                          \
-                                                                          \
-  /***************************************************/                   \
-  /* DEFAULT_CACHE_LINE_SIZE (globalDefinitions.hpp) */                   \
-  /***************************************************/                   \
-                                                                          \
-  declare_preprocessor_constant("DEFAULT_CACHE_LINE_SIZE", DEFAULT_CACHE_LINE_SIZE) \
                                                                           \
   declare_constant(Deoptimization::Unpack_deopt)                          \
   declare_constant(Deoptimization::Unpack_exception)                      \
@@ -2472,6 +2339,14 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(T_NARROWKLASS_size)                                    \
   declare_constant(T_VOID_size)                                           \
                                                                           \
+  /**********************************************/                        \
+  /* LockingMode enum (globalDefinitions.hpp) */                          \
+  /**********************************************/                        \
+                                                                          \
+  declare_constant(LM_MONITOR)                                            \
+  declare_constant(LM_LEGACY)                                             \
+  declare_constant(LM_LIGHTWEIGHT)                                        \
+                                                                          \
   /*********************/                                                 \
   /* Matcher (C2 only) */                                                 \
   /*********************/                                                 \
@@ -2495,7 +2370,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(CompLevel_limited_profile)                             \
   declare_constant(CompLevel_full_profile)                                \
   declare_constant(CompLevel_full_optimization)                           \
-  declare_constant(CompLevel_aot)                                         \
                                                                           \
   /***************/                                                       \
   /* OopMapValue */                                                       \
@@ -2520,12 +2394,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /******************/                                                    \
                                                                           \
   declare_constant(JNIHandleBlock::block_size_in_oops)                    \
-                                                                          \
-  /**********************/                                                \
-  /* ObjectSynchronizer */                                                \
-  /**********************/                                                \
-                                                                          \
-  declare_constant(ObjectSynchronizer::_BLOCKSIZE)                        \
                                                                           \
   /**********************/                                                \
   /* PcDesc             */                                                \
@@ -2559,14 +2427,14 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(vmIntrinsics::_linkToStatic)                           \
   declare_constant(vmIntrinsics::_linkToSpecial)                          \
   declare_constant(vmIntrinsics::_linkToInterface)                        \
+  declare_constant(vmIntrinsics::_linkToNative)                           \
                                                                           \
   /********************************/                                      \
   /* Calling convention constants */                                      \
   /********************************/                                      \
                                                                           \
-  declare_constant(RegisterImpl::number_of_registers)                     \
   declare_constant(ConcreteRegisterImpl::number_of_registers)             \
-  declare_preprocessor_constant("REG_COUNT", REG_COUNT)                \
+  declare_preprocessor_constant("REG_COUNT", REG_COUNT)                   \
   declare_c2_preprocessor_constant("SAVED_ON_ENTRY_REG_COUNT", SAVED_ON_ENTRY_REG_COUNT) \
   declare_c2_preprocessor_constant("C_SAVED_ON_ENTRY_REG_COUNT", C_SAVED_ON_ENTRY_REG_COUNT) \
                                                                           \
@@ -2594,7 +2462,22 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /****************/                                                      \
   /*  VMRegImpl   */                                                      \
   /****************/                                                      \
-  declare_constant(VMRegImpl::stack_slot_size)
+  declare_constant(VMRegImpl::stack_slot_size)                            \
+                                                                          \
+  /******************************/                                        \
+  /*  -XX flags (value origin)  */                                        \
+  /******************************/                                        \
+  declare_constant(JVMFlagOrigin::DEFAULT)                                \
+  declare_constant(JVMFlagOrigin::COMMAND_LINE)                           \
+  declare_constant(JVMFlagOrigin::ENVIRON_VAR)                            \
+  declare_constant(JVMFlagOrigin::CONFIG_FILE)                            \
+  declare_constant(JVMFlagOrigin::MANAGEMENT)                             \
+  declare_constant(JVMFlagOrigin::ERGONOMIC)                              \
+  declare_constant(JVMFlagOrigin::ATTACH_ON_DEMAND)                       \
+  declare_constant(JVMFlagOrigin::INTERNAL)                               \
+  declare_constant(JVMFlagOrigin::JIMAGE_RESOURCE)                        \
+  declare_constant(JVMFlag::VALUE_ORIGIN_MASK)                            \
+  declare_constant(JVMFlag::WAS_SET_ON_COMMAND_LINE)
 
 //--------------------------------------------------------------------------------
 // VM_LONG_CONSTANTS
@@ -2613,57 +2496,45 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   VM_LONG_CONSTANTS_GC(declare_constant)                                  \
                                                                           \
   /*********************/                                                 \
-  /* MarkOop constants */                                                 \
+  /* markWord constants */                                                \
   /*********************/                                                 \
                                                                           \
   /* Note: some of these are declared as long constants just for */       \
   /* consistency. The mask constants are the only ones requiring */       \
   /* 64 bits (on 64-bit platforms). */                                    \
                                                                           \
-  declare_constant(markOopDesc::age_bits)                                 \
-  declare_constant(markOopDesc::lock_bits)                                \
-  declare_constant(markOopDesc::biased_lock_bits)                         \
-  declare_constant(markOopDesc::max_hash_bits)                            \
-  declare_constant(markOopDesc::hash_bits)                                \
+  declare_constant(markWord::age_bits)                                    \
+  declare_constant(markWord::lock_bits)                                   \
+  declare_constant(markWord::max_hash_bits)                               \
+  declare_constant(markWord::hash_bits)                                   \
                                                                           \
-  declare_constant(markOopDesc::lock_shift)                               \
-  declare_constant(markOopDesc::biased_lock_shift)                        \
-  declare_constant(markOopDesc::age_shift)                                \
-  declare_constant(markOopDesc::hash_shift)                               \
+  declare_constant(markWord::lock_shift)                                  \
+  declare_constant(markWord::age_shift)                                   \
+  declare_constant(markWord::hash_shift)                                  \
                                                                           \
-  declare_constant(markOopDesc::lock_mask)                                \
-  declare_constant(markOopDesc::lock_mask_in_place)                       \
-  declare_constant(markOopDesc::biased_lock_mask)                         \
-  declare_constant(markOopDesc::biased_lock_mask_in_place)                \
-  declare_constant(markOopDesc::biased_lock_bit_in_place)                 \
-  declare_constant(markOopDesc::age_mask)                                 \
-  declare_constant(markOopDesc::age_mask_in_place)                        \
-  declare_constant(markOopDesc::epoch_mask)                               \
-  declare_constant(markOopDesc::epoch_mask_in_place)                      \
-  declare_constant(markOopDesc::hash_mask)                                \
-  declare_constant(markOopDesc::hash_mask_in_place)                       \
-  declare_constant(markOopDesc::biased_lock_alignment)                    \
+  declare_constant(markWord::lock_mask)                                   \
+  declare_constant(markWord::lock_mask_in_place)                          \
+  declare_constant(markWord::age_mask)                                    \
+  declare_constant(markWord::age_mask_in_place)                           \
+  declare_constant(markWord::hash_mask)                                   \
+  declare_constant(markWord::hash_mask_in_place)                          \
                                                                           \
-  declare_constant(markOopDesc::locked_value)                             \
-  declare_constant(markOopDesc::unlocked_value)                           \
-  declare_constant(markOopDesc::monitor_value)                            \
-  declare_constant(markOopDesc::marked_value)                             \
-  declare_constant(markOopDesc::biased_lock_pattern)                      \
+  declare_constant(markWord::locked_value)                                \
+  declare_constant(markWord::unlocked_value)                              \
+  declare_constant(markWord::monitor_value)                               \
+  declare_constant(markWord::marked_value)                                \
                                                                           \
-  declare_constant(markOopDesc::no_hash)                                  \
-  declare_constant(markOopDesc::no_hash_in_place)                         \
-  declare_constant(markOopDesc::no_lock_in_place)                         \
-  declare_constant(markOopDesc::max_age)                                  \
-                                                                          \
-  /* Constants in markOop used by CMS. */                                 \
-  declare_constant(markOopDesc::cms_shift)                                \
-  declare_constant(markOopDesc::cms_mask)                                 \
-  declare_constant(markOopDesc::size_shift)                               \
+  declare_constant(markWord::no_hash)                                     \
+  declare_constant(markWord::no_hash_in_place)                            \
+  declare_constant(markWord::no_lock_in_place)                            \
+  declare_constant(markWord::max_age)                                     \
                                                                           \
   /* InvocationCounter constants */                                       \
   declare_constant(InvocationCounter::count_increment)                    \
-  declare_constant(InvocationCounter::count_shift)
-
+  declare_constant(InvocationCounter::count_shift)                        \
+                                                                          \
+  /* ObjectMonitor constants */                                           \
+  declare_constant(ObjectMonitor::ANONYMOUS_OWNER)                        \
 
 //--------------------------------------------------------------------------------
 //
@@ -2673,13 +2544,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
 # define GENERATE_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c) GENERATE_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
 # define CHECK_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)    CHECK_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
 # define ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT(a, b, c)          ENSURE_FIELD_TYPE_PRESENT(a, b, c)
-# define GENERATE_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c) GENERATE_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
-# define CHECK_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)    CHECK_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
-# define ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT(a, b, c)          ENSURE_FIELD_TYPE_PRESENT(a, b, c)
 #else
-# define GENERATE_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
-# define CHECK_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
-# define ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT(a, b, c)
 # define GENERATE_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
 # define CHECK_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
 # define ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT(a, b, c)
@@ -2797,7 +2662,7 @@ VMStructEntry VMStructs::localHotSpotVMStructs[] = {
 
   VM_STRUCTS(GENERATE_NONSTATIC_VM_STRUCT_ENTRY,
              GENERATE_STATIC_VM_STRUCT_ENTRY,
-             GENERATE_STATIC_PTR_VOLATILE_VM_STRUCT_ENTRY,
+             GENERATE_VOLATILE_STATIC_VM_STRUCT_ENTRY,
              GENERATE_UNCHECKED_NONSTATIC_VM_STRUCT_ENTRY,
              GENERATE_NONSTATIC_VM_STRUCT_ENTRY,
              GENERATE_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY,
@@ -2913,6 +2778,9 @@ VMIntConstantEntry VMStructs::localHotSpotVMIntConstants[] = {
                           GENERATE_C1_VM_INT_CONSTANT_ENTRY,
                           GENERATE_C2_VM_INT_CONSTANT_ENTRY,
                           GENERATE_C2_PREPROCESSOR_VM_INT_CONSTANT_ENTRY)
+#ifdef VM_INT_CPU_FEATURE_CONSTANTS
+  VM_INT_CPU_FEATURE_CONSTANTS
+#endif
 
   GENERATE_VM_INT_CONSTANT_LAST_ENTRY()
 };
@@ -2946,6 +2814,9 @@ VMLongConstantEntry VMStructs::localHotSpotVMLongConstants[] = {
                            GENERATE_C1_VM_LONG_CONSTANT_ENTRY,
                            GENERATE_C2_VM_LONG_CONSTANT_ENTRY,
                            GENERATE_C2_PREPROCESSOR_VM_LONG_CONSTANT_ENTRY)
+#ifdef VM_LONG_CPU_FEATURE_CONSTANTS
+  VM_LONG_CPU_FEATURE_CONSTANTS
+#endif
 
   GENERATE_VM_LONG_CONSTANT_LAST_ENTRY()
 };
@@ -2954,13 +2825,46 @@ size_t VMStructs::localHotSpotVMLongConstantsLength() {
   return sizeof(localHotSpotVMLongConstants) / sizeof(VMLongConstantEntry);
 }
 
-// This is used both to check the types of referenced fields and, in
-// debug builds, to ensure that all of the field types are present.
-void
-VMStructs::init() {
+extern "C" {
+
+#define STRIDE(array) ((char*)&array[1] - (char*)&array[0])
+
+JNIEXPORT VMStructEntry* gHotSpotVMStructs = VMStructs::localHotSpotVMStructs;
+JNIEXPORT uint64_t gHotSpotVMStructEntryTypeNameOffset = offset_of(VMStructEntry, typeName);
+JNIEXPORT uint64_t gHotSpotVMStructEntryFieldNameOffset = offset_of(VMStructEntry, fieldName);
+JNIEXPORT uint64_t gHotSpotVMStructEntryTypeStringOffset = offset_of(VMStructEntry, typeString);
+JNIEXPORT uint64_t gHotSpotVMStructEntryIsStaticOffset = offset_of(VMStructEntry, isStatic);
+JNIEXPORT uint64_t gHotSpotVMStructEntryOffsetOffset = offset_of(VMStructEntry, offset);
+JNIEXPORT uint64_t gHotSpotVMStructEntryAddressOffset = offset_of(VMStructEntry, address);
+JNIEXPORT uint64_t gHotSpotVMStructEntryArrayStride = STRIDE(gHotSpotVMStructs);
+
+JNIEXPORT VMTypeEntry* gHotSpotVMTypes = VMStructs::localHotSpotVMTypes;
+JNIEXPORT uint64_t gHotSpotVMTypeEntryTypeNameOffset = offset_of(VMTypeEntry, typeName);
+JNIEXPORT uint64_t gHotSpotVMTypeEntrySuperclassNameOffset = offset_of(VMTypeEntry, superclassName);
+JNIEXPORT uint64_t gHotSpotVMTypeEntryIsOopTypeOffset = offset_of(VMTypeEntry, isOopType);
+JNIEXPORT uint64_t gHotSpotVMTypeEntryIsIntegerTypeOffset = offset_of(VMTypeEntry, isIntegerType);
+JNIEXPORT uint64_t gHotSpotVMTypeEntryIsUnsignedOffset = offset_of(VMTypeEntry, isUnsigned);
+JNIEXPORT uint64_t gHotSpotVMTypeEntrySizeOffset = offset_of(VMTypeEntry, size);
+JNIEXPORT uint64_t gHotSpotVMTypeEntryArrayStride = STRIDE(gHotSpotVMTypes);
+
+JNIEXPORT VMIntConstantEntry* gHotSpotVMIntConstants = VMStructs::localHotSpotVMIntConstants;
+JNIEXPORT uint64_t gHotSpotVMIntConstantEntryNameOffset = offset_of(VMIntConstantEntry, name);
+JNIEXPORT uint64_t gHotSpotVMIntConstantEntryValueOffset = offset_of(VMIntConstantEntry, value);
+JNIEXPORT uint64_t gHotSpotVMIntConstantEntryArrayStride = STRIDE(gHotSpotVMIntConstants);
+
+JNIEXPORT VMLongConstantEntry* gHotSpotVMLongConstants = VMStructs::localHotSpotVMLongConstants;
+JNIEXPORT uint64_t gHotSpotVMLongConstantEntryNameOffset = offset_of(VMLongConstantEntry, name);
+JNIEXPORT uint64_t gHotSpotVMLongConstantEntryValueOffset = offset_of(VMLongConstantEntry, value);
+JNIEXPORT uint64_t gHotSpotVMLongConstantEntryArrayStride = STRIDE(gHotSpotVMLongConstants);
+} // "C"
+
+#ifdef ASSERT
+// This is used both to check the types of referenced fields and
+// to ensure that all of the field types are present.
+void VMStructs::init() {
   VM_STRUCTS(CHECK_NONSTATIC_VM_STRUCT_ENTRY,
              CHECK_STATIC_VM_STRUCT_ENTRY,
-             CHECK_STATIC_PTR_VOLATILE_VM_STRUCT_ENTRY,
+             CHECK_VOLATILE_STATIC_VM_STRUCT_ENTRY,
              CHECK_NO_OP,
              CHECK_VOLATILE_NONSTATIC_VM_STRUCT_ENTRY,
              CHECK_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY,
@@ -3033,84 +2937,51 @@ VMStructs::init() {
   // Solstice NFS setup. If everyone switches to local workspaces on
   // Win32, we can put this back in.
 #ifndef _WINDOWS
-  debug_only(VM_STRUCTS(ENSURE_FIELD_TYPE_PRESENT,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP));
-  debug_only(VM_STRUCTS(CHECK_NO_OP,
-                        ENSURE_FIELD_TYPE_PRESENT,
-                        ENSURE_FIELD_TYPE_PRESENT,
-                        CHECK_NO_OP,
-                        ENSURE_FIELD_TYPE_PRESENT,
-                        ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
-                        ENSURE_C1_FIELD_TYPE_PRESENT,
-                        ENSURE_C2_FIELD_TYPE_PRESENT,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP));
+  VM_STRUCTS(ENSURE_FIELD_TYPE_PRESENT,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP);
 
-  debug_only(VM_STRUCTS_CPU(ENSURE_FIELD_TYPE_PRESENT,
-                            ENSURE_FIELD_TYPE_PRESENT,
-                            CHECK_NO_OP,
-                            ENSURE_FIELD_TYPE_PRESENT,
-                            ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
-                            ENSURE_C2_FIELD_TYPE_PRESENT,
-                            CHECK_NO_OP,
-                            CHECK_NO_OP));
-  debug_only(VM_STRUCTS_OS_CPU(ENSURE_FIELD_TYPE_PRESENT,
-                               ENSURE_FIELD_TYPE_PRESENT,
-                               CHECK_NO_OP,
-                               ENSURE_FIELD_TYPE_PRESENT,
-                               ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
-                               ENSURE_C2_FIELD_TYPE_PRESENT,
-                               CHECK_NO_OP,
-                               CHECK_NO_OP));
-#endif
+  VM_STRUCTS(CHECK_NO_OP,
+             ENSURE_FIELD_TYPE_PRESENT,
+             ENSURE_FIELD_TYPE_PRESENT,
+             CHECK_NO_OP,
+             ENSURE_FIELD_TYPE_PRESENT,
+             ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
+             ENSURE_C1_FIELD_TYPE_PRESENT,
+             ENSURE_C2_FIELD_TYPE_PRESENT,
+             CHECK_NO_OP,
+             CHECK_NO_OP);
+
+  VM_STRUCTS_CPU(ENSURE_FIELD_TYPE_PRESENT,
+                 ENSURE_FIELD_TYPE_PRESENT,
+                 CHECK_NO_OP,
+                 ENSURE_FIELD_TYPE_PRESENT,
+                 ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
+                 ENSURE_C2_FIELD_TYPE_PRESENT,
+                 CHECK_NO_OP,
+                 CHECK_NO_OP);
+  VM_STRUCTS_OS_CPU(ENSURE_FIELD_TYPE_PRESENT,
+                    ENSURE_FIELD_TYPE_PRESENT,
+                    CHECK_NO_OP,
+                    ENSURE_FIELD_TYPE_PRESENT,
+                    ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
+                    ENSURE_C2_FIELD_TYPE_PRESENT,
+                    CHECK_NO_OP,
+                    CHECK_NO_OP);
+#endif // !_WINDOWS
 }
 
-extern "C" {
-
-#define STRIDE(array) ((char*)&array[1] - (char*)&array[0])
-
-JNIEXPORT VMStructEntry* gHotSpotVMStructs = VMStructs::localHotSpotVMStructs;
-JNIEXPORT uint64_t gHotSpotVMStructEntryTypeNameOffset = offset_of(VMStructEntry, typeName);
-JNIEXPORT uint64_t gHotSpotVMStructEntryFieldNameOffset = offset_of(VMStructEntry, fieldName);
-JNIEXPORT uint64_t gHotSpotVMStructEntryTypeStringOffset = offset_of(VMStructEntry, typeString);
-JNIEXPORT uint64_t gHotSpotVMStructEntryIsStaticOffset = offset_of(VMStructEntry, isStatic);
-JNIEXPORT uint64_t gHotSpotVMStructEntryOffsetOffset = offset_of(VMStructEntry, offset);
-JNIEXPORT uint64_t gHotSpotVMStructEntryAddressOffset = offset_of(VMStructEntry, address);
-JNIEXPORT uint64_t gHotSpotVMStructEntryArrayStride = STRIDE(gHotSpotVMStructs);
-
-JNIEXPORT VMTypeEntry* gHotSpotVMTypes = VMStructs::localHotSpotVMTypes;
-JNIEXPORT uint64_t gHotSpotVMTypeEntryTypeNameOffset = offset_of(VMTypeEntry, typeName);
-JNIEXPORT uint64_t gHotSpotVMTypeEntrySuperclassNameOffset = offset_of(VMTypeEntry, superclassName);
-JNIEXPORT uint64_t gHotSpotVMTypeEntryIsOopTypeOffset = offset_of(VMTypeEntry, isOopType);
-JNIEXPORT uint64_t gHotSpotVMTypeEntryIsIntegerTypeOffset = offset_of(VMTypeEntry, isIntegerType);
-JNIEXPORT uint64_t gHotSpotVMTypeEntryIsUnsignedOffset = offset_of(VMTypeEntry, isUnsigned);
-JNIEXPORT uint64_t gHotSpotVMTypeEntrySizeOffset = offset_of(VMTypeEntry, size);
-JNIEXPORT uint64_t gHotSpotVMTypeEntryArrayStride = STRIDE(gHotSpotVMTypes);
-
-JNIEXPORT VMIntConstantEntry* gHotSpotVMIntConstants = VMStructs::localHotSpotVMIntConstants;
-JNIEXPORT uint64_t gHotSpotVMIntConstantEntryNameOffset = offset_of(VMIntConstantEntry, name);
-JNIEXPORT uint64_t gHotSpotVMIntConstantEntryValueOffset = offset_of(VMIntConstantEntry, value);
-JNIEXPORT uint64_t gHotSpotVMIntConstantEntryArrayStride = STRIDE(gHotSpotVMIntConstants);
-
-JNIEXPORT VMLongConstantEntry* gHotSpotVMLongConstants = VMStructs::localHotSpotVMLongConstants;
-JNIEXPORT uint64_t gHotSpotVMLongConstantEntryNameOffset = offset_of(VMLongConstantEntry, name);
-JNIEXPORT uint64_t gHotSpotVMLongConstantEntryValueOffset = offset_of(VMLongConstantEntry, value);
-JNIEXPORT uint64_t gHotSpotVMLongConstantEntryArrayStride = STRIDE(gHotSpotVMLongConstants);
-}
-
-#ifdef ASSERT
 static int recursiveFindType(VMTypeEntry* origtypes, const char* typeName, bool isRecurse) {
   {
     VMTypeEntry* types = origtypes;
-    while (types->typeName != NULL) {
+    while (types->typeName != nullptr) {
       if (strcmp(typeName, types->typeName) == 0) {
         // Found it
         return 1;
@@ -3131,15 +3002,15 @@ static int recursiveFindType(VMTypeEntry* origtypes, const char* typeName, bool 
     }
     FREE_C_HEAP_ARRAY(char, s);
   }
-  const char* start = NULL;
+  const char* start = nullptr;
   if (strstr(typeName, "GrowableArray<") == typeName) {
     start = typeName + strlen("GrowableArray<");
   } else if (strstr(typeName, "Array<") == typeName) {
     start = typeName + strlen("Array<");
   }
-  if (start != NULL) {
+  if (start != nullptr) {
     const char * end = strrchr(typeName, '>');
-    int len = end - start + 1;
+    int len = pointer_delta_as_int(end, start) + 1;
     char * s = NEW_C_HEAP_ARRAY(char, len, mtInternal);
     strncpy(s, start, len - 1);
     s[len-1] = '\0';
@@ -3173,15 +3044,13 @@ static int recursiveFindType(VMTypeEntry* origtypes, const char* typeName, bool 
   return 0;
 }
 
-
-int
-VMStructs::findType(const char* typeName) {
+int VMStructs::findType(const char* typeName) {
   VMTypeEntry* types = gHotSpotVMTypes;
 
   return recursiveFindType(types, typeName, false);
 }
-#endif
 
 void vmStructs_init() {
-  debug_only(VMStructs::init());
+  VMStructs::init();
 }
+#endif // ASSERT

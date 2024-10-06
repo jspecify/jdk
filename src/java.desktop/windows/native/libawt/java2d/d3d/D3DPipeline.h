@@ -28,48 +28,16 @@
 #define D3D_DEBUG_INFO
 #endif // DEBUG
 
-/* Use THIS_FILE when it is available. */
-#ifndef THIS_FILE
-    #define THIS_FILE THIS_FILE
-#endif
+// this include ensures that with debug build we get
+// awt's overridden debug "new" and "delete" operators
+#include "awt.h"
 
-#ifdef D3D_PPL_DLL
+#include <windows.h>
+#include <d3d9.h>
+#include "Trace.h"
 
-
-    #ifndef WIN32_LEAN_AND_MEAN
-    #define WIN32_LEAN_AND_MEAN
-    #endif
-
-    #ifdef D3DPIPELINE_EXPORTS
-    #define D3DPIPELINE_API __declspec(dllexport)
-    #else
-    #define D3DPIPELINE_API __declspec(dllimport)
-    #endif
-
-    #include <windows.h>
-    #include <d3d9.h>
-    #include <DDErr.h>
-    #include "..\Import\Trace.h"
-
-    #define DebugPrintD3DError(res, msg) \
-        DXTRACE_ERR(msg, res)
-
-#else
-
-    #define D3DPIPELINE_API __declspec(dllexport)
-
-    // this include ensures that with debug build we get
-    // awt's overridden debug "new" and "delete" operators
-    #include "awt.h"
-
-    #include <windows.h>
-    #include <d3d9.h>
-    #include "Trace.h"
-
-    #define DebugPrintD3DError(res, msg) \
-        J2dTraceLn1(J2D_TRACE_ERROR, "D3D Error: " ## msg ## " res=%d", res)
-
-#endif /*D3D_PPL_DLL*/
+#define DebugPrintD3DError(res, msg) \
+    J2dTraceLn1(J2D_TRACE_ERROR, "D3D Error: " msg " res=%d", res)
 
 // some helper macros
 #define SAFE_RELEASE(RES) \
@@ -92,9 +60,9 @@ do {                      \
 #define SAFE_PRINTLN(RES) \
 do {                      \
     if ((RES)!= NULL) {   \
-        J2dTraceLn1(J2D_TRACE_VERBOSE, "  " ## #RES ## "=0x%x", (RES)); \
+        J2dTraceLn1(J2D_TRACE_VERBOSE, "  " #RES "=0x%x", (RES)); \
     } else {              \
-        J2dTraceLn(J2D_TRACE_VERBOSE, "  " ## #RES ## "=NULL"); \
+        J2dTraceLn(J2D_TRACE_VERBOSE, "  " #RES "=NULL"); \
     }                     \
 } while (0);
 #else // DEBUG
@@ -109,7 +77,7 @@ do {                      \
 #define ACT_IF_NULL(ACTION, value)         \
     if ((value) == NULL) {                 \
         J2dTraceLn3(J2D_TRACE_ERROR,       \
-                    "%s is null in %s:%d", #value, THIS_FILE, __LINE__); \
+                    "%s is null in %s:%d", #value, __FILE__, __LINE__); \
         ACTION;                            \
     } else do { } while (0)
 #define RETURN_IF_NULL(value)   ACT_IF_NULL(return, value)
@@ -119,12 +87,12 @@ do {                      \
 
 #define RETURN_STATUS_IF_EXP_FAILED(EXPR) \
     if (FAILED(res = (EXPR))) {                    \
-        DebugPrintD3DError(res, " " ## #EXPR ## " failed in " ## THIS_FILE); \
+        DebugPrintD3DError(res, " " #EXPR " failed in " __FILE__); \
         return res;                   \
     } else do { } while (0)
 
 #define RETURN_STATUS_IF_FAILED(status) \
     if (FAILED((status))) {                    \
-        DebugPrintD3DError((status), " failed in " ## THIS_FILE ## ", return;");\
+        DebugPrintD3DError((status), " failed in " __FILE__ ", return;");\
         return (status);                   \
     } else do { } while (0)

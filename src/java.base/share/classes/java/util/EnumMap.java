@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@ package java.util;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * A specialized {@link Map} implementation for use with enum type keys.  All
@@ -51,7 +51,7 @@ import jdk.internal.misc.SharedSecrets;
  * throw {@link NullPointerException}.  Attempts to test for the
  * presence of a null key or to remove one will, however, function properly.
  * Null values are permitted.
-
+ *
  * <P>Like most collection implementations {@code EnumMap} is not
  * synchronized. If multiple threads access an enum map concurrently, and at
  * least one of the threads modifies the map, it should be synchronized
@@ -73,6 +73,9 @@ import jdk.internal.misc.SharedSecrets;
  * <p>This class is a member of the
  * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
+ *
+ * @param <K> the enum type of keys maintained by this map
+ * @param <V> the type of mapped values
  *
  * @author Josh Bloch
  * @see EnumSet
@@ -166,6 +169,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      *     {@code EnumMap} instance and contains no mappings
      * @throws NullPointerException if {@code m} is null
      */
+    @SuppressWarnings("this-escape")
     public EnumMap(Map<K, ? extends V> m) {
         if (m instanceof EnumMap) {
             EnumMap<K, ? extends V> em = (EnumMap<K, ? extends V>) m;
@@ -341,8 +345,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
     @SuppressWarnings({"nullness:contracts.precondition.override.invalid"})
     
     public void putAll(Map<? extends K, ? extends V> m) {
-        if (m instanceof EnumMap) {
-            EnumMap<?, ?> em = (EnumMap<?, ?>)m;
+        if (m instanceof EnumMap<?, ?> em) {
             if (em.keyType != keyType) {
                 if (em.isEmpty())
                     return;
@@ -493,18 +496,13 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
             return new EntryIterator();
         }
 
-        
-        public boolean contains(@Nullable Object o) {
-            if (!(o instanceof Map.Entry))
-                return false;
-            Map.Entry<?,?> entry = (Map.Entry<?,?>)o;
-            return containsMapping(entry.getKey(), entry.getValue());
+        public boolean contains(Object o) {
+            return o instanceof Map.Entry<?, ?> entry
+                    && containsMapping(entry.getKey(), entry.getValue());
         }
-        public boolean remove(@Nullable Object o) {
-            if (!(o instanceof Map.Entry))
-                return false;
-            Map.Entry<?,?> entry = (Map.Entry<?,?>)o;
-            return removeMapping(entry.getKey(), entry.getValue());
+        public boolean remove(Object o) {
+            return o instanceof Map.Entry<?, ?> entry
+                    && removeMapping(entry.getKey(), entry.getValue());
         }
         
         public  int size() {
@@ -644,15 +642,14 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
                 if (index < 0)
                     return o == this;
 
-                if (!(o instanceof Map.Entry))
+                if (!(o instanceof Map.Entry<?, ?> e))
                     return false;
 
-                Map.Entry<?,?> e = (Map.Entry<?,?>)o;
                 V ourValue = unmaskNull(vals[index]);
-                Object hisValue = e.getValue();
+                Object otherValue = e.getValue();
                 return (e.getKey() == keyUniverse[index] &&
-                        (ourValue == hisValue ||
-                         (ourValue != null && ourValue.equals(hisValue))));
+                        (ourValue == otherValue ||
+                         (ourValue != null && ourValue.equals(otherValue))));
             }
 
             public int hashCode() {
@@ -693,10 +690,9 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
             return true;
         if (o instanceof EnumMap)
             return equals((EnumMap<?,?>)o);
-        if (!(o instanceof Map))
+        if (!(o instanceof Map<?, ?> m))
             return false;
 
-        Map<?,?> m = (Map<?,?>)o;
         if (size != m.size())
             return false;
 
@@ -727,9 +723,9 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
         // Key types match, compare each value
         for (int i = 0; i < keyUniverse.length; i++) {
             Object ourValue =    vals[i];
-            Object hisValue = em.vals[i];
-            if (hisValue != ourValue &&
-                (hisValue == null || !hisValue.equals(ourValue)))
+            Object otherValue = em.vals[i];
+            if (otherValue != ourValue &&
+                (otherValue == null || !otherValue.equals(ourValue)))
                 return false;
         }
         return true;
@@ -794,6 +790,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
                                         .getEnumConstantsShared(keyType);
     }
 
+    @java.io.Serial
     private static final long serialVersionUID = 458661240069192865L;
 
     /**
@@ -805,6 +802,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      *             and value (Object) for each key-value mapping represented
      *             by the enum map.
      */
+    @java.io.Serial
     private void writeObject(java.io.ObjectOutputStream s)
         throws java.io.IOException
     {
@@ -830,6 +828,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      * deserialize it).
      */
     @SuppressWarnings("unchecked")
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s)
         throws java.io.IOException, ClassNotFoundException
     {

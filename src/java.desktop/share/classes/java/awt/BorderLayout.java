@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,7 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.util.Hashtable;
+import java.io.Serial;
 
 /**
  * A border layout lays out a container, arranging and resizing
@@ -96,11 +92,10 @@ import java.util.Hashtable;
  * Here is an example of five buttons in an applet laid out using
  * the {@code BorderLayout} layout manager:
  * <p>
- * <img src="doc-files/BorderLayout-1.gif"
- * alt="Diagram of an applet demonstrating BorderLayout.
- *      Each section of the BorderLayout contains a Button corresponding to its position in the layout, one of:
- *      North, West, Center, East, or South."
- * style="float:center; margin: 7px 10px;">
+ * <img src="doc-files/BorderLayout-1.gif" alt="Diagram of an applet
+ * demonstrating BorderLayout. Each section of the BorderLayout contains a
+ * Button corresponding to its position in the layout, one of: North, West,
+ * Center, East, or South." style="margin: 7px 10px;">
  * <p>
  * The code for this applet is as follows:
  *
@@ -125,8 +120,7 @@ import java.util.Hashtable;
  * @see         java.awt.ComponentOrientation
  * @since       1.0
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class BorderLayout implements LayoutManager2,
+public class BorderLayout implements LayoutManager2,
                                      java.io.Serializable {
     /**
      * Constructs a border layout with the horizontal gaps
@@ -246,27 +240,27 @@ public @UsesObjectEquals class BorderLayout implements LayoutManager2,
     /**
      * The north layout constraint (top of container).
      */
-    public static final @Interned String NORTH  = "North";
+    public static final String NORTH  = "North";
 
     /**
      * The south layout constraint (bottom of container).
      */
-    public static final @Interned String SOUTH  = "South";
+    public static final String SOUTH  = "South";
 
     /**
      * The east layout constraint (right side of container).
      */
-    public static final @Interned String EAST   = "East";
+    public static final String EAST   = "East";
 
     /**
      * The west layout constraint (left side of container).
      */
-    public static final @Interned String WEST   = "West";
+    public static final String WEST   = "West";
 
     /**
      * The center layout constraint (middle of container).
      */
-    public static final @Interned String CENTER = "Center";
+    public static final String CENTER = "Center";
 
     /**
      * Synonym for PAGE_START.  Exists for compatibility with previous
@@ -275,7 +269,7 @@ public @UsesObjectEquals class BorderLayout implements LayoutManager2,
      * @see #PAGE_START
      * @since 1.2
      */
-    public static final @Interned String BEFORE_FIRST_LINE = "First";
+    public static final String BEFORE_FIRST_LINE = "First";
 
     /**
      * Synonym for PAGE_END.  Exists for compatibility with previous
@@ -284,7 +278,7 @@ public @UsesObjectEquals class BorderLayout implements LayoutManager2,
      * @see #PAGE_END
      * @since 1.2
      */
-    public static final @Interned String AFTER_LAST_LINE = "Last";
+    public static final String AFTER_LAST_LINE = "Last";
 
     /**
      * Synonym for LINE_START.  Exists for compatibility with previous
@@ -293,7 +287,7 @@ public @UsesObjectEquals class BorderLayout implements LayoutManager2,
      * @see #LINE_START
      * @since 1.2
      */
-    public static final @Interned String BEFORE_LINE_BEGINS = "Before";
+    public static final String BEFORE_LINE_BEGINS = "Before";
 
     /**
      * Synonym for LINE_END.  Exists for compatibility with previous
@@ -302,7 +296,7 @@ public @UsesObjectEquals class BorderLayout implements LayoutManager2,
      * @see #LINE_END
      * @since 1.2
      */
-    public static final @Interned String AFTER_LINE_ENDS = "After";
+    public static final String AFTER_LINE_ENDS = "After";
 
     /**
      * The component comes before the first line of the layout's content.
@@ -344,9 +338,10 @@ public @UsesObjectEquals class BorderLayout implements LayoutManager2,
      */
     public static final String LINE_END = AFTER_LINE_ENDS;
 
-    /*
-     * JDK 1.1 serialVersionUID
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
      */
+     @Serial
      private static final long serialVersionUID = -8658291919501921765L;
 
     /**
@@ -424,7 +419,7 @@ public @UsesObjectEquals class BorderLayout implements LayoutManager2,
      * @param   constraints  an object that specifies how and where
      *                       the component is added to the layout.
      * @see     java.awt.Container#add(java.awt.Component, java.lang.Object)
-     * @exception   IllegalArgumentException  if the constraint object is not
+     * @throws   IllegalArgumentException  if the constraint object is not
      *              a string, or if it not one of the five specified constants.
      * @since   1.1
      */
@@ -519,7 +514,7 @@ public @UsesObjectEquals class BorderLayout implements LayoutManager2,
      *                       {@code LINE_START}, {@code LINE_END}
      * @return  the component at the given location, or {@code null} if
      *          the location is empty
-     * @exception   IllegalArgumentException  if the constraint object is
+     * @throws   IllegalArgumentException  if the constraint object is
      *              not one of the nine specified constants
      * @see     #addLayoutComponent(java.awt.Component, java.lang.Object)
      * @since 1.5
@@ -567,9 +562,9 @@ public @UsesObjectEquals class BorderLayout implements LayoutManager2,
      *                     {@code Container}'s component orientation.
      * @return  the component at the given location, or {@code null} if
      *          the location is empty
-     * @exception   IllegalArgumentException  if the constraint object is
+     * @throws   IllegalArgumentException  if the constraint object is
      *              not one of the five specified constants
-     * @exception   NullPointerException  if the target parameter is null
+     * @throws   NullPointerException  if the target parameter is null
      * @see     #addLayoutComponent(java.awt.Component, java.lang.Object)
      * @since 1.5
      */

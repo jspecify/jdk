@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,19 @@ package jdk.internal.reflect;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import jdk.internal.misc.Unsafe;
 
-/** Utility class which assists in calling Unsafe.defineClass() by
-    creating a new class loader which delegates to the one needed in
-    order for proper resolution of the given bytecodes to occur. */
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
+
+/** Utility class which assists in calling defineClass() by
+ *  creating a new class loader which delegates to the one needed in
+ *  order for proper resolution of the given bytecodes to occur.
+ *
+ *  This is only used to define SerializationConstructorAccessor.
+ */
 
 class ClassDefiner {
-    static final Unsafe unsafe = Unsafe.getUnsafe();
+    static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
     /** <P> We define generated code into a new class loader which
       delegates to the defining loader of the target class. It is
@@ -54,13 +59,14 @@ class ClassDefiner {
     static Class<?> defineClass(String name, byte[] bytes, int off, int len,
                                 final ClassLoader parentClassLoader)
     {
+        @SuppressWarnings("removal")
         ClassLoader newLoader = AccessController.doPrivileged(
             new PrivilegedAction<ClassLoader>() {
                 public ClassLoader run() {
                         return new DelegatingClassLoader(parentClassLoader);
                     }
                 });
-        return unsafe.defineClass(name, bytes, off, len, newLoader, null);
+        return JLA.defineClass(newLoader, name, bytes, null, "__ClassDefiner__");
     }
 }
 

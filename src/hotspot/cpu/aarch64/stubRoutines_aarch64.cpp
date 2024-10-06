@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -26,42 +26,46 @@
 #include "precompiled.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/thread.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 // Implementation of the platform-specific part of StubRoutines - for
 // a description of how to extend it, see the stubRoutines.hpp file.
 
-address StubRoutines::aarch64::_get_previous_fp_entry = NULL;
-address StubRoutines::aarch64::_get_previous_sp_entry = NULL;
+address StubRoutines::aarch64::_get_previous_sp_entry = nullptr;
 
-address StubRoutines::aarch64::_f2i_fixup = NULL;
-address StubRoutines::aarch64::_f2l_fixup = NULL;
-address StubRoutines::aarch64::_d2i_fixup = NULL;
-address StubRoutines::aarch64::_d2l_fixup = NULL;
-address StubRoutines::aarch64::_float_sign_mask = NULL;
-address StubRoutines::aarch64::_float_sign_flip = NULL;
-address StubRoutines::aarch64::_double_sign_mask = NULL;
-address StubRoutines::aarch64::_double_sign_flip = NULL;
-address StubRoutines::aarch64::_zero_blocks = NULL;
-address StubRoutines::aarch64::_has_negatives = NULL;
-address StubRoutines::aarch64::_has_negatives_long = NULL;
-address StubRoutines::aarch64::_large_array_equals = NULL;
-address StubRoutines::aarch64::_compare_long_string_LL = NULL;
-address StubRoutines::aarch64::_compare_long_string_UU = NULL;
-address StubRoutines::aarch64::_compare_long_string_LU = NULL;
-address StubRoutines::aarch64::_compare_long_string_UL = NULL;
-address StubRoutines::aarch64::_string_indexof_linear_ll = NULL;
-address StubRoutines::aarch64::_string_indexof_linear_uu = NULL;
-address StubRoutines::aarch64::_string_indexof_linear_ul = NULL;
-address StubRoutines::aarch64::_large_byte_array_inflate = NULL;
+address StubRoutines::aarch64::_f2i_fixup = nullptr;
+address StubRoutines::aarch64::_f2l_fixup = nullptr;
+address StubRoutines::aarch64::_d2i_fixup = nullptr;
+address StubRoutines::aarch64::_d2l_fixup = nullptr;
+address StubRoutines::aarch64::_vector_iota_indices = nullptr;
+address StubRoutines::aarch64::_float_sign_mask = nullptr;
+address StubRoutines::aarch64::_float_sign_flip = nullptr;
+address StubRoutines::aarch64::_double_sign_mask = nullptr;
+address StubRoutines::aarch64::_double_sign_flip = nullptr;
+address StubRoutines::aarch64::_zero_blocks = nullptr;
+address StubRoutines::aarch64::_count_positives = nullptr;
+address StubRoutines::aarch64::_count_positives_long = nullptr;
+address StubRoutines::aarch64::_large_array_equals = nullptr;
+address StubRoutines::aarch64::_compare_long_string_LL = nullptr;
+address StubRoutines::aarch64::_compare_long_string_UU = nullptr;
+address StubRoutines::aarch64::_compare_long_string_LU = nullptr;
+address StubRoutines::aarch64::_compare_long_string_UL = nullptr;
+address StubRoutines::aarch64::_string_indexof_linear_ll = nullptr;
+address StubRoutines::aarch64::_string_indexof_linear_uu = nullptr;
+address StubRoutines::aarch64::_string_indexof_linear_ul = nullptr;
+address StubRoutines::aarch64::_large_byte_array_inflate = nullptr;
+
+static void empty_spin_wait() { }
+address StubRoutines::aarch64::_spin_wait = CAST_FROM_FN_PTR(address, empty_spin_wait);
+
 bool StubRoutines::aarch64::_completed = false;
 
 /**
  *  crc_table[] from jdk/src/share/native/java/util/zip/zlib-1.2.5/crc32.h
  */
-juint StubRoutines::aarch64::_crc_table[] ATTRIBUTE_ALIGNED(4096) =
+ATTRIBUTE_ALIGNED(4096) juint StubRoutines::aarch64::_crc_table[] =
 {
     // Table 0
     0x00000000UL, 0x77073096UL, 0xee0e612cUL, 0x990951baUL, 0x076dc419UL,
@@ -285,12 +289,41 @@ juint StubRoutines::aarch64::_crc_table[] ATTRIBUTE_ALIGNED(4096) =
     0xED78D502UL, 0x62EDAE7DUL,         // byte swap
     0x02D578EDUL, 0x7DAEED62UL,         // word swap
     0xD502ED78UL, 0xAE7D62EDUL,         // byte swap of word swap
+
+    // Constants for CRC-32 crypto pmull implementation
+    0xe88ef372UL, 0x00000001UL,
+    0x4a7fe880UL, 0x00000001UL,
+    0x54442bd4UL, 0x00000001UL,
+    0xc6e41596UL, 0x00000001UL,
+    0x3db1ecdcUL, 0x00000000UL,
+    0x74359406UL, 0x00000001UL,
+    0xf1da05aaUL, 0x00000000UL,
+    0x5a546366UL, 0x00000001UL,
+    0x751997d0UL, 0x00000001UL,
+    0xccaa009eUL, 0x00000000UL,
+
+    // Constants for CRC-32C crypto pmull implementation
+    0x6992cea2UL, 0x00000000UL,
+    0x0d3b6092UL, 0x00000000UL,
+    0x740eef02UL, 0x00000000UL,
+    0x9e4addf8UL, 0x00000000UL,
+    0x1c291d04UL, 0x00000000UL,
+    0xd82c63daUL, 0x00000001UL,
+    0x384aa63aUL, 0x00000001UL,
+    0xba4fc28eUL, 0x00000000UL,
+    0xf20c0dfeUL, 0x00000000UL,
+    0x4cd00bd6UL, 0x00000001UL,
 };
 
-juint StubRoutines::aarch64::_npio2_hw[] __attribute__ ((aligned(64))) = {
+// Accumulation coefficients for adler32 upper 16 bits
+ATTRIBUTE_ALIGNED(64) jubyte StubRoutines::aarch64::_adler_table[] = {
+    16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+};
+
+ATTRIBUTE_ALIGNED(64) juint StubRoutines::aarch64::_npio2_hw[] = {
     // first, various coefficient values: 0.5, invpio2, pio2_1, pio2_1t, pio2_2,
     // pio2_2t, pio2_3, pio2_3t
-    // This is a small optimization wich keeping double[8] values in int[] table
+    // This is a small optimization which keeping double[8] values in int[] table
     // to have less address calculation instructions
     //
     // invpio2:  53 bits of 2/pi (enough for cases when trigonometric argument is small)
@@ -319,7 +352,7 @@ juint StubRoutines::aarch64::_npio2_hw[] __attribute__ ((aligned(64))) = {
 
 // Coefficients for sin(x) polynomial approximation: S1..S6.
 // See kernel_sin comments in macroAssembler_aarch64_trig.cpp for details
-jdouble StubRoutines::aarch64::_dsin_coef[] __attribute__ ((aligned(64))) = {
+ATTRIBUTE_ALIGNED(64) jdouble StubRoutines::aarch64::_dsin_coef[] = {
     -1.66666666666666324348e-01, // 0xBFC5555555555549
      8.33333333332248946124e-03, // 0x3F8111111110F8A6
     -1.98412698298579493134e-04, // 0xBF2A01A019C161D5
@@ -330,7 +363,7 @@ jdouble StubRoutines::aarch64::_dsin_coef[] __attribute__ ((aligned(64))) = {
 
 // Coefficients for cos(x) polynomial approximation: C1..C6.
 // See kernel_cos comments in macroAssembler_aarch64_trig.cpp for details
-jdouble StubRoutines::aarch64::_dcos_coef[] __attribute__ ((aligned(64))) = {
+ATTRIBUTE_ALIGNED(64) jdouble StubRoutines::aarch64::_dcos_coef[] = {
      4.16666666666666019037e-02, // c0x3FA555555555554C
     -1.38888888888741095749e-03, // 0xBF56C16C16C15177
      2.48015872894767294178e-05, // 0x3EFA01A019CB1590
@@ -345,7 +378,7 @@ jdouble StubRoutines::aarch64::_dcos_coef[] __attribute__ ((aligned(64))) = {
 // Converted to double to avoid unnecessary conversion in code
 // NOTE: table looks like original int table: {0xA2F983, 0x6E4E44,...} with
 //       only (double) conversion added
-jdouble StubRoutines::aarch64::_two_over_pi[] __attribute__ ((aligned(64))) = {
+ATTRIBUTE_ALIGNED(64) jdouble StubRoutines::aarch64::_two_over_pi[] = {
   (double)0xA2F983, (double)0x6E4E44, (double)0x1529FC, (double)0x2757D1, (double)0xF534DD, (double)0xC0DB62,
   (double)0x95993C, (double)0x439041, (double)0xFE5163, (double)0xABDEBB, (double)0xC561B7, (double)0x246E3A,
   (double)0x424DD2, (double)0xE00649, (double)0x2EEA09, (double)0xD1921C, (double)0xFE1DEB, (double)0x1CB129,
@@ -360,7 +393,7 @@ jdouble StubRoutines::aarch64::_two_over_pi[] __attribute__ ((aligned(64))) = {
 };
 
 // Pi over 2 value
-jdouble StubRoutines::aarch64::_pio2[] __attribute__ ((aligned(64))) = {
+ATTRIBUTE_ALIGNED(64) jdouble StubRoutines::aarch64::_pio2[] = {
   1.57079625129699707031e+00, // 0x3FF921FB40000000
   7.54978941586159635335e-08, // 0x3E74442D00000000
   5.39030252995776476554e-15, // 0x3CF8469880000000

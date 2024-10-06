@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,8 +51,7 @@ final class P11DHKeyFactory extends P11KeyFactory {
 
     PublicKey implTranslatePublicKey(PublicKey key) throws InvalidKeyException {
         try {
-            if (key instanceof DHPublicKey) {
-                DHPublicKey dhKey = (DHPublicKey)key;
+            if (key instanceof DHPublicKey dhKey) {
                 DHParameterSpec params = dhKey.getParams();
                 return generatePublic(
                     dhKey.getY(),
@@ -80,8 +79,7 @@ final class P11DHKeyFactory extends P11KeyFactory {
     PrivateKey implTranslatePrivateKey(PrivateKey key)
             throws InvalidKeyException {
         try {
-            if (key instanceof DHPrivateKey) {
-                DHPrivateKey dhKey = (DHPrivateKey)key;
+            if (key instanceof DHPrivateKey dhKey) {
                 DHParameterSpec params = dhKey.getParams();
                 return generatePrivate(
                     dhKey.getX(),
@@ -120,7 +118,7 @@ final class P11DHKeyFactory extends P11KeyFactory {
                         ("Could not create DH public key", e);
             }
         }
-        if (keySpec instanceof DHPublicKeySpec == false) {
+        if (!(keySpec instanceof DHPublicKeySpec)) {
             throw new InvalidKeySpecException("Only DHPublicKeySpec and "
                 + "X509EncodedKeySpec supported for DH public keys");
         }
@@ -151,7 +149,7 @@ final class P11DHKeyFactory extends P11KeyFactory {
                         ("Could not create DH private key", e);
             }
         }
-        if (keySpec instanceof DHPrivateKeySpec == false) {
+        if (!(keySpec instanceof DHPrivateKeySpec)) {
             throw new InvalidKeySpecException("Only DHPrivateKeySpec and "
                 + "PKCS8EncodedKeySpec supported for DH private keys");
         }
@@ -214,14 +212,19 @@ final class P11DHKeyFactory extends P11KeyFactory {
 
     <T extends KeySpec> T implGetPublicKeySpec(P11Key key, Class<T> keySpec,
             Session[] session) throws PKCS11Exception, InvalidKeySpecException {
-        if (DHPublicKeySpec.class.isAssignableFrom(keySpec)) {
+        if (keySpec.isAssignableFrom(DHPublicKeySpec.class)) {
             session[0] = token.getObjSession();
             CK_ATTRIBUTE[] attributes = new CK_ATTRIBUTE[] {
                 new CK_ATTRIBUTE(CKA_VALUE),
                 new CK_ATTRIBUTE(CKA_PRIME),
                 new CK_ATTRIBUTE(CKA_BASE),
             };
-            token.p11.C_GetAttributeValue(session[0].id(), key.keyID, attributes);
+            long keyID = key.getKeyID();
+            try {
+                token.p11.C_GetAttributeValue(session[0].id(), keyID, attributes);
+            } finally {
+                key.releaseKeyID();
+            }
             KeySpec spec = new DHPublicKeySpec(
                 attributes[0].getBigInteger(),
                 attributes[1].getBigInteger(),
@@ -236,14 +239,19 @@ final class P11DHKeyFactory extends P11KeyFactory {
 
     <T extends KeySpec> T implGetPrivateKeySpec(P11Key key, Class<T> keySpec,
             Session[] session) throws PKCS11Exception, InvalidKeySpecException {
-        if (DHPrivateKeySpec.class.isAssignableFrom(keySpec)) {
+        if (keySpec.isAssignableFrom(DHPrivateKeySpec.class)) {
             session[0] = token.getObjSession();
             CK_ATTRIBUTE[] attributes = new CK_ATTRIBUTE[] {
                 new CK_ATTRIBUTE(CKA_VALUE),
                 new CK_ATTRIBUTE(CKA_PRIME),
                 new CK_ATTRIBUTE(CKA_BASE),
             };
-            token.p11.C_GetAttributeValue(session[0].id(), key.keyID, attributes);
+            long keyID = key.getKeyID();
+            try {
+                token.p11.C_GetAttributeValue(session[0].id(), keyID, attributes);
+            } finally {
+                key.releaseKeyID();
+            }
             KeySpec spec = new DHPrivateKeySpec(
                 attributes[0].getBigInteger(),
                 attributes[1].getBigInteger(),

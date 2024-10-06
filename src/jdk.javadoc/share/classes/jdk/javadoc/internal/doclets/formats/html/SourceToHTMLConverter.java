@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,44 +25,36 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
-import jdk.javadoc.internal.doclets.formats.html.markup.Head;
-
-import java.io.*;
+import java.io.IOException;
+import java.io.LineNumberReader;
+import java.io.Reader;
 import java.util.List;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.tools.FileObject;
 
-import jdk.javadoc.doclet.DocletEnvironment;
-import jdk.javadoc.internal.doclets.formats.html.markup.DocType;
+import jdk.javadoc.internal.doclets.formats.html.markup.Head;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlDocument;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
-import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
-import jdk.javadoc.internal.doclets.toolkit.Content;
+import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyles;
 import jdk.javadoc.internal.doclets.toolkit.Messages;
 import jdk.javadoc.internal.doclets.toolkit.Resources;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFile;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
-import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
 import jdk.javadoc.internal.doclets.toolkit.util.SimpleDocletException;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
+import jdk.javadoc.internal.html.Content;
+import jdk.javadoc.internal.html.HtmlId;
+import jdk.javadoc.internal.html.HtmlTag;
+import jdk.javadoc.internal.html.HtmlTree;
+import jdk.javadoc.internal.html.Text;
 
 /**
  * Converts Java Source Code to HTML.
- *
- *  <p><b>This is NOT part of any supported API.
- *  If you write code that depends on this, you do so at your own risk.
- *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
- *
- * @author Jamie Ho
- * @author Bhavesh Patel (Modified)
  */
 public class SourceToHTMLConverter {
 
@@ -76,14 +68,13 @@ public class SourceToHTMLConverter {
     /**
      * New line to be added to the documentation.
      */
-    private static final String NEW_LINE = DocletConstants.NL;
+    private static final String NEW_LINE = Text.NL;
 
     private final HtmlConfiguration configuration;
+    private final HtmlOptions options;
     private final Messages messages;
     private final Resources resources;
     private final Utils utils;
-
-    private final DocletEnvironment docEnv;
 
     private final DocPath outputdir;
 
@@ -93,13 +84,12 @@ public class SourceToHTMLConverter {
      */
     private DocPath relativePath = DocPath.empty;
 
-    private SourceToHTMLConverter(HtmlConfiguration configuration, DocletEnvironment rd,
-                                  DocPath outputdir) {
+    private SourceToHTMLConverter(HtmlConfiguration configuration, DocPath outputdir) {
         this.configuration  = configuration;
+        this.options = configuration.getOptions();
         this.messages = configuration.getMessages();
-        this.resources = configuration.resources;
+        this.resources = configuration.docResources;
         this.utils = configuration.utils;
-        this.docEnv = rd;
         this.outputdir = outputdir;
     }
 
@@ -107,31 +97,36 @@ public class SourceToHTMLConverter {
      * Translate the TypeElements in the given DocletEnvironment to HTML representation.
      *
      * @param configuration the configuration.
-     * @param docEnv the DocletEnvironment to convert.
      * @param outputdir the name of the directory to output to.
      * @throws DocFileIOException if there is a problem generating an output file
      * @throws SimpleDocletException if there is a problem reading a source file
      */
-    public static void convertRoot(HtmlConfiguration configuration, DocletEnvironment docEnv,
-                                   DocPath outputdir) throws DocFileIOException, SimpleDocletException {
-        new SourceToHTMLConverter(configuration, docEnv, outputdir).generate();
+    public static void convertRoot(HtmlConfiguration configuration, DocPath outputdir)
+            throws DocFileIOException, SimpleDocletException {
+        new SourceToHTMLConverter(configuration, outputdir).generate();
     }
 
     void generate() throws DocFileIOException, SimpleDocletException {
-        if (docEnv == null || outputdir == null) {
+        if (outputdir == null) {
             return;
+        }
+        for (ModuleElement mdl : configuration.getSpecifiedModuleElements()) {
+            // If -nodeprecated option is set and the module is marked as deprecated,
+            // do not convert the module files to HTML.
+            if (!(options.noDeprecated() && utils.isDeprecated(mdl)))
+                convertModule(mdl, outputdir);
         }
         for (PackageElement pkg : configuration.getSpecifiedPackageElements()) {
             // If -nodeprecated option is set and the package is marked as deprecated,
             // do not convert the package files to HTML.
-            if (!(configuration.nodeprecated && utils.isDeprecated(pkg)))
+            if (!(options.noDeprecated() && utils.isDeprecated(pkg)))
                 convertPackage(pkg, outputdir);
         }
         for (TypeElement te : configuration.getSpecifiedTypeElements()) {
             // If -nodeprecated option is set and the class is marked as deprecated
             // or the containing package is deprecated, do not convert the
             // package files to HTML.
-            if (!(configuration.nodeprecated &&
+            if (!(options.noDeprecated() &&
                   (utils.isDeprecated(te) || utils.isDeprecated(utils.containingPackage(te)))))
                 convertClass(te, outputdir);
         }
@@ -150,13 +145,34 @@ public class SourceToHTMLConverter {
         if (pkg == null) {
             return;
         }
-        for (Element te : utils.getAllClasses(pkg)) {
+        for (TypeElement te : utils.getAllClasses(pkg)) {
             // If -nodeprecated option is set and the class is marked as deprecated,
             // do not convert the package files to HTML. We do not check for
             // containing package deprecation since it is already check in
             // the calling method above.
-            if (!(configuration.nodeprecated && utils.isDeprecated(te)))
-                convertClass((TypeElement)te, outputdir);
+            if (!(options.noDeprecated() && utils.isDeprecated(te)))
+                convertClass(te, outputdir);
+        }
+    }
+
+    /**
+     * Convert the documented packages contained in the given module to an HTML representation.
+     *
+     * @param mdl the module to convert.
+     * @param outputdir the name of the directory to output to.
+     * @throws DocFileIOException if there is a problem generating an output file
+     * @throws SimpleDocletException if there is a problem reading a source file
+     */
+    public void convertModule(ModuleElement mdl, DocPath outputdir)
+            throws DocFileIOException, SimpleDocletException {
+        if (mdl == null) {
+            return;
+        }
+        for (Element elem : mdl.getEnclosedElements()) {
+            if (elem instanceof PackageElement pkg && configuration.docEnv.isIncluded(elem)
+                    && !(options.noDeprecated() && utils.isDeprecated(elem))) {
+                convertPackage(pkg, outputdir);
+            }
         }
     }
 
@@ -185,8 +201,8 @@ public class SourceToHTMLConverter {
                     .resolve(configuration.docPaths.forPackage(te))
                     .invert();
             Content body = getHeader();
-            Content pre = new HtmlTree(HtmlTag.PRE);
-            try (LineNumberReader reader = new LineNumberReader(r)) {
+            var pre = HtmlTree.PRE();
+            try (var reader = new LineNumberReader(r)) {
                 while ((line = reader.readLine()) != null) {
                     addLineNo(pre, lineno);
                     addLine(pre, line, lineno);
@@ -194,9 +210,9 @@ public class SourceToHTMLConverter {
                 }
             }
             addBlankLines(pre);
-            Content div = HtmlTree.DIV(HtmlStyle.sourceContainer, pre);
-            body.addContent((configuration.allowTag(HtmlTag.MAIN)) ? HtmlTree.MAIN(div) : div);
-            writeToFile(body, outputdir.resolve(configuration.docPaths.forClass(te)));
+            var div = HtmlTree.DIV(HtmlStyles.sourceContainer, pre);
+            body.add(HtmlTree.MAIN(div));
+            writeToFile(body, outputdir.resolve(configuration.docPaths.forClass(te)), te);
         } catch (IOException e) {
             String message = resources.getText("doclet.exception.read.file", fo.getName());
             throw new SimpleDocletException(message, e);
@@ -209,52 +225,19 @@ public class SourceToHTMLConverter {
      * @param body the documentation content to be written to the file.
      * @param path the path for the file.
      */
-    private void writeToFile(Content body, DocPath path) throws DocFileIOException {
-        DocType htmlDocType = DocType.forVersion(configuration.htmlVersion);
-        Head head = new Head(path, configuration.htmlVersion, configuration.docletVersion)
-//                .setTimestamp(!configuration.notimestamp) // temporary: compatibility!
+    private void writeToFile(Content body, DocPath path, TypeElement te) throws DocFileIOException {
+        Head head = new Head(path, configuration.getDocletVersion(), configuration.getBuildDate())
+//                .setTimestamp(!options.notimestamp) // temporary: compatibility!
                 .setTitle(resources.getText("doclet.Window_Source_title"))
-//                .setCharset(configuration.charset) // temporary: compatibility!
+//                .setCharset(options.charset) // temporary: compatibility!
+                .setDescription(HtmlDocletWriter.getDescription("source", te))
+                .setGenerator(HtmlDocletWriter.getGenerator(getClass()))
                 .addDefaultScript(false)
-                .setStylesheets(configuration.getMainStylesheet(), configuration.getAdditionalStylesheets());
-        Content htmlTree = HtmlTree.HTML(configuration.getLocale().getLanguage(),
-                head.toContent(), body);
-        HtmlDocument htmlDocument = new HtmlDocument(htmlDocType, htmlTree);
+                .setStylesheets(configuration.getMainStylesheet(), configuration.getAdditionalStylesheets(), List.of());
+        var html = HtmlTree.HTML(configuration.getLocale().getLanguage(), head, body);
+        HtmlDocument document = new HtmlDocument(html);
         messages.notice("doclet.Generating_0", path.getPath());
-        htmlDocument.write(DocFile.createFileForOutput(configuration, path));
-    }
-
-    /**
-     * Returns a link to the stylesheet file.
-     *
-     * @param head an HtmlTree to which the stylesheet links will be added
-     */
-    public void addStyleSheetProperties(Content head) {
-        String filename = configuration.stylesheetfile;
-        DocPath stylesheet;
-        if (filename.length() > 0) {
-            DocFile file = DocFile.createFileForInput(configuration, filename);
-            stylesheet = DocPath.create(file.getName());
-        } else {
-            stylesheet = DocPaths.STYLESHEET;
-        }
-        DocPath p = relativePath.resolve(stylesheet);
-        HtmlTree link = HtmlTree.LINK("stylesheet", "text/css", p.getPath(), "Style");
-        head.addContent(link);
-        addStylesheets(head);
-    }
-
-    protected void addStylesheets(Content tree) {
-        List<String> stylesheets = configuration.additionalStylesheets;
-        if (!stylesheets.isEmpty()) {
-            stylesheets.forEach((ssheet) -> {
-                DocFile file = DocFile.createFileForInput(configuration, ssheet);
-                DocPath ssheetPath = DocPath.create(file.getName());
-                HtmlTree slink = HtmlTree.LINK("stylesheet", "text/css", relativePath.resolve(ssheetPath).getPath(),
-                        "Style");
-                tree.addContent(slink);
-            });
-        }
+        document.write(DocFile.createFileForOutput(configuration, path));
     }
 
     /**
@@ -263,53 +246,52 @@ public class SourceToHTMLConverter {
      * @return the header content for the HTML file
      */
     private static Content getHeader() {
-        return new HtmlTree(HtmlTag.BODY);
+        return HtmlTree.BODY(HtmlStyles.sourcePage);
     }
 
     /**
      * Add the line numbers for the source code.
      *
-     * @param pre the content tree to which the line number will be added
+     * @param pre the content to which the line number will be added
      * @param lineno The line number
      */
     private static void addLineNo(Content pre, int lineno) {
-        HtmlTree span = new HtmlTree(HtmlTag.SPAN);
-        span.setStyle(HtmlStyle.sourceLineNo);
+        var span = HtmlTree.SPAN(HtmlStyles.sourceLineNo);
         if (lineno < 10) {
-            span.addContent("00" + Integer.toString(lineno));
+            span.add("00" + lineno);
         } else if (lineno < 100) {
-            span.addContent("0" + Integer.toString(lineno));
+            span.add("0" + lineno);
         } else {
-            span.addContent(Integer.toString(lineno));
+            span.add(Integer.toString(lineno));
         }
-        pre.addContent(span);
+        pre.add(span);
     }
 
     /**
      * Add a line from source to the HTML file that is generated.
      *
-     * @param pre the content tree to which the line will be added.
+     * @param pre the content to which the line will be added.
      * @param line the string to format.
      * @param currentLineNo the current number.
      */
-    private void addLine(Content pre, String line, int currentLineNo) {
+    private void addLine(HtmlTree pre, String line, int currentLineNo) {
         if (line != null) {
-            Content anchor = HtmlTree.A(configuration.htmlVersion,
-                    "line." + Integer.toString(currentLineNo),
-                    new StringContent(utils.replaceTabs(line)));
-            pre.addContent(anchor);
-            pre.addContent(NEW_LINE);
+            var anchor = HtmlTree.SPAN_ID(
+                    HtmlIds.forLine(currentLineNo),
+                    Text.of(utils.replaceTabs(line)));
+            pre.addUnchecked(anchor);
+            pre.add(NEW_LINE);
         }
     }
 
     /**
      * Add trailing blank lines at the end of the page.
      *
-     * @param pre the content tree to which the blank lines will be added.
+     * @param pre the content to which the blank lines will be added.
      */
     private static void addBlankLines(Content pre) {
         for (int i = 0; i < NUM_BLANK_LINES; i++) {
-            pre.addContent(NEW_LINE);
+            pre.add(NEW_LINE);
         }
     }
 
@@ -320,7 +302,7 @@ public class SourceToHTMLConverter {
      * @param e the element to check.
      * @return the name of the anchor.
      */
-    public static String getAnchorName(Utils utils, Element e) {
-        return "line." + utils.getLineNumber(e);
+    public static HtmlId getAnchorName(Utils utils, Element e) {
+        return HtmlIds.forLine((int) utils.getLineNumber(e));
     }
 }

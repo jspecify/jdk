@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 package jdk.internal.jrtfs;
 
 import java.io.File;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -88,7 +89,7 @@ final class JrtPath implements Path {
 
     @Override
     public final JrtPath getFileName() {
-        if (path.length() == 0)
+        if (path.isEmpty())
             return this;
         if (path.length() == 1 && path.charAt(0) == '/')
             return null;
@@ -169,11 +170,16 @@ final class JrtPath implements Path {
 
     @Override
     public final URI toUri() {
-        try {
-            return new URI("jrt", toAbsolutePath().path, null);
-        } catch (URISyntaxException ex) {
-            throw new AssertionError(ex);
+        String p = toAbsolutePath().path;
+        if (!p.startsWith("/modules") || p.contains("..")) {
+            throw new IOError(new RuntimeException(p + " cannot be represented as URI"));
         }
+
+        p = p.substring("/modules".length());
+        if (p.isEmpty()) {
+            p = "/";
+        }
+        return toUri(p);
     }
 
     private boolean equalsNameAt(JrtPath other, int index) {
@@ -210,7 +216,7 @@ final class JrtPath implements Path {
         if (o.equals(this)) {
             return new JrtPath(jrtfs, "", true);
         }
-        if (path.length() == 0) {
+        if (path.isEmpty()) {
             return o;
         }
         if (jrtfs != o.jrtfs || isAbsolute() != o.isAbsolute()) {
@@ -262,16 +268,16 @@ final class JrtPath implements Path {
 
     @Override
     public final boolean isAbsolute() {
-        return path.length() > 0 && path.charAt(0) == '/';
+        return !path.isEmpty() && path.charAt(0) == '/';
     }
 
     @Override
     public final JrtPath resolve(Path other) {
         final JrtPath o = checkPath(other);
-        if (this.path.length() == 0 || o.isAbsolute()) {
+        if (this.path.isEmpty() || o.isAbsolute()) {
             return o;
         }
-        if (o.path.length() == 0) {
+        if (o.path.isEmpty()) {
             return this;
         }
         StringBuilder sb = new StringBuilder(path.length() + o.path.length() + 1);
@@ -301,7 +307,7 @@ final class JrtPath implements Path {
         }
         int off = op.length();
         if (off == 0) {
-            return tp.length() == 0;
+            return tp.isEmpty();
         }
         // check match is on name boundary
         return tp.length() == off || tp.charAt(off) == '/' ||
@@ -425,7 +431,7 @@ final class JrtPath implements Path {
         return r;
     }
 
-    // removes redundant slashs, replace "\" to separator "/"
+    // removes redundant slashes, replace "\" to separator "/"
     // and check for invalid characters
     private static String normalize(String path) {
         int len = path.length();
@@ -479,7 +485,7 @@ final class JrtPath implements Path {
     // Remove DotSlash(./) and resolve DotDot (..) components
     private String getResolved() {
         int length = path.length();
-        if (length == 0 || (path.indexOf("./") == -1 && path.charAt(length - 1) != '.')) {
+        if (length == 0 || (!path.contains("./") && path.charAt(length - 1) != '.')) {
             return path;
         } else {
             return resolvePath();
@@ -621,11 +627,9 @@ final class JrtPath implements Path {
     }
 
     final InputStream newInputStream(OpenOption... options) throws IOException {
-        if (options.length > 0) {
-            for (OpenOption opt : options) {
-                if (opt != READ) {
-                    throw new UnsupportedOperationException("'" + opt + "' not allowed");
-                }
+        for (OpenOption opt : options) {
+            if (opt != READ) {
+                throw new UnsupportedOperationException("'" + opt + "' not allowed");
             }
         }
         return jrtfs.newInputStream(this);
@@ -645,11 +649,7 @@ final class JrtPath implements Path {
     }
 
     final JrtFileAttributes getAttributes(LinkOption... options) throws IOException {
-        JrtFileAttributes zfas = jrtfs.getFileAttributes(this, options);
-        if (zfas == null) {
-            throw new NoSuchFileException(toString());
-        }
-        return zfas;
+        return jrtfs.getFileAttributes(this, options);
     }
 
     final void setAttribute(String attribute, Object value, LinkOption... options)
@@ -815,4 +815,135 @@ final class JrtPath implements Path {
             }
         }
     }
+
+    // adopted from sun.nio.fs.UnixUriUtils
+    private static URI toUri(String str) {
+        char[] path = str.toCharArray();
+        assert path[0] == '/';
+        StringBuilder sb = new StringBuilder();
+        sb.append(path[0]);
+        for (int i = 1; i < path.length; i++) {
+            char c = (char)(path[i] & 0xff);
+            if (match(c, L_PATH, H_PATH)) {
+                sb.append(c);
+            } else {
+                sb.append('%');
+                sb.append(hexDigits[(c >> 4) & 0x0f]);
+                sb.append(hexDigits[(c) & 0x0f]);
+            }
+        }
+
+        try {
+            return new URI("jrt:" + sb.toString());
+        } catch (URISyntaxException x) {
+            throw new AssertionError(x);  // should not happen
+        }
+    }
+
+    // The following is copied from java.net.URI
+
+    // Compute the low-order mask for the characters in the given string
+    private static long lowMask(String chars) {
+        int n = chars.length();
+        long m = 0;
+        for (int i = 0; i < n; i++) {
+            char c = chars.charAt(i);
+            if (c < 64)
+                m |= (1L << c);
+        }
+        return m;
+    }
+
+    // Compute the high-order mask for the characters in the given string
+    private static long highMask(String chars) {
+        int n = chars.length();
+        long m = 0;
+        for (int i = 0; i < n; i++) {
+            char c = chars.charAt(i);
+            if ((c >= 64) && (c < 128))
+                m |= (1L << (c - 64));
+        }
+        return m;
+    }
+
+    // Compute a low-order mask for the characters
+    // between first and last, inclusive
+    private static long lowMask(char first, char last) {
+        long m = 0;
+        int f = Math.max(Math.min(first, 63), 0);
+        int l = Math.max(Math.min(last, 63), 0);
+        for (int i = f; i <= l; i++)
+            m |= 1L << i;
+        return m;
+    }
+
+    // Compute a high-order mask for the characters
+    // between first and last, inclusive
+    private static long highMask(char first, char last) {
+        long m = 0;
+        int f = Math.max(Math.min(first, 127), 64) - 64;
+        int l = Math.max(Math.min(last, 127), 64) - 64;
+        for (int i = f; i <= l; i++)
+            m |= 1L << i;
+        return m;
+    }
+
+    // Tell whether the given character is permitted by the given mask pair
+    private static boolean match(char c, long lowMask, long highMask) {
+        if (c < 64)
+            return ((1L << c) & lowMask) != 0;
+        if (c < 128)
+            return ((1L << (c - 64)) & highMask) != 0;
+        return false;
+    }
+
+    // digit    = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" |
+    //            "8" | "9"
+    private static final long L_DIGIT = lowMask('0', '9');
+    private static final long H_DIGIT = 0L;
+
+    // upalpha  = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" |
+    //            "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" |
+    //            "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
+    private static final long L_UPALPHA = 0L;
+    private static final long H_UPALPHA = highMask('A', 'Z');
+
+    // lowalpha = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" |
+    //            "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" |
+    //            "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
+    private static final long L_LOWALPHA = 0L;
+    private static final long H_LOWALPHA = highMask('a', 'z');
+
+    // alpha         = lowalpha | upalpha
+    private static final long L_ALPHA = L_LOWALPHA | L_UPALPHA;
+    private static final long H_ALPHA = H_LOWALPHA | H_UPALPHA;
+
+    // alphanum      = alpha | digit
+    private static final long L_ALPHANUM = L_DIGIT | L_ALPHA;
+    private static final long H_ALPHANUM = H_DIGIT | H_ALPHA;
+
+    // mark          = "-" | "_" | "." | "!" | "~" | "*" | "'" |
+    //                 "(" | ")"
+    private static final long L_MARK = lowMask("-_.!~*'()");
+    private static final long H_MARK = highMask("-_.!~*'()");
+
+    // unreserved    = alphanum | mark
+    private static final long L_UNRESERVED = L_ALPHANUM | L_MARK;
+    private static final long H_UNRESERVED = H_ALPHANUM | H_MARK;
+
+    // pchar         = unreserved | escaped |
+    //                 ":" | "@" | "&" | "=" | "+" | "$" | ","
+    private static final long L_PCHAR
+        = L_UNRESERVED | lowMask(":@&=+$,");
+    private static final long H_PCHAR
+        = H_UNRESERVED | highMask(":@&=+$,");
+
+   // All valid path characters
+   private static final long L_PATH = L_PCHAR | lowMask(";/");
+   private static final long H_PATH = H_PCHAR | highMask(";/");
+
+   private static final char[] hexDigits = {
+        '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+    };
 }

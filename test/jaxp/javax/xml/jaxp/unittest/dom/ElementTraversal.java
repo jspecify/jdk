@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@ import org.xml.sax.SAXException;
  * @test
  * @bug 8135283 8138721
  * @library /javax/xml/jaxp/libs /javax/xml/jaxp/unittest
- * @run testng/othervm -DrunSecMngr=true dom.ElementTraversal
+ * @run testng/othervm -DrunSecMngr=true -Djava.security.manager=allow dom.ElementTraversal
  * @run testng/othervm dom.ElementTraversal
  * @summary Tests for the Element Traversal interface.
  */
@@ -125,7 +125,6 @@ public class ElementTraversal {
         Document doc = null;
         try {
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-            dbf.setExpandEntityReferences(false);
             DocumentBuilder db = dbf.newDocumentBuilder();
             doc = db.parse(xmlFile);
         } catch (ParserConfigurationException | SAXException | IOException e) {

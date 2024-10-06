@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,16 +28,15 @@
  *          java.base/jdk.internal.misc
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib / ../patches
- * @requires vm.flavor != "minimal"
+ * @requires vm.jvmti
  *
- * @build sun.hotspot.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox
  *        java.base/java.lang.invoke.MethodHandleHelper
  *        compiler.jsr292.NonInlinedCall.RedefineTest
  * @run driver compiler.jsr292.NonInlinedCall.Agent
  *             agent.jar
  *             compiler.jsr292.NonInlinedCall.RedefineTest
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                                compiler.jsr292.NonInlinedCall.RedefineTest
  * @run main/bootclasspath/othervm -javaagent:agent.jar
  *                                 -XX:+IgnoreUnrecognizedVMOptions
@@ -48,11 +47,10 @@
 
 package compiler.jsr292.NonInlinedCall;
 
-import jdk.internal.misc.Unsafe;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.vm.annotation.DontInline;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 import java.lang.instrument.ClassDefinition;
 import java.lang.instrument.Instrumentation;
@@ -68,13 +66,15 @@ import static jdk.internal.org.objectweb.asm.Opcodes.IRETURN;
 
 public class RedefineTest {
     static final MethodHandles.Lookup LOOKUP = MethodHandleHelper.IMPL_LOOKUP;
-    static final Unsafe UNSAFE = Unsafe.getUnsafe();
-
     static final String NAME = "compiler/jsr292/NonInlinedCall/RedefineTest$T";
 
     static Class<?> getClass(int r) {
         byte[] classFile = getClassFile(r);
-        return UNSAFE.defineClass(NAME, classFile, 0, classFile.length, null, null);
+        try {
+            return MethodHandles.lookup().defineClass(classFile);
+        } catch (IllegalAccessException e) {
+            throw new Error(e);
+        }
     }
 
     /**
@@ -113,7 +113,7 @@ public class RedefineTest {
     static final WhiteBox WB = WhiteBox.getWhiteBox();
 
     @DontInline
-    static int invokeBasic() {
+    static int invokeExact() {
         try {
             return (int)mh.invokeExact();
         } catch (Throwable e) {
@@ -129,7 +129,7 @@ public class RedefineTest {
 
     public static void main(String[] args) throws Exception {
         for (int i = 0; i < 20_000; i++) {
-            int r = invokeBasic();
+            int r = invokeExact();
             if (r != 0) {
                 throw new Error(r + " != 0");
             }
@@ -141,7 +141,7 @@ public class RedefineTest {
         int exp = (instr != null) ? 1 : 0;
 
         for (int i = 0; i < 20_000; i++) {
-            if (invokeBasic() != exp) {
+            if (invokeExact() != exp) {
                 throw new Error();
             }
         }
@@ -149,7 +149,7 @@ public class RedefineTest {
         WB.clearInlineCaches();
 
         for (int i = 0; i < 20_000; i++) {
-            if (invokeBasic() != exp) {
+            if (invokeExact() != exp) {
                 throw new Error();
             }
         }

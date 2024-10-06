@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* Copyright  (c) 2002 Graz University of Technology. All rights reserved.
@@ -218,23 +218,25 @@ JNIEXPORT void JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1GetAttributeVa
     CK_ULONG i;
     jobject jAttribute;
     CK_RV rv;
+    char* msg = NULL;
+    char* temp1, *temp2;
 
     CK_FUNCTION_LIST_PTR ckpFunctions = getFunctionList(env, obj);
     if (ckpFunctions == NULL) { return; }
 
     TRACE0("DEBUG: C_GetAttributeValue");
-    TRACE1(", hSession=%u", jSessionHandle);
-    TRACE1(", hObject=%u", jObjectHandle);
+    TRACE1(", hSession=%lld", (long long) jSessionHandle);
+    TRACE1(", hObject=%lld", (long long) jObjectHandle);
     TRACE1(", pTemplate=%p", jTemplate);
     TRACE0(" ... ");
 
     ckSessionHandle = jLongToCKULong(jSessionHandle);
     ckObjectHandle = jLongToCKULong(jObjectHandle);
-    TRACE1("jAttributeArrayToCKAttributeArray now with jTemplate = %d", jTemplate);
+    TRACE1("jAttributeArrayToCKAttributeArray now with jTemplate = %p", jTemplate);
     jAttributeArrayToCKAttributeArray(env, jTemplate, &ckpAttributes, &ckAttributesLength);
     if ((*env)->ExceptionCheck(env)) { return; }
 
-    TRACE2("DEBUG: jAttributeArrayToCKAttributeArray finished with ckpAttribute = %d, Length = %d\n", ckpAttributes, ckAttributesLength);
+    TRACE2("DEBUG: jAttributeArrayToCKAttributeArray finished with ckpAttribute = %p, Length = %lu\n", ckpAttributes, (unsigned long) ckAttributesLength);
 
     /* first set all pValue to NULL, to get the needed buffer length */
     for(i = 0; i < ckAttributesLength; i++) {
@@ -245,27 +247,50 @@ JNIEXPORT void JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1GetAttributeVa
     }
 
     rv = (*ckpFunctions->C_GetAttributeValue)(ckSessionHandle, ckObjectHandle, ckpAttributes, ckAttributesLength);
-    if (ckAssertReturnValueOK(env, rv) != CK_ASSERT_OK) {
+
+    if (rv != CKR_OK) {
+        if (rv == CKR_ATTRIBUTE_SENSITIVE || rv == CKR_ATTRIBUTE_TYPE_INVALID) {
+            msg = malloc(80); // should be more than sufficient
+            if (msg == NULL) {
+                p11ThrowOutOfMemoryError(env, 0);
+                free(ckpAttributes);
+                return;
+            }
+            // format msg w/ attribute(s) whose value is unavailable
+            temp1 = msg;
+            temp2 = msg + 80;
+            for (i = 0; i < ckAttributesLength && temp1 < temp2; i++) {
+                if (ckpAttributes[i].ulValueLen == CK_UNAVAILABLE_INFORMATION) {
+                    temp1 += snprintf(temp1, (temp2-temp1), " 0x%lX",
+                            ckpAttributes[i].type);
+                }
+            }
+            ckAssertReturnValueOK2(env, rv, msg);
+            free(msg);
+        } else {
+            ckAssertReturnValueOK(env, rv);
+        }
         free(ckpAttributes);
-        return ;
+        return;
     }
 
-    /* now, the ulValueLength field of each attribute should hold the exact buffer length needed
-     * allocate the needed buffers accordingly
+    /* now, the ulValueLength field of each attribute should hold the exact
+     * buffer length needed.
      */
     for (i = 0; i < ckAttributesLength; i++) {
         ckBufferLength = sizeof(CK_BYTE) * ckpAttributes[i].ulValueLen;
         ckpAttributes[i].pValue = (void *) malloc(ckBufferLength);
         if (ckpAttributes[i].pValue == NULL) {
             freeCKAttributeArray(ckpAttributes, i);
-            throwOutOfMemoryError(env, 0);
+            p11ThrowOutOfMemoryError(env, 0);
             return;
         }
         ckpAttributes[i].ulValueLen = ckBufferLength;
     }
 
-    /* now get the attributes with all values */
-    rv = (*ckpFunctions->C_GetAttributeValue)(ckSessionHandle, ckObjectHandle, ckpAttributes, ckAttributesLength);
+    /* now get all attribute values */
+    rv = (*ckpFunctions->C_GetAttributeValue)(ckSessionHandle,
+            ckObjectHandle, ckpAttributes, ckAttributesLength);
 
     if (ckAssertReturnValueOK(env, rv) == CK_ASSERT_OK) {
         /* copy back the values to the Java attributes */
@@ -345,7 +370,7 @@ JNIEXPORT void JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1FindObjectsIni
     if (ckpFunctions == NULL) { return; }
 
     TRACE0("DEBUG: C_FindObjectsInit");
-    TRACE1(", hSession=%u", jSessionHandle);
+    TRACE1(", hSession=%lld", (long long int) jSessionHandle);
     TRACE1(", pTemplate=%p", jTemplate);
     TRACE0(" ... ");
 
@@ -390,7 +415,7 @@ JNIEXPORT jlongArray JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1FindObje
     ckMaxObjectLength = jLongToCKULong(jMaxObjectCount);
     ckpObjectHandleArray = (CK_OBJECT_HANDLE_PTR) malloc(sizeof(CK_OBJECT_HANDLE) * ckMaxObjectLength);
     if (ckpObjectHandleArray == NULL) {
-        throwOutOfMemoryError(env, 0);
+        p11ThrowOutOfMemoryError(env, 0);
         return NULL;
     }
 

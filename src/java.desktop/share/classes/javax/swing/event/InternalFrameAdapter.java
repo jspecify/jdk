@@ -31,7 +31,7 @@ package javax.swing.event;
  * convenience for creating listener objects, and is functionally
  * equivalent to the WindowAdapter class in the AWT.
  * <p>
- * See <a href="http://docs.oracle.com/javase/tutorial/uiswing/events/internalframelistener.html">How to Write an Internal Frame Listener</a>
+ * See <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/internalframelistener.html">How to Write an Internal Frame Listener</a>
  * in <em>The Java Tutorial</em>
  *
  * @see InternalFrameEvent
@@ -41,6 +41,11 @@ package javax.swing.event;
  * @author Thomas Ball
  */
 public abstract class InternalFrameAdapter implements InternalFrameListener {
+    /**
+     * Constructor for subclasses to call.
+     */
+    protected InternalFrameAdapter() {}
+
     /**
      * Invoked when an internal frame has been opened.
      */

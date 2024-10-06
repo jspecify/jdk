@@ -40,7 +40,7 @@ import javax.swing.Icon;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -75,6 +75,8 @@ public class MatteBorder extends EmptyBorder
      * Creates a matte border with the specified insets and color.
      * @param borderInsets the insets of the border
      * @param matteColor the color rendered for the border
+     * @throws NullPointerException if the specified {@code borderInsets}
+     *         is {@code null}
      * @since 1.3
      */
     public MatteBorder(Insets borderInsets, Color matteColor)   {
@@ -99,6 +101,8 @@ public class MatteBorder extends EmptyBorder
      * Creates a matte border with the specified insets and tile icon.
      * @param borderInsets the insets of the border
      * @param tileIcon the icon to be used for tiling the border
+     * @throws NullPointerException if the specified {@code borderInsets}
+     *         is {@code null}
      * @since 1.3
      */
     public MatteBorder(Insets borderInsets, Icon tileIcon)   {
@@ -166,6 +170,8 @@ public class MatteBorder extends EmptyBorder
      * Reinitialize the insets parameter with this Border's current Insets.
      * @param c the component for which this border insets value applies
      * @param insets the object to be reinitialized
+     * @throws NullPointerException if the specified {@code insets}
+     *         is {@code null}
      * @since 1.3
      */
     public Insets getBorderInsets(Component c, Insets insets) {

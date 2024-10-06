@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,55 +22,37 @@
  *
  */
 
-import java.io.File;
-import java.nio.file.Paths;
-import java.time.Duration;
-
+import jdk.test.lib.Utils;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
-
-import sun.hotspot.WhiteBox;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /*
  * @test HandshakeTransitionTest
  * @summary This does a sanity test of the poll in the native wrapper.
- * @requires vm.debug
  * @library /testlibrary /test/lib
  * @build HandshakeTransitionTest
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm/native -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI HandshakeTransitionTest
+ * @run main/native HandshakeTransitionTest
  */
 
 public class HandshakeTransitionTest {
-
     public static native void someTime(int ms);
 
     public static void main(String[] args) throws Exception {
-        String lib = System.getProperty("test.nativepath");
-        WhiteBox wb = WhiteBox.getWhiteBox();
-        Boolean useJVMCICompiler = wb.getBooleanVMFlag("UseJVMCICompiler");
-        String useJVMCICompilerStr;
-        if (useJVMCICompiler != null) {
-            useJVMCICompilerStr = useJVMCICompiler ?  "-XX:+UseJVMCICompiler" : "-XX:-UseJVMCICompiler";
-        } else {
-            // pass something innocuous
-            useJVMCICompilerStr = "-XX:+UnlockExperimentalVMOptions";
-        }
-        ProcessBuilder pb =
-            ProcessTools.createJavaProcessBuilder(
-                    true,
-                    "-Djava.library.path=" + lib,
-                    "-XX:+SafepointALot",
-                    "-XX:GuaranteedSafepointInterval=20",
-                    "-Xlog:ergo*",
-                    "-XX:ParallelGCThreads=1",
-                    "-XX:ConcGCThreads=1",
-                    "-XX:CICompilerCount=2",
-                    "-XX:+UnlockExperimentalVMOptions",
-                    useJVMCICompilerStr,
-                    "HandshakeTransitionTest$Test");
-
+        List<String> commands = new ArrayList<>();
+        commands.add("-Djava.library.path=" + Utils.TEST_NATIVE_PATH);
+        commands.add("-XX:+UnlockDiagnosticVMOptions");
+        commands.add("-XX:+SafepointALot");
+        commands.add("-XX:+HandshakeALot");
+        commands.add("-XX:GuaranteedSafepointInterval=20");
+        commands.add("-XX:ParallelGCThreads=1");
+        commands.add("-XX:ConcGCThreads=1");
+        commands.add("-XX:CICompilerCount=2");
+        commands.addAll(Arrays.asList(args));
+        commands.add("HandshakeTransitionTest$Test");
+        ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(commands);
 
         OutputAnalyzer output = ProcessTools.executeProcess(pb);
         output.reportDiagnosticSummary();

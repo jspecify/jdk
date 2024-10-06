@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,6 @@
 
 package java.awt.dnd;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.util.TooManyListenersException;
-
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
@@ -43,18 +33,24 @@ import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.datatransfer.FlavorMap;
 import java.awt.datatransfer.SystemFlavorMap;
-import javax.swing.Timer;
+import java.awt.dnd.peer.DropTargetPeer;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.peer.ComponentPeer;
 import java.awt.peer.LightweightPeer;
-import java.awt.dnd.peer.DropTargetPeer;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.TooManyListenersException;
+
+import javax.swing.Timer;
 
 import sun.awt.AWTAccessor;
 import sun.awt.AWTAccessor.ComponentAccessor;
-
 
 /**
  * The {@code DropTarget} is associated
@@ -70,9 +66,12 @@ import sun.awt.AWTAccessor.ComponentAccessor;
  * @since 1.2
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class DropTarget implements DropTargetListener, Serializable {
+public class DropTarget implements DropTargetListener, Serializable {
 
+    /**
+     * Use serialVersionUID from JDK 1.4 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = -6283860791671019047L;
 
     /**
@@ -90,7 +89,7 @@ public @UsesObjectEquals class DropTarget implements DropTargetListener, Seriali
      * @param dtl       The {@code DropTargetListener} for this {@code DropTarget}
      * @param act       Is the {@code DropTarget} accepting drops.
      * @param fm        The {@code FlavorMap} to use, or null for the default {@code FlavorMap}
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      *            returns true
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -137,7 +136,7 @@ public @UsesObjectEquals class DropTarget implements DropTargetListener, Seriali
      * @param ops       The default acceptable actions for this {@code DropTarget}
      * @param dtl       The {@code DropTargetListener} for this {@code DropTarget}
      * @param act       Is the {@code DropTarget} accepting drops.
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      *            returns true
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -150,7 +149,7 @@ public @UsesObjectEquals class DropTarget implements DropTargetListener, Seriali
 
     /**
      * Creates a {@code DropTarget}.
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      *            returns true
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -166,7 +165,7 @@ public @UsesObjectEquals class DropTarget implements DropTargetListener, Seriali
      * The Component will receive drops only if it is enabled.
      * @param c         The {@code Component} with which this {@code DropTarget} is associated
      * @param dtl       The {@code DropTargetListener} for this {@code DropTarget}
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      *            returns true
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -186,7 +185,7 @@ public @UsesObjectEquals class DropTarget implements DropTargetListener, Seriali
      * @param c         The {@code Component} with which this {@code DropTarget} is associated
      * @param ops       The default acceptable actions for this {@code DropTarget}
      * @param dtl       The {@code DropTargetListener} for this {@code DropTarget}
-     * @exception HeadlessException if GraphicsEnvironment.isHeadless()
+     * @throws HeadlessException if GraphicsEnvironment.isHeadless()
      *            returns true
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
@@ -580,11 +579,14 @@ public @UsesObjectEquals class DropTarget implements DropTargetListener, Seriali
      * only if it can be serialized. If not, {@code null} is written
      * instead.
      *
+     * @param  s the {@code ObjectOutputStream} to write
+     * @throws IOException if an I/O error occurs
      * @serialData The default serializable fields, in alphabetical order,
      *             followed by either a {@code DropTargetListener}
      *             instance, or {@code null}.
      * @since 1.4
      */
+    @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
 
@@ -602,8 +604,13 @@ public @UsesObjectEquals class DropTarget implements DropTargetListener, Seriali
      * {@code DropTargetListener}. If this fails, the next object in the
      * stream is used instead.
      *
+     * @param  s the {@code ObjectInputStream} to read
+     * @throws ClassNotFoundException if the class of a serialized object could
+     *         not be found
+     * @throws IOException if an I/O error occurs
      * @since 1.4
      */
+    @Serial
     private void readObject(ObjectInputStream s)
         throws ClassNotFoundException, IOException
     {
@@ -786,7 +793,7 @@ public @UsesObjectEquals class DropTarget implements DropTargetListener, Seriali
      */
 
     protected void initializeAutoscrolling(Point p) {
-        if (component == null || !(component instanceof Autoscroll)) return;
+        if (!(component instanceof Autoscroll)) return;
 
         autoScroller = createDropTargetAutoScroller(component, p);
     }

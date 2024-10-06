@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,32 +21,31 @@
  * questions.
  */
 
+package gc.class_unloading;
+
 /*
  * @test
- * @key gc
  * @bug 8049831
+ * @requires vm.gc.G1
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run driver TestG1ClassUnloadingHWM
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run driver gc.class_unloading.TestG1ClassUnloadingHWM
  * @summary Test that -XX:-ClassUnloadingWithConcurrentMark will trigger a Full GC when more than MetaspaceSize metadata is allocated.
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
-import java.util.ArrayList;
-import java.util.Arrays;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 public class TestG1ClassUnloadingHWM {
   private static long MetaspaceSize = 32 * 1024 * 1024;
   private static long YoungGenSize  = 32 * 1024 * 1024;
 
   private static OutputAnalyzer run(boolean enableUnloading) throws Exception {
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+    return ProcessTools.executeLimitedTestJava(
       "-Xbootclasspath/a:.",
       "-XX:+UnlockDiagnosticVMOptions",
       "-XX:+WhiteBoxAPI",
@@ -58,7 +57,6 @@ public class TestG1ClassUnloadingHWM {
       TestG1ClassUnloadingHWM.AllocateBeyondMetaspaceSize.class.getName(),
       "" + MetaspaceSize,
       "" + YoungGenSize);
-    return new OutputAnalyzer(pb.start());
   }
 
   public static OutputAnalyzer runWithG1ClassUnloading() throws Exception {
@@ -103,12 +101,18 @@ public class TestG1ClassUnloadingHWM {
       // Allocate past the MetaspaceSize limit
       long metaspaceSize = Long.parseLong(args[0]);
       long allocationBeyondMetaspaceSize  = metaspaceSize * 2;
-      long metaspace = wb.allocateMetaspace(null, allocationBeyondMetaspaceSize);
+
+      // There is a cap on how large a single metaspace allocation can get. So we may have to allocate in blocks.
+      final long max = wb.maxMetaspaceAllocationSize();
+      while (allocationBeyondMetaspaceSize > 0) {
+        long s = max < allocationBeyondMetaspaceSize ? max : allocationBeyondMetaspaceSize;
+        wb.allocateMetaspace(null, s);
+        allocationBeyondMetaspaceSize -= s;
+      }
 
       long youngGenSize = Long.parseLong(args[1]);
       triggerYoungGCs(youngGenSize);
 
-      wb.freeMetaspace(null, metaspace, metaspace);
     }
 
     public static void triggerYoungGCs(long youngGenSize) {
@@ -121,4 +125,3 @@ public class TestG1ClassUnloadingHWM {
     }
   }
 }
-

@@ -21,16 +21,14 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- */
-/*
- * $Id: ApacheOctetStreamData.java 1667527 2015-03-18 12:54:20Z mullan $
+ * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
  */
 package org.jcp.xml.dsig.internal.dom;
 
 import java.io.IOException;
+
 import javax.xml.crypto.OctetStreamData;
-import com.sun.org.apache.xml.internal.security.c14n.CanonicalizationException;
+
 import com.sun.org.apache.xml.internal.security.signature.XMLSignatureInput;
 
 public class ApacheOctetStreamData extends OctetStreamData
@@ -39,7 +37,7 @@ public class ApacheOctetStreamData extends OctetStreamData
     private XMLSignatureInput xi;
 
     public ApacheOctetStreamData(XMLSignatureInput xi)
-        throws CanonicalizationException, IOException
+        throws IOException
     {
         super(xi.getOctetStream(), xi.getSourceURI(), xi.getMIMEType());
         this.xi = xi;

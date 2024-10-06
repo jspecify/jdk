@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,13 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
 
+import jdk.test.whitebox.WhiteBox;
+import metaspace.share.TriggerUnloadingHelper;
 import metaspace.stressHierarchy.common.classloader.tree.Node;
 import metaspace.stressHierarchy.common.classloader.tree.Tree;
 import metaspace.stressHierarchy.common.exceptions.ClassNotUnloadedException;
 import metaspace.stressHierarchy.common.exceptions.TimeIsOverException;
 import nsk.share.test.ExecutionController;
-import sun.hotspot.WhiteBox;
-import vm.share.gc.TriggerUnloadingHelper;
 
 public class PerformChecksHelper {
 
@@ -137,10 +137,10 @@ public class PerformChecksHelper {
                 }
             }
         } catch (OutOfMemoryError e) {
-            if (e.getMessage().trim().toLowerCase().contains("metadata")) {
-                System.out.println("Got OOME in metaspace in PerformChecksHelper.callMethods(Class clazz). " +
-                                "This happened because reflection generates a too many accessors. " +
-                                "There is nothing we can do with it, so we are just suppressing.");
+            if (e.getMessage().trim().toLowerCase().contains("metaspace")) {
+                // avoid string concatenation, which may create more classes.
+                System.out.println("Got OOME in metaspace in PerformChecksHelper.callMethods(Class clazz). ");
+                System.out.println("This is possible with -triggerUnloadingByFillingMetaspace");
             } else {
                 throw e;
             }

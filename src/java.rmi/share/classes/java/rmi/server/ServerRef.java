@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,13 @@ import java.rmi.*;
 @Deprecated
 public interface ServerRef extends RemoteRef {
 
-    /** indicate compatibility with JDK 1.1.x version of class. */
+    /** indicate compatibility with JDK 1.1.x version of class.
+     *
+     * @deprecated A {@code serialVersionUID} field in an interface is
+     * ineffectual. Do not use; no replacement.
+     */
+    @Deprecated
+    @SuppressWarnings("serial")
     static final long serialVersionUID = -4557750989390278438L;
 
     /**
@@ -48,7 +54,7 @@ public interface ServerRef extends RemoteRef {
      * @param obj the remote object implementation
      * @param data information necessary to export the object
      * @return the stub for the remote object
-     * @exception RemoteException if an exception occurs attempting
+     * @throws RemoteException if an exception occurs attempting
      * to export the object (e.g., stub class could not be found)
      * @since 1.1
      */
@@ -60,7 +66,7 @@ public interface ServerRef extends RemoteRef {
      * thread actively handling a remote method invocation the
      * hostname of the client is returned.
      * @return the client's host name
-     * @exception ServerNotActiveException if called outside of servicing
+     * @throws ServerNotActiveException if called outside of servicing
      * a remote method invocation
      * @since 1.1
      */

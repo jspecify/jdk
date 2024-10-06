@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@ package com.sun.source.doctree;
  * A visitor of trees, in the style of the visitor design pattern.
  * Classes implementing this interface are used to operate
  * on a tree when the kind of tree is unknown at compile time.
- * When a visitor is passed to an tree's {@link DocTree#accept
+ * When a visitor is passed to a tree's {@link DocTree#accept
  * accept} method, the <code>visit<i>Xyz</i></code> method most applicable
  * to that tree is invoked.
  *
@@ -41,7 +41,7 @@ package com.sun.source.doctree;
  *
  * <p> <b>WARNING:</b> It is possible that methods will be added to
  * this interface to accommodate new, currently unknown, doc comment
- * structures added to future versions of the Java&trade; programming
+ * structures added to future versions of the Java programming
  * language.  Therefore, visitor classes directly implementing this
  * interface may be source incompatible with future versions of the
  * platform.
@@ -57,7 +57,7 @@ package com.sun.source.doctree;
 public interface DocTreeVisitor<R,P> {
 
     /**
-     * Visits an AttributeTree node.
+     * Visits an {@code AttributeTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -65,7 +65,7 @@ public interface DocTreeVisitor<R,P> {
     R visitAttribute(AttributeTree node, P p);
 
     /**
-     * Visits an AuthorTree node.
+     * Visits an {@code AuthorTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -73,7 +73,7 @@ public interface DocTreeVisitor<R,P> {
     R visitAuthor(AuthorTree node, P p);
 
     /**
-     * Visits a CommentTree node.
+     * Visits a {@code CommentTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -81,7 +81,7 @@ public interface DocTreeVisitor<R,P> {
     R visitComment(CommentTree node, P p);
 
     /**
-     * Visits a DeprecatedTree node.
+     * Visits a {@code DeprecatedTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -89,7 +89,7 @@ public interface DocTreeVisitor<R,P> {
     R visitDeprecated(DeprecatedTree node, P p);
 
     /**
-     * Visits a DocCommentTree node.
+     * Visits a {@code DocCommentTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -97,7 +97,7 @@ public interface DocTreeVisitor<R,P> {
     R visitDocComment(DocCommentTree node, P p);
 
     /**
-     * Visits a DocRootTree node.
+     * Visits a {@code DocRootTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -105,13 +105,13 @@ public interface DocTreeVisitor<R,P> {
     R visitDocRoot(DocRootTree node, P p);
 
     /**
-     * Visits a DocTypeTree node.
+     * Visits a {@code DocTypeTree} node.
      *
-     * @implSpec Visits a {@code DocTypeTree} node
+     * @implSpec Visits the provided {@code DocTypeTree} node
      * by calling {@code visitOther(node, p)}.
      *
      * @param node the node being visited
-     * @param p    a parameter value
+     * @param p a parameter value
      * @return a result value
      * @since 10
      */
@@ -120,7 +120,7 @@ public interface DocTreeVisitor<R,P> {
     }
 
     /**
-     * Visits an EndElementTree node.
+     * Visits an {@code EndElementTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -128,7 +128,7 @@ public interface DocTreeVisitor<R,P> {
     R visitEndElement(EndElementTree node, P p);
 
     /**
-     * Visits an EntityTree node.
+     * Visits an {@code EntityTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -136,7 +136,7 @@ public interface DocTreeVisitor<R,P> {
     R visitEntity(EntityTree node, P p);
 
     /**
-     * Visits an ErroneousTree node.
+     * Visits an {@code ErroneousTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -144,9 +144,25 @@ public interface DocTreeVisitor<R,P> {
     R visitErroneous(ErroneousTree node, P p);
 
     /**
-     * Visits a HiddenTree node.
+     * Visits an {@code EscapeTree} node.
      *
-     * @implSpec Visits a {@code HiddenTree} node
+     * @implSpec Visits the provided {@code EscapeTree} node
+     * by calling {@code visitOther(node, p)}.
+     *
+     * @param node the node being visited
+     * @param p a parameter value
+     * @return a result value
+     *
+     * @since 21
+     */
+    default R visitEscape(EscapeTree node, P p)  {
+        return visitOther(node, p);
+    }
+
+    /**
+     * Visits a {@code HiddenTree} node.
+     *
+     * @implSpec Visits the provided {@code HiddenTree} node
      * by calling {@code visitOther(node, p)}.
      *
      * @param node the node being visited
@@ -160,7 +176,7 @@ public interface DocTreeVisitor<R,P> {
     }
 
     /**
-     * Visits an IdentifierTree node.
+     * Visits an {@code IdentifierTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -168,9 +184,9 @@ public interface DocTreeVisitor<R,P> {
     R visitIdentifier(IdentifierTree node, P p);
 
     /**
-     * Visits an IndexTree node.
+     * Visits an {@code IndexTree} node.
      *
-     * @implSpec Visits an {@code IndexTree} node
+     * @implSpec Visits the provided {@code IndexTree} node
      * by calling {@code visitOther(node, p)}.
      *
      * @param node the node being visited
@@ -184,7 +200,7 @@ public interface DocTreeVisitor<R,P> {
     }
 
     /**
-     * Visits an InheritDocTree node.
+     * Visits an {@code InheritDocTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -192,7 +208,7 @@ public interface DocTreeVisitor<R,P> {
     R visitInheritDoc(InheritDocTree node, P p);
 
     /**
-     * Visits a LinkTree node.
+     * Visits a {@code LinkTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -200,7 +216,7 @@ public interface DocTreeVisitor<R,P> {
     R visitLink(LinkTree node, P p);
 
     /**
-     * Visits an LiteralTree node.
+     * Visits an {@code LiteralTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -208,7 +224,7 @@ public interface DocTreeVisitor<R,P> {
     R visitLiteral(LiteralTree node, P p);
 
     /**
-     * Visits a ParamTree node.
+     * Visits a {@code ParamTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -216,9 +232,9 @@ public interface DocTreeVisitor<R,P> {
     R visitParam(ParamTree node, P p);
 
     /**
-     * Visits a ProvidesTree node.
+     * Visits a {@code ProvidesTree} node.
      *
-     * @implSpec Visits a {@code ProvidesTree} node
+     * @implSpec Visits the provided {@code ProvidesTree} node
      * by calling {@code visitOther(node, p)}.
      *
      * @param node the node being visited
@@ -232,7 +248,23 @@ public interface DocTreeVisitor<R,P> {
     }
 
     /**
-     * Visits a ReferenceTree node.
+     * Visits a {@code RawTextTree} node.
+     *
+     * @implSpec Visits the provided {@code RawTextTree} node
+     * by calling {@code visitOther(node, p)}.
+     *
+     * @param node the node being visited
+     * @param p a parameter value
+     * @return a result value
+     *
+     * @since 23
+     */
+    default R visitRawText(RawTextTree node, P p) {
+        return visitOther(node, p);
+    }
+
+    /**
+     * Visits a {@code ReferenceTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -240,7 +272,7 @@ public interface DocTreeVisitor<R,P> {
     R visitReference(ReferenceTree node, P p);
 
     /**
-     * Visits a ReturnTree node.
+     * Visits a {@code ReturnTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -248,7 +280,7 @@ public interface DocTreeVisitor<R,P> {
     R visitReturn(ReturnTree node, P p);
 
     /**
-     * Visits a SeeTree node.
+     * Visits a {@code SeeTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -256,7 +288,7 @@ public interface DocTreeVisitor<R,P> {
     R visitSee(SeeTree node, P p);
 
     /**
-     * Visits a SerialTree node.
+     * Visits a {@code SerialTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -264,7 +296,7 @@ public interface DocTreeVisitor<R,P> {
     R visitSerial(SerialTree node, P p);
 
     /**
-     * Visits a SerialDataTree node.
+     * Visits a {@code SerialDataTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -272,7 +304,7 @@ public interface DocTreeVisitor<R,P> {
     R visitSerialData(SerialDataTree node, P p);
 
     /**
-     * Visits a SerialFieldTree node.
+     * Visits a {@code SerialFieldTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -280,7 +312,7 @@ public interface DocTreeVisitor<R,P> {
     R visitSerialField(SerialFieldTree node, P p);
 
     /**
-     * Visits a SinceTree node.
+     * Visits a {@code SinceTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -288,7 +320,38 @@ public interface DocTreeVisitor<R,P> {
     R visitSince(SinceTree node, P p);
 
     /**
-     * Visits a StartElementTree node.
+     * Visits a {@code SnippetTree} node.
+     *
+     * @implSpec Visits the provided {@code SnippetTree} node
+     * by calling {@code visitOther(node, p)}.
+     *
+     * @param node the node being visited
+     * @param p a parameter value
+     * @return a result value
+     * @since 18
+     */
+    default R visitSnippet(SnippetTree node, P p) {
+        return visitOther(node, p);
+    }
+
+    /**
+     * Visits a {@code SpecTree} node.
+     *
+     * @implSpec Visits the provided {@code SpecTree} node
+     * by calling {@code visitOther(node, p)}.
+     *
+     * @param node the node being visited
+     * @param p a parameter value
+     * @return a result value
+     *
+     * @since 20
+     */
+    default R visitSpec(SpecTree node, P p) {
+        return visitOther(node, p);
+    }
+
+    /**
+     * Visits a {@code StartElementTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -296,9 +359,9 @@ public interface DocTreeVisitor<R,P> {
     R visitStartElement(StartElementTree node, P p);
 
     /**
-     * Visits a SummaryTree node.
+     * Visits a {@code SummaryTree} node.
      *
-     * @implSpec Visits a {@code SummaryTree} node
+     * @implSpec Visits the provided {@code SummaryTree} node
      * by calling {@code visitOther(node, p)}.
      *
      * @param node the node being visited
@@ -311,7 +374,22 @@ public interface DocTreeVisitor<R,P> {
     }
 
     /**
-     * Visits a TextTree node.
+     * Visits a {@code SystemPropertyTree} node.
+     *
+     * @implSpec Visits the provided {@code SystemPropertyTree} node
+     * by calling {@code visitOther(node, p)}.
+     *
+     * @param node the node being visited
+     * @param p a parameter value
+     * @return a result value
+     * @since 12
+     */
+    default R visitSystemProperty(SystemPropertyTree node, P p) {
+        return visitOther(node, p);
+    }
+
+    /**
+     * Visits a {@code TextTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -319,7 +397,7 @@ public interface DocTreeVisitor<R,P> {
     R visitText(TextTree node, P p);
 
     /**
-     * Visits a ThrowsTree node.
+     * Visits a {@code ThrowsTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -327,7 +405,7 @@ public interface DocTreeVisitor<R,P> {
     R visitThrows(ThrowsTree node, P p);
 
     /**
-     * Visits an UnknownBlockTagTree node.
+     * Visits an {@code UnknownBlockTagTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -335,7 +413,7 @@ public interface DocTreeVisitor<R,P> {
     R visitUnknownBlockTag(UnknownBlockTagTree node, P p);
 
     /**
-     * Visits an UnknownInlineTagTree node.
+     * Visits an {@code UnknownInlineTagTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -343,7 +421,7 @@ public interface DocTreeVisitor<R,P> {
     R visitUnknownInlineTag(UnknownInlineTagTree node, P p);
 
     /**
-     * Visits a UsesTree node.
+     * Visits a {@code UsesTree} node.
      *
      * @implSpec Visits a {@code UsesTree} node
      * by calling {@code visitOther(node, p)}.
@@ -359,7 +437,7 @@ public interface DocTreeVisitor<R,P> {
     }
 
     /**
-     * Visits a ValueTree node.
+     * Visits a {@code ValueTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -367,7 +445,7 @@ public interface DocTreeVisitor<R,P> {
     R visitValue(ValueTree node, P p);
 
     /**
-     * Visits a VersionTreeTree node.
+     * Visits a {@code VersionTree} node.
      * @param node the node being visited
      * @param p a parameter value
      * @return a result value
@@ -375,7 +453,7 @@ public interface DocTreeVisitor<R,P> {
     R visitVersion(VersionTree node, P p);
 
     /**
-     * Visits an unknown type of DocTree node.
+     * Visits an unknown type of {@code DocTree} node.
      * This can occur if the set of tags evolves and new kinds
      * of nodes are added to the {@code DocTree} hierarchy.
      * @param node the node being visited

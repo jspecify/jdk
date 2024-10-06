@@ -22,11 +22,11 @@
  */
 package com.sun.org.apache.xml.internal.security.keys.keyresolver.implementations;
 
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Iterator;
-
 
 import com.sun.org.apache.xml.internal.security.exceptions.XMLSecurityException;
 import com.sun.org.apache.xml.internal.security.keys.content.x509.XMLX509SubjectName;
@@ -42,22 +42,26 @@ public class X509SubjectNameResolver extends KeyResolverSpi {
     private static final com.sun.org.slf4j.internal.Logger LOG =
         com.sun.org.slf4j.internal.LoggerFactory.getLogger(X509SubjectNameResolver.class);
 
+    /** {@inheritDoc} */
+    @Override
+    protected boolean engineCanResolve(Element element, String baseURI, StorageResolver storage) {
+        if (!XMLUtils.elementIsInSignatureSpace(element, Constants._TAG_X509DATA)) {
+            return false;
+        }
+        Element[] x509childNodes =
+            XMLUtils.selectDsNodes(element.getFirstChild(), Constants._TAG_X509SUBJECTNAME);
 
-    /**
-     * Method engineResolvePublicKey
-     *
-     * @param element
-     * @param baseURI
-     * @param storage
-     * @return null if no {@link PublicKey} could be obtained
-     * @throws KeyResolverException
-     */
-    public PublicKey engineLookupAndResolvePublicKey(
-        Element element, String baseURI, StorageResolver storage
+        return x509childNodes != null && x509childNodes.length > 0;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected PublicKey engineResolvePublicKey(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
     ) throws KeyResolverException {
 
         X509Certificate cert =
-            this.engineLookupResolveX509Certificate(element, baseURI, storage);
+            this.engineResolveX509Certificate(element, baseURI, storage, secureValidation);
 
         if (cert != null) {
             return cert.getPublicKey();
@@ -66,37 +70,20 @@ public class X509SubjectNameResolver extends KeyResolverSpi {
         return null;
     }
 
-    /**
-     * Method engineResolveX509Certificate
-     * {@inheritDoc}
-     * @param element
-     * @param baseURI
-     * @param storage
-     *
-     * @throws KeyResolverException
-     */
-    public X509Certificate engineLookupResolveX509Certificate(
-        Element element, String baseURI, StorageResolver storage
+    /** {@inheritDoc} */
+    @Override
+    protected X509Certificate engineResolveX509Certificate(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
     ) throws KeyResolverException {
-        LOG.debug("Can I resolve {}?", element.getTagName());
-        Element[] x509childNodes = null;
-        XMLX509SubjectName x509childObject[] = null;
-
-        if (!XMLUtils.elementIsInSignatureSpace(element, Constants._TAG_X509DATA)) {
-            LOG.debug("I can't");
-            return null;
-        }
-        x509childNodes =
+        Element[] x509childNodes =
             XMLUtils.selectDsNodes(element.getFirstChild(), Constants._TAG_X509SUBJECTNAME);
-
         if (!(x509childNodes != null && x509childNodes.length > 0)) {
-            LOG.debug("I can't");
             return null;
         }
 
         try {
             if (storage == null) {
-                Object exArgs[] = { Constants._TAG_X509SUBJECTNAME };
+                Object[] exArgs = { Constants._TAG_X509SUBJECTNAME };
                 KeyResolverException ex =
                     new KeyResolverException("KeyResolver.needStorageResolver", exArgs);
 
@@ -105,7 +92,7 @@ public class X509SubjectNameResolver extends KeyResolverSpi {
                 throw ex;
             }
 
-            x509childObject = new XMLX509SubjectName[x509childNodes.length];
+            XMLX509SubjectName[] x509childObject = new XMLX509SubjectName[x509childNodes.length];
 
             for (int i = 0; i < x509childNodes.length; i++) {
                 x509childObject[i] = new XMLX509SubjectName(x509childNodes[i], baseURI);
@@ -113,18 +100,15 @@ public class X509SubjectNameResolver extends KeyResolverSpi {
 
             Iterator<Certificate> storageIterator = storage.getIterator();
             while (storageIterator.hasNext()) {
-                X509Certificate cert = (X509Certificate)storageIterator.next();
-                XMLX509SubjectName certSN =
-                    new XMLX509SubjectName(element.getOwnerDocument(), cert);
-
+                X509Certificate cert = (X509Certificate) storageIterator.next();
+                XMLX509SubjectName certSN = new XMLX509SubjectName(element.getOwnerDocument(), cert);
                 LOG.debug("Found Certificate SN: {}", certSN.getSubjectName());
 
-                for (int i = 0; i < x509childObject.length; i++) {
-                    LOG.debug("Found Element SN:     {}", x509childObject[i].getSubjectName());
+                for (XMLX509SubjectName childSubject : x509childObject) {
+                    LOG.debug("Found Element SN:     {}", childSubject.getSubjectName());
 
-                    if (certSN.equals(x509childObject[i])) {
+                    if (certSN.equals(childSubject)) {
                         LOG.debug("match !!! ");
-
                         return cert;
                     }
                     LOG.debug("no match...");
@@ -134,21 +118,22 @@ public class X509SubjectNameResolver extends KeyResolverSpi {
             return null;
         } catch (XMLSecurityException ex) {
             LOG.debug("XMLSecurityException", ex);
-
             throw new KeyResolverException(ex);
         }
     }
 
-    /**
-     * Method engineResolveSecretKey
-     * {@inheritDoc}
-     * @param element
-     * @param baseURI
-     * @param storage
-     *
-     */
-    public javax.crypto.SecretKey engineLookupAndResolveSecretKey(
-        Element element, String baseURI, StorageResolver storage
+    /** {@inheritDoc} */
+    @Override
+    protected javax.crypto.SecretKey engineResolveSecretKey(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
+    ) {
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected PrivateKey engineResolvePrivateKey(
+        Element element, String baseURI, StorageResolver storage, boolean secureValidation
     ) {
         return null;
     }

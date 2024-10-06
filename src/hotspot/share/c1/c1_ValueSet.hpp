@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_C1_C1_VALUESET_HPP
-#define SHARE_VM_C1_C1_VALUESET_HPP
+#ifndef SHARE_C1_C1_VALUESET_HPP
+#define SHARE_C1_C1_VALUESET_HPP
 
 #include "c1/c1_Instruction.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/bitMap.hpp"
+#include "utilities/bitMap.inline.hpp"
 
 // A ValueSet is a simple abstraction on top of a BitMap representing
 // a set of Instructions. Currently it assumes that the number of
@@ -39,17 +40,21 @@ class ValueSet: public CompilationResourceObj {
   ResourceBitMap _map;
 
  public:
-  ValueSet();
+  ValueSet() : _map(Instruction::number_of_instructions()) {}
 
-  ValueSet* copy();
-  bool contains(Value x);
-  void put     (Value x);
-  void remove  (Value x);
-  bool set_intersect(ValueSet* other);
-  void set_union(ValueSet* other);
-  void clear   ();
-  void set_from(ValueSet* other);
-  bool equals  (ValueSet* other);
+  ValueSet* copy() {
+    ValueSet* res = new ValueSet();
+    res->_map.set_from(_map);
+    return res;
+  }
+  bool contains(Value x)              { return _map.at(x->id()); }
+  void put(Value x)                   { _map.set_bit(x->id()); }
+  void remove(Value x)                { _map.clear_bit(x->id()); }
+  bool set_intersect(ValueSet* other) { return _map.set_intersection_with_result(other->_map); }
+  void set_union(ValueSet* other)     { _map.set_union(other->_map); }
+  void clear()                        { _map.clear(); }
+  void set_from(ValueSet* other)      { _map.set_from(other->_map); }
+  bool equals(ValueSet* other)        { return _map.is_same(other->_map); }
 };
 
-#endif // SHARE_VM_C1_C1_VALUESET_HPP
+#endif // SHARE_C1_C1_VALUESET_HPP

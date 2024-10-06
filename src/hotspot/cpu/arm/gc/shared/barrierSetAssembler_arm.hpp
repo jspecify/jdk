@@ -28,6 +28,16 @@
 #include "asm/macroAssembler.hpp"
 #include "memory/allocation.hpp"
 #include "oops/access.hpp"
+#ifdef COMPILER2
+#include "code/vmreg.hpp"
+#include "opto/optoreg.hpp"
+
+class Node;
+#endif // COMPILER2
+
+enum class NMethodPatchingType {
+  stw_instruction_and_data_patch,
+};
 
 class BarrierSetAssembler: public CHeapObj<mtGC> {
 public:
@@ -41,7 +51,22 @@ public:
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address obj, Register new_val, Register tmp1, Register tmp2, Register tmp3, bool is_null);
 
+  virtual void tlab_allocate(MacroAssembler* masm,
+    Register           obj,              // result: pointer to object after successful allocation
+    Register           obj_end,          // result: pointer to end of object after successful allocation
+    Register           tmp1,             // temp register
+    RegisterOrConstant size_expression,  // size of object
+    Label&             slow_case         // continuation point if fast allocation fails
+  );
+
   virtual void barrier_stubs_init() {}
+  virtual NMethodPatchingType nmethod_patching_type() { return NMethodPatchingType::stw_instruction_and_data_patch; }
+  virtual void nmethod_entry_barrier(MacroAssembler* masm);
+
+#ifdef COMPILER2
+  OptoReg::Name refine_register(const Node* node,
+                                OptoReg::Name opto_reg);
+#endif // COMPILER2
 };
 
 #endif // CPU_ARM_GC_SHARED_BARRIERSETASSEMBLER_ARM_HPP

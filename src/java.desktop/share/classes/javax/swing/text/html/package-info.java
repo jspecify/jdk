@@ -30,10 +30,10 @@
  * <strong>Note:</strong>
  * Most of the Swing API is <em>not</em> thread safe. For details, see
  * <a
- * href="http://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html"
+ * href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html"
  * target="_top">Concurrency in Swing</a>,
  * a section in
- * <em><a href="http://docs.oracle.com/javase/tutorial/"
+ * <em><a href="https://docs.oracle.com/javase/tutorial/"
  * target="_top">The Java Tutorial</a></em>.
  *
  * <h2>Package Specification</h2>
@@ -43,6 +43,7 @@
  *     which HTMLEditorKit is based.
  * </ul>
  *
+ * @spec https://www.w3.org/TR/REC-html32.html HTML 3.2 Reference Specification
  * @since 1.2
  * @serial exclude
  */

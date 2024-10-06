@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,22 +25,23 @@
  * @test
  * @bug 4706779 4956908
  * @summary  Add text equivalent of class tree ASCII art for accessibility
- * @author dkramer
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main AccessAsciiArt
  */
+
+import javadoc.tester.JavadocTester;
 
 public class AccessAsciiArt extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        AccessAsciiArt tester = new AccessAsciiArt();
+        var tester = new AccessAsciiArt();
         tester.runTests();
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "p1", "p1.subpkg");
@@ -48,10 +49,15 @@ public class AccessAsciiArt extends JavadocTester {
 
         checkOutput("p1/subpkg/SSC.html", true,
                 // Test the top line of the class tree
-                "<li><a href=\"../C.html\" title=\"class in p1\">p1.C</a></li>",
+                """
+                    <div class="inheritance"><a href="../C.html" title="class in p1">p1.C</a>""",
                 // Test the second line of the class tree
-                "<li><a href=\"../SC.html\" title=\"class in p1\">p1.SC</a></li>",
+                """
+                    <div class="inheritance"><a href="../SC.html" title="class in p1">p1.SC</a>""",
                 // Test the third line of the class tree
-                "<li>p1.subpkg.SSC</li>");
+                """
+                    <div class="inheritance">p1.subpkg.SSC</div>
+                    </div>
+                    </div>""");
     }
 }

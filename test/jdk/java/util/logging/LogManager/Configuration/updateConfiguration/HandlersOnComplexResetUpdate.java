@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@ import java.util.logging.LoggingPermission;
  *          suddenly appears in the hierarchy between a child logger and the
  *          root logger.
  * @run main/othervm HandlersOnComplexResetUpdate UNSECURE
- * @run main/othervm HandlersOnComplexResetUpdate SECURE
+ * @run main/othervm -Djava.security.manager=allow HandlersOnComplexResetUpdate SECURE
  * @author danielfuchs
  */
 public class HandlersOnComplexResetUpdate {
@@ -80,6 +80,14 @@ public class HandlersOnComplexResetUpdate {
         }
     }
 
+    public static final double TIMEOUT_FACTOR;
+    static {
+        String toFactor = System.getProperty("test.timeout.factor", "1.0");
+        TIMEOUT_FACTOR = Double.parseDouble(toFactor);
+    }
+    static int adjustCount(int count) {
+        return Math.min(count, (int) Math.ceil(TIMEOUT_FACTOR * count));
+    }
 
     private static final String PREFIX =
             "FileHandler-" + UUID.randomUUID() + ".log";
@@ -203,21 +211,20 @@ public class HandlersOnComplexResetUpdate {
 
         ReferenceQueue<Logger> queue = new ReferenceQueue();
         WeakReference<Logger> fooRef = new WeakReference<>(Logger.getLogger("com.foo"), queue);
-        if (fooRef.get() != fooChild.getParent()) {
+        if (!fooRef.refersTo(fooChild.getParent())) {
             throw new RuntimeException("Unexpected parent logger: "
                     + fooChild.getParent() +"\n\texpected: " + fooRef.get());
         }
         WeakReference<Logger> barRef = new WeakReference<>(Logger.getLogger("com.bar"), queue);
-        if (barRef.get() != barChild.getParent()) {
+        if (!barRef.refersTo(barChild.getParent())) {
             throw new RuntimeException("Unexpected parent logger: "
                     + barChild.getParent() +"\n\texpected: " + barRef.get());
         }
         Reference<? extends Logger> ref2;
-        int max = 3;
+        int max = adjustCount(6);
         barChild = null;
-        while ((ref2 = queue.poll()) == null) {
+        while ((ref2 = queue.remove(500)) == null) {
             System.gc();
-            Thread.sleep(100);
             if (--max == 0) break;
         }
 
@@ -328,21 +335,25 @@ public class HandlersOnComplexResetUpdate {
                     throw new RuntimeException(x);
                 }
             });
-            fooChild = null;
-            System.out.println("Setting fooChild to: " + fooChild);
-            while ((ref2 = queue.poll()) == null) {
-                System.gc();
-                Thread.sleep(1000);
-            }
-            if (ref2 != fooRef) {
-                throw new RuntimeException("Unexpected reference: "
-                        + ref2 +"\n\texpected: " + fooRef);
-            }
-            if (ref2.get() != null) {
-                throw new RuntimeException("Referent not cleared: " + ref2.get());
-            }
-            System.out.println("Got fooRef after reset(), fooChild is " + fooChild);
-
+            try {
+                fooChild = null;
+                System.out.println("Setting fooChild to: " + fooChild);
+                while ((ref2 = queue.poll()) == null) {
+                    System.gc();
+                    Thread.sleep(1000);
+                }
+                if (ref2 != fooRef) {
+                    throw new RuntimeException("Unexpected reference: "
+                            + ref2 +"\n\texpected: " + fooRef);
+                }
+                if (!ref2.refersTo(null)) {
+                    throw new RuntimeException("Referent not cleared: " + ref2.get());
+                }
+                System.out.println("Got fooRef after reset(), fooChild is " + fooChild);
+             } catch(Throwable t) {
+                if (failed != null) t.addSuppressed(failed);
+                throw t;
+             }
         }
         if (failed != null) {
             // should rarely happen...
@@ -510,6 +521,8 @@ public class HandlersOnComplexResetUpdate {
 
     public static class SimplePolicy extends Policy {
 
+        static final Policy DEFAULT_POLICY = Policy.getPolicy();
+
         final Permissions permissions;
         final Permissions allPermissions;
         final ThreadLocal<AtomicBoolean> allowAll; // actually: this should be in a thread locale
@@ -529,7 +542,7 @@ public class HandlersOnComplexResetUpdate {
         @Override
         public boolean implies(ProtectionDomain domain, Permission permission) {
             if (allowAll.get().get()) return allPermissions.implies(permission);
-            return permissions.implies(permission);
+            return permissions.implies(permission) || DEFAULT_POLICY.implies(domain, permission);
         }
 
         @Override

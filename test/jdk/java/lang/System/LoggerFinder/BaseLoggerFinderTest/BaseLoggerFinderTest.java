@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,8 +49,8 @@ import java.lang.System.Logger.Level;
  * @build AccessSystemLogger BaseLoggerFinderTest CustomSystemClassLoader BaseLoggerFinder TestLoggerFinder
  * @run  driver AccessSystemLogger
  * @run  main/othervm -Xbootclasspath/a:boot -Djava.system.class.loader=CustomSystemClassLoader BaseLoggerFinderTest NOSECURITY
- * @run  main/othervm -Xbootclasspath/a:boot -Djava.system.class.loader=CustomSystemClassLoader BaseLoggerFinderTest NOPERMISSIONS
- * @run  main/othervm -Xbootclasspath/a:boot -Djava.system.class.loader=CustomSystemClassLoader BaseLoggerFinderTest WITHPERMISSIONS
+ * @run  main/othervm -Xbootclasspath/a:boot -Djava.security.manager=allow -Djava.system.class.loader=CustomSystemClassLoader BaseLoggerFinderTest NOPERMISSIONS
+ * @run  main/othervm -Xbootclasspath/a:boot -Djava.security.manager=allow -Djava.system.class.loader=CustomSystemClassLoader BaseLoggerFinderTest WITHPERMISSIONS
  * @author danielfuchs
  */
 public class BaseLoggerFinderTest {
@@ -652,6 +652,8 @@ public class BaseLoggerFinderTest {
         final static RuntimePermission CONTROL = LOGGERFINDER_PERMISSION;
         final static RuntimePermission ACCESS = new RuntimePermission("accessClassInPackage.jdk.internal.logger");
 
+        static final Policy DEFAULT_POLICY = Policy.getPolicy();
+
         final Permissions permissions;
         final ThreadLocal<AtomicBoolean> allowControl;
         final ThreadLocal<AtomicBoolean> allowAccess;
@@ -678,7 +680,7 @@ public class BaseLoggerFinderTest {
 
         @Override
         public boolean implies(ProtectionDomain domain, Permission permission) {
-            return getPermissions().implies(permission);
+            return getPermissions().implies(permission) || DEFAULT_POLICY.implies(domain, permission);
         }
 
         @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import com.sun.tools.javac.code.Kinds.KindSelector;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
-import com.sun.tools.javac.code.TypeMetadata.Entry.Kind;
+import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.comp.Check.CheckContext;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
@@ -53,6 +53,7 @@ import static com.sun.tools.javac.code.Flags.SYNTHETIC;
 import static com.sun.tools.javac.code.Kinds.Kind.MDL;
 import static com.sun.tools.javac.code.Kinds.Kind.MTH;
 import static com.sun.tools.javac.code.Kinds.Kind.PCK;
+import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.TypeTag.ARRAY;
@@ -100,9 +101,9 @@ public class Annotate {
     private final Types types;
 
     private final Attribute theUnfinishedDefaultValue;
-    private final boolean allowRepeatedAnnos;
     private final String sourceName;
 
+    @SuppressWarnings("this-escape")
     protected Annotate(Context context) {
         context.put(annotateKey, this);
 
@@ -123,7 +124,6 @@ public class Annotate {
         theUnfinishedDefaultValue =  new Attribute.Error(syms.errType);
 
         Source source = Source.instance(context);
-        allowRepeatedAnnos = Feature.REPEATED_ANNOTATIONS.allowedInSource(source);
         sourceName = source.name;
 
         blockCount = 1;
@@ -229,7 +229,7 @@ public class Annotate {
      *
      * @param annotations the list of JCAnnotations to attribute and enter
      * @param localEnv    the enclosing env
-     * @param s           ths Symbol on which to enter the annotations
+     * @param s           the Symbol on which to enter the annotations
      * @param deferPos    report errors here
      */
     public void annotateLater(List<JCAnnotation> annotations, Env<AttrContext> localEnv,
@@ -254,7 +254,7 @@ public class Annotate {
             DiagnosticPosition prevLintPos =
                     deferPos != null
                             ? deferredLintHandler.setPos(deferPos)
-                            : deferredLintHandler.immediate();
+                            : deferredLintHandler.immediate(lint);
             Lint prevLint = deferPos != null ? null : chk.setLint(lint);
             try {
                 if (s.hasAnnotations() && annotations.nonEmpty())
@@ -276,7 +276,7 @@ public class Annotate {
         validate(() -> { //validate annotations
             JavaFileObject prev = log.useSource(localEnv.toplevel.sourcefile);
             try {
-                chk.validateAnnotations(annotations, s);
+                chk.validateAnnotations(annotations, TreeInfo.declarationFor(s, localEnv.tree), s);
             } finally {
                 log.useSource(prev);
             }
@@ -344,17 +344,16 @@ public class Annotate {
 
             Assert.checkNonNull(c, "Failed to create annotation");
 
-            if (annotated.containsKey(a.type.tsym)) {
-                if (!allowRepeatedAnnos) {
-                    log.error(DiagnosticFlag.SOURCE_LEVEL, a.pos(), Feature.REPEATED_ANNOTATIONS.error(sourceName));
+            if (a.type.isErroneous() || a.type.tsym.isAnnotationType()) {
+                if (annotated.containsKey(a.type.tsym)) {
+                    ListBuffer<T> l = annotated.get(a.type.tsym);
+                    l = l.append(c);
+                    annotated.put(a.type.tsym, l);
+                    pos.put(c, a.pos());
+                } else {
+                    annotated.put(a.type.tsym, ListBuffer.of(c));
+                    pos.put(c, a.pos());
                 }
-                ListBuffer<T> l = annotated.get(a.type.tsym);
-                l = l.append(c);
-                annotated.put(a.type.tsym, l);
-                pos.put(c, a.pos());
-            } else {
-                annotated.put(a.type.tsym, ListBuffer.of(c));
-                pos.put(c, a.pos());
             }
 
             // Note: @Deprecated has no effect on local variables and parameters
@@ -362,13 +361,28 @@ public class Annotate {
                     && (toAnnotate.kind == MDL || toAnnotate.owner.kind != MTH)
                     && types.isSameType(c.type, syms.deprecatedType)) {
                 toAnnotate.flags_field |= (Flags.DEPRECATED | Flags.DEPRECATED_ANNOTATION);
-                Attribute fr = c.member(names.forRemoval);
-                if (fr instanceof Attribute.Constant) {
-                    Attribute.Constant v = (Attribute.Constant) fr;
-                    if (v.type == syms.booleanType && ((Integer) v.value) != 0) {
-                        toAnnotate.flags_field |= Flags.DEPRECATED_REMOVAL;
-                    }
+                if (isAttributeTrue(c.member(names.forRemoval))) {
+                    toAnnotate.flags_field |= Flags.DEPRECATED_REMOVAL;
                 }
+            }
+
+            if (!c.type.isErroneous()
+                    && types.isSameType(c.type, syms.previewFeatureType)) {
+                toAnnotate.flags_field |= Flags.PREVIEW_API;
+                if (isAttributeTrue(c.member(names.reflective))) {
+                    toAnnotate.flags_field |= Flags.PREVIEW_REFLECTIVE;
+                }
+            }
+
+            if (!c.type.isErroneous()
+                    && toAnnotate.kind == TYP
+                    && types.isSameType(c.type, syms.valueBasedType)) {
+                toAnnotate.flags_field |= Flags.VALUE_BASED;
+            }
+
+            if (!c.type.isErroneous()
+                    && types.isSameType(c.type, syms.restrictedType)) {
+                toAnnotate.flags_field |= Flags.RESTRICTED;
             }
         }
 
@@ -395,6 +409,12 @@ public class Annotate {
             toAnnotate.setDeclarationAttributes(attrs);
         }
     }
+    //where:
+        private boolean isAttributeTrue(Attribute attr) {
+            return (attr instanceof Attribute.Constant constant)
+                    && constant.type == syms.booleanType
+                    && ((Integer) constant.value) != 0;
+        }
 
     /**
      * Attribute and store a semantic representation of the annotation tree {@code tree} into the
@@ -407,7 +427,7 @@ public class Annotate {
     public Attribute.Compound attributeAnnotation(JCAnnotation tree, Type expectedAnnotationType,
                                                   Env<AttrContext> env)
     {
-        // The attribute might have been entered if it is Target or Repetable
+        // The attribute might have been entered if it is Target or Repeatable
         // Because TreeCopier does not copy type, redo this if type is null
         if (tree.attribute != null && tree.type != null)
             return tree.attribute;
@@ -423,14 +443,14 @@ public class Annotate {
      *
      * @param a the tree representing an annotation
      * @param expectedAnnotationType the expected (super)type of the annotation
-     * @param env the the current env in where the annotation instance is found
+     * @param env the current env in where the annotation instance is found
      */
     public Attribute.TypeCompound attributeTypeAnnotation(JCAnnotation a, Type expectedAnnotationType,
                                                           Env<AttrContext> env)
     {
-        // The attribute might have been entered if it is Target or Repetable
+        // The attribute might have been entered if it is Target or Repeatable
         // Because TreeCopier does not copy type, redo this if type is null
-        if (a.attribute == null || a.type == null || !(a.attribute instanceof Attribute.TypeCompound)) {
+        if (a.attribute == null || a.type == null || !(a.attribute instanceof Attribute.TypeCompound typeCompound)) {
             // Create a new TypeCompound
             List<Pair<MethodSymbol,Attribute>> elems =
                     attributeAnnotationValues(a, expectedAnnotationType, env);
@@ -441,7 +461,7 @@ public class Annotate {
             return tc;
         } else {
             // Use an existing TypeCompound
-            return (Attribute.TypeCompound)a.attribute;
+            return typeCompound;
         }
     }
 
@@ -507,6 +527,7 @@ public class Annotate {
                 left.name, List.nil(), null);
         left.sym = method;
         left.type = method.type;
+        chk.checkDeprecated(left, env.info.scope.owner, method);
         if (method.owner != thisAnnotationType.tsym && !badAnnotation)
             log.error(left.pos(), Errors.NoAnnotationMember(left.name, thisAnnotationType));
         Type resultType = method.type.getReturnType();
@@ -523,7 +544,7 @@ public class Annotate {
     private Attribute attributeAnnotationValue(Type expectedElementType, JCExpression tree,
             Env<AttrContext> env)
     {
-        //first, try completing the symbol for the annotation value - if acompletion
+        //first, try completing the symbol for the annotation value - if a completion
         //error is thrown, we should recover gracefully, and display an
         //ordinary resolution diagnostic.
         try {
@@ -535,7 +556,6 @@ public class Annotate {
 
         if (expectedElementType.hasTag(ARRAY)) {
             return getAnnotationArrayValue(expectedElementType, tree, env);
-
         }
 
         //error recovery
@@ -653,6 +673,12 @@ public class Annotate {
             log.error(tree.pos(), Errors.AttributeValueMustBeConstant);
             return new Attribute.Error(expectedElementType);
         }
+
+        // Scan the annotation element value and then attribute nested annotations if present
+        if (tree.type != null && tree.type.tsym != null) {
+            queueScanTreeAndTypeAnnotate(tree, env, tree.type.tsym, tree.pos());
+        }
+
         result = cfolder.coerce(result, expectedElementType);
         return new Attribute.Constant(expectedElementType, result.constValue());
     }
@@ -681,11 +707,15 @@ public class Annotate {
         }
 
         JCNewArray na = (JCNewArray)tree;
+        List<JCExpression> elems = na.elems;
         if (na.elemtype != null) {
             log.error(na.elemtype.pos(), Errors.NewNotAllowedInAnnotation);
+            if (elems == null) {
+                elems = List.nil();
+            }
         }
         ListBuffer<Attribute> buf = new ListBuffer<>();
-        for (List<JCExpression> l = na.elems; l.nonEmpty(); l=l.tail) {
+        for (List<JCExpression> l = elems; l.nonEmpty(); l = l.tail) {
             buf.append(attributeAnnotationValue(types.elemtype(expectedElementType),
                     l.head,
                     env));
@@ -818,7 +848,11 @@ public class Annotate {
                 Attribute.Compound c = new Attribute.Compound(targetContainerType, List.of(p));
                 JCAnnotation annoTree = m.Annotation(c);
 
-                if (!chk.annotationApplicable(annoTree, on)) {
+                boolean isRecordMember = (on.flags_field & Flags.RECORD) != 0 || on.enclClass() != null && on.enclClass().isRecord();
+                /* if it is a record member we will not issue the error now and wait until annotations on records are
+                 * checked at Check::validateAnnotation, which will issue it
+                 */
+                if (!chk.annotationApplicable(annoTree, on) && (!isRecordMember || isRecordMember && (on.flags_field & Flags.GENERATED_MEMBER) == 0)) {
                     log.error(annoTree.pos(),
                               Errors.InvalidRepeatableAnnotationNotApplicable(targetContainerType, on));
                 }
@@ -890,12 +924,12 @@ public class Annotate {
             log.error(pos, Errors.InvalidRepeatableAnnotation(annoDecl));
             return null;
         }
-        if (!(p.snd instanceof Attribute.Class)) { // check that the value of "value" is an Attribute.Class
+        if (!(p.snd instanceof Attribute.Class attributeClass)) { // check that the value of "value" is an Attribute.Class
             log.error(pos, Errors.InvalidRepeatableAnnotation(annoDecl));
             return null;
         }
 
-        return ((Attribute.Class)p.snd).getValue();
+        return attributeClass.getValue();
     }
 
     /* Validate that the suggested targetContainerType Type is a valid
@@ -911,7 +945,13 @@ public class Annotate {
         boolean fatalError = false;
 
         // Validate that there is a (and only 1) value method
-        Scope scope = targetContainerType.tsym.members();
+        Scope scope = null;
+        try {
+            scope = targetContainerType.tsym.members();
+        } catch (CompletionFailure ex) {
+            chk.completionError(pos, ex);
+            return null;
+        }
         int nr_value_elems = 0;
         boolean error = false;
         for(Symbol elm : scope.getSymbolsByName(names.value)) {
@@ -981,7 +1021,7 @@ public class Annotate {
         return validRepeated;
     }
 
-    /********************
+    /* ******************
      * Type annotations *
      ********************/
 
@@ -1024,7 +1064,11 @@ public class Annotate {
         typeAnnotation(() -> {
             List<Attribute.TypeCompound> compounds = fromAnnotations(annotations);
             Assert.check(annotations.size() == compounds.size());
-            storeAt.getMetadataOfKind(Kind.ANNOTATIONS).combine(new TypeMetadata.Annotations(compounds));
+            // the type already has annotation metadata, but it's empty
+            Annotations metadata = storeAt.getMetadata(Annotations.class);
+            Assert.checkNonNull(metadata);
+            Assert.check(metadata.annotationBuffer().isEmpty());
+            metadata.annotationBuffer().appendList(compounds);
         });
     }
 
@@ -1105,6 +1149,13 @@ public class Annotate {
         }
 
         @Override
+        public void visitBindingPattern(JCTree.JCBindingPattern tree) {
+            //type binding pattern's type will be annotated separately, avoid
+            //adding its annotations into the owning method here (would clash
+            //with repeatable annotations).
+        }
+
+        @Override
         public void visitClassDef(JCClassDecl tree) {
             // We can only hit a classdef if it is declared within
             // a method. Ignore it - the class will be visited
@@ -1115,13 +1166,24 @@ public class Annotate {
         public void visitNewClass(JCNewClass tree) {
             scan(tree.encl);
             scan(tree.typeargs);
-            scan(tree.clazz);
+            if (tree.def == null) {
+                scan(tree.clazz);
+            }
             scan(tree.args);
             // the anonymous class instantiation if any will be visited separately.
         }
+
+        @Override
+        public void visitErroneous(JCErroneous tree) {
+            if (tree.errs != null) {
+                for (JCTree err : tree.errs) {
+                    scan(err);
+                }
+            }
+        }
     }
 
-    /*********************
+    /* *******************
      * Completer support *
      *********************/
 
@@ -1134,7 +1196,7 @@ public class Annotate {
     };
 
     /* Last stage completer to enter just enough annotations to have a prototype annotation type.
-     * This currently means entering @Target and @Repetable.
+     * This currently means entering @Target and @Repeatable.
      */
     public AnnotationTypeCompleter annotationTypeSourceCompleter() {
         return theSourceCompleter;
@@ -1357,5 +1419,32 @@ public class Annotate {
 
     public void newRound() {
         blockCount = 1;
+    }
+
+    public Queues setQueues(Queues nue) {
+        Queues stored = new Queues(q, validateQ, typesQ, afterTypesQ);
+        this.q = nue.q;
+        this.typesQ = nue.typesQ;
+        this.afterTypesQ = nue.afterTypesQ;
+        this.validateQ = nue.validateQ;
+        return stored;
+    }
+
+    static class Queues {
+        private final ListBuffer<Runnable> q;
+        private final ListBuffer<Runnable> validateQ;
+        private final ListBuffer<Runnable> typesQ;
+        private final ListBuffer<Runnable> afterTypesQ;
+
+        public Queues() {
+            this(new ListBuffer<Runnable>(), new ListBuffer<Runnable>(), new ListBuffer<Runnable>(), new ListBuffer<Runnable>());
+        }
+
+        public Queues(ListBuffer<Runnable> q, ListBuffer<Runnable> validateQ, ListBuffer<Runnable> typesQ, ListBuffer<Runnable> afterTypesQ) {
+            this.q = q;
+            this.validateQ = validateQ;
+            this.typesQ = typesQ;
+            this.afterTypesQ = afterTypesQ;
+        }
     }
 }

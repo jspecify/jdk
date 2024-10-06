@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@
 
 // Major contributions by LS
 
-#ifndef CPU_S390_VM_COPY_S390_HPP
-#define CPU_S390_VM_COPY_S390_HPP
+#ifndef CPU_S390_COPY_S390_HPP
+#define CPU_S390_COPY_S390_HPP
 
 // Inline functions for memory copy and fill.
 
@@ -1095,12 +1095,6 @@ static void pd_zero_to_words(HeapWord* tohw, size_t count) {
   pd_zero_to_bytes(tohw, count*HeapWordSize);
 }
 
-// Delegate to pd_zero_to_bytes. It also works HeapWord-atomic.
-static void pd_zero_to_words_large(HeapWord* tohw, size_t count) {
-  // JVM2008: generally frequent, some tests show very frequent calls.
-  pd_zero_to_bytes(tohw, count*HeapWordSize);
-}
-
 static void pd_zero_to_bytes(void* to, size_t count) {
   // JVM2008: some calls (generally), some tests frequent
 #ifdef USE_INLINE_ASM
@@ -1131,4 +1125,4 @@ static void pd_zero_to_bytes(void* to, size_t count) {
 #endif
 }
 
-#endif // CPU_S390_VM_COPY_S390_HPP
+#endif // CPU_S390_COPY_S390_HPP

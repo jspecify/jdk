@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package sun.security.x509;
 
-import org.jspecify.annotations.Nullable;
-
 import java.io.IOException;
 import java.lang.Integer;
 import java.net.InetAddress;
@@ -39,27 +37,27 @@ import sun.security.util.DerValue;
 /**
  * This class implements the IPAddressName as required by the GeneralNames
  * ASN.1 object.  Both IPv4 and IPv6 addresses are supported using the
- * formats specified in IETF PKIX RFC2459.
+ * formats specified in IETF PKIX RFC 5280.
  * <p>
- * [RFC2459 4.2.1.7 Subject Alternative Name]
- * When the subjectAltName extension contains a iPAddress, the address
- * MUST be stored in the octet string in "network byte order," as
- * specified in RFC 791. The least significant bit (LSB) of
- * each octet is the LSB of the corresponding byte in the network
- * address. For IP Version 4, as specified in RFC 791, the octet string
- * MUST contain exactly four octets.  For IP Version 6, as specified in
- * RFC 1883, the octet string MUST contain exactly sixteen octets.
+ * [RFC 5280 4.2.1.6 Subject Alternative Name]
+ * When the subjectAltName extension contains an iPAddress, the address
+ * MUST be stored in the octet string in "network byte order", as
+ * specified in [RFC791].  The least significant bit (LSB) of each octet
+ * is the LSB of the corresponding byte in the network address.  For IP
+ * version 4, as specified in [RFC791], the octet string MUST contain
+ * exactly four octets.  For IP version 6, as specified in
+ * [RFC 2460], the octet string MUST contain exactly sixteen octets.
  * <p>
- * [RFC2459 4.2.1.11 Name Constraints]
- * The syntax of iPAddress MUST be as described in section 4.2.1.7 with
- * the following additions specifically for Name Constraints.  For IPv4
- * addresses, the ipAddress field of generalName MUST contain eight (8)
- * octets, encoded in the style of RFC 1519 (CIDR) to represent an
- * address range.[RFC 1519]  For IPv6 addresses, the ipAddress field
+ * [RFC 5280 4.2.1.10 Name Constraints]
+ * The syntax of iPAddress MUST be as described in Section 4.2.1.6 with
+ * the following additions specifically for name constraints.  For IPv4
+ * addresses, the iPAddress field of GeneralName MUST contain eight (8)
+ * octets, encoded in the style of RFC 4632 (CIDR) to represent an
+ * address range [RFC 4632].  For IPv6 addresses, the iPAddress field
  * MUST contain 32 octets similarly encoded.  For example, a name
- * constraint for "class C" subnet 10.9.8.0 shall be represented as the
- * octets 0A 09 08 00 FF FF FF 00, representing the CIDR notation
- * 10.9.8.0/255.255.255.0.
+ * constraint for "class C" subnet 192.0.2.0 is represented as the
+ * octets C0 00 02 00 FF FF FF 00, representing the CIDR notation
+ * 192.0.2.0/24 (mask 255.255.255.0).
  * <p>
  * @see GeneralName
  * @see GeneralNameInterface
@@ -71,7 +69,7 @@ import sun.security.util.DerValue;
  */
 public class IPAddressName implements GeneralNameInterface {
     private byte[] address;
-    private boolean isIPv4;
+    private final boolean isIPv4;
     private String name;
 
     /**
@@ -127,7 +125,7 @@ public class IPAddressName implements GeneralNameInterface {
      */
     public IPAddressName(String name) throws IOException {
 
-        if (name == null || name.length() == 0) {
+        if (name == null || name.isEmpty()) {
             throw new IOException("IPAddress cannot be null or empty");
         }
         if (name.charAt(name.length() - 1) == '/') {
@@ -213,8 +211,7 @@ public class IPAddressName implements GeneralNameInterface {
             byte[] maskArray = bitArray.toByteArray();
 
             // copy mask bytes into mask portion of address
-            for (int i = 0; i < MASKSIZE; i++)
-                address[MASKSIZE+i] = maskArray[i];
+            System.arraycopy(maskArray, 0, address, MASKSIZE, MASKSIZE);
         }
     }
 
@@ -229,9 +226,9 @@ public class IPAddressName implements GeneralNameInterface {
      * Encode the IPAddress name into the DerOutputStream.
      *
      * @param out the DER stream to encode the IPAddressName to.
-     * @exception IOException on encoding errors.
      */
-    public void encode(DerOutputStream out) throws IOException {
+    @Override
+    public void encode(DerOutputStream out) {
         out.putOctetString(address);
     }
 
@@ -280,8 +277,7 @@ public class IPAddressName implements GeneralNameInterface {
 
                 // copy subdomain into new array and convert to BitArray
                 byte[] maskBytes = new byte[16];
-                for (int i=16; i < 32; i++)
-                    maskBytes[i-16] = address[i];
+                System.arraycopy(address, 16, maskBytes, 0, 16);
                 BitArray ba = new BitArray(16*8, maskBytes);
                 // Find first zero bit
                 int i=0;
@@ -314,16 +310,14 @@ public class IPAddressName implements GeneralNameInterface {
      *
      * @return true iff the names are identical.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (this == obj)
             return true;
 
-        if (!(obj instanceof IPAddressName))
+        if (!(obj instanceof IPAddressName otherName))
             return false;
 
-        IPAddressName otherName = (IPAddressName)obj;
         byte[] other = otherName.address;
 
         if (other.length != address.length)
@@ -341,10 +335,8 @@ public class IPAddressName implements GeneralNameInterface {
                 }
             }
             // Now compare masks
-            for (int i=maskLen; i < address.length; i++)
-                if (address[i] != other[i])
-                    return false;
-            return true;
+            return Arrays.equals(address, maskLen, address.length, other,
+                    maskLen, address.length);
         } else {
             // Two IPv4 host addresses or two IPv6 host addresses
             // Compare bytes
@@ -353,17 +345,11 @@ public class IPAddressName implements GeneralNameInterface {
     }
 
     /**
-     * Returns the hash code value for this object.
-     *
-     * @return a hash code value for this object.
+     * {@return the hash code value for this object}
      */
+    @Override
     public int hashCode() {
-        int retval = 0;
-
-        for (int i=0; i<address.length; i++)
-            retval += address[i] * i;
-
-        return retval;
+        return Arrays.hashCode(address);
     }
 
     /**
@@ -380,15 +366,16 @@ public class IPAddressName implements GeneralNameInterface {
      * </ul>.  These results are used in checking NameConstraints during
      * certification path verification.
      * <p>
-     * [RFC2459] The syntax of iPAddress MUST be as described in section
-     * 4.2.1.7 with the following additions specifically for Name Constraints.
-     * For IPv4 addresses, the ipAddress field of generalName MUST contain
-     * eight (8) octets, encoded in the style of RFC 1519 (CIDR) to represent an
-     * address range.[RFC 1519]  For IPv6 addresses, the ipAddress field
+     * [RFC 5280 4.2.1.10 Name Constraints]
+     * The syntax of iPAddress MUST be as described in Section 4.2.1.6 with
+     * the following additions specifically for name constraints.  For IPv4
+     * addresses, the iPAddress field of GeneralName MUST contain eight (8)
+     * octets, encoded in the style of RFC 4632 (CIDR) to represent an
+     * address range [RFC 4632].  For IPv6 addresses, the iPAddress field
      * MUST contain 32 octets similarly encoded.  For example, a name
-     * constraint for "class C" subnet 10.9.8.0 shall be represented as the
-     * octets 0A 09 08 00 FF FF FF 00, representing the CIDR notation
-     * 10.9.8.0/255.255.255.0.
+     * constraint for "class C" subnet 192.0.2.0 is represented as the
+     * octets C0 00 02 00 FF FF FF 00, representing the CIDR notation
+     * 192.0.2.0/24 (mask 255.255.255.0).
      *
      * @param inputName to be checked for being constrained
      * @return constraint type above
@@ -402,16 +389,17 @@ public class IPAddressName implements GeneralNameInterface {
             constraintType = NAME_DIFF_TYPE;
         else if (inputName.getType() != NAME_IP)
             constraintType = NAME_DIFF_TYPE;
-        else if (((IPAddressName)inputName).equals(this))
+        else if (inputName.equals(this))
             constraintType = NAME_MATCH;
         else {
             IPAddressName otherName = (IPAddressName)inputName;
             byte[] otherAddress = otherName.address;
-            if (otherAddress.length == 4 && address.length == 4)
+            if ((otherAddress.length == 4 && address.length == 4) ||
+                    (otherAddress.length == 16 && address.length == 16)) {
                 // Two host addresses
                 constraintType = NAME_SAME_TYPE;
-            else if ((otherAddress.length == 8 && address.length == 8) ||
-                     (otherAddress.length == 32 && address.length == 32)) {
+            } else if ((otherAddress.length == 8 && address.length == 8) ||
+                       (otherAddress.length == 32 && address.length == 32)) {
                 // Two subnet addresses
                 // See if one address fully encloses the other address
                 boolean otherSubsetOfThis = true;
@@ -446,7 +434,8 @@ public class IPAddressName implements GeneralNameInterface {
                     constraintType = NAME_WIDENS;
                 else
                     constraintType = NAME_SAME_TYPE;
-            } else if (otherAddress.length == 8 || otherAddress.length == 32) {
+            } else if ((otherAddress.length == 8 && address.length == 4) ||
+                       (otherAddress.length == 32 && address.length == 16)) {
                 //Other is a subnet, this is a host address
                 int i = 0;
                 int maskOffset = otherAddress.length/2;
@@ -460,7 +449,8 @@ public class IPAddressName implements GeneralNameInterface {
                     constraintType = NAME_WIDENS;
                 else
                     constraintType = NAME_SAME_TYPE;
-            } else if (address.length == 8 || address.length == 32) {
+            } else if ((otherAddress.length == 4 && address.length == 8) ||
+                       (otherAddress.length == 16 && address.length == 32)) {
                 //This is a subnet, other is a host address
                 int i = 0;
                 int maskOffset = address.length/2;

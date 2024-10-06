@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2023, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -87,6 +87,7 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.Vector;
 import javax.xml.XMLConstants;
+import jdk.xml.internal.JdkConstants;
 import jdk.xml.internal.JdkXmlUtils;
 
 /**
@@ -111,7 +112,7 @@ import jdk.xml.internal.JdkXmlUtils;
  * @author Elena Litani IBM
  * @author Andy Clark IBM
  * @author Neeraj Bajaj, Sun Microsystems, inc.
- * @LastModified: Nov 2017
+ * @LastModified: Apr 2023
  */
 public class XMLSchemaValidator
     implements XMLComponent, XMLDocumentFilter, FieldActivator, RevalidationHandler, XSElementDeclHelper {
@@ -263,9 +264,9 @@ public class XMLSchemaValidator
 
     /** Property identifier: Security property manager. */
     private static final String XML_SECURITY_PROPERTY_MANAGER =
-            Constants.XML_SECURITY_PROPERTY_MANAGER;
+            JdkConstants.XML_SECURITY_PROPERTY_MANAGER;
 
-    protected static final String OVERRIDE_PARSER = JdkXmlUtils.OVERRIDE_PARSER;
+    protected static final String OVERRIDE_PARSER = JdkConstants.OVERRIDE_PARSER;
 
     protected static final String USE_CATALOG = XMLConstants.USE_CATALOG;
 
@@ -323,7 +324,7 @@ public class XMLSchemaValidator
         null,
         null,
         null,
-        JdkXmlUtils.OVERRIDE_PARSER_DEFAULT,
+        JdkConstants.OVERRIDE_PARSER_DEFAULT,
         JdkXmlUtils.USE_CATALOG_DEFAULT
     };
 
@@ -346,13 +347,13 @@ public class XMLSchemaValidator
             JdkXmlUtils.CATALOG_FILES,
             JdkXmlUtils.CATALOG_PREFER,
             JdkXmlUtils.CATALOG_RESOLVE,
-            JdkXmlUtils.CDATA_CHUNK_SIZE
+            JdkConstants.CDATA_CHUNK_SIZE
         };
 
     /** Property defaults. */
     private static final Object[] PROPERTY_DEFAULTS =
         { null, null, null, null, null, null, null, null, null, null, null, null,
-            null, null, null, null, JdkXmlUtils.CDATA_CHUNK_SIZE_DEFAULT };
+            null, null, null, null, JdkConstants.CDATA_CHUNK_SIZE_DEFAULT };
 
     // this is the number of valuestores of each kind
     // we expect an element to have.  It's almost
@@ -1887,7 +1888,7 @@ public class XMLSchemaValidator
 
         // root element
         if (fElementDepth == -1 && fValidationManager.isGrammarFound()) {
-            if (fSchemaType == null) {
+            if (fSchemaType == null && !fUseGrammarPoolOnly) {
                 // schemaType is not specified
                 // if a DTD grammar is found, we do the same thing as Dynamic:
                 // if a schema grammar is found, validation is performed;
@@ -2429,7 +2430,7 @@ public class XMLSchemaValidator
                             fValueStoreCache.getValueStoreFor(id, selMatcher.getInitialDepth());
                         // nothing to do if nothing matched, or if not all
                         // fields are present.
-                        if (values != null && values.fValuesCount == values.fFieldCount)
+                        if (values != null && values.fHasValue)
                             values.endDocumentFragment();
                     }
                 }
@@ -3216,10 +3217,18 @@ public class XMLSchemaValidator
             // {required} is true matches one of the attribute information items in the element
             // information item's [attributes] as per clause 3.1 above.
             if (currUse.fUse == SchemaSymbols.USE_REQUIRED) {
-                if (!isSpecified)
-                    reportSchemaError(
-                        "cvc-complex-type.4",
-                        new Object[] { element.rawname, currDecl.fName });
+                if (!isSpecified) {
+                    if (currDecl.fTargetNamespace != null) {
+                       reportSchemaError(
+                                "cvc-complex-type.4_ns",
+                                new Object[] { element.rawname, currDecl.fName, currDecl.fTargetNamespace });
+                    }
+                    else {
+                       reportSchemaError(
+                                "cvc-complex-type.4",
+                                new Object[] { element.rawname, currDecl.fName });
+                    }
+                }
             }
             // if the attribute is not specified, then apply the value constraint
             if (!isSpecified && constType != XSConstants.VC_NONE) {
@@ -3718,6 +3727,7 @@ public class XMLSchemaValidator
 
         /** Current data value count. */
         protected int fValuesCount;
+        protected boolean fHasValue = false;
 
         /** global data */
         public final Vector<Object> fValues = new Vector<>();
@@ -3885,6 +3895,7 @@ public class XMLSchemaValidator
             }
             else {
                 fValuesCount++;
+                fHasValue = true;
             }
             fLocalValues[i] = actualValue;
             fLocalValueTypes[i] = valueType;

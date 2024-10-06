@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8046171
+ * @bug 8046171 8211065
  * @summary Setup nestmate calls to private methods then use
  *          modified jcod classes to introduce errors. Test with
  *          and without verification enabled
@@ -32,7 +32,7 @@
  *          MissingMethodWithSuper.jcod
  *          MissingNestHost.jcod
  * @run main TestInvokeErrors true
- * @run main/othervm -Xverify:none TestInvokeErrors false
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-BytecodeVerificationRemote -XX:-BytecodeVerificationLocal TestInvokeErrors false
  */
 
 public class TestInvokeErrors {
@@ -74,8 +74,12 @@ public class TestInvokeErrors {
                 m.priv_invoke();
                 throw new Error("Unexpected success invoking MissingNestHost.priv_invoke");
             }
-            catch (NoClassDefFoundError ncdfe) {
-                System.out.println("Got expected exception:" + ncdfe);
+            catch (IllegalAccessError iae) {
+                if (iae.getMessage().contains("java.lang.NoClassDefFoundError: NoSuchClass")) {
+                    System.out.println("Got expected exception:" + iae);
+                } else {
+                    throw new Error("Unexpected exception", iae);
+                }
             }
         }
     }
@@ -96,24 +100,20 @@ public class TestInvokeErrors {
             System.out.println("Got expected exception:" + nsme);
         }
 
-        try {
-            MissingMethodWithSuper m = new MissingMethodWithSuper();
-            m.priv_invoke();
-            throw new Error("Unexpected success invoking MissingMethodWithSuper.priv_invoke");
-        }
-        catch (NoSuchMethodError nsme) {
-            System.out.println("Got expected exception:" + nsme);
-        }
+        // This test was revised to expect successful invocation of the
+        // super class method - see JDK-8211065
+        MissingMethodWithSuper m = new MissingMethodWithSuper();
+        m.priv_invoke();
 
         // Verification of Helper will trigger the nestmate access check failure
         try {
             Helper.doTest();
         }
-        catch (NoClassDefFoundError ncdfe) {
+        catch (IllegalAccessError iae) {
             if (verifying)
-                System.out.println("Got expected exception:" + ncdfe);
+                System.out.println("Got expected exception:" + iae);
             else
-                throw new Error("Unexpected error loading Helper class with verification disabled");
+                throw new Error("Unexpected error loading Helper class with verification disabled", iae);
         }
     }
 }

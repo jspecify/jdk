@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,28 @@
 
 package sun.security.util;
 
+import jdk.internal.access.SharedSecrets;
+
 import java.io.IOException;
-
 import java.math.BigInteger;
-
 import java.security.*;
-
 import java.security.interfaces.*;
-
 import java.security.spec.*;
-
 import java.util.Arrays;
+import java.util.Objects;
 
-import sun.security.x509.X509Key;
+public final class ECUtil {
 
-public class ECUtil {
+    // Used by SunEC
+    public static byte[] sArray(BigInteger s, ECParameterSpec params) {
+        byte[] arr = s.toByteArray();
+        ArrayUtil.reverse(arr);
+        int byteLength = (params.getOrder().bitLength() + 7) / 8;
+        byte[] arrayS = new byte[byteLength];
+        int length = Math.min(byteLength, arr.length);
+        System.arraycopy(arr, 0, arrayS, 0, length);
+        return arrayS;
+    }
 
     // Used by SunPKCS11 and SunJSSE.
     public static ECPoint decodePoint(byte[] data, EllipticCurve curve)
@@ -109,7 +116,7 @@ public class ECUtil {
             ECParameterSpec params) throws InvalidKeySpecException {
         KeyFactory keyFactory = getKeyFactory();
         ECPublicKeySpec keySpec = new ECPublicKeySpec(w, params);
-        X509Key key = (X509Key)keyFactory.generatePublic(keySpec);
+        Key key = keyFactory.generatePublic(keySpec);
 
         return key.getEncoded();
     }
@@ -118,8 +125,11 @@ public class ECUtil {
             throws InvalidKeySpecException {
         KeyFactory keyFactory = getKeyFactory();
         PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-
-        return (ECPrivateKey)keyFactory.generatePrivate(keySpec);
+        try {
+            return (ECPrivateKey) keyFactory.generatePrivate(keySpec);
+        } finally {
+            SharedSecrets.getJavaSecuritySpecAccess().clearEncodedKeySpec(keySpec);
+        }
     }
 
     public static ECPrivateKey generateECPrivateKey(BigInteger s,
@@ -130,21 +140,16 @@ public class ECUtil {
         return (ECPrivateKey)keyFactory.generatePrivate(keySpec);
     }
 
-    public static AlgorithmParameters getECParameters(Provider p) {
+    public static AlgorithmParameters getECParameters() {
         try {
-            if (p != null) {
-                return AlgorithmParameters.getInstance("EC", p);
-            }
-
             return AlgorithmParameters.getInstance("EC");
         } catch (NoSuchAlgorithmException nsae) {
             throw new RuntimeException(nsae);
         }
     }
 
-    public static byte[] encodeECParameterSpec(Provider p,
-                                               ECParameterSpec spec) {
-        AlgorithmParameters parameters = getECParameters(p);
+    public static byte[] encodeECParameterSpec(ECParameterSpec spec) {
+        AlgorithmParameters parameters = getECParameters();
 
         try {
             parameters.init(spec);
@@ -160,9 +165,8 @@ public class ECUtil {
         }
     }
 
-    public static ECParameterSpec getECParameterSpec(Provider p,
-                                                     ECParameterSpec spec) {
-        AlgorithmParameters parameters = getECParameters(p);
+    public static ECParameterSpec getECParameterSpec(ECParameterSpec spec) {
+        AlgorithmParameters parameters = getECParameters();
 
         try {
             parameters.init(spec);
@@ -172,10 +176,9 @@ public class ECUtil {
         }
     }
 
-    public static ECParameterSpec getECParameterSpec(Provider p,
-                                                     byte[] params)
+    public static ECParameterSpec getECParameterSpec(byte[] params)
             throws IOException {
-        AlgorithmParameters parameters = getECParameters(p);
+        AlgorithmParameters parameters = getECParameters();
 
         parameters.init(params);
 
@@ -186,8 +189,8 @@ public class ECUtil {
         }
     }
 
-    public static ECParameterSpec getECParameterSpec(Provider p, String name) {
-        AlgorithmParameters parameters = getECParameters(p);
+    public static ECParameterSpec getECParameterSpec(String name) {
+        AlgorithmParameters parameters = getECParameters();
 
         try {
             parameters.init(new ECGenParameterSpec(name));
@@ -197,8 +200,8 @@ public class ECUtil {
         }
     }
 
-    public static ECParameterSpec getECParameterSpec(Provider p, int keySize) {
-        AlgorithmParameters parameters = getECParameters(p);
+    public static ECParameterSpec getECParameterSpec(int keySize) {
+        AlgorithmParameters parameters = getECParameters();
 
         try {
             parameters.init(new ECKeySizeParameterSpec(keySize));
@@ -209,9 +212,9 @@ public class ECUtil {
 
     }
 
-    public static String getCurveName(Provider p, ECParameterSpec spec) {
+    public static String getCurveName(ECParameterSpec spec) {
         ECGenParameterSpec nameSpec;
-        AlgorithmParameters parameters = getECParameters(p);
+        AlgorithmParameters parameters = getECParameters();
 
         try {
             parameters.init(spec);
@@ -225,6 +228,151 @@ public class ECUtil {
         }
 
         return nameSpec.getName();
+    }
+
+    public static boolean equals(ECParameterSpec spec1, ECParameterSpec spec2) {
+        if (spec1 == spec2) {
+            return true;
+        }
+
+        if (spec1 == null || spec2 == null) {
+            return false;
+        }
+        return (spec1.getCofactor() == spec2.getCofactor() &&
+                spec1.getOrder().equals(spec2.getOrder()) &&
+                spec1.getCurve().equals(spec2.getCurve()) &&
+                spec1.getGenerator().equals(spec2.getGenerator()));
+    }
+
+
+    // Convert the concatenation R and S in into their DER encoding
+    public static byte[] encodeSignature(byte[] signature) throws SignatureException {
+
+        try {
+
+            int n = signature.length >> 1;
+            byte[] bytes = new byte[n];
+            System.arraycopy(signature, 0, bytes, 0, n);
+            BigInteger r = new BigInteger(1, bytes);
+            System.arraycopy(signature, n, bytes, 0, n);
+            BigInteger s = new BigInteger(1, bytes);
+
+            DerOutputStream out = new DerOutputStream(signature.length + 10);
+            out.putInteger(r);
+            out.putInteger(s);
+            DerValue result =
+                    new DerValue(DerValue.tag_Sequence, out.toByteArray());
+
+            return result.toByteArray();
+
+        } catch (Exception e) {
+            throw new SignatureException("Could not encode signature", e);
+        }
+    }
+
+    // Convert the DER encoding of R and S into a concatenation of R and S
+    public static byte[] decodeSignature(byte[] sig) throws SignatureException {
+
+        try {
+            // Enforce strict DER checking for signatures
+            DerInputStream in = new DerInputStream(sig, 0, sig.length, false);
+            DerValue[] values = in.getSequence(2);
+
+            // check number of components in the read sequence
+            // and trailing data
+            if ((values.length != 2) || (in.available() != 0)) {
+                throw new IOException("Invalid encoding for signature");
+            }
+
+            BigInteger r = values[0].getPositiveBigInteger();
+            BigInteger s = values[1].getPositiveBigInteger();
+
+            // trim leading zeroes
+            byte[] rBytes = trimZeroes(r.toByteArray());
+            byte[] sBytes = trimZeroes(s.toByteArray());
+            int k = Math.max(rBytes.length, sBytes.length);
+            // r and s each occupy half the array
+            byte[] result = new byte[k << 1];
+            System.arraycopy(rBytes, 0, result, k - rBytes.length,
+                    rBytes.length);
+            System.arraycopy(sBytes, 0, result, result.length - sBytes.length,
+                    sBytes.length);
+            return result;
+
+        } catch (Exception e) {
+            throw new SignatureException("Invalid encoding for signature", e);
+        }
+    }
+
+    /**
+     * Check an ECPrivateKey to make sure the scalar value is within the
+     * range of the order [1, n-1].
+     *
+     * @param prv the private key to be checked.
+     *
+     * @return the private key that was evaluated.
+     *
+     * @throws InvalidKeyException if the key's scalar value is not within
+     *      the range 1 <= x < n where n is the order of the generator.
+     */
+    public static ECPrivateKey checkPrivateKey(ECPrivateKey prv)
+            throws InvalidKeyException {
+        // The private key itself cannot be null, but if the private
+        // key doesn't divulge the parameters or more importantly the S value
+        // (possibly because it lives on a provider that prevents release
+        // of those values, e.g. HSM), then we cannot perform the check and
+        // will allow the operation to proceed.
+        Objects.requireNonNull(prv, "Private key must be non-null");
+        ECParameterSpec spec = prv.getParams();
+        if (spec != null) {
+            BigInteger order = spec.getOrder();
+            BigInteger sVal = prv.getS();
+
+            if (order != null && sVal != null) {
+                if (sVal.compareTo(BigInteger.ZERO) <= 0 ||
+                        sVal.compareTo(order) >= 0) {
+                    throw new InvalidKeyException("The private key must be " +
+                            "within the range [1, n - 1]");
+                }
+            }
+        }
+
+        return prv;
+    }
+
+    // Partial Public key validation as described in NIST SP 800-186 Appendix D.1.1.1.
+    // The extra step in the full validation (described in Appendix D.1.1.2) is implemented
+    // as sun.security.ec.ECOperations#checkOrder inside the jdk.crypto.ec module.
+    public static void validatePublicKey(ECPoint point, ECParameterSpec spec)
+            throws InvalidKeyException {
+        BigInteger p;
+        if (spec.getCurve().getField() instanceof ECFieldFp f) {
+            p = f.getP();
+        } else {
+            throw new InvalidKeyException("Only curves over prime fields are supported");
+        }
+
+        // 1. If Q is the point at infinity, output REJECT
+        if (point.equals(ECPoint.POINT_INFINITY)) {
+            throw new InvalidKeyException("Public point is at infinity");
+        }
+        // 2. Verify that x and y are integers in the interval [0, p-1]. Output REJECT if verification fails.
+        BigInteger x = point.getAffineX();
+        if (x.signum() < 0 || x.compareTo(p) >= 0) {
+            throw new InvalidKeyException("Public point x is not in the interval [0, p-1]");
+        }
+        BigInteger y = point.getAffineY();
+        if (y.signum() < 0 || y.compareTo(p) >= 0) {
+            throw new InvalidKeyException("Public point y is not in the interval [0, p-1]");
+        }
+        // 3. Verify that (x, y) is a point on the W_a,b by checking that (x, y) satisfies the defining
+        // equation y^2 = x^3 + a x + b where computations are carried out in GF(p). Output REJECT
+        // if verification fails.
+        BigInteger left = y.modPow(BigInteger.TWO, p);
+        BigInteger right = x.pow(3).add(spec.getCurve().getA().multiply(x)).add(spec.getCurve().getB()).mod(p);
+        if (!left.equals(right)) {
+            throw new InvalidKeyException("Public point is not on the curve");
+        }
     }
 
     private ECUtil() {}

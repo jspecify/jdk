@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -204,7 +204,7 @@ public class WritableRaster extends Raster {
      * @param bandList   Array of band indices, or null to use all bands.
      * @return a {@code WritableRaster} sharing all or part of the
      *         {@code DataBuffer} of this {@code WritableRaster}.
-     * @exception RasterFormatException if the subregion is outside of the
+     * @throws RasterFormatException if the subregion is outside of the
      *                               raster bounds.
      * @throws RasterFormatException if {@code w} or
      *         {@code h}
@@ -217,7 +217,7 @@ public class WritableRaster extends Raster {
     public WritableRaster createWritableChild(int parentX, int parentY,
                                               int w, int h,
                                               int childMinX, int childMinY,
-                                              int bandList[]) {
+                                              int[] bandList) {
         if (parentX < this.minX) {
             throw new RasterFormatException("parentX lies outside raster");
         }
@@ -422,36 +422,19 @@ public class WritableRaster extends Raster {
      * @throws NullPointerException if srcRaster is null.
      */
     public void setRect(int dx, int dy, Raster srcRaster) {
-        int width  = srcRaster.getWidth();
-        int height = srcRaster.getHeight();
         int srcOffX = srcRaster.getMinX();
         int srcOffY = srcRaster.getMinY();
-        int dstOffX = dx+srcOffX;
-        int dstOffY = dy+srcOffY;
-
-        // Clip to this raster
-        if (dstOffX < this.minX) {
-            int skipX = this.minX - dstOffX;
-            width -= skipX;
-            srcOffX += skipX;
-            dstOffX = this.minX;
-        }
-        if (dstOffY < this.minY) {
-            int skipY = this.minY - dstOffY;
-            height -= skipY;
-            srcOffY += skipY;
-            dstOffY = this.minY;
-        }
-        if (dstOffX+width > this.minX+this.width) {
-            width = this.minX + this.width - dstOffX;
-        }
-        if (dstOffY+height > this.minY+this.height) {
-            height = this.minY + this.height - dstOffY;
-        }
-
-        if (width <= 0 || height <= 0) {
+        Rectangle bsrc = new Rectangle(dx+srcOffX, dy+srcOffY, srcRaster.getWidth(), srcRaster.getHeight());
+        Rectangle clip = bsrc.intersection(new Rectangle(minX, minY, width, height));
+        if (clip.isEmpty()) {
             return;
         }
+        srcOffX += clip.x - bsrc.x;
+        srcOffY += clip.y - bsrc.y;
+        final int dstOffX = clip.x;
+        final int dstOffY = clip.y;
+        final int width   = clip.width;
+        final int height  = clip.height;
 
         switch (srcRaster.getSampleModel().getDataType()) {
         case DataBuffer.TYPE_BYTE:
@@ -504,7 +487,7 @@ public class WritableRaster extends Raster {
      * @throws ArrayIndexOutOfBoundsException if the coordinates are not
      * in bounds, or if iArray is too small to hold the input.
      */
-    public void setPixel(int x, int y, int iArray[]) {
+    public void setPixel(int x, int y, int[] iArray) {
         sampleModel.setPixel(x-sampleModelTranslateX,y-sampleModelTranslateY,
                              iArray,dataBuffer);
     }
@@ -522,7 +505,7 @@ public class WritableRaster extends Raster {
      * @throws ArrayIndexOutOfBoundsException if the coordinates are not
      * in bounds, or if fArray is too small to hold the input.
      */
-    public void setPixel(int x, int y, float fArray[]) {
+    public void setPixel(int x, int y, float[] fArray) {
         sampleModel.setPixel(x-sampleModelTranslateX,y-sampleModelTranslateY,
                              fArray,dataBuffer);
     }
@@ -540,7 +523,7 @@ public class WritableRaster extends Raster {
      * @throws ArrayIndexOutOfBoundsException if the coordinates are not
      * in bounds, or if dArray is too small to hold the input.
      */
-    public void setPixel(int x, int y, double dArray[]) {
+    public void setPixel(int x, int y, double[] dArray) {
         sampleModel.setPixel(x-sampleModelTranslateX,y-sampleModelTranslateY,
                              dArray,dataBuffer);
     }
@@ -561,7 +544,7 @@ public class WritableRaster extends Raster {
      * @throws ArrayIndexOutOfBoundsException if the coordinates are not
      * in bounds, or if iArray is too small to hold the input.
      */
-    public void setPixels(int x, int y, int w, int h, int iArray[]) {
+    public void setPixels(int x, int y, int w, int h, int[] iArray) {
         sampleModel.setPixels(x-sampleModelTranslateX,y-sampleModelTranslateY,
                               w,h,iArray,dataBuffer);
     }
@@ -582,7 +565,7 @@ public class WritableRaster extends Raster {
      * @throws ArrayIndexOutOfBoundsException if the coordinates are not
      * in bounds, or if fArray is too small to hold the input.
      */
-    public void setPixels(int x, int y, int w, int h, float fArray[]) {
+    public void setPixels(int x, int y, int w, int h, float[] fArray) {
         sampleModel.setPixels(x-sampleModelTranslateX,y-sampleModelTranslateY,
                               w,h,fArray,dataBuffer);
     }
@@ -603,7 +586,7 @@ public class WritableRaster extends Raster {
      * @throws ArrayIndexOutOfBoundsException if the coordinates are not
      * in bounds, or if dArray is too small to hold the input.
      */
-    public void setPixels(int x, int y, int w, int h, double dArray[]) {
+    public void setPixels(int x, int y, int w, int h, double[] dArray) {
         sampleModel.setPixels(x-sampleModelTranslateX,y-sampleModelTranslateY,
                               w,h,dArray,dataBuffer);
     }
@@ -685,7 +668,7 @@ public class WritableRaster extends Raster {
      * hold the input.
      */
     public void setSamples(int x, int y, int w, int h, int b,
-                           int iArray[]) {
+                           int[] iArray) {
         sampleModel.setSamples(x-sampleModelTranslateX,y-sampleModelTranslateY,
                                w,h,b,iArray,dataBuffer);
     }
@@ -709,7 +692,7 @@ public class WritableRaster extends Raster {
      * hold the input.
      */
     public void setSamples(int x, int y, int w, int h, int b,
-                           float fArray[]) {
+                           float[] fArray) {
         sampleModel.setSamples(x-sampleModelTranslateX,y-sampleModelTranslateY,
                                w,h,b,fArray,dataBuffer);
     }
@@ -733,7 +716,7 @@ public class WritableRaster extends Raster {
      * hold the input.
      */
     public void setSamples(int x, int y, int w, int h, int b,
-                           double dArray[]) {
+                           double[] dArray) {
         sampleModel.setSamples(x-sampleModelTranslateX,y-sampleModelTranslateY,
                               w,h,b,dArray,dataBuffer);
     }

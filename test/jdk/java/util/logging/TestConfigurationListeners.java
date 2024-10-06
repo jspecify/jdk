@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,8 +48,8 @@ import java.util.logging.LoggingPermission;
  *                LogManager.removeConfigurationListener;
  * @build TestConfigurationListeners
  * @run main/othervm TestConfigurationListeners UNSECURE
- * @run main/othervm TestConfigurationListeners PERMISSION
- * @run main/othervm TestConfigurationListeners SECURE
+ * @run main/othervm -Djava.security.manager=allow TestConfigurationListeners PERMISSION
+ * @run main/othervm -Djava.security.manager=allow TestConfigurationListeners SECURE
  * @author danielfuchs
  */
 public class TestConfigurationListeners {
@@ -458,6 +458,8 @@ public class TestConfigurationListeners {
 
     public static class SimplePolicy extends Policy {
 
+        static final Policy DEFAULT_POLICY = Policy.getPolicy();
+
         final Permissions permissions;
         public SimplePolicy(TestCase test) {
             permissions = new Permissions();
@@ -472,7 +474,7 @@ public class TestConfigurationListeners {
 
         @Override
         public boolean implies(ProtectionDomain domain, Permission permission) {
-            return permissions.implies(permission);
+            return permissions.implies(permission) || DEFAULT_POLICY.implies(domain, permission);
         }
 
         @Override

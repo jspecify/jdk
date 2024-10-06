@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,21 @@
  */
 
 import java.util.Arrays;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
-import jdk.testlibrary.JDKToolLauncher;
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.Utils;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.JDKToolLauncher;
+
+import jtreg.SkippedException;
 
 /*
  * @test
+ * @bug 8273187 8308033
  * @summary Unit test for jstack utility
- * @library /lib/testlibrary
- * @build jdk.testlibrary.*
+ * @library /test/lib
  * @run main BasicJStackTest
  */
 public class BasicJStackTest {
@@ -39,23 +44,47 @@ public class BasicJStackTest {
     private static ProcessBuilder processBuilder = new ProcessBuilder();
 
     public static void main(String[] args) throws Exception {
+        if (Thread.currentThread().isVirtual()) {
+            // This test runs jstack against the current process and then asserts the
+            // presence of current thread in the stacktraces. We skip this test
+            // when the current thread is a virtual thread since "jstack" command doesn't
+            // print the stacktraces of virtual threads.
+            throw new SkippedException("skipping test since current thread is a virtual thread");
+        }
         testJstackNoArgs();
         testJstack_l();
+        testJstackUTF8Encoding();
     }
 
     private static void testJstackNoArgs() throws Exception {
-        OutputAnalyzer output = jstack();
+        String marker = "testJstackNoArgs";
+        OutputAnalyzer output = jstack(marker);
         output.shouldHaveExitValue(0);
+        output.shouldContain(marker);
     }
 
     private static void testJstack_l() throws Exception {
-        OutputAnalyzer output = jstack("-l");
+        String marker = "testJstack_l";
+        OutputAnalyzer output = jstack(marker, "-l");
         output.shouldHaveExitValue(0);
+        output.shouldContain(marker);
     }
 
-    private static OutputAnalyzer jstack(String... toolArgs) throws Exception {
+    private static void testJstackUTF8Encoding() throws Exception {
+        String marker = "markerName" + "\u00e4\u0bb5".repeat(60);
+        OutputAnalyzer output = jstack(marker);
+        output.shouldHaveExitValue(0);
+        output.shouldContain(marker);
+    }
+
+    private static OutputAnalyzer jstack(String marker, String... toolArgs) throws Exception {
+        Charset cs = StandardCharsets.UTF_8;
+        Thread.currentThread().setName(marker);
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jstack");
+        launcher.addVMArgs(Utils.getFilteredTestJavaOpts("-XX:+UsePerfData"));
         launcher.addVMArg("-XX:+UsePerfData");
+        launcher.addVMArg("-Dfile.encoding=" + cs);
+        launcher.addVMArg("-Dsun.stdout.encoding=" + cs);
         if (toolArgs != null) {
             for (String toolArg : toolArgs) {
                 launcher.addToolArg(toolArg);
@@ -65,7 +94,7 @@ public class BasicJStackTest {
 
         processBuilder.command(launcher.getCommand());
         System.out.println(Arrays.toString(processBuilder.command().toArray()).replace(",", ""));
-        OutputAnalyzer output = ProcessTools.executeProcess(processBuilder);
+        OutputAnalyzer output = ProcessTools.executeProcess(processBuilder, null, cs);
         System.out.println(output.getOutput());
 
         return output;

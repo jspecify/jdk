@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,84 +23,109 @@
 
 /*
  * @test
- * @bug      4927167 4974929 7010344 8025633 8081854 8182765 8187288
+ * @bug      4927167 4974929 6381729 7010344 8025633 8081854 8182765 8187288 8261976 8313931
  * @summary  When the type parameters are more than 10 characters in length,
  *           make sure there is a line break between type params and return type
  *           in member summary. Also, test for type parameter links in package-summary and
  *           class-use pages. The class/annotation pages should check for type
  *           parameter links in the class/annotation signature section when -linksource is set.
- * @author   jamieh
- * @library  ../lib
+ *           Verify that generic type parameters on constructors are documented.
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestTypeParameters
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestTypeParameters extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestTypeParameters tester = new TestTypeParameters();
+        var tester = new TestTypeParameters();
         tester.runTests();
     }
 
     @Test
-    void test1() {
+    public void test1() {
         javadoc("-d", "out-1",
                 "-use",
+                "--no-platform-links",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("pkg/C.html", true,
-                "<td class=\"colFirst\"><code>&lt;W extends java.lang.String,&#8203;V extends "
-                + "java.util.List&gt;<br>java.lang.Object</code></td>",
+                """
+                    <div class="col-first odd-row-color method-summary-table method-summary-table-ta\
+                    b2 method-summary-table-tab4"><code>&lt;W extends java.lang.String,<wbr>
+                    V extends java.util.List&gt;<br>java.lang.Object</code></div>""",
                 "<code>&lt;T&gt;&nbsp;java.lang.Object</code>");
 
         checkOutput("pkg/package-summary.html", true,
-                "C</a>&lt;E extends <a href=\"Parent.html\" "
-                + "title=\"class in pkg\">Parent</a>&gt;");
+                """
+                    C</a>&lt;E extends <a href="Parent.html" title="class in pkg">Parent</a>&gt;""");
 
         checkOutput("pkg/class-use/Foo4.html", true,
-                "<a href=\"../ClassUseTest3.html\" title=\"class in pkg\">"
-                + "ClassUseTest3</a>&lt;T extends <a href=\"../ParamTest2.html\" "
-                + "title=\"class in pkg\">ParamTest2</a>&lt;java.util.List&lt;? extends "
-                + "<a href=\"../Foo4.html\" title=\"class in pkg\">Foo4</a>&gt;&gt;&gt;");
+                """
+                    <a href="../ClassUseTest3.html" class="type-name-link" title="class in pkg">Clas\
+                    sUseTest3</a>&lt;T extends <a href="../ParamTest2.html" title="class in pkg">Par\
+                    amTest2</a>&lt;java.util.List&lt;? extends <a href="../Foo4.html" title="class i\
+                    n pkg">Foo4</a>&gt;&gt;&gt;""");
 
         // Nested type parameters
         checkOutput("pkg/C.html", true,
-                "<a id=\"formatDetails(java.util.Collection,java.util.Collection)\">\n"
-                + "<!--   -->\n"
-                + "</a>");
+                """
+                    <section class="detail" id="formatDetails(java.util.Collection,java.util.Collection)">
+                    <h3>formatDetails</h3>""");
     }
 
     @Test
-    void test1_html4() {
-        javadoc("-d", "out-1-html4",
-                "-html4",
-                "-use",
-                "-sourcepath", testSrc,
-                "pkg");
-        checkExit(Exit.OK);
-
-        // Nested type parameters
-        checkOutput("pkg/C.html", true,
-                "<a name=\"formatDetails-java.util.Collection-java.util.Collection-\">\n"
-                + "<!--   -->\n"
-                + "</a>");
-    }
-
-    @Test
-    void test2() {
+    public void test2() {
         javadoc("-d", "out-2",
                 "-linksource",
+                "--no-platform-links",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("pkg/ClassUseTest3.html", true,
-            "public class <a href=\"../src-html/pkg/ClassUseTest3.html#line.28\">" +
-            "ClassUseTest3</a>&lt;T extends <a href=\"ParamTest2.html\" " +
-            "title=\"class in pkg\">ParamTest2</a>&lt;java.util.List&lt;? extends " +
-            "<a href=\"Foo4.html\" title=\"class in pkg\">Foo4</a>&gt;&gt;&gt;");
+                """
+                    public class </span><span class="element-name"><a href="../src-html/pkg/ClassUse\
+                    Test3.html#line-28">ClassUseTest3</a>&lt;T extends <a href="ParamTest2.html" tit\
+                    le="class in pkg">ParamTest2</a>&lt;java.util.List&lt;? extends <a href="Foo4.ht\
+                    ml" title="class in pkg">Foo4</a>&gt;&gt;&gt;""");
+    }
+
+    @Test
+    public void test3() {
+        javadoc("-d", "out-3",
+                "-Xdoclint:none",
+                "--no-platform-links",
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+
+        checkOutput("pkg/CtorTypeParam.html", true,
+                """
+                    <div class="col-first even-row-color"><code>&nbsp;&lt;T extends java.lang.Runnable&gt;<br></code></div>
+                    <div class="col-constructor-name even-row-color"><code>\
+                    <a href="#%3Cinit%3E()" class="member-name-link">CtorTypeParam</a>()</code></div>
+                    <div class="col-last even-row-color">
+                    <div class="block">Generic constructor.</div>""",
+                """
+                    <div class="member-signature"><span class="modifiers">public</span>\
+                    &nbsp;<span class="type-parameters">&lt;T extends java.lang.Runnable&gt;</span>\
+                    &nbsp;<span class="element-name">CtorTypeParam</span>()</div>""",
+                """
+                    <a href="#%3Cinit%3E()-type-param-T"><code>T</code></a>""",
+                """
+                    <dt>Type Parameters:</dt>
+                    <dd><span id="&lt;init&gt;()-type-param-T"><code>T</code> - the type parameter</span></dd>""",
+                """
+                    <dt>See Also:</dt>
+                    <dd>
+                    <ul class="tag-list">
+                    <li><a href="#%3Cinit%3E()-type-param-T">link to type parameter</a></li>
+                    </ul>""");
     }
 }

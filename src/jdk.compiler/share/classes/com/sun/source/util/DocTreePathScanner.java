@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,9 +35,20 @@ import com.sun.source.doctree.DocTree;
  * Inside your method, call super.visitXYZ to visit descendant
  * nodes.
  *
+ * @param <R> the return type of this visitor's methods.  Use {@link
+ *            Void} for visitors that do not need to return results.
+ * @param <P> the type of the additional parameter to this visitor's
+ *            methods.  Use {@code Void} for visitors that do not need an
+ *            additional parameter.
+ *
  * @since 1.8
  */
 public class DocTreePathScanner<R, P> extends DocTreeScanner<R, P> {
+    /**
+     * Constructs a {@code DocTreePathScanner}.
+     */
+    public DocTreePathScanner() {}
+
     /**
      * Scans a tree from a position identified by a tree path.
      * @param path the path

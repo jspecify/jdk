@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package sun.font;
 
-import java.awt.Font;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -33,23 +32,23 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.Scanner;
+
 import sun.awt.FcFontManager;
 import sun.awt.FontConfiguration;
 import sun.awt.FontDescriptor;
 import sun.awt.SunToolkit;
-import sun.font.CompositeFontDescriptor;
-import sun.font.FontManager;
-import sun.font.FontConfigManager.FontConfigInfo;
 import sun.font.FontConfigManager.FcCompFont;
 import sun.font.FontConfigManager.FontConfigFont;
-import sun.java2d.SunGraphicsEnvironment;
+import sun.font.FontConfigManager.FontConfigInfo;
 import sun.util.logging.PlatformLogger;
+
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 public class FcFontConfiguration extends FontConfiguration {
 
@@ -159,7 +158,7 @@ public class FcFontConfiguration extends FontConfiguration {
 
     @Override
     protected Charset getDefaultFontCharset(String fontName) {
-        return Charset.forName("ISO8859_1");
+        return ISO_8859_1;
     }
 
     @Override
@@ -180,7 +179,7 @@ public class FcFontConfiguration extends FontConfiguration {
         String[] componentFaceNames = cfi[idx].getComponentFaceNames();
         FontDescriptor[] ret = new FontDescriptor[componentFaceNames.length];
         for (int i = 0; i < componentFaceNames.length; i++) {
-            ret[i] = new FontDescriptor(componentFaceNames[i], StandardCharsets.ISO_8859_1.newEncoder(), new int[0]);
+            ret[i] = new FontDescriptor(componentFaceNames[i], ISO_8859_1.newEncoder(), new int[0]);
         }
 
         return ret;
@@ -264,7 +263,7 @@ public class FcFontConfiguration extends FontConfiguration {
                 int index;
                 for (index = 0; index < fcFonts.length; index++) {
                     fileNames[index] = fcFonts[index].fontFile;
-                    faceNames[index] = fcFonts[index].familyName;
+                    faceNames[index] = fcFonts[index].fullName;
                 }
 
                 if (installedFallbackFontFiles != null) {
@@ -288,14 +287,22 @@ public class FcFontConfiguration extends FontConfiguration {
     /**
      * Gets the OS version string from a Linux release-specific file.
      */
-    private String getVersionString(File f){
-        try {
-            Scanner sc  = new Scanner(f);
+    private String getVersionString(File f) {
+        try (Scanner sc  = new Scanner(f)) {
             return sc.findInLine("(\\d)+((\\.)(\\d)+)*");
-        }
-        catch (Exception e){
+        } catch (Exception e) {
         }
         return null;
+    }
+
+    private String extractInfo(String s) {
+        if (s == null) {
+            return null;
+        }
+        if (s.startsWith("\"")) s = s.substring(1);
+        if (s.endsWith("\"")) s = s.substring(0, s.length()-1);
+        s = s.replace(' ', '_');
+        return s;
     }
 
     /**
@@ -317,9 +324,11 @@ public class FcFontConfiguration extends FontConfiguration {
                      * For Ubuntu the ID is "Ubuntu".
                      */
                     Properties props = new Properties();
-                    props.load(new FileInputStream(f));
-                    osName = props.getProperty("DISTRIB_ID");
-                    osVersion =  props.getProperty("DISTRIB_RELEASE");
+                    try (FileInputStream fis = new FileInputStream(f)) {
+                        props.load(fis);
+                    }
+                    osName = extractInfo(props.getProperty("DISTRIB_ID"));
+                    osVersion = extractInfo(props.getProperty("DISTRIB_RELEASE"));
             } else if ((f = new File("/etc/redhat-release")).canRead()) {
                 osName = "RedHat";
                 osVersion = getVersionString(f);
@@ -332,6 +341,18 @@ public class FcFontConfiguration extends FontConfiguration {
             } else if ((f = new File("/etc/fedora-release")).canRead()) {
                 osName = "Fedora";
                 osVersion = getVersionString(f);
+            } else if ((f = new File("/etc/os-release")).canRead()) {
+                Properties props = new Properties();
+                try (FileInputStream fis = new FileInputStream(f)) {
+                    props.load(fis);
+                }
+                osName = extractInfo(props.getProperty("NAME"));
+                osVersion = extractInfo(props.getProperty("VERSION_ID"));
+                if (osName.equals("SLES")) {
+                    osName = "SuSE";
+                } else {
+                    osName = extractInfo(props.getProperty("ID"));
+                }
             }
         } catch (Exception e) {
             if (FontUtilities.debugFonts()) {
@@ -357,9 +378,11 @@ public class FcFontConfiguration extends FontConfiguration {
             String version = System.getProperty("java.version");
             String fs = File.separator;
             String dir = userDir+fs+".java"+fs+"fonts"+fs+version;
-            String lang = SunToolkit.getStartupLocale().getLanguage();
+            Locale locale = SunToolkit.getStartupLocale();
+            String lang = locale.getLanguage();
+            String country = locale.getCountry();
             String name = "fcinfo-"+fileVersion+"-"+hostname+"-"+
-                osName+"-"+osVersion+"-"+lang+".properties";
+                osName+"-"+osVersion+"-"+lang+"-"+country+".properties";
             fcInfoFileName = dir+fs+name;
         }
         return new File(fcInfoFileName);
@@ -385,10 +408,12 @@ public class FcFontConfiguration extends FontConfiguration {
             props.setProperty(styleKey+".length",
                               Integer.toString(fci.allFonts.length));
             for (int j=0; j<fci.allFonts.length; j++) {
-                props.setProperty(styleKey+"."+j+".family",
-                                  fci.allFonts[j].familyName);
                 props.setProperty(styleKey+"."+j+".file",
                                   fci.allFonts[j].fontFile);
+                if (fci.allFonts[j].fullName != null) {
+                    props.setProperty(styleKey+"."+j+".fullName",
+                                      fci.allFonts[j].fullName);
+                }
             }
         }
         try {
@@ -400,10 +425,9 @@ public class FcFontConfiguration extends FontConfiguration {
             File dir = fcInfoFile.getParentFile();
             dir.mkdirs();
             File tempFile = Files.createTempFile(dir.toPath(), "fcinfo", null).toFile();
-            FileOutputStream fos = new FileOutputStream(tempFile);
-            props.store(fos,
-                      "JDK Font Configuration Generated File: *Do Not Edit*");
-            fos.close();
+            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                props.store(fos, "JDK Font Configuration Generated File: *Do Not Edit*");
+            }
             boolean renamed = tempFile.renameTo(fcInfoFile);
             if (!renamed && FontUtilities.debugFonts()) {
                 System.out.println("rename failed");
@@ -424,23 +448,26 @@ public class FcFontConfiguration extends FontConfiguration {
     private void readFcInfo() {
         File fcFile = getFcInfoFile();
         if (!fcFile.exists()) {
+            if (FontUtilities.debugFonts()) {
+                warning("fontconfig info file " + fcFile.toString() + " does not exist");
+            }
             return;
         }
         Properties props = new Properties();
-        FcFontManager fm = (FcFontManager) fontManager;
-        FontConfigManager fcm = fm.getFontConfigManager();
-        try {
-            FileInputStream fis = new FileInputStream(fcFile);
+        try (FileInputStream fis = new FileInputStream(fcFile)) {
             props.load(fis);
-            fis.close();
         } catch (IOException e) {
             if (FontUtilities.debugFonts()) {
-                warning("IOException reading from "+fcFile.toString());
+                warning("IOException (" + e.getCause() + ") reading from " + fcFile.toString());
             }
             return;
         }
         String version = (String)props.get("version");
         if (version == null || !version.equals(fileVersion)) {
+            if (FontUtilities.debugFonts()) {
+                warning("fontconfig info file version mismatch (found: " + version +
+                    ", expected: " + fileVersion + ")");
+            }
             return;
         }
 
@@ -453,6 +480,9 @@ public class FcFontConfiguration extends FontConfiguration {
                 fcVersion = Integer.parseInt(fcVersionStr);
                 if (fcVersion != 0 &&
                     fcVersion != FontConfigManager.getFontConfigVersion()) {
+                    if (FontUtilities.debugFonts()) {
+                        warning("new, different fontconfig detected");
+                    }
                     return;
                 }
             } catch (Exception e) {
@@ -475,6 +505,9 @@ public class FcFontConfiguration extends FontConfiguration {
             }
             File dirFile = new File(dir);
             if (dirFile.exists() && dirFile.lastModified() > lastModified) {
+                if (FontUtilities.debugFonts()) {
+                    warning("out of date cache directories detected");
+                }
                 return;
             }
             cacheDirIndex++;
@@ -498,17 +531,23 @@ public class FcFontConfiguration extends FontConfiguration {
                     String lenStr = (String)props.get(key+".length");
                     int nfonts = Integer.parseInt(lenStr);
                     if (nfonts <= 0) {
+                        if (FontUtilities.debugFonts()) {
+                            warning("bad non-positive .length entry in fontconfig file " + fcFile.toString());
+                        }
                         return; // bad file
                     }
                     fci[index].allFonts = new FontConfigFont[nfonts];
                     for (int f=0; f<nfonts; f++) {
                         fci[index].allFonts[f] = new FontConfigFont();
-                        String fkey = key+"."+f+".family";
-                        String family = (String)props.get(fkey);
-                        fci[index].allFonts[f].familyName = family;
+                        String fkey = key+"."+f+".fullName";
+                        String fullName = (String)props.get(fkey);
+                        fci[index].allFonts[f].fullName = fullName;
                         fkey = key+"."+f+".file";
                         String file = (String)props.get(fkey);
                         if (file == null) {
+                            if (FontUtilities.debugFonts()) {
+                                warning("missing file value for key " + fkey + " in fontconfig file " + fcFile.toString());
+                            }
                             return; // bad file
                         }
                         fci[index].allFonts[f].fontFile = file;
@@ -522,6 +561,10 @@ public class FcFontConfiguration extends FontConfiguration {
             if (FontUtilities.debugFonts()) {
                 warning(t.toString());
             }
+        }
+
+        if (FontUtilities.debugFonts()) {
+            FontUtilities.logInfo("successfully parsed the fontconfig file at " + fcFile.toString());
         }
     }
 

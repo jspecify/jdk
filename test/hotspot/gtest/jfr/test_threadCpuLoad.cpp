@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,16 +32,14 @@
 // with the ones that should pick up the mocks removed. Those should be included
 // later after the mocks have been defined.
 
-#include "logging/log.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/support/jfrThreadId.hpp"
 #include "jfr/support/jfrThreadLocal.hpp"
+#include "jfr/utilities/jfrThreadIterator.hpp"
 #include "jfr/utilities/jfrTime.hpp"
-#include "utilities/globalDefinitions.hpp"
+#include "logging/log.hpp"
 #include "runtime/os.hpp"
-#include "runtime/thread.inline.hpp"
-#include "runtime/threadSMR.inline.hpp"
-
+#include "utilities/globalDefinitions.hpp"
 #include "unittest.hpp"
 
 namespace {
@@ -81,11 +79,18 @@ namespace {
     MockJavaThread() : ::JavaThread() {}
   };
 
-  class MockJavaThreadIteratorWithHandle
+  class MockJfrJavaThreadIterator
   {
   public:
-    MockJavaThread* next() { return NULL; }
-    int length() { return 0; }
+    MockJavaThread* next() { return nullptr; }
+    bool has_next() const { return false; }
+  };
+
+  class MockJfrJavaThreadIteratorAdapter
+  {
+  public:
+    MockJavaThread* next() { return nullptr; }
+    bool has_next() const { return false; }
   };
 
 // Reincluding source files in the anonymous namespace unfortunately seems to
@@ -97,7 +102,8 @@ namespace {
 #define os MockOs
 #define EventThreadCPULoad MockEventThreadCPULoad
 #define JavaThread MockJavaThread
-#define JavaThreadIteratorWithHandle MockJavaThreadIteratorWithHandle
+#define JfrJavaThreadIterator MockJfrJavaThreadIterator
+#define JfrJavaThreadIteratorAdapter MockJfrJavaThreadIteratorAdapter
 
 #include "jfr/periodic/jfrThreadCPULoadEvent.hpp"
 #include "jfr/periodic/jfrThreadCPULoadEvent.cpp"
@@ -105,7 +111,8 @@ namespace {
 #undef os
 #undef EventThreadCPULoad
 #undef JavaThread
-#undef JavaThreadIteratorWithHandle
+#define JfrJavaThreadIterator MockJfrJavaThreadIterator
+#define JfrJavaThreadIteratorAdapter MockJfrJavaThreadIteratorAdapter
 
 } // anonymous namespace
 
@@ -140,6 +147,12 @@ TEST_VM_F(JfrTestThreadCPULoadSingle, SingleCpu) {
   EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, 400 * NANOSECS_PER_MILLISEC, 1));
   EXPECT_FLOAT_EQ(0.25, event.user);
   EXPECT_FLOAT_EQ(0.25, event.system);
+
+  MockOs::user_cpu_time += 50 * NANOSECS_PER_MILLISEC;
+  MockOs::system_cpu_time += 50 * NANOSECS_PER_MILLISEC;
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (400 + 400) * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0.125, event.user);
+  EXPECT_FLOAT_EQ(0.125, event.system);
 }
 
 TEST_VM_F(JfrTestThreadCPULoadSingle, MultipleCpus) {
@@ -169,6 +182,43 @@ TEST_VM_F(JfrTestThreadCPULoadSingle, UserAboveMaximum) {
   EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (200 + 400) * NANOSECS_PER_MILLISEC, 1));
   EXPECT_FLOAT_EQ(0.25, event.user);
   EXPECT_FLOAT_EQ(0, event.system);
+
+  // Third call: make sure there are no leftovers
+  MockOs::user_cpu_time += 50 * NANOSECS_PER_MILLISEC;
+  MockOs::system_cpu_time += 50 * NANOSECS_PER_MILLISEC;
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (200 + 400 + 400) * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0.125, event.user);
+  EXPECT_FLOAT_EQ(0.125, event.system);
+}
+
+TEST_VM_F(JfrTestThreadCPULoadSingle, UserAboveMaximumNonZeroBase) {
+
+  // Setup a non zero base
+  // Previously there was a bug when cur_user_time would be reset to zero and test that uses zero base would fail to detect it
+  MockOs::user_cpu_time = 100 * NANOSECS_PER_MILLISEC;
+  MockOs::system_cpu_time = 100 * NANOSECS_PER_MILLISEC;
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, 400 * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0.25, event.user);
+  EXPECT_FLOAT_EQ(0.25, event.system);
+
+  // First call will not report above 100%
+  MockOs::user_cpu_time += 200 * NANOSECS_PER_MILLISEC;
+  MockOs::system_cpu_time += 100 * NANOSECS_PER_MILLISEC;
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (400 + 200) * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0.5, event.user);
+  EXPECT_FLOAT_EQ(0.5, event.system);
+
+  // Second call will see an extra 100 millisecs user time from the remainder
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (400 + 200 + 400) * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0.25, event.user);
+  EXPECT_FLOAT_EQ(0, event.system);
+
+  // Third call: make sure there are no leftovers
+  MockOs::user_cpu_time += 50 * NANOSECS_PER_MILLISEC;
+  MockOs::system_cpu_time += 50 * NANOSECS_PER_MILLISEC;
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (400 + 200 + 400 + 400) * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0.125, event.user);
+  EXPECT_FLOAT_EQ(0.125, event.system);
 }
 
 TEST_VM_F(JfrTestThreadCPULoadSingle, SystemAboveMaximum) {
@@ -184,6 +234,43 @@ TEST_VM_F(JfrTestThreadCPULoadSingle, SystemAboveMaximum) {
   EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (200 + 400) * NANOSECS_PER_MILLISEC, 1));
   EXPECT_FLOAT_EQ(0.25, event.user);
   EXPECT_FLOAT_EQ(0.25, event.system);
+
+  // Third call: make sure there are no leftovers
+  MockOs::user_cpu_time += 50 * NANOSECS_PER_MILLISEC;
+  MockOs::system_cpu_time += 50 * NANOSECS_PER_MILLISEC;
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (200 + 400 + 400) * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0.125, event.user);
+  EXPECT_FLOAT_EQ(0.125, event.system);
+}
+
+TEST_VM_F(JfrTestThreadCPULoadSingle, SystemAboveMaximumNonZeroBase) {
+
+  // Setup a non zero base
+  // Previously there was a bug when cur_user_time would be reset to zero and test that uses zero base would fail to detect it
+  MockOs::user_cpu_time = 100 * NANOSECS_PER_MILLISEC;
+  MockOs::system_cpu_time = 100 * NANOSECS_PER_MILLISEC;
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, 400 * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0.25, event.user);
+  EXPECT_FLOAT_EQ(0.25, event.system);
+
+  // First call will not report above 100%
+  MockOs::user_cpu_time += 100 * NANOSECS_PER_MILLISEC;
+  MockOs::system_cpu_time += 300 * NANOSECS_PER_MILLISEC;
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (400 + 200) * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0, event.user);
+  EXPECT_FLOAT_EQ(1, event.system);
+
+  // Second call will see an extra 100 millisecs user and system time from the remainder
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (400 + 200 + 400) * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0.25, event.user);
+  EXPECT_FLOAT_EQ(0.25, event.system);
+
+  // Third call: make sure there are no leftovers
+  MockOs::user_cpu_time += 50 * NANOSECS_PER_MILLISEC;
+  MockOs::system_cpu_time += 50 * NANOSECS_PER_MILLISEC;
+  EXPECT_TRUE(JfrThreadCPULoadEvent::update_event(event, thread, (400 + 200 + 400 + 400) * NANOSECS_PER_MILLISEC, 1));
+  EXPECT_FLOAT_EQ(0.125, event.user);
+  EXPECT_FLOAT_EQ(0.125, event.system);
 }
 
 TEST_VM_F(JfrTestThreadCPULoadSingle, SystemTimeDecreasing) {

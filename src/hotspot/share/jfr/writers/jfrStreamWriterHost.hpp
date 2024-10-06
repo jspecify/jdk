@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_WRITERS_JFRSTREAMWRITERHOST_HPP
-#define SHARE_VM_JFR_WRITERS_JFRSTREAMWRITERHOST_HPP
+#ifndef SHARE_JFR_WRITERS_JFRSTREAMWRITERHOST_HPP
+#define SHARE_JFR_WRITERS_JFRSTREAMWRITERHOST_HPP
 
 #include "jfr/utilities/jfrTypes.hpp"
 #include "jfr/writers/jfrMemoryWriterHost.inline.hpp"
@@ -33,28 +33,30 @@ class StreamWriterHost : public MemoryWriterHost<Adapter, AP> {
  public:
   typedef typename Adapter::StorageType StorageType;
  private:
-  intptr_t _stream_pos;
+  int64_t _stream_pos;
   fio_fd _fd;
-  intptr_t current_stream_position() const;
+  int64_t current_stream_position() const;
+
+  void write_bytes(const u1* buf, intptr_t len);
 
  protected:
   StreamWriterHost(StorageType* storage, Thread* thread);
   StreamWriterHost(StorageType* storage, size_t size);
   StreamWriterHost(Thread* thread);
   bool accommodate(size_t used, size_t requested);
-  void bytes(void* dest, const void* src, size_t len);
+  void write_bytes(void* dest, const void* src, intptr_t len);
   void flush(size_t size);
   bool has_valid_fd() const;
 
  public:
-  intptr_t current_offset() const;
-  void seek(intptr_t offset);
+  int64_t current_offset() const;
+  void seek(int64_t offset);
   void flush();
-  void write_unbuffered(const void* src, size_t len);
+  void write_buffered(const void* src, intptr_t len);
+  void write_unbuffered(const void* src, intptr_t len);
   bool is_valid() const;
   void close_fd();
   void reset(fio_fd fd);
 };
 
-#endif // SHARE_VM_JFR_WRITERS_JFRSTREAMWRITERHOST_HPP
-
+#endif // SHARE_JFR_WRITERS_JFRSTREAMWRITERHOST_HPP

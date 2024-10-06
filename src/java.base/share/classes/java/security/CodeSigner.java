@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,9 @@
 
 package java.security;
 
-import org.jspecify.annotations.Nullable;
-
 import java.io.*;
 import java.security.cert.CertPath;
+import java.util.Objects;
 
 /**
  * This class encapsulates information about a code signer.
@@ -40,6 +39,7 @@ import java.security.cert.CertPath;
 
 public final class CodeSigner implements Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = 6819288105193937581L;
 
     /**
@@ -47,14 +47,14 @@ public final class CodeSigner implements Serializable {
      *
      * @serial
      */
-    private CertPath signerCertPath;
+    private final CertPath signerCertPath;
 
-    /*
+    /**
      * The signature timestamp.
      *
      * @serial
      */
-    private Timestamp timestamp;
+    private final Timestamp timestamp;
 
     /*
      * Hash code for this code signer.
@@ -62,7 +62,7 @@ public final class CodeSigner implements Serializable {
     private transient int myhash = -1;
 
     /**
-     * Constructs a CodeSigner object.
+     * Constructs a {@code CodeSigner} object.
      *
      * @param signerCertPath The signer's certificate path.
      *                       It must not be {@code null}.
@@ -99,19 +99,14 @@ public final class CodeSigner implements Serializable {
     }
 
     /**
-     * Returns the hash code value for this code signer.
+     * {@return the hash code value for this code signer}
      * The hash code is generated using the signer's certificate path and the
      * timestamp, if present.
-     *
-     * @return a hash code value for this code signer.
      */
+    @Override
     public int hashCode() {
         if (myhash == -1) {
-            if (timestamp == null) {
-                myhash = signerCertPath.hashCode();
-            } else {
-                myhash = signerCertPath.hashCode() + timestamp.hashCode();
-            }
+            myhash = signerCertPath.hashCode() + Objects.hashCode(timestamp);
         }
         return myhash;
     }
@@ -124,31 +119,18 @@ public final class CodeSigner implements Serializable {
      *
      * @param obj the object to test for equality with this object.
      *
-     * @return true if the objects are considered equal, false otherwise.
+     * @return {@code true} if the objects are considered equal,
+     * {@code false} otherwise.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
-        if (obj == null || (!(obj instanceof CodeSigner))) {
-            return false;
-        }
-        CodeSigner that = (CodeSigner)obj;
-
-        if (this == that) {
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
             return true;
         }
-        Timestamp thatTimestamp = that.getTimestamp();
-        if (timestamp == null) {
-            if (thatTimestamp != null) {
-                return false;
-            }
-        } else {
-            if (thatTimestamp == null ||
-                (! timestamp.equals(thatTimestamp))) {
-                return false;
-            }
-        }
-        return signerCertPath.equals(that.getSignerCertPath());
+
+        return obj instanceof CodeSigner other
+                && Objects.equals(timestamp, other.getTimestamp())
+                && signerCertPath.equals(other.getSignerCertPath());
     }
 
     /**
@@ -160,18 +142,29 @@ public final class CodeSigner implements Serializable {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("(");
-        sb.append("Signer: " + signerCertPath.getCertificates().get(0));
+        sb.append("Signer: ").append(signerCertPath.getCertificates().get(0));
         if (timestamp != null) {
-            sb.append("timestamp: " + timestamp);
+            sb.append("timestamp: ").append(timestamp);
         }
         sb.append(")");
         return sb.toString();
     }
 
-    // Explicitly reset hash code value to -1
+    /**
+     * Restores the state of this object from the stream, and explicitly
+     * resets hash code value to -1.
+     *
+     * @param  ois the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
+     */
+    @java.io.Serial
     private void readObject(ObjectInputStream ois)
-        throws IOException, ClassNotFoundException {
-     ois.defaultReadObject();
-     myhash = -1;
+            throws IOException, ClassNotFoundException {
+        ois.defaultReadObject();
+        if (signerCertPath == null) {
+            throw new InvalidObjectException("signerCertPath is null");
+        }
+        myhash = -1;
     }
 }

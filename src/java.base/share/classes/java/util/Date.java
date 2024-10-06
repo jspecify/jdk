@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,18 +29,13 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.text.DateFormat;
-import java.time.LocalDate;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
-import java.lang.ref.SoftReference;
 import java.time.Instant;
 import sun.util.calendar.BaseCalendar;
-import sun.util.calendar.CalendarDate;
 import sun.util.calendar.CalendarSystem;
 import sun.util.calendar.CalendarUtils;
-import sun.util.calendar.Era;
-import sun.util.calendar.Gregorian;
 import sun.util.calendar.ZoneInfo;
 
 /**
@@ -87,12 +82,12 @@ import sun.util.calendar.ZoneInfo;
  * <i>not</i> adjusted for leap seconds. An interesting source of
  * further information is the United States Naval Observatory (USNO):
  * <blockquote><pre>
- *     <a href="http://www.usno.navy.mil/USNO">http://www.usno.navy.mil/USNO</a>
+ *     <a href="https://www.usno.navy.mil/USNO">https://www.usno.navy.mil/USNO</a>
  * </pre></blockquote>
  * <p>
  * and the material regarding "Systems of Time" at:
  * <blockquote><pre>
- *     <a href="http://www.usno.navy.mil/USNO/time/master-clock/systems-of-time">http://www.usno.navy.mil/USNO/time/master-clock/systems-of-time</a>
+ *     <a href="https://www.usno.navy.mil/USNO/time/master-clock/systems-of-time">https://www.usno.navy.mil/USNO/time/master-clock/systems-of-time</a>
  * </pre></blockquote>
  * <p>
  * which has descriptions of various different time systems including
@@ -158,6 +153,7 @@ public class Date
      * interoperability with JDK1.1. The Date was modified to write
      * and read only the UTC time.
      */
+    @java.io.Serial
     private static final long serialVersionUID = 7523967970034938905L;
 
     /**
@@ -268,6 +264,8 @@ public class Date
      * {@link Date#parse} method.
      *
      * @param   s   a string representation of the date.
+     * @throws IllegalArgumentException if {@code s} cannot be interpreted as a
+     * representation of a date and time.
      * @see     java.text.DateFormat
      * @see     java.util.Date#parse(java.lang.String)
      * @deprecated As of JDK version 1.1,
@@ -450,6 +448,8 @@ public class Date
      * @param   s   a string to be parsed as a date.
      * @return  the number of milliseconds since January 1, 1970, 00:00:00 GMT
      *          represented by the string argument.
+     * @throws IllegalArgumentException if {@code s} cannot be interpreted as a
+     * representation of a date and time.
      * @see     java.text.DateFormat
      * @deprecated As of JDK version 1.1,
      * replaced by {@code DateFormat.parse(String s)}.
@@ -914,7 +914,7 @@ public class Date
      *            represented by this {@code Date} object is strictly
      *            earlier than the instant represented by {@code when};
      *          {@code false} otherwise.
-     * @exception NullPointerException if {@code when} is null.
+     * @throws    NullPointerException if {@code when} is null.
      */
     public boolean before(Date when) {
         return getMillisOf(this) < getMillisOf(when);
@@ -928,7 +928,7 @@ public class Date
      *          by this {@code Date} object is strictly later than the
      *          instant represented by {@code when};
      *          {@code false} otherwise.
-     * @exception NullPointerException if {@code when} is null.
+     * @throws    NullPointerException if {@code when} is null.
      */
     public boolean after(Date when) {
         return getMillisOf(this) > getMillisOf(when);
@@ -978,13 +978,11 @@ public class Date
      *          is before the Date argument; and a value greater than
      *      {@code 0} if this Date is after the Date argument.
      * @since   1.2
-     * @exception NullPointerException if {@code anotherDate} is null.
+     * @throws    NullPointerException if {@code anotherDate} is null.
      */
-    
-    public int compareTo( Date anotherDate) {
-        long thisTime = getMillisOf(this);
-        long anotherTime = getMillisOf(anotherDate);
-        return (thisTime<anotherTime ? -1 : (thisTime==anotherTime ? 0 : 1));
+    @Override
+    public int compareTo(Date anotherDate) {
+        return Long.compare(getMillisOf(this), getMillisOf(anotherDate));
     }
 
     /**
@@ -1021,7 +1019,7 @@ public class Date
      * <li>{@code mm} is the minute within the hour ({@code 00} through
      *     {@code 59}), as two decimal digits.
      * <li>{@code ss} is the second within the minute ({@code 00} through
-     *     {@code 61}, as two decimal digits.
+     *     {@code 61}), as two decimal digits.
      * <li>{@code zzz} is the time zone (and may reflect daylight saving
      *     time). Standard time zone abbreviations include those
      *     recognized by the method {@code parse}. If time zone
@@ -1327,6 +1325,7 @@ public class Date
      *             is emitted (long).  This represents the offset from
      *             January 1, 1970, 00:00:00 GMT in milliseconds.
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream s)
          throws IOException
     {
@@ -1337,6 +1336,7 @@ public class Date
     /**
      * Reconstitute this object from a stream (i.e., deserialize it).
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream s)
          throws IOException, ClassNotFoundException
     {
@@ -1359,8 +1359,8 @@ public class Date
      * @param instant  the instant to convert
      * @return a {@code Date} representing the same point on the time-line as
      *  the provided instant
-     * @exception NullPointerException if {@code instant} is null.
-     * @exception IllegalArgumentException if the instant is too large to
+     * @throws    NullPointerException if {@code instant} is null.
+     * @throws    IllegalArgumentException if the instant is too large to
      *  represent as a {@code Date}
      * @since 1.8
      */

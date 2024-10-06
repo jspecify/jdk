@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,15 @@
 
 package sun.security.jca;
 
-import java.lang.ref.*;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 
-import java.security.*;
+import jdk.internal.event.EventHelper;
+import jdk.internal.event.X509CertificateEvent;
+import sun.security.util.KeyUtil;
+import sun.security.util.Debug;
 
 /**
  * Collection of static utility methods used by the security framework.
@@ -59,6 +65,8 @@ public final class JCAUtil {
         public static SecureRandom instance = new SecureRandom();
     }
 
+    private static volatile SecureRandom def = null;
+
     /**
      * Get a SecureRandom instance. This method should be used by JDK
      * internal code in favor of calling "new SecureRandom()". That needs to
@@ -69,4 +77,67 @@ public final class JCAUtil {
         return CachedSecureRandomHolder.instance;
     }
 
+    // called by sun.security.jca.Providers class when provider list is changed
+    static void clearDefSecureRandom() {
+        def = null;
+    }
+
+    /**
+     * Get the default SecureRandom instance. This method is the
+     * optimized version of "new SecureRandom()" which re-uses the default
+     * SecureRandom impl if the provider table is the same.
+     */
+    public static SecureRandom getDefSecureRandom() {
+        SecureRandom result = def;
+        if (result == null) {
+            synchronized (JCAUtil.class) {
+                result = def;
+                if (result == null) {
+                    def = result = new SecureRandom();
+                }
+            }
+        }
+        return result;
+    }
+
+    public static void tryCommitCertEvent(Certificate cert) {
+        if ((X509CertificateEvent.isTurnedOn() || EventHelper.isLoggingSecurity()) &&
+                (cert instanceof X509Certificate x509)) {
+            PublicKey pKey = x509.getPublicKey();
+            String algId = x509.getSigAlgName();
+            String serNum = Debug.toString(x509.getSerialNumber());
+            String subject = x509.getSubjectX500Principal().toString();
+            String issuer = x509.getIssuerX500Principal().toString();
+            String keyType = pKey.getAlgorithm();
+            int length = KeyUtil.getKeySize(pKey);
+            int hashCode = x509.hashCode();
+            long certifcateId = Integer.toUnsignedLong(hashCode);
+            long beginDate = x509.getNotBefore().getTime();
+            long endDate = x509.getNotAfter().getTime();
+            if (X509CertificateEvent.isTurnedOn()) {
+                X509CertificateEvent xce = new X509CertificateEvent();
+                xce.algorithm = algId;
+                xce.serialNumber = serNum;
+                xce.subject = subject;
+                xce.issuer = issuer;
+                xce.keyType = keyType;
+                xce.keyLength = length;
+                xce.certificateId = certifcateId;
+                xce.validFrom = beginDate;
+                xce.validUntil = endDate;
+                xce.commit();
+            }
+            if (EventHelper.isLoggingSecurity()) {
+                EventHelper.logX509CertificateEvent(algId,
+                        serNum,
+                        subject,
+                        issuer,
+                        keyType,
+                        length,
+                        certifcateId,
+                        beginDate,
+                        endDate);
+            }
+        }
+    }
 }

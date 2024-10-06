@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,16 @@
  */
 
 import java.util.Arrays;
-
-import jdk.testlibrary.Utils;
-import static jdk.testlibrary.Asserts.*;
 import java.text.NumberFormat;
+
+import static jdk.test.lib.Asserts.*;
+import jdk.test.lib.Utils;
 
 /**
  * The helper class for parsing following output from command 'jstat -gcutil':
  *
- *  S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT    CGC    CGCT     GCT
- *  0.00   0.00  86.67   0.00   -      -      0      0.000     0    0.000     0    0.000    0.000
- *  0.00   0.00  86.67   0.00   -      -      0      0.000     0    0.000     0    0.000    0.000
+ *  S0     S1     E      O      M     CCS    YGC     YGCT     FGC    FGCT     CGC    CGCT       GCT
+ *  0.00   0.00   0.00  52.39  97.76  92.71      4     0.286    28    28.006     2     0.086    28.378
  *
  *  It will be verified that numerical values have defined types and are reasonable,
  *  for example percentage should fit within 0-100 interval.
@@ -40,22 +39,22 @@ import java.text.NumberFormat;
 public class JstatGCUtilParser {
 
     public enum GcStatisticsType {
-        INTEGER, DOUBLE, PERCENTAGE, PERCENTAGE_OR_DASH;
+        INTEGER, DOUBLE, PERCENTAGE, PERCENTAGE_OR_DASH, INTEGER_OR_DASH, DOUBLE_OR_DASH;
     }
 
     public enum GcStatistics {
-        S0(GcStatisticsType.PERCENTAGE),
-        S1(GcStatisticsType.PERCENTAGE),
-        E(GcStatisticsType.PERCENTAGE),
-        O(GcStatisticsType.PERCENTAGE),
+        S0(GcStatisticsType.PERCENTAGE_OR_DASH),
+        S1(GcStatisticsType.PERCENTAGE_OR_DASH),
+        E(GcStatisticsType.PERCENTAGE_OR_DASH),
+        O(GcStatisticsType.PERCENTAGE_OR_DASH),
         M(GcStatisticsType.PERCENTAGE_OR_DASH),
         CCS(GcStatisticsType.PERCENTAGE_OR_DASH),
-        YGC(GcStatisticsType.INTEGER),
-        YGCT(GcStatisticsType.DOUBLE),
-        FGC(GcStatisticsType.INTEGER),
-        FGCT(GcStatisticsType.DOUBLE),
-        CGC(GcStatisticsType.INTEGER),
-        CGCT(GcStatisticsType.DOUBLE),
+        YGC(GcStatisticsType.INTEGER_OR_DASH),
+        YGCT(GcStatisticsType.DOUBLE_OR_DASH),
+        FGC(GcStatisticsType.INTEGER_OR_DASH),
+        FGCT(GcStatisticsType.DOUBLE_OR_DASH),
+        CGC(GcStatisticsType.INTEGER_OR_DASH),
+        CGCT(GcStatisticsType.DOUBLE_OR_DASH),
         GCT(GcStatisticsType.DOUBLE);
 
         private final GcStatisticsType type;
@@ -94,21 +93,25 @@ public class JstatGCUtilParser {
             for (int i = 0; i < values().length; i++) {
                 GcStatisticsType type = values()[i].getType();
                 String value = valueArray[i].trim();
-                if (type.equals(GcStatisticsType.INTEGER)) {
+                if ((type.equals(GcStatisticsType.PERCENTAGE_OR_DASH)
+                     || type.equals(GcStatisticsType.INTEGER_OR_DASH)
+                     || type.equals(GcStatisticsType.DOUBLE_OR_DASH))
+                    && value.equals("-")) {
+                    continue;
+                }
+                if (type.equals(GcStatisticsType.INTEGER)
+                    || type.equals(GcStatisticsType.INTEGER_OR_DASH)) {
                     NumberFormat.getInstance().parse(value).intValue();
-                    break;
+                    continue;
                 }
-                if (type.equals(GcStatisticsType.DOUBLE)) {
+                if (type.equals(GcStatisticsType.DOUBLE)
+                    || type.equals(GcStatisticsType.DOUBLE_OR_DASH)) {
                     NumberFormat.getInstance().parse(value).doubleValue();
-                    break;
-                }
-                if (type.equals(GcStatisticsType.PERCENTAGE_OR_DASH) &&
-                        value.equals("-")) {
-                    break;
+                    continue;
                 }
                 double percentage = NumberFormat.getInstance().parse(value).doubleValue();
                 assertTrue(0 <= percentage && percentage <= 100,
-                        "Not a percentage: " + value);
+                        "Not a percentage. value: " + value + " percentage: " + percentage);
             }
         }
 

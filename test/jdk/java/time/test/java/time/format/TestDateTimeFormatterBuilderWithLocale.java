@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,9 +74,11 @@ import java.time.chrono.ThaiBuddhistChronology;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.FormatStyle;
+import java.time.format.ResolverStyle;
 import java.time.LocalDate;
 import java.time.temporal.ChronoField;
 import java.time.temporal.Temporal;
+import java.time.temporal.TemporalAccessor;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -133,13 +135,22 @@ public class TestDateTimeFormatterBuilderWithLocale {
 
     @Test(dataProvider="mapTextLookup")
     public void test_appendText_mapTextLookup(ChronoLocalDate date, Locale locale) {
-        final String new1st = "1st";
-        Map<Long, String> yearMap = new HashMap<>();
-        yearMap.put(1L, new1st);
-        builder.appendText(ChronoField.YEAR_OF_ERA, yearMap);
+        final String firstYear = "firstYear";
+        final String firstMonth = "firstMonth";
+        final String firstYearMonth = firstYear + firstMonth;
+        final long first = 1L;
 
-        String actual = date.format(builder.toFormatter(locale));
-        assertEquals(actual, new1st);
+        DateTimeFormatter formatter = builder
+            .appendText(ChronoField.YEAR_OF_ERA, Map.of(first, firstYear))
+            .appendText(ChronoField.MONTH_OF_YEAR, Map.of(first, firstMonth))
+            .toFormatter(locale)
+            .withResolverStyle(ResolverStyle.STRICT);
+
+        assertEquals(date.format(formatter), firstYearMonth);
+
+        TemporalAccessor ta = formatter.parse(firstYearMonth);
+        assertEquals(ta.getLong(ChronoField.YEAR_OF_ERA), first);
+        assertEquals(ta.getLong(ChronoField.MONTH_OF_YEAR), first);
     }
 
 
@@ -148,9 +159,9 @@ public class TestDateTimeFormatterBuilderWithLocale {
     Object[][] localizedDateTimePatterns() {
         return new Object[][] {
             // French Locale and ISO Chronology
-            {FormatStyle.FULL, FormatStyle.FULL, IsoChronology.INSTANCE, Locale.FRENCH, "EEEE d MMMM y '\u00e0' HH:mm:ss zzzz"},
-            {FormatStyle.LONG, FormatStyle.LONG, IsoChronology.INSTANCE, Locale.FRENCH, "d MMMM y '\u00e0' HH:mm:ss z"},
-            {FormatStyle.MEDIUM, FormatStyle.MEDIUM, IsoChronology.INSTANCE, Locale.FRENCH, "d MMM y '\u00e0' HH:mm:ss"},
+            {FormatStyle.FULL, FormatStyle.FULL, IsoChronology.INSTANCE, Locale.FRENCH, "EEEE d MMMM y, HH:mm:ss zzzz"},
+            {FormatStyle.LONG, FormatStyle.LONG, IsoChronology.INSTANCE, Locale.FRENCH, "d MMMM y, HH:mm:ss z"},
+            {FormatStyle.MEDIUM, FormatStyle.MEDIUM, IsoChronology.INSTANCE, Locale.FRENCH, "d MMM y, HH:mm:ss"},
             {FormatStyle.SHORT, FormatStyle.SHORT, IsoChronology.INSTANCE, Locale.FRENCH, "dd/MM/y HH:mm"},
             {FormatStyle.FULL, null, IsoChronology.INSTANCE, Locale.FRENCH, "EEEE d MMMM y"},
             {FormatStyle.LONG, null, IsoChronology.INSTANCE, Locale.FRENCH, "d MMMM y"},
@@ -176,18 +187,18 @@ public class TestDateTimeFormatterBuilderWithLocale {
             {null, FormatStyle.SHORT, JapaneseChronology.INSTANCE, Locale.JAPANESE, "H:mm"},
 
             // Chinese Local and Chronology
-            {FormatStyle.FULL, FormatStyle.FULL, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy\u5e74M\u6708d\u65e5EEEE zzzz ah:mm:ss"},
-            {FormatStyle.LONG, FormatStyle.LONG, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy\u5e74M\u6708d\u65e5 z ah:mm:ss"},
-            {FormatStyle.MEDIUM, FormatStyle.MEDIUM, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy\u5e74M\u6708d\u65e5 ah:mm:ss"},
-            {FormatStyle.SHORT, FormatStyle.SHORT, MinguoChronology.INSTANCE, Locale.CHINESE, "Gyy/M/d ah:mm"},
+            {FormatStyle.FULL, FormatStyle.FULL, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy\u5e74M\u6708d\u65e5EEEE zzzz HH:mm:ss"},
+            {FormatStyle.LONG, FormatStyle.LONG, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy\u5e74M\u6708d\u65e5 z HH:mm:ss"},
+            {FormatStyle.MEDIUM, FormatStyle.MEDIUM, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy\u5e74M\u6708d\u65e5 HH:mm:ss"},
+            {FormatStyle.SHORT, FormatStyle.SHORT, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy/M/d HH:mm"},
             {FormatStyle.FULL, null, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy\u5e74M\u6708d\u65e5EEEE"},
             {FormatStyle.LONG, null, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy\u5e74M\u6708d\u65e5"},
             {FormatStyle.MEDIUM, null, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy\u5e74M\u6708d\u65e5"},
-            {FormatStyle.SHORT, null, MinguoChronology.INSTANCE, Locale.CHINESE, "Gyy/M/d"},
-            {null, FormatStyle.FULL, MinguoChronology.INSTANCE, Locale.CHINESE, "zzzz ah:mm:ss"},
-            {null, FormatStyle.LONG, MinguoChronology.INSTANCE, Locale.CHINESE, "z ah:mm:ss"},
-            {null, FormatStyle.MEDIUM, MinguoChronology.INSTANCE, Locale.CHINESE, "ah:mm:ss"},
-            {null, FormatStyle.SHORT, MinguoChronology.INSTANCE, Locale.CHINESE, "ah:mm"},
+            {FormatStyle.SHORT, null, MinguoChronology.INSTANCE, Locale.CHINESE, "Gy/M/d"},
+            {null, FormatStyle.FULL, MinguoChronology.INSTANCE, Locale.CHINESE, "zzzz HH:mm:ss"},
+            {null, FormatStyle.LONG, MinguoChronology.INSTANCE, Locale.CHINESE, "z HH:mm:ss"},
+            {null, FormatStyle.MEDIUM, MinguoChronology.INSTANCE, Locale.CHINESE, "HH:mm:ss"},
+            {null, FormatStyle.SHORT, MinguoChronology.INSTANCE, Locale.CHINESE, "HH:mm"},
         };
     }
 

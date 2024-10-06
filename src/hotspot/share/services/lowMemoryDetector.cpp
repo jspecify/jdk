@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,13 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/systemDictionary.hpp"
+#include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopHandle.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -36,21 +39,20 @@
 #include "services/management.hpp"
 
 volatile bool LowMemoryDetector::_enabled_for_collected_pools = false;
-volatile jint LowMemoryDetector::_disabled_count = 0;
 
 bool LowMemoryDetector::has_pending_requests() {
-  assert(Service_lock->owned_by_self(), "Must own Service_lock");
+  assert(Notification_lock->owned_by_self(), "Must own Notification_lock");
   bool has_requests = false;
   int num_memory_pools = MemoryService::num_memory_pools();
   for (int i = 0; i < num_memory_pools; i++) {
     MemoryPool* pool = MemoryService::get_memory_pool(i);
     SensorInfo* sensor = pool->usage_sensor();
-    if (sensor != NULL) {
+    if (sensor != nullptr) {
       has_requests = has_requests || sensor->has_pending_requests();
     }
 
     SensorInfo* gc_sensor = pool->gc_usage_sensor();
-    if (gc_sensor != NULL) {
+    if (gc_sensor != nullptr) {
       has_requests = has_requests || gc_sensor->has_pending_requests();
     }
   }
@@ -61,16 +63,16 @@ void LowMemoryDetector::process_sensor_changes(TRAPS) {
   ResourceMark rm(THREAD);
   HandleMark hm(THREAD);
 
-  // No need to hold Service_lock to call out to Java
+  // No need to hold Notification_lock to call out to Java
   int num_memory_pools = MemoryService::num_memory_pools();
   for (int i = 0; i < num_memory_pools; i++) {
     MemoryPool* pool = MemoryService::get_memory_pool(i);
     SensorInfo* sensor = pool->usage_sensor();
     SensorInfo* gc_sensor = pool->gc_usage_sensor();
-    if (sensor != NULL && sensor->has_pending_requests()) {
+    if (sensor != nullptr && sensor->has_pending_requests()) {
       sensor->process_pending_requests(CHECK);
     }
-    if (gc_sensor != NULL && gc_sensor->has_pending_requests()) {
+    if (gc_sensor != nullptr && gc_sensor->has_pending_requests()) {
       gc_sensor->process_pending_requests(CHECK);
     }
   }
@@ -79,14 +81,14 @@ void LowMemoryDetector::process_sensor_changes(TRAPS) {
 // This method could be called from any Java threads
 // and also VMThread.
 void LowMemoryDetector::detect_low_memory() {
-  MutexLockerEx ml(Service_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(Notification_lock, Mutex::_no_safepoint_check_flag);
 
   bool has_pending_requests = false;
   int num_memory_pools = MemoryService::num_memory_pools();
   for (int i = 0; i < num_memory_pools; i++) {
     MemoryPool* pool = MemoryService::get_memory_pool(i);
     SensorInfo* sensor = pool->usage_sensor();
-    if (sensor != NULL &&
+    if (sensor != nullptr &&
         pool->usage_threshold()->is_high_threshold_supported() &&
         pool->usage_threshold()->high_threshold() != 0) {
       MemoryUsage usage = pool->get_memory_usage();
@@ -97,7 +99,7 @@ void LowMemoryDetector::detect_low_memory() {
   }
 
   if (has_pending_requests) {
-    Service_lock->notify_all();
+    Notification_lock->notify_all();
   }
 }
 
@@ -105,21 +107,21 @@ void LowMemoryDetector::detect_low_memory() {
 // and also VMThread.
 void LowMemoryDetector::detect_low_memory(MemoryPool* pool) {
   SensorInfo* sensor = pool->usage_sensor();
-  if (sensor == NULL ||
+  if (sensor == nullptr ||
       !pool->usage_threshold()->is_high_threshold_supported() ||
       pool->usage_threshold()->high_threshold() == 0) {
     return;
   }
 
   {
-    MutexLockerEx ml(Service_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(Notification_lock, Mutex::_no_safepoint_check_flag);
 
     MemoryUsage usage = pool->get_memory_usage();
     sensor->set_gauge_sensor_level(usage,
                                    pool->usage_threshold());
     if (sensor->has_pending_requests()) {
       // notify sensor state update
-      Service_lock->notify_all();
+      Notification_lock->notify_all();
     }
   }
 }
@@ -127,21 +129,21 @@ void LowMemoryDetector::detect_low_memory(MemoryPool* pool) {
 // Only called by VMThread at GC time
 void LowMemoryDetector::detect_after_gc_memory(MemoryPool* pool) {
   SensorInfo* sensor = pool->gc_usage_sensor();
-  if (sensor == NULL ||
+  if (sensor == nullptr ||
       !pool->gc_usage_threshold()->is_high_threshold_supported() ||
       pool->gc_usage_threshold()->high_threshold() == 0) {
     return;
   }
 
   {
-    MutexLockerEx ml(Service_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(Notification_lock, Mutex::_no_safepoint_check_flag);
 
     MemoryUsage usage = pool->get_last_collection_usage();
     sensor->set_counter_sensor_level(usage, pool->gc_usage_threshold());
 
     if (sensor->has_pending_requests()) {
       // notify sensor state update
-      Service_lock->notify_all();
+      Notification_lock->notify_all();
     }
   }
 }
@@ -161,12 +163,17 @@ void LowMemoryDetector::recompute_enabled_for_collected_pools() {
 }
 
 SensorInfo::SensorInfo() {
-  _sensor_obj = NULL;
   _sensor_on = false;
   _sensor_count = 0;
   _pending_trigger_count = 0;
   _pending_clear_count = 0;
 }
+
+void SensorInfo::set_sensor(instanceOop sensor) {
+  assert(_sensor_obj.peek() == nullptr, "Should be set only once");
+  _sensor_obj = OopHandle(Universe::vm_global(), sensor);
+}
+
 
 // When this method is used, the memory usage is monitored
 // as a gauge attribute.  Sensor notifications (trigger or
@@ -204,7 +211,7 @@ SensorInfo::SensorInfo() {
 // If the current level is between high and low threshold, no change.
 //
 void SensorInfo::set_gauge_sensor_level(MemoryUsage usage, ThresholdSupport* high_low_threshold) {
-  assert(Service_lock->owned_by_self(), "Must own Service_lock");
+  assert(Notification_lock->owned_by_self(), "Must own Notification_lock");
   assert(high_low_threshold->is_high_threshold_supported(), "just checking");
 
   bool is_over_high = high_low_threshold->is_high_threshold_crossed(usage);
@@ -259,7 +266,7 @@ void SensorInfo::set_gauge_sensor_level(MemoryUsage usage, ThresholdSupport* hig
 //      the sensor will be on (i.e. sensor is currently off
 //      and has pending trigger requests).
 void SensorInfo::set_counter_sensor_level(MemoryUsage usage, ThresholdSupport* counter_threshold) {
-  assert(Service_lock->owned_by_self(), "Must own Service_lock");
+  assert(Notification_lock->owned_by_self(), "Must own Notification_lock");
   assert(counter_threshold->is_high_threshold_supported(), "just checking");
 
   bool is_over_high = counter_threshold->is_high_threshold_crossed(usage);
@@ -276,10 +283,6 @@ void SensorInfo::set_counter_sensor_level(MemoryUsage usage, ThresholdSupport* c
   }
 }
 
-void SensorInfo::oops_do(OopClosure* f) {
-  f->do_oop((oop*) &_sensor_obj);
-}
-
 void SensorInfo::process_pending_requests(TRAPS) {
   int pending_count = pending_trigger_count();
   if (pending_clear_count() > 0) {
@@ -292,10 +295,9 @@ void SensorInfo::process_pending_requests(TRAPS) {
 
 void SensorInfo::trigger(int count, TRAPS) {
   assert(count <= _pending_trigger_count, "just checking");
-  if (_sensor_obj != NULL) {
+  Handle sensor_h(THREAD, _sensor_obj.resolve());
+  if (sensor_h() != nullptr) {
     InstanceKlass* sensorKlass = Management::sun_management_Sensor_klass(CHECK);
-    Handle sensor_h(THREAD, _sensor_obj);
-
     Symbol* trigger_method_signature;
 
     JavaValue result(T_VOID);
@@ -308,7 +310,7 @@ void SensorInfo::trigger(int count, TRAPS) {
     // Sensor::trigger(int) instead.  The pending request will be processed
     // but no notification will be sent.
     if (HAS_PENDING_EXCEPTION) {
-       assert((PENDING_EXCEPTION->is_a(SystemDictionary::OutOfMemoryError_klass())), "we expect only an OOME here");
+       assert((PENDING_EXCEPTION->is_a(vmClasses::OutOfMemoryError_klass())), "we expect only an OOME here");
        CLEAR_PENDING_EXCEPTION;
        trigger_method_signature = vmSymbols::int_void_signature();
     } else {
@@ -327,14 +329,14 @@ void SensorInfo::trigger(int count, TRAPS) {
        // We just clear the OOM pending exception that we might have encountered
        // in Java's tiggerAction(), and continue with updating the counters since
        // the Java counters have been updated too.
-       assert((PENDING_EXCEPTION->is_a(SystemDictionary::OutOfMemoryError_klass())), "we expect only an OOME here");
+       assert((PENDING_EXCEPTION->is_a(vmClasses::OutOfMemoryError_klass())), "we expect only an OOME here");
        CLEAR_PENDING_EXCEPTION;
      }
   }
 
   {
-    // Holds Service_lock and update the sensor state
-    MutexLockerEx ml(Service_lock, Mutex::_no_safepoint_check_flag);
+    // Holds Notification_lock and update the sensor state
+    MutexLocker ml(THREAD, Notification_lock, Mutex::_no_safepoint_check_flag);
     assert(_pending_trigger_count > 0, "Must have pending trigger");
     _sensor_on = true;
     _sensor_count += count;
@@ -344,8 +346,8 @@ void SensorInfo::trigger(int count, TRAPS) {
 
 void SensorInfo::clear(int count, TRAPS) {
   {
-    // Holds Service_lock and update the sensor state
-    MutexLockerEx ml(Service_lock, Mutex::_no_safepoint_check_flag);
+    // Holds Notification_lock and update the sensor state
+    MutexLocker ml(THREAD, Notification_lock, Mutex::_no_safepoint_check_flag);
     if (_pending_clear_count == 0) {
       // Bail out if we lost a race to set_*_sensor_level() which may have
       // reactivated the sensor in the meantime because it was triggered again.
@@ -357,10 +359,9 @@ void SensorInfo::clear(int count, TRAPS) {
     _pending_trigger_count = _pending_trigger_count - count;
   }
 
-  if (_sensor_obj != NULL) {
+  Handle sensor(THREAD, _sensor_obj.resolve());
+  if (sensor() != nullptr) {
     InstanceKlass* sensorKlass = Management::sun_management_Sensor_klass(CHECK);
-    Handle sensor(THREAD, _sensor_obj);
-
     JavaValue result(T_VOID);
     JavaCallArguments args(sensor);
     args.push_int((int) count);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,10 +44,11 @@ import java.util.stream.DoubleStream;
  * {@link #ifPresent(DoubleConsumer) ifPresent()} (performs
  * an action if a value is present).
  *
- * <p>This is a <a href="../lang/doc-files/ValueBased.html">value-based</a>
- * class; use of identity-sensitive operations (including reference equality
- * ({@code ==}), identity hash code, or synchronization) on instances of
- * {@code OptionalDouble} may have unpredictable results and should be avoided.
+ * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
+ * class; programmers should treat instances that are
+ * {@linkplain #equals(Object) equal} as interchangeable and should not
+ * use instances for synchronization, or unpredictable behavior may
+ * occur. For example, in a future release, synchronization may fail.
  *
  * @apiNote
  * {@code OptionalDouble} is primarily intended for use as a method return type where
@@ -58,6 +59,7 @@ import java.util.stream.DoubleStream;
  * @since 1.8
  */
 @NullMarked
+@jdk.internal.ValueBased
 public final class OptionalDouble {
     /**
      * Common instance for {@code empty()}.
@@ -87,9 +89,9 @@ public final class OptionalDouble {
      *
      * @apiNote
      * Though it may be tempting to do so, avoid testing if an object is empty
-     * by comparing with {@code ==} against instances returned by
+     * by comparing with {@code ==} or {@code !=} against instances returned by
      * {@code OptionalDouble.empty()}.  There is no guarantee that it is a singleton.
-     * Instead, use {@link #isPresent()}.
+     * Instead, use {@link #isEmpty()} or {@link #isPresent()}.
      *
      *  @return an empty {@code OptionalDouble}.
      */
@@ -300,14 +302,10 @@ public final class OptionalDouble {
             return true;
         }
 
-        if (!(obj instanceof OptionalDouble)) {
-            return false;
-        }
-
-        OptionalDouble other = (OptionalDouble) obj;
-        return (isPresent && other.isPresent)
-               ? Double.compare(value, other.value) == 0
-               : isPresent == other.isPresent;
+        return obj instanceof OptionalDouble other
+                && (isPresent && other.isPresent
+                ? Double.compare(value, other.value) == 0
+                : isPresent == other.isPresent);
     }
 
     /**
@@ -337,7 +335,7 @@ public final class OptionalDouble {
     @Override
     public String toString() {
         return isPresent
-                ? String.format("OptionalDouble[%s]", value)
+                ? ("OptionalDouble[" + value + "]")
                 : "OptionalDouble.empty";
     }
 }

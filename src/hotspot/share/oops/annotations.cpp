@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.hpp"
 #include "logging/log.hpp"
-#include "memory/heapInspection.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/oopFactory.hpp"
@@ -41,7 +40,7 @@ Annotations* Annotations::allocate(ClassLoaderData* loader_data, TRAPS) {
 
 // helper
 void Annotations::free_contents(ClassLoaderData* loader_data, Array<AnnotationArray*>* p) {
-  if (p != NULL) {
+  if (p != nullptr) {
     for (int i = 0; i < p->length(); i++) {
       MetadataFactory::free_array<u1>(loader_data, p->at(i));
     }
@@ -50,12 +49,12 @@ void Annotations::free_contents(ClassLoaderData* loader_data, Array<AnnotationAr
 }
 
 void Annotations::deallocate_contents(ClassLoaderData* loader_data) {
-  if (class_annotations() != NULL) {
+  if (class_annotations() != nullptr) {
     MetadataFactory::free_array<u1>(loader_data, class_annotations());
   }
   free_contents(loader_data, fields_annotations());
 
-  if (class_type_annotations() != NULL) {
+  if (class_type_annotations() != nullptr) {
     MetadataFactory::free_array<u1>(loader_data, class_type_annotations());
   }
   free_contents(loader_data, fields_type_annotations());
@@ -65,7 +64,7 @@ void Annotations::deallocate_contents(ClassLoaderData* loader_data) {
 // The alternative to creating this array and adding to Java heap pressure
 // is to have a hashtable of the already created typeArrayOops
 typeArrayOop Annotations::make_java_array(AnnotationArray* annotations, TRAPS) {
-  if (annotations != NULL) {
+  if (annotations != nullptr) {
     int length = annotations->length();
     typeArrayOop copy = oopFactory::new_byteArray(length, CHECK_NULL);
     for (int i = 0; i< length; i++) {
@@ -73,7 +72,7 @@ typeArrayOop Annotations::make_java_array(AnnotationArray* annotations, TRAPS) {
     }
     return copy;
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -82,43 +81,12 @@ void Annotations::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_class_annotations);
   it->push(&_fields_annotations);
   it->push(&_class_type_annotations);
-  it->push(&_fields_type_annotations); // FIXME: need a test case where _fields_type_annotations != NULL
+  it->push(&_fields_type_annotations); // FIXME: need a test case where _fields_type_annotations != nullptr
 }
 
 void Annotations::print_value_on(outputStream* st) const {
-  st->print("Anotations(" INTPTR_FORMAT ")", p2i(this));
+  st->print("Annotations(" PTR_FORMAT ")", p2i(this));
 }
-
-#if INCLUDE_SERVICES
-// Size Statistics
-
-julong Annotations::count_bytes(Array<AnnotationArray*>* p) {
-  julong bytes = 0;
-  if (p != NULL) {
-    for (int i = 0; i < p->length(); i++) {
-      bytes += KlassSizeStats::count_array(p->at(i));
-    }
-    bytes += KlassSizeStats::count_array(p);
-  }
-  return bytes;
-}
-
-void Annotations::collect_statistics(KlassSizeStats *sz) const {
-  sz->_annotations_bytes = sz->count(this);
-  sz->_class_annotations_bytes = sz->count(class_annotations());
-  sz->_class_type_annotations_bytes = sz->count(class_type_annotations());
-  sz->_fields_annotations_bytes = count_bytes(fields_annotations());
-  sz->_fields_type_annotations_bytes = count_bytes(fields_type_annotations());
-
-  sz->_annotations_bytes +=
-      sz->_class_annotations_bytes +
-      sz->_class_type_annotations_bytes +
-      sz->_fields_annotations_bytes +
-      sz->_fields_type_annotations_bytes;
-
-  sz->_ro_bytes += sz->_annotations_bytes;
-}
-#endif // INCLUDE_SERVICES
 
 #define BULLET  " - "
 

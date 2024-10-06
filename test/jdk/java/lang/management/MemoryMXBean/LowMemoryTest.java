@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,11 +32,11 @@
  * @requires vm.gc == "null"
  * @requires vm.opt.ExplicitGCInvokesConcurrent != "true"
  * @requires vm.opt.DisableExplicitGC != "true"
- * @library /lib/testlibrary/ /test/lib
+ * @library /test/lib
  *
- * @build jdk.testlibrary.* LowMemoryTest MemoryUtil RunUtil
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build LowMemoryTest MemoryUtil RunUtil
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. LowMemoryTest
  */
 
@@ -45,11 +45,11 @@ import java.util.*;
 import java.util.concurrent.Phaser;
 import javax.management.*;
 import javax.management.openmbean.CompositeData;
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.JDKToolFinder;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.JDKToolFinder;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.Utils;
 
-import sun.hotspot.code.Compiler;
+import jdk.test.whitebox.code.Compiler;
 
 public class LowMemoryTest {
     private static final MemoryMXBean mm = ManagementFactory.getMemoryMXBean();
@@ -84,9 +84,6 @@ public class LowMemoryTest {
         traceTest(classMain + ", -XX:+UseSerialGC", nmFlag, lpFlag, "-XX:+UseSerialGC");
         traceTest(classMain + ", -XX:+UseParallelGC", nmFlag, lpFlag, "-XX:+UseParallelGC");
         traceTest(classMain + ", -XX:+UseG1GC", nmFlag, lpFlag, "-XX:+UseG1GC", g1Flag);
-        if (!Compiler.isGraalEnabled()) { // Graal does not support CMS
-            traceTest(classMain + ", -XX:+UseConcMarkSweepGC", nmFlag, lpFlag, "-XX:+UseConcMarkSweepGC");
-        }
     }
 
     /*
@@ -169,14 +166,9 @@ public class LowMemoryTest {
     }
 
     static class TestListener implements NotificationListener {
-        private boolean isRelaxed = false;
         private int triggers = 0;
         private final long[] count = new long[NUM_TRIGGERS * 2];
         private final long[] usedMemory = new long[NUM_TRIGGERS * 2];
-
-        public TestListener() {
-            isRelaxed = ManagementFactory.getRuntimeMXBean().getInputArguments().contains("-XX:+UseConcMarkSweepGC");
-        }
 
         @Override
         public void handleNotification(Notification notif, Object handback) {
@@ -212,11 +204,7 @@ public class LowMemoryTest {
         }
 
         private boolean checkValue(long value, int target) {
-            if (!isRelaxed) {
-                return value == target;
-            } else {
-                return value >= target;
-            }
+            return value == target;
         }
     }
 

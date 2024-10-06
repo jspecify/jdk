@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,9 @@ package com.sun.crypto.provider;
 
 import java.security.InvalidKeyException;
 import java.security.ProviderException;
+
+import jdk.internal.vm.annotation.IntrinsicCandidate;
+import sun.security.util.ArrayUtil;
 
 /**
  * This class represents ciphers in electronic codebook (ECB) mode.
@@ -94,6 +97,16 @@ final class ElectronicCodeBook extends FeedbackCipher {
         embeddedCipher.init(decrypting, algorithm, key);
     }
 
+    @IntrinsicCandidate
+    private int implECBEncrypt(byte [] in, int inOff, int len, byte[] out, int outOff) {
+        for (int i = len; i >= blockSize; i -= blockSize) {
+            embeddedCipher.encryptBlock(in, inOff, out, outOff);
+            inOff += blockSize;
+            outOff += blockSize;
+        }
+        return len;
+    }
+
     /**
      * Performs encryption operation.
      *
@@ -112,11 +125,16 @@ final class ElectronicCodeBook extends FeedbackCipher {
      * @return the length of the encrypted data
      */
     int encrypt(byte[] in, int inOff, int len, byte[] out, int outOff) {
-        if ((len % blockSize) != 0) {
-             throw new ProviderException("Internal error in input buffering");
-        }
+        ArrayUtil.blockSizeCheck(len, blockSize);
+        ArrayUtil.nullAndBoundsCheck(in, inOff, len);
+        ArrayUtil.nullAndBoundsCheck(out, outOff, len);
+        return implECBEncrypt(in, inOff, len, out, outOff);
+    }
+
+    @IntrinsicCandidate
+    private int implECBDecrypt(byte [] in, int inOff, int len, byte[] out, int outOff) {
         for (int i = len; i >= blockSize; i -= blockSize) {
-            embeddedCipher.encryptBlock(in, inOff, out, outOff);
+            embeddedCipher.decryptBlock(in, inOff, out, outOff);
             inOff += blockSize;
             outOff += blockSize;
         }
@@ -141,14 +159,9 @@ final class ElectronicCodeBook extends FeedbackCipher {
      * @return the length of the decrypted data
      */
     int decrypt(byte[] in, int inOff, int len, byte[] out, int outOff) {
-        if ((len % blockSize) != 0) {
-             throw new ProviderException("Internal error in input buffering");
-        }
-        for (int i = len; i >= blockSize; i -= blockSize) {
-            embeddedCipher.decryptBlock(in, inOff, out, outOff);
-            inOff += blockSize;
-            outOff += blockSize;
-        }
-        return len;
-    }
+        ArrayUtil.blockSizeCheck(len, blockSize);
+        ArrayUtil.nullAndBoundsCheck(in, inOff, len);
+        ArrayUtil.nullAndBoundsCheck(out, outOff, len);
+        return implECBDecrypt(in, inOff, len, out, outOff);
+   }
 }

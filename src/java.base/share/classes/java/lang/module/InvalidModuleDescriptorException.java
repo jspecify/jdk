@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,9 +31,9 @@ package java.lang.module;
  *
  * @see ModuleDescriptor#read
  * @since 9
- * @spec JPMS
  */
 public class InvalidModuleDescriptorException extends RuntimeException {
+    @java.io.Serial
     private static final long serialVersionUID = 4863390386809347380L;
 
     /**

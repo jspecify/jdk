@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@
 
 #define MAX_ZONE_CHAR           256
 #define MAX_MAPID_LENGTH        32
+#define MAX_REGION_LENGTH       4
 
 #define NT_TZ_KEY               "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones"
 #define WIN_TZ_KEY              "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Time Zones"
@@ -121,7 +122,7 @@ getValueInRegistry(HKEY hKey,
 /*
  * Produces custom name "GMT+hh:mm" from the given bias in buffer.
  */
-static void customZoneName(LONG bias, char *buffer) {
+static void customZoneName(LONG bias, char *buffer, size_t bufSize) {
     LONG gmtOffset;
     int sign;
 
@@ -133,7 +134,7 @@ static void customZoneName(LONG bias, char *buffer) {
         sign = 1;
     }
     if (gmtOffset != 0) {
-        sprintf(buffer, "GMT%c%02d:%02d",
+        snprintf(buffer, bufSize, "GMT%c%02d:%02d",
                 ((sign >= 0) ? '+' : '-'),
                 gmtOffset / 60,
                 gmtOffset % 60);
@@ -145,7 +146,7 @@ static void customZoneName(LONG bias, char *buffer) {
 /*
  * Gets the current time zone entry in the "Time Zones" registry.
  */
-static int getWinTimeZone(char *winZoneName, char *winMapID)
+static int getWinTimeZone(char *winZoneName, size_t winZoneNameBufSize)
 {
     DYNAMIC_TIME_ZONE_INFORMATION dtzi;
     DWORD timeType;
@@ -172,7 +173,7 @@ static int getWinTimeZone(char *winZoneName, char *winMapID)
      */
     if (dtzi.TimeZoneKeyName[0] != 0) {
         if (dtzi.DynamicDaylightTimeDisabled) {
-            customZoneName(dtzi.Bias, winZoneName);
+            customZoneName(dtzi.Bias, winZoneName, winZoneNameBufSize);
             return VALUE_GMTOFFSET;
         }
         wcstombs(winZoneName, dtzi.TimeZoneKeyName, MAX_ZONE_CHAR);
@@ -205,7 +206,7 @@ static int getWinTimeZone(char *winZoneName, char *winMapID)
          * is disabled.
          */
         if (val == 1) {
-            customZoneName(dtzi.Bias, winZoneName);
+            customZoneName(dtzi.Bias, winZoneName, winZoneNameBufSize);
             (void) RegCloseKey(hKey);
             return VALUE_GMTOFFSET;
         }
@@ -231,7 +232,6 @@ static int getWinTimeZone(char *winZoneName, char *winMapID)
         WCHAR stdNameInReg[MAX_ZONE_CHAR];
         TziValue tempTzi;
         WCHAR *stdNamePtr = tzi.StandardName;
-        DWORD valueSize;
         int onlyMapID;
 
         timeType = GetTimeZoneInformation(&tzi);
@@ -251,7 +251,7 @@ static int getWinTimeZone(char *winZoneName, char *winMapID)
             if (ret == ERROR_SUCCESS) {
                 if (val == 1 && tzi.DaylightDate.wMonth != 0) {
                     (void) RegCloseKey(hKey);
-                    customZoneName(tzi.Bias, winZoneName);
+                    customZoneName(tzi.Bias, winZoneName, winZoneNameBufSize);
                     return VALUE_GMTOFFSET;
                 }
             }
@@ -372,24 +372,7 @@ static int getWinTimeZone(char *winZoneName, char *winMapID)
             (void) RegCloseKey(hSubKey);
         }
 
-        /*
-         * Get the "MapID" value of the registry to be able to eliminate
-         * duplicated key names later.
-         */
-        valueSize = MAX_MAPID_LENGTH;
-        ret = RegQueryValueExA(hSubKey, "MapID", NULL, &valueType, winMapID, &valueSize);
-        (void) RegCloseKey(hSubKey);
         (void) RegCloseKey(hKey);
-
-        if (ret != ERROR_SUCCESS) {
-            /*
-             * Vista doesn't have mapID. VALUE_UNKNOWN should be returned
-             * only for Windows NT.
-             */
-            if (onlyMapID == 1) {
-                return VALUE_UNKNOWN;
-            }
-        }
     }
 
     return VALUE_KEY;
@@ -410,35 +393,40 @@ static int getWinTimeZone(char *winZoneName, char *winMapID)
  * Index values for the mapping table.
  */
 #define TZ_WIN_NAME     0
-#define TZ_MAPID        1
-#define TZ_REGION       2
-#define TZ_JAVA_NAME    3
+#define TZ_REGION       1
+#define TZ_JAVA_NAME    2
 
-#define TZ_NITEMS       4       /* number of items (fields) */
+#define TZ_NITEMS       3       /* number of items (fields) */
 
 /*
  * Looks up the mapping table (tzmappings) and returns a Java time
  * zone ID (e.g., "America/Los_Angeles") if found. Otherwise, NULL is
  * returned.
- *
- * value_type is one of the following values:
- *      VALUE_KEY for exact key matching
- *      VALUE_MAPID for MapID (this is
- *      required for the old Windows, such as NT 4.0 SP3).
  */
-static char *matchJavaTZ(const char *java_home_dir, int value_type, char *tzName,
-                         char *mapID)
+static char *matchJavaTZ(const char *java_home_dir, char *tzName)
 {
     int line;
-    int IDmatched = 0;
     FILE *fp;
     char *javaTZName = NULL;
     char *items[TZ_NITEMS];
     char *mapFileName;
     char lineBuffer[MAX_ZONE_CHAR * 4];
-    int noMapID = *mapID == '\0';       /* no mapID on Vista and later */
     int offset = 0;
     const char* errorMessage = "unknown error";
+    char region[MAX_REGION_LENGTH];
+
+    // Get the user's location
+    if (GetGeoInfo(GetUserGeoID(GEOCLASS_NATION),
+            GEO_ISO2, region, MAX_REGION_LENGTH, 0) == 0) {
+        // If GetGeoInfo fails, fallback to LCID's country
+        LCID lcid = GetUserDefaultLCID();
+        if (GetLocaleInfo(lcid,
+                          LOCALE_SISO3166CTRYNAME, region, MAX_REGION_LENGTH) == 0 &&
+            GetLocaleInfo(lcid,
+                          LOCALE_SISO3166CTRYNAME2, region, MAX_REGION_LENGTH) == 0) {
+            region[0] = '\0';
+        }
+    }
 
     mapFileName = malloc(strlen(java_home_dir) + strlen(MAPPINGS_FILE) + 1);
     if (mapFileName == NULL) {
@@ -494,26 +482,18 @@ static char *matchJavaTZ(const char *java_home_dir, int value_type, char *tzName
             goto illegal_format;
         }
 
-        if (noMapID || strcmp(mapID, items[TZ_MAPID]) == 0) {
+        /*
+         * We need to scan items until the
+         * exact match is found or the end of data is detected.
+         */
+        if (strcmp(items[TZ_WIN_NAME], tzName) == 0) {
             /*
-             * When there's no mapID, we need to scan items until the
-             * exact match is found or the end of data is detected.
+             * Found the time zone in the mapping table.
+             * Check the region code and select the appropriate entry
              */
-            if (!noMapID) {
-                IDmatched = 1;
-            }
-            if (strcmp(items[TZ_WIN_NAME], tzName) == 0) {
-                /*
-                 * Found the time zone in the mapping table.
-                 */
+            if (strcmp(items[TZ_REGION], region) == 0 ||
+                strcmp(items[TZ_REGION], "001") == 0) {
                 javaTZName = _strdup(items[TZ_JAVA_NAME]);
-                break;
-            }
-        } else {
-            if (IDmatched == 1) {
-                /*
-                 * No need to look up the mapping table further.
-                 */
                 break;
             }
         }
@@ -535,19 +515,16 @@ static char *matchJavaTZ(const char *java_home_dir, int value_type, char *tzName
 char *findJavaTZ_md(const char *java_home_dir)
 {
     char winZoneName[MAX_ZONE_CHAR];
-    char winMapID[MAX_MAPID_LENGTH];
     char *std_timezone = NULL;
     int  result;
 
-    winMapID[0] = 0;
-    result = getWinTimeZone(winZoneName, winMapID);
+    result = getWinTimeZone(winZoneName, sizeof(winZoneName));
 
     if (result != VALUE_UNKNOWN) {
         if (result == VALUE_GMTOFFSET) {
             std_timezone = _strdup(winZoneName);
         } else {
-            std_timezone = matchJavaTZ(java_home_dir, result,
-                                       winZoneName, winMapID);
+            std_timezone = matchJavaTZ(java_home_dir, winZoneName);
             if (std_timezone == NULL) {
                 std_timezone = getGMTOffsetID();
             }
@@ -591,6 +568,6 @@ getGMTOffsetID()
         }
     }
 
-    customZoneName(bias, zonename);
+    customZoneName(bias, zonename, sizeof(zonename));
     return _strdup(zonename);
 }

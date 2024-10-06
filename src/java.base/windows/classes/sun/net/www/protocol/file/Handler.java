@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,10 @@
 
 package sun.net.www.protocol.file;
 
-import java.net.InetAddress;
 import java.net.URLConnection;
 import java.net.URL;
 import java.net.Proxy;
-import java.net.MalformedURLException;
 import java.net.URLStreamHandler;
-import java.io.InputStream;
 import java.io.IOException;
 import sun.net.www.ParseUtil;
 import java.io.File;
@@ -41,14 +38,6 @@ import java.io.File;
  * @author      James Gosling
  */
 public class Handler extends URLStreamHandler {
-
-    private String getHost(URL url) {
-        String host = url.getHost();
-        if (host == null)
-            host = "";
-        return host;
-    }
-
 
     protected void parseURL(URL u, String spec, int start, int limit) {
         /*
@@ -61,18 +50,18 @@ public class Handler extends URLStreamHandler {
          * rather than forcing this to be fixed in the caller of the URL
          * class where it belongs. Since backslash is an "unwise"
          * character that would normally be encoded if literally intended
-         * as a non-seperator character the damage of veering away from the
+         * as a non-separator character the damage of veering away from the
          * specification is presumably limited.
          */
         super.parseURL(u, spec.replace(File.separatorChar, '/'), start, limit);
     }
 
-    public synchronized URLConnection openConnection(URL url)
+    public URLConnection openConnection(URL url)
         throws IOException {
         return openConnection(url, null);
     }
 
-    public synchronized URLConnection openConnection(URL url, Proxy p)
+    public URLConnection openConnection(URL url, Proxy p)
            throws IOException {
 
         String path;
@@ -83,7 +72,7 @@ public class Handler extends URLStreamHandler {
         path = path.replace('/', '\\');
         path = path.replace('|', ':');
 
-        if ((host == null) || host.equals("") ||
+        if ((host == null) || host.isEmpty() ||
                 host.equalsIgnoreCase("localhost") ||
                 host.equals("~")) {
            return createFileURLConnection(url, new File(path));
@@ -95,7 +84,7 @@ public class Handler extends URLStreamHandler {
         path = "\\\\" + host + path;
         File f = new File(path);
         if (f.exists()) {
-            return createFileURLConnection(url, f);
+            return new UNCFileURLConnection(url, f, path);
         }
 
         /*
@@ -105,7 +94,8 @@ public class Handler extends URLStreamHandler {
         URL newurl;
 
         try {
-            newurl = new URL("ftp", host, file +
+            @SuppressWarnings("deprecation")
+            var _unused = newurl = new URL("ftp", host, file +
                             (url.getRef() == null ? "":
                             "#" + url.getRef()));
             if (p != null) {
@@ -124,7 +114,7 @@ public class Handler extends URLStreamHandler {
     }
 
     /**
-     * Template method to be overriden by Java Plug-in. [stanleyh]
+     * Template method to be overridden by Java Plug-in. [stanleyh]
      */
     protected URLConnection createFileURLConnection(URL url, File file) {
         return new FileURLConnection(url, file);
@@ -145,9 +135,9 @@ public class Handler extends URLStreamHandler {
          */
         String s1 = u1.getHost();
         String s2 = u2.getHost();
-        if ("localhost".equalsIgnoreCase(s1) && ( s2 == null || "".equals(s2)))
+        if ("localhost".equalsIgnoreCase(s1) && (s2 == null || s2.isEmpty()))
             return true;
-        if ("localhost".equalsIgnoreCase(s2) && ( s1 == null || "".equals(s1)))
+        if ("localhost".equalsIgnoreCase(s2) && (s1 == null || s1.isEmpty()))
             return true;
         return super.hostsEqual(u1, u2);
     }

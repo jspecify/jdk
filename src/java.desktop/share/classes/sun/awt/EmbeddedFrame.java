@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,28 @@
 
 package sun.awt;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.awt.peer.*;
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeEvent;
-import java.util.Set;
-import java.awt.AWTKeyStroke;
 import java.applet.Applet;
+import java.awt.AWTKeyStroke;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Cursor;
+import java.awt.Dialog;
+import java.awt.Dimension;
+import java.awt.Frame;
+import java.awt.Image;
+import java.awt.KeyEventDispatcher;
+import java.awt.KeyboardFocusManager;
+import java.awt.MenuBar;
+import java.awt.MenuComponent;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.KeyEvent;
+import java.awt.peer.ComponentPeer;
+import java.awt.peer.FramePeer;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.io.Serial;
+import java.util.Set;
 
 /**
  * A generic container used for embedding Java components, usually applets.
@@ -56,8 +70,13 @@ public abstract class EmbeddedFrame extends Frame
 
     private boolean isCursorAllowed = true;
     private boolean supportsXEmbed = false;
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private KeyboardFocusManager appletKFM;
-    // JDK 1.1 compatibility
+
+    /**
+     * Use serialVersionUID from JDK 1.1 for interoperability.
+     */
+    @Serial
     private static final long serialVersionUID = 2967042741780317130L;
 
     /*
@@ -288,7 +307,7 @@ public abstract class EmbeddedFrame extends Frame
      *    about to transfer the focus backward.
      * 2. The focus in on the last Component of this EmbeddedFrame and we are
      *    about to transfer the focus forward.
-     * This is needed to give the opportuity for keyboard focus to leave the
+     * This is needed to give the opportunity for keyboard focus to leave the
      * EmbeddedFrame. Override this method, initiate focus transfer in it and
      * return true if you want the focus to leave EmbeddedFrame's cycle.
      * The direction parameter specifies which of the two mentioned cases is
@@ -327,7 +346,7 @@ public abstract class EmbeddedFrame extends Frame
         }
     }
 
-    // These three functions consitute RFE 4100710. Do not remove.
+    // These three functions constitute RFE 4100710. Do not remove.
     public void setCursorAllowed(boolean isCursorAllowed) {
         this.isCursorAllowed = isCursorAllowed;
         final FramePeer peer = AWTAccessor.getComponentAccessor().getPeer(this);
@@ -344,7 +363,7 @@ public abstract class EmbeddedFrame extends Frame
 
     protected void setPeer(final ComponentPeer p){
         AWTAccessor.getComponentAccessor().setPeer(EmbeddedFrame.this, p);
-    };
+    }
 
     /**
      * Synthesize native message to activate or deactivate EmbeddedFrame window
@@ -396,7 +415,7 @@ public abstract class EmbeddedFrame extends Frame
      * (0, 0) for backward compatibility. To allow getting location and size
      * of embedded frame getLocationPrivate() and getBoundsPrivate() were
      * introduced, and they work just the same way as getLocation() and getBounds()
-     * for ususal, non-embedded components.
+     * for usual, non-embedded components.
      * </p>
      * <p>
      * Using usual get/setLocation() and get/setBounds() together with new
@@ -461,7 +480,7 @@ public abstract class EmbeddedFrame extends Frame
      * (0, 0) for backward compatibility. To allow getting location and size
      * of embedded frames getLocationPrivate() and getBoundsPrivate() were
      * introduced, and they work just the same way as getLocation() and getBounds()
-     * for ususal, non-embedded components.
+     * for usual, non-embedded components.
      * </p>
      * <p>
      * Using usual get/setLocation() and get/setBounds() together with new
@@ -503,7 +522,8 @@ public abstract class EmbeddedFrame extends Frame
      * <a href="../../java/applet/package-summary.html"> java.applet package
      * documentation</a> for further information.
      */
-    @Deprecated(since = "9")
+    @Deprecated(since = "9", forRemoval = true)
+    @SuppressWarnings("removal")
     public static Applet getAppletIfAncestorOf(Component comp) {
         Container parent = comp.getParent();
         Applet applet = null;
@@ -517,7 +537,7 @@ public abstract class EmbeddedFrame extends Frame
     }
 
     /**
-     * This method should be overriden in subclasses. It is
+     * This method should be overridden in subclasses. It is
      * called when window this frame is within should be blocked
      * by some modal dialog.
      */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,12 @@
  *
  */
 
-#ifndef SHARE_GC_SHARED_COMMANDLINEFLAGCONSTRAINTSGC_HPP
-#define SHARE_GC_SHARED_COMMANDLINEFLAGCONSTRAINTSGC_HPP
+#ifndef SHARE_GC_SHARED_JVMFLAGCONSTRAINTSGC_HPP
+#define SHARE_GC_SHARED_JVMFLAGCONSTRAINTSGC_HPP
 
+#include "runtime/flags/jvmFlag.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_CMSGC
-#include "gc/cms/jvmFlagConstraintsCMS.hpp"
-#endif
 #if INCLUDE_G1GC
 #include "gc/g1/jvmFlagConstraintsG1.hpp"
 #endif
@@ -42,36 +40,41 @@
  * whenever flag's value changes. If the constraint fails the function should return
  * an appropriate error value.
  */
+#define SHARED_GC_CONSTRAINTS(f)                               \
+ f(size_t, YoungPLABSizeConstraintFunc)                        \
+ f(size_t, OldPLABSizeConstraintFunc)                          \
+ f(uintx,  MinHeapFreeRatioConstraintFunc)                     \
+ f(uintx,  MaxHeapFreeRatioConstraintFunc)                     \
+ f(intx,   SoftRefLRUPolicyMSPerMBConstraintFunc)              \
+ f(size_t, MarkStackSizeConstraintFunc)                        \
+ f(uint,   MinMetaspaceFreeRatioConstraintFunc)                \
+ f(uint,   MaxMetaspaceFreeRatioConstraintFunc)                \
+ f(uint,   InitialTenuringThresholdConstraintFunc)             \
+ f(uint,   MaxTenuringThresholdConstraintFunc)                 \
+                                                               \
+ f(uintx,  MaxGCPauseMillisConstraintFunc)                     \
+ f(uintx,  GCPauseIntervalMillisConstraintFunc)                \
+ f(size_t, MinHeapSizeConstraintFunc)                          \
+ f(size_t, InitialHeapSizeConstraintFunc)                      \
+ f(size_t, MaxHeapSizeConstraintFunc)                          \
+ f(size_t, SoftMaxHeapSizeConstraintFunc)                      \
+ f(size_t, HeapBaseMinAddressConstraintFunc)                   \
+ f(size_t, NewSizeConstraintFunc)                              \
+ f(size_t, MinTLABSizeConstraintFunc)                          \
+ f(size_t, TLABSizeConstraintFunc)                             \
+ f(uintx,  TLABWasteIncrementConstraintFunc)                   \
+ f(uintx,  SurvivorRatioConstraintFunc)                        \
+ f(size_t, MetaspaceSizeConstraintFunc)                        \
+ f(size_t, MaxMetaspaceSizeConstraintFunc)                     \
+ f(uint, GCCardSizeInBytesConstraintFunc)
 
-JVMFlag::Error ParallelGCThreadsConstraintFunc(uint value, bool verbose);
-JVMFlag::Error ConcGCThreadsConstraintFunc(uint value, bool verbose);
-JVMFlag::Error YoungPLABSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error OldPLABSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error MinHeapFreeRatioConstraintFunc(uintx value, bool verbose);
-JVMFlag::Error MaxHeapFreeRatioConstraintFunc(uintx value, bool verbose);
-JVMFlag::Error SoftRefLRUPolicyMSPerMBConstraintFunc(intx value, bool verbose);
-JVMFlag::Error MarkStackSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error MinMetaspaceFreeRatioConstraintFunc(uintx value, bool verbose);
-JVMFlag::Error MaxMetaspaceFreeRatioConstraintFunc(uintx value, bool verbose);
-JVMFlag::Error InitialTenuringThresholdConstraintFunc(uintx value, bool verbose);
-JVMFlag::Error MaxTenuringThresholdConstraintFunc(uintx value, bool verbose);
+SHARED_GC_CONSTRAINTS(DECLARE_CONSTRAINT)
 
-JVMFlag::Error MaxGCPauseMillisConstraintFunc(uintx value, bool verbose);
-JVMFlag::Error GCPauseIntervalMillisConstraintFunc(uintx value, bool verbose);
-JVMFlag::Error InitialBootClassLoaderMetaspaceSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error InitialHeapSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error MaxHeapSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error HeapBaseMinAddressConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error NewSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error MinTLABSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error TLABSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error TLABWasteIncrementConstraintFunc(uintx value, bool verbose);
-JVMFlag::Error SurvivorRatioConstraintFunc(uintx value, bool verbose);
-JVMFlag::Error MetaspaceSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error MaxMetaspaceSizeConstraintFunc(size_t value, bool verbose);
-JVMFlag::Error SurvivorAlignmentInBytesConstraintFunc(intx value, bool verbose);
-
-// Internal
 JVMFlag::Error MaxPLABSizeBounds(const char* name, size_t value, bool verbose);
 
-#endif // SHARE_GC_SHARED_COMMANDLINEFLAGCONSTRAINTSGC_HPP
+#define GC_CONSTRAINTS(f)                      \
+  SHARED_GC_CONSTRAINTS(f)                     \
+  G1GC_ONLY(G1_GC_CONSTRAINTS(f))              \
+  PARALLELGC_ONLY(PARALLEL_GC_CONSTRAINTS(f))
+
+#endif // SHARE_GC_SHARED_JVMFLAGCONSTRAINTSGC_HPP

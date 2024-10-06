@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,18 +26,9 @@
 
 package javax.management.openmbean;
 
-import org.jspecify.annotations.Nullable;
-
-
-// java import
-//
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-
-// jmx import
-//
 
 
 /**
@@ -61,6 +52,7 @@ public class TabularType extends OpenType<TabularData> {
      * @serial The items used to index each row element, kept in the order the user gave
      *         This is an unmodifiable {@link ArrayList}
      */
+    @SuppressWarnings("serial") // Conditionally serializable
     private List<String> indexNames;
 
 
@@ -140,7 +132,7 @@ public class TabularType extends OpenType<TabularData> {
         // modifs to the array referenced by the indexNames parameter
         // have no impact)
         //
-        List<String> tmpList = new ArrayList<String>(indexNames.length + 1);
+        List<String> tmpList = new ArrayList<>(indexNames.length + 1);
         for (int i=0; i<indexNames.length; i++) {
             tmpList.add(indexNames[i]);
         }
@@ -167,7 +159,7 @@ public class TabularType extends OpenType<TabularData> {
      */
     private static void checkForEmptyString(String[] arg, String argName) {
         for (int i=0; i<arg.length; i++) {
-            if (arg[i].trim().equals("")) {
+            if (arg[i].trim().isEmpty()) {
                 throw new IllegalArgumentException("Argument's element "+ argName +"["+ i +"] cannot be an empty string.");
             }
         }
@@ -250,7 +242,7 @@ public class TabularType extends OpenType<TabularData> {
     }
 
 
-    /* *** Methods overriden from class Object *** */
+    /* *** Methods overridden from class Object *** */
 
     /**
      * Compares the specified <code>obj</code> parameter with this <code>TabularType</code> instance for equality.
@@ -267,9 +259,7 @@ public class TabularType extends OpenType<TabularData> {
      *
      * @return  <code>true</code> if the specified object is equal to this <code>TabularType</code> instance.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
 
         // if obj is null, return false
         //
@@ -304,7 +294,7 @@ public class TabularType extends OpenType<TabularData> {
             return false;
         }
 
-        // All tests for equality were successfull
+        // All tests for equality were successful
         //
         return true;
     }

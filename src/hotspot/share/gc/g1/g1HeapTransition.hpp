@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,22 +22,32 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1HEAPTRANSITION_HPP
-#define SHARE_VM_GC_G1_G1HEAPTRANSITION_HPP
+#ifndef SHARE_GC_G1_G1HEAPTRANSITION_HPP
+#define SHARE_GC_G1_G1HEAPTRANSITION_HPP
 
 #include "gc/shared/plab.hpp"
+#include "memory/metaspaceStats.hpp"
 
 class G1CollectedHeap;
 
 class G1HeapTransition {
+  struct DetailedUsage;
+  class DetailedUsageClosure;
+
   struct Data {
     size_t _eden_length;
     size_t _survivor_length;
     size_t _old_length;
     size_t _humongous_length;
-    size_t _metaspace_used_bytes;
+    const MetaspaceCombinedStats _meta_sizes;
+
+    // Only includes current eden regions.
+    uint* _eden_length_per_node;
+    // Only includes current survivor regions.
+    uint* _survivor_length_per_node;
 
     Data(G1CollectedHeap* g1_heap);
+    ~Data();
   };
 
   G1CollectedHeap* _g1_heap;
@@ -49,4 +59,4 @@ public:
   void print();
 };
 
-#endif // SHARE_VM_GC_G1_G1HEAPTRANSITION_HPP
+#endif // SHARE_GC_G1_G1HEAPTRANSITION_HPP

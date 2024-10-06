@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,8 +38,7 @@ import org.jspecify.annotations.Nullable;
  * @since   1.1
  */
 @NullMarked
-public
-class IllegalStateException extends RuntimeException {
+public class IllegalStateException extends RuntimeException {
     /**
      * Constructs an IllegalStateException with no detail message.
      * A detail message is a String that describes this particular exception.
@@ -65,7 +64,7 @@ class IllegalStateException extends RuntimeException {
      * Constructs a new exception with the specified detail message and
      * cause.
      *
-     * <p>Note that the detail message associated with <code>cause</code> is
+     * <p>Note that the detail message associated with {@code cause} is
      * <i>not</i> automatically incorporated in this exception's detail
      * message.
      *
@@ -101,5 +100,6 @@ class IllegalStateException extends RuntimeException {
         super(cause);
     }
 
+    @java.io.Serial
     static final long serialVersionUID = -1848914673093119416L;
 }

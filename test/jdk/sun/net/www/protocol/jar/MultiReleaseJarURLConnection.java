@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,14 @@
  * @test
  * @bug 8132734 8144062 8159785 8194070
  * @summary Test that URL connections to multi-release jars can be runtime versioned
- * @library /lib/testlibrary/java/util/jar
+ * @library /lib/testlibrary/java/util/jar /test/lib
  * @modules jdk.compiler
  *          jdk.httpserver
  *          jdk.jartool
- * @build Compiler JarBuilder CreateMultiReleaseTestJars SimpleHttpServer
+ * @build CreateMultiReleaseTestJars
+ *        jdk.test.lib.net.SimpleHttpServer
+ *        jdk.test.lib.util.JarBuilder
+ *        jdk.test.lib.compiler.Compiler
  * @run testng MultiReleaseJarURLConnection
  */
 
@@ -38,7 +41,12 @@ import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.JarURLConnection;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLConnection;
@@ -47,6 +55,8 @@ import java.nio.file.Paths;
 import java.util.Enumeration;
 import java.util.jar.JarFile;
 
+import jdk.test.lib.net.SimpleHttpServer;
+import jdk.test.lib.net.URIBuilder;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -54,10 +64,11 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class MultiReleaseJarURLConnection {
-    String userdir = System.getProperty("user.dir",".");
+    String userdir = System.getProperty("user.dir", ".");
     String unversioned = userdir + "/unversioned.jar";
     String unsigned = userdir + "/multi-release.jar";
     String signed = userdir + "/signed-multi-release.jar";
+    static final String TESTCONTEXT = "/multi-release.jar";
     SimpleHttpServer server;
 
     @BeforeClass
@@ -67,10 +78,8 @@ public class MultiReleaseJarURLConnection {
         creator.buildUnversionedJar();
         creator.buildMultiReleaseJar();
         creator.buildSignedMultiReleaseJar();
-
-        server = new SimpleHttpServer();
+        server = new SimpleHttpServer(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), TESTCONTEXT, System.getProperty("user.dir", "."));
         server.start();
-
     }
 
     @AfterClass
@@ -125,12 +134,12 @@ public class MultiReleaseJarURLConnection {
         String urlFile = "jar:file:" + file + "!/";
 
         URL rootUrl = new URL(urlFile);
-        JarURLConnection juc = (JarURLConnection)rootUrl.openConnection();
+        JarURLConnection juc = (JarURLConnection) rootUrl.openConnection();
         JarFile rootJar = juc.getJarFile();
         Runtime.Version root = rootJar.getVersion();
 
         URL runtimeUrl = new URL(urlFile + "#runtime");
-        juc = (JarURLConnection)runtimeUrl.openConnection();
+        juc = (JarURLConnection) runtimeUrl.openConnection();
         JarFile runtimeJar = juc.getJarFile();
         Runtime.Version runtime = runtimeJar.getVersion();
         if (style.equals("unversioned")) {
@@ -139,12 +148,12 @@ public class MultiReleaseJarURLConnection {
             Assert.assertNotEquals(root, runtime);
         }
 
-        juc = (JarURLConnection)rootUrl.openConnection();
+        juc = (JarURLConnection) rootUrl.openConnection();
         JarFile jar = juc.getJarFile();
         Assert.assertEquals(jar.getVersion(), root);
         Assert.assertEquals(jar, rootJar);
 
-        juc = (JarURLConnection)runtimeUrl.openConnection();
+        juc = (JarURLConnection) runtimeUrl.openConnection();
         jar = juc.getJarFile();
         Assert.assertEquals(jar.getVersion(), runtime);
         Assert.assertEquals(jar, runtimeJar);
@@ -167,15 +176,15 @@ public class MultiReleaseJarURLConnection {
                 {"unsigned", new URL("jar:file:" + unsigned + "!/")},
                 {"signed", new URL("jar:file:" + signed + "!/")},
                 // external jar received via http protocol
-                {"http", new URL("jar:http://localhost:" + server.getPort() + "/multi-release.jar!/")},
-                {"http", new URL("http://localhost:" + server.getPort() + "/multi-release.jar")},
-
+                {"http", toHttpJarURL(server.getPort(), "/multi-release.jar", "!/")},
+                {"http", URIBuilder.newBuilder().scheme("http").port(server.getPort())
+                        .loopback().path("/multi-release.jar").toURL()},
         };
     }
 
     @Test(dataProvider = "resourcedata")
     public void testResources(String style, URL url) throws Throwable {
-        //System.out.println("  testing " + style + " url: " + url);
+        // System.out.println("  testing " + style + " url: " + url);
         URL[] urls = {url};
         URLClassLoader cldr = new URLClassLoader(urls);
         Class<?> vcls = cldr.loadClass("version.Version");
@@ -200,7 +209,7 @@ public class MultiReleaseJarURLConnection {
             String fragment = vclsUrl.getRef();
             Assert.assertNull(fragment);
 
-            // and verify that the the url is a reified pointer to the runtime entry
+            // and verify that the url is a reified pointer to the runtime entry
             String rep = vclsUrl.toString();
             //System.out.println("    getResource(\"/version/Version.class\") returned: " + rep);
             if (style.equals("http")) {
@@ -220,6 +229,18 @@ public class MultiReleaseJarURLConnection {
         cldr.close();
     }
 
+    private static URL toHttpJarURL(int port, String jar, String file)
+            throws MalformedURLException, URISyntaxException {
+        assert file.startsWith("!/");
+        URI httpURI = URIBuilder.newBuilder()
+                .scheme("http")
+                .loopback()
+                .port(port)
+                .path(jar)
+                .build();
+        return new URL("jar:" + httpURI + file);
+    }
+
     private boolean readAndCompare(URL url, String match) throws Exception {
         boolean result;
         // necessary to do it this way, instead of openStream(), so we can
@@ -230,7 +251,7 @@ public class MultiReleaseJarURLConnection {
             result = (new String(bytes)).contains(match);
         }
         if (conn instanceof JarURLConnection) {
-            ((JarURLConnection)conn).getJarFile().close();
+            ((JarURLConnection) conn).getJarFile().close();
         }
         return result;
     }

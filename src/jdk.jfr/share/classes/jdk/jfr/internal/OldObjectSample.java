@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
 package jdk.jfr.internal;
 
 import java.util.HashMap;
@@ -24,17 +49,18 @@ public final class OldObjectSample {
     private static final String OLD_OBJECT_CUTOFF = EVENT_NAME + "#" + Cutoff.NAME;
     private static final String OLD_OBJECT_ENABLED = EVENT_NAME + "#" + Enabled.NAME;
 
-    // Emit if old object is enabled in recoding with cutoff for that recording
+    // Emit if old object is enabled in recording with cutoff for that recording
     public static void emit(PlatformRecording recording) {
         if (isEnabled(recording)) {
             long nanos = CutoffSetting.parseValueSafe(recording.getSettings().get(OLD_OBJECT_CUTOFF));
-            long ticks = Utils.nanosToTicks(nanos);
-            JVM.getJVM().emitOldObjectSamples(ticks, WhiteBox.getWriteAllObjectSamples());
+            long ticks = JVMSupport.nanosToTicks(nanos);
+            emit(ticks);
         }
     }
 
+
     // Emit if old object is enabled for at least one recording, and use the largest
-    // cutoff for an enabled recoding
+    // cutoff for an enabled recording
     public static void emit(List<PlatformRecording> recordings, Boolean pathToGcRoots) {
         boolean enabled = false;
         long cutoffNanos = Boolean.TRUE.equals(pathToGcRoots) ? Long.MAX_VALUE : 0L;
@@ -48,9 +74,15 @@ public final class OldObjectSample {
             }
         }
         if (enabled) {
-            long ticks = Utils.nanosToTicks(cutoffNanos);
-            JVM.getJVM().emitOldObjectSamples(ticks, WhiteBox.getWriteAllObjectSamples());
+            long ticks = JVMSupport.nanosToTicks(cutoffNanos);
+            emit(ticks);
         }
+    }
+
+    public static void emit(long ticks) {
+        boolean emitAll = WhiteBox.getWriteAllObjectSamples();
+        boolean skipBFS = WhiteBox.getSkipBFS();
+        JVM.emitOldObjectSamples(ticks, emitAll, skipBFS);
     }
 
     public static void updateSettingPathToGcRoots(Map<String, String> s, Boolean pathToGcRoots) {

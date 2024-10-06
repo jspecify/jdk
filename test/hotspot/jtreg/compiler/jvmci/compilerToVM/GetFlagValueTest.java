@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,8 @@
  * @library / /test/lib
  * @library ../common/patches
  * @modules jdk.internal.vm.ci/jdk.vm.ci.hotspot:+open
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @build jdk.internal.vm.ci/jdk.vm.ci.hotspot.CompilerToVMHelper
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI
  *                  -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
@@ -47,7 +46,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 public class GetFlagValueTest {
     public static void main(String[] args) throws Exception {
@@ -64,8 +63,11 @@ public class GetFlagValueTest {
         ProcessBuilder pb;
         OutputAnalyzer out;
 
-        String[] arguments = {"-XX:+UnlockExperimentalVMOptions", "-XX:+EnableJVMCI", "-XX:+PrintFlagsFinal", "-version"};
-        pb = ProcessTools.createJavaProcessBuilder(arguments);
+        pb = ProcessTools.createLimitedTestJavaProcessBuilder(
+            "-XX:+UnlockExperimentalVMOptions",
+            "-XX:+EnableJVMCI",
+            "-XX:+PrintFlagsFinal",
+            "-version");
         out = new OutputAnalyzer(pb.start());
 
         out.shouldHaveExitValue(0);
@@ -74,7 +76,7 @@ public class GetFlagValueTest {
 
         final WhiteBox wb = WhiteBox.getWhiteBox();
 
-        // Line example: ccstr PrintIdealGraphAddress = 127.0.0.1 {C2 notproduct} {default}
+        // Line example: ccstr PrintIdealGraphAddress = 127.0.0.1 {C2 develop} {default}
         Pattern flagLine = Pattern.compile("(\\w+)\\s+(\\w+)\\s+:?= (?:(.+))\\{[^}]+\\}\\s+\\{[^}]+\\}");
         for (String line : lines) {
             if (line.indexOf('=') != -1) {

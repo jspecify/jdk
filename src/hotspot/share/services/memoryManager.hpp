@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_MEMORYMANAGER_HPP
-#define SHARE_VM_SERVICES_MEMORYMANAGER_HPP
+#ifndef SHARE_SERVICES_MEMORYMANAGER_HPP
+#define SHARE_SERVICES_MEMORYMANAGER_HPP
 
 #include "gc/shared/gcCause.hpp"
 #include "memory/allocation.hpp"
@@ -57,11 +57,12 @@ private:
   const char* _name;
 
 protected:
-  volatile instanceOop _memory_mgr_obj;
+  OopHandle _memory_mgr_obj;
+  volatile bool _memory_mgr_obj_initialized;
 
-public:
   MemoryManager(const char* name);
 
+public:
   int num_memory_pools() const           { return _num_pools; }
   MemoryPool* get_memory_pool(int index) {
     assert(index >= 0 && index < _num_pools, "Invalid index");
@@ -70,22 +71,19 @@ public:
 
   int add_pool(MemoryPool* pool);
 
-  bool is_manager(instanceHandle mh)     { return oopDesc::equals(mh(), _memory_mgr_obj); }
+  bool is_manager(instanceHandle mh) const;
 
   virtual instanceOop get_memory_manager_instance(TRAPS);
   virtual bool is_gc_memory_manager()    { return false; }
 
   const char* name() const { return _name; }
 
-  // GC support
-  void oops_do(OopClosure* f);
-
   // Static factory methods to get a memory manager of a specific type
   static MemoryManager*   get_code_cache_memory_manager();
   static MemoryManager*   get_metaspace_memory_manager();
 };
 
-class GCStatInfo : public ResourceObj {
+class GCStatInfo : public CHeapObj<mtGC> {
 private:
   size_t _index;
   jlong  _start_time;
@@ -143,11 +141,10 @@ private:
   GCStatInfo*  _current_gc_stat;
   int          _num_gc_threads;
   volatile bool _notification_enabled;
-  const char*  _gc_end_message;
   bool         _pool_always_affected_by_gc[MemoryManager::max_num_pools];
 
 public:
-  GCMemoryManager(const char* name, const char* gc_end_message);
+  GCMemoryManager(const char* name);
   ~GCMemoryManager();
 
   void add_pool(MemoryPool* pool);
@@ -170,7 +167,7 @@ public:
                   bool recordAccumulatedGCTime);
   void   gc_end(bool recordPostGCUsage, bool recordAccumulatedGCTime,
                 bool recordGCEndTime, bool countCollection, GCCause::Cause cause,
-                bool allMemoryPoolsAffected);
+                bool allMemoryPoolsAffected, const char* message);
 
   void        reset_gc_stat()   { _num_collections = 0; _accumulated_timer.reset(); }
 
@@ -182,4 +179,4 @@ public:
   bool is_notification_enabled() { return _notification_enabled; }
 };
 
-#endif // SHARE_VM_SERVICES_MEMORYMANAGER_HPP
+#endif // SHARE_SERVICES_MEMORYMANAGER_HPP

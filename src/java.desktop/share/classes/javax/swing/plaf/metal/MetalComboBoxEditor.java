@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,7 @@ package javax.swing.plaf.metal;
 
 import javax.swing.*;
 import javax.swing.border.*;
-import java.io.Serializable;
 import java.awt.*;
-import java.awt.event.*;
 
 import javax.swing.plaf.basic.BasicComboBoxEditor;
 
@@ -41,7 +39,7 @@ import javax.swing.plaf.basic.BasicComboBoxEditor;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -64,7 +62,7 @@ public class MetalComboBoxEditor extends BasicComboBoxEditor {
                     }
                     super.setText(s);
                 }
-            // The preferred and minimum sizes are overriden and padded by
+            // The preferred and minimum sizes are overridden and padded by
             // 4 to keep the size as it previously was.  Refer to bugs
             // 4775789 and 4517214 for details.
             public Dimension getPreferredSize() {
@@ -89,7 +87,7 @@ public class MetalComboBoxEditor extends BasicComboBoxEditor {
     */
     protected static Insets editorBorderInsets = new Insets( 2, 2, 2, 0 );
 
-    class EditorBorder extends AbstractBorder {
+    static class EditorBorder extends AbstractBorder {
         public void paintBorder(Component c, Graphics g, int x, int y, int w, int h) {
             g.translate( x, y );
 
@@ -133,12 +131,16 @@ public class MetalComboBoxEditor extends BasicComboBoxEditor {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
     @SuppressWarnings("serial") // Same-version serialization only
     public static class UIResource extends MetalComboBoxEditor
     implements javax.swing.plaf.UIResource {
+        /**
+         * Constructs a {@code UIResource}.
+         */
+        public UIResource() {}
     }
 }

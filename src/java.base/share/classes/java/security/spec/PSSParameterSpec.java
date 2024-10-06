@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,14 +29,13 @@ import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.Objects;
-import java.security.spec.MGF1ParameterSpec;
 
 /**
- * This class specifies a parameter spec for RSASSA-PSS signature scheme,
+ * This class specifies a parameter spec for the RSASSA-PSS signature scheme,
  * as defined in the
  * <a href="https://tools.ietf.org/rfc/rfc8017.txt">PKCS#1 v2.2</a> standard.
  *
- * <p>Its ASN.1 definition in PKCS#1 standard is described below:
+ * <p>Its ASN.1 definition in the PKCS #1 standard is described below:
  * <pre>
  * RSASSA-PSS-params ::= SEQUENCE {
  *   hashAlgorithm      [0] HashAlgorithm      DEFAULT sha1,
@@ -68,12 +67,6 @@ import java.security.spec.MGF1ParameterSpec;
  *   ...  -- Allows for future expansion --
  * }
  * </pre>
- * <p>Note: the PSSParameterSpec.DEFAULT uses the following:
- *     message digest  -- "SHA-1"
- *     mask generation function (mgf) -- "MGF1"
- *     parameters for mgf -- MGF1ParameterSpec.SHA1
- *     SaltLength   -- 20
- *     TrailerField -- 1
  *
  * @see MGF1ParameterSpec
  * @see AlgorithmParameterSpec
@@ -99,25 +92,28 @@ public @UsesObjectEquals class PSSParameterSpec implements AlgorithmParameterSpe
     private final int trailerField;
 
     /**
-     * The {@code TrailerFieldBC} constant as defined in PKCS#1
+     * The {@code TrailerFieldBC} constant as defined in the PKCS #1 standard.
      *
      * @since 11
      */
     public static final int TRAILER_FIELD_BC = 1;
 
     /**
-     * The PSS parameter set with all default values
+     * The PSS parameter set with all default values.
+     * @deprecated This field uses the default values defined in the PKCS #1
+     *         standard. Some of these defaults are no longer recommended due
+     *         to advances in cryptanalysis -- see the
+     *         <a href="https://tools.ietf.org/rfc/rfc8017.txt">PKCS#1 v2.2</a>
+     *         standard for more details. Thus, it is recommended to create
+     *         a new {@code PSSParameterSpec} with the desired parameter values
+     *         using the
+     *         {@link #PSSParameterSpec(String, String, AlgorithmParameterSpec, int, int)} constructor.
      *
      * @since 1.5
      */
+    @Deprecated(since="19")
     public static final PSSParameterSpec DEFAULT = new PSSParameterSpec
         ("SHA-1", "MGF1", MGF1ParameterSpec.SHA1, 20, TRAILER_FIELD_BC);
-
-
-    // disallowed
-    private PSSParameterSpec() {
-        throw new RuntimeException("default constructor not allowed");
-    }
 
 
     /**
@@ -126,16 +122,27 @@ public @UsesObjectEquals class PSSParameterSpec implements AlgorithmParameterSpe
      * mask generation function, parameters for mask generation
      * function, salt length, and trailer field values.
      *
-     * @param mdName       the algorithm name of the hash function
-     * @param mgfName      the algorithm name of the mask generation function
+     * @param mdName       the algorithm name of the hash function. See the
+     *         PSSParameterSpec section of the
+     *         <a href=
+     *        "{@docRoot}/../specs/security/standard-names.html#pssparameterspec">
+     *         Java Security Standard Algorithm Names Specification</a>
+     *         for information about standard names for the hash function.
+     * @param mgfName      the algorithm name of the mask generation function.
+     *         See the PSSParameterSpec section of the
+     *         <a href=
+     *        "{@docRoot}/../specs/security/standard-names.html#pssparameterspec">
+     *         Java Security Standard Algorithm Names Specification</a>
+     *         for information about standard names for the mask generation
+     *         function.
      * @param mgfSpec      the parameters for the mask generation function.
      *         If null is specified, null will be returned by
      *         getMGFParameters().
-     * @param saltLen      the length of salt
+     * @param saltLen      the length of salt in bytes
      * @param trailerField the value of the trailer field
-     * @exception NullPointerException if {@code mdName}, or {@code mgfName}
+     * @throws    NullPointerException if {@code mdName}, or {@code mgfName}
      *         is null
-     * @exception IllegalArgumentException if {@code saltLen} or
+     * @throws    IllegalArgumentException if {@code saltLen} or
      *         {@code trailerField} is less than 0
      * @since 1.5
      */
@@ -162,13 +169,21 @@ public @UsesObjectEquals class PSSParameterSpec implements AlgorithmParameterSpe
     /**
      * Creates a new {@code PSSParameterSpec}
      * using the specified salt length and other default values as
-     * defined in PKCS#1.
+     * defined in the PKCS #1 standard.
      *
-     * @param saltLen the length of salt in bytes to be used in PKCS#1
-     *         PSS encoding
-     * @exception IllegalArgumentException if {@code saltLen} is
+     * @param saltLen the length of salt in bytes
+     * @throws    IllegalArgumentException if {@code saltLen} is
      *         less than 0
+     * @deprecated This constructor uses the default values defined in
+     *         the PKCS #1 standard except for the salt length. Some of these
+     *         defaults are no longer recommended due to advances in
+     *         cryptanalysis -- see the
+     *         <a href="https://tools.ietf.org/rfc/rfc8017.txt">PKCS#1 v2.2</a>
+     *         standard for more details. Thus, it is recommended to explicitly
+     *         specify all desired parameter values with the
+     *         {@link #PSSParameterSpec(String, String, AlgorithmParameterSpec, int, int)} constructor.
      */
+    @Deprecated(since="19")
     public PSSParameterSpec(int saltLen) {
         this("SHA-1", "MGF1", MGF1ParameterSpec.SHA1, saltLen, TRAILER_FIELD_BC);
     }
@@ -221,5 +236,14 @@ public @UsesObjectEquals class PSSParameterSpec implements AlgorithmParameterSpe
      */
     public int getTrailerField() {
         return trailerField;
+    }
+
+    @Override
+    public String toString() {
+        return "PSSParameterSpec[" + "hashAlgorithm=" + mdName + ", " +
+                "maskGenAlgorithm=" + mgfSpec + ", " +
+                "saltLength=" + saltLen + ", " +
+                "trailerField=" + trailerField +
+                ']';
     }
 }

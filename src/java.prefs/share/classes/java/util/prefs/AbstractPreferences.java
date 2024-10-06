@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,11 +32,6 @@ import java.util.*;
 import java.io.*;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-// These imports needed only as a workaround for a JavaDoc bug
-import java.lang.Integer;
-import java.lang.Long;
-import java.lang.Float;
-import java.lang.Double;
 
 /**
  * This class provides a skeletal implementation of the {@link Preferences}
@@ -207,7 +202,7 @@ public abstract class AbstractPreferences extends Preferences {
      */
     protected AbstractPreferences(@Nullable AbstractPreferences parent, String name) {
         if (parent==null) {
-            if (!name.equals(""))
+            if (!name.isEmpty())
                 throw new IllegalArgumentException("Root name '"+name+
                                                    "' must be \"\"");
             this.absolutePath = "/";
@@ -216,7 +211,7 @@ public abstract class AbstractPreferences extends Preferences {
             if (name.indexOf('/') != -1)
                 throw new IllegalArgumentException("Name '" + name +
                                                  "' contains '/'");
-            if (name.equals(""))
+            if (name.isEmpty())
               throw new IllegalArgumentException("Illegal name: empty string");
 
             root = parent.root;
@@ -327,7 +322,7 @@ public abstract class AbstractPreferences extends Preferences {
      *         removed with the {@link #removeNode()} method.
      * @throws IllegalArgumentException if key contains the null control
      *         character, code point U+0000.
-     * @throws NullPointerException {@inheritDoc}.
+     * @throws NullPointerException {@inheritDoc}
      */
     public void remove(String key) {
         Objects.requireNonNull(key, "Specified key cannot be null");
@@ -852,7 +847,7 @@ public abstract class AbstractPreferences extends Preferences {
         synchronized(lock) {
             if (removed)
                 throw new IllegalStateException("Node has been removed.");
-            if (path.equals(""))
+            if (path.isEmpty())
                 return this;
             if (path.equals("/"))
                 return root;
@@ -915,7 +910,7 @@ public abstract class AbstractPreferences extends Preferences {
         throws BackingStoreException
     {
         synchronized(lock) {
-            if (path.equals(""))
+            if (path.isEmpty())
                 return !removed;
             if (removed)
                 throw new IllegalStateException("Node has been removed.");
@@ -1067,6 +1062,7 @@ public abstract class AbstractPreferences extends Preferences {
      *         preference tree, {@code false} if it's in the system
      *         preference tree.
      */
+    @SuppressWarnings("removal")
     public boolean isUserNode() {
         return AccessController.doPrivileged(
             new PrivilegedAction<Boolean>() {
@@ -1501,13 +1497,13 @@ public abstract class AbstractPreferences extends Preferences {
      * eventQueue so the event dispatch thread knows whether to call
      * childAdded or childRemoved.
      */
-    private class NodeAddedEvent extends NodeChangeEvent {
+    private static class NodeAddedEvent extends NodeChangeEvent {
         private static final long serialVersionUID = -6743557530157328528L;
         NodeAddedEvent(Preferences parent, Preferences child) {
             super(parent, child);
         }
     }
-    private class NodeRemovedEvent extends NodeChangeEvent {
+    private static class NodeRemovedEvent extends NodeChangeEvent {
         private static final long serialVersionUID = 8735497392918824837L;
         NodeRemovedEvent(Preferences parent, Preferences child) {
             super(parent, child);

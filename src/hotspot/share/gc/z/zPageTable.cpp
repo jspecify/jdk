@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,73 +22,74 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/z/zAddress.hpp"
+#include "gc/z/zGranuleMap.inline.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageTable.inline.hpp"
 #include "runtime/orderAccess.hpp"
 #include "utilities/debug.hpp"
 
-ZPageTable::ZPageTable() :
-    _map() {}
-
-ZPageTableEntry ZPageTable::get_entry(ZPage* page) const {
-  const uintptr_t addr = ZAddress::good(page->start());
-  return _map.get(addr);
-}
-
-void ZPageTable::put_entry(ZPage* page, ZPageTableEntry entry) {
-  // Make sure a newly created page is globally visible before
-  // updating the pagetable.
-  OrderAccess::storestore();
-
-  const uintptr_t start = ZAddress::good(page->start());
-  const uintptr_t end = start + page->size();
-  for (uintptr_t addr = start; addr < end; addr += ZPageSizeMin) {
-    _map.put(addr, entry);
-  }
-}
+ZPageTable::ZPageTable()
+  : _map(ZAddressOffsetMax) {}
 
 void ZPageTable::insert(ZPage* page) {
-  assert(get_entry(page).page() == NULL ||
-         get_entry(page).page() == page, "Invalid entry");
+  const zoffset offset = page->start();
+  const size_t size = page->size();
 
-  // Cached pages stays in the pagetable and we must not re-insert
-  // those when they get re-allocated because they might also be
-  // relocating and we don't want to clear their relocating bit.
-  if (get_entry(page).page() == NULL) {
-    ZPageTableEntry entry(page, false /* relocating */);
-    put_entry(page, entry);
+  // Make sure a newly created page is
+  // visible before updating the page table.
+  OrderAccess::storestore();
+
+  assert(_map.get(offset) == nullptr, "Invalid entry");
+  _map.put(offset, size, page);
+
+  if (page->is_old()) {
+    ZGeneration::young()->register_with_remset(page);
   }
-
-  assert(get_entry(page).page() == page, "Invalid entry");
 }
 
 void ZPageTable::remove(ZPage* page) {
-  assert(get_entry(page).page() == page, "Invalid entry");
+  const zoffset offset = page->start();
+  const size_t size = page->size();
 
-  ZPageTableEntry entry;
-  put_entry(page, entry);
-
-  assert(get_entry(page).page() == NULL, "Invalid entry");
+  assert(_map.get(offset) == page, "Invalid entry");
+  _map.put(offset, size, nullptr);
 }
 
-void ZPageTable::set_relocating(ZPage* page) {
-  assert(get_entry(page).page() == page, "Invalid entry");
-  assert(!get_entry(page).relocating(), "Invalid entry");
+void ZPageTable::replace(ZPage* old_page, ZPage* new_page) {
+  const zoffset offset = old_page->start();
+  const size_t size = old_page->size();
 
-  ZPageTableEntry entry(page, true /* relocating */);
-  put_entry(page, entry);
+  assert(_map.get(offset) == old_page, "Invalid entry");
+  _map.release_put(offset, size, new_page);
 
-  assert(get_entry(page).page() == page, "Invalid entry");
-  assert(get_entry(page).relocating(), "Invalid entry");
+  if (new_page->is_old()) {
+    ZGeneration::young()->register_with_remset(new_page);
+  }
 }
 
-void ZPageTable::clear_relocating(ZPage* page) {
-  assert(get_entry(page).page() == page, "Invalid entry");
-  assert(get_entry(page).relocating(), "Invalid entry");
+ZGenerationPagesParallelIterator::ZGenerationPagesParallelIterator(const ZPageTable* page_table, ZGenerationId id, ZPageAllocator* page_allocator)
+  : _iterator(page_table),
+    _generation_id(id),
+    _page_allocator(page_allocator) {
+  _page_allocator->enable_safe_destroy();
+  _page_allocator->enable_safe_recycle();
+}
 
-  ZPageTableEntry entry(page, false /* relocating */);
-  put_entry(page, entry);
+ZGenerationPagesParallelIterator::~ZGenerationPagesParallelIterator() {
+  _page_allocator->disable_safe_recycle();
+  _page_allocator->disable_safe_destroy();
+}
 
-  assert(get_entry(page).page() == page, "Invalid entry");
-  assert(!get_entry(page).relocating(), "Invalid entry");
+ZGenerationPagesIterator::ZGenerationPagesIterator(const ZPageTable* page_table, ZGenerationId id, ZPageAllocator* page_allocator)
+  : _iterator(page_table),
+    _generation_id(id),
+    _page_allocator(page_allocator) {
+  _page_allocator->enable_safe_destroy();
+  _page_allocator->enable_safe_recycle();
+}
+
+ZGenerationPagesIterator::~ZGenerationPagesIterator() {
+  _page_allocator->disable_safe_recycle();
+  _page_allocator->disable_safe_destroy();
 }

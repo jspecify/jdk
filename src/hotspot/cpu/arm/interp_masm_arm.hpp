@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,15 @@
  *
  */
 
-#ifndef CPU_ARM_VM_INTERP_MASM_ARM_HPP
-#define CPU_ARM_VM_INTERP_MASM_ARM_HPP
+#ifndef CPU_ARM_INTERP_MASM_ARM_HPP
+#define CPU_ARM_INTERP_MASM_ARM_HPP
 
 #include "asm/macroAssembler.hpp"
-#include "interpreter/invocationCounter.hpp"
+#include "oops/method.hpp"
 #include "runtime/frame.hpp"
 #include "prims/jvmtiExport.hpp"
 
-// This file specializes the assember with interpreter-specific macros
-
+// This file specializes the assembler with interpreter-specific macros
 
 class InterpreterMacroAssembler: public MacroAssembler {
 
@@ -54,7 +53,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   // base routine for all dispatches
   typedef enum { DispatchDefault, DispatchNormal } DispatchTableMode;
-  void dispatch_base(TosState state, DispatchTableMode table_mode, bool verifyoop = true);
+  void dispatch_base(TosState state, DispatchTableMode table_mode, bool verifyoop = true, bool generate_poll = false);
 
  public:
   InterpreterMacroAssembler(CodeBuffer* code);
@@ -63,79 +62,33 @@ class InterpreterMacroAssembler: public MacroAssembler {
   virtual void check_and_handle_earlyret();
 
   // Interpreter-specific registers
-#if defined(AARCH64) && defined(ASSERT)
-
-#define check_stack_top()               _check_stack_top("invalid Rstack_top at " __FILE__ ":" XSTR(__LINE__))
-#define check_stack_top_on_expansion()  _check_stack_top("invalid Rstack_top at " __FILE__ ":" XSTR(__LINE__), VerifyInterpreterStackTop)
-#define check_extended_sp(tmp)          _check_extended_sp(tmp, "SP does not match extended SP in frame at " __FILE__ ":" XSTR(__LINE__))
-#define check_no_cached_stack_top(tmp)  _check_no_cached_stack_top(tmp, "stack_top is already cached in frame at " __FILE__ ":" XSTR(__LINE__))
-
-  void _check_stack_top(const char* msg, bool enabled = true) {
-      if (enabled) {
-          Label L;
-          cmp(SP, Rstack_top);
-          b(L, ls);
-          stop(msg);
-          bind(L);
-      }
-  }
-
-  void _check_extended_sp(Register tmp, const char* msg) {
-      Label L;
-      ldr(tmp, Address(FP, frame::interpreter_frame_extended_sp_offset * wordSize));
-      cmp(SP, tmp);
-      b(L, eq);
-      stop(msg);
-      bind(L);
-  }
-
-  void _check_no_cached_stack_top(Register tmp, const char* msg) {
-      Label L;
-      ldr(tmp, Address(FP, frame::interpreter_frame_stack_top_offset * wordSize));
-      cbz(tmp, L);
-      stop(msg);
-      bind(L);
-  }
-
-#else
 
   inline void check_stack_top() {}
   inline void check_stack_top_on_expansion() {}
   inline void check_extended_sp(Register tmp) {}
   inline void check_no_cached_stack_top(Register tmp) {}
 
-#endif // AARCH64 && ASSERT
-
   void save_bcp()                                          { str(Rbcp, Address(FP, frame::interpreter_frame_bcp_offset * wordSize)); }
   void restore_bcp()                                       { ldr(Rbcp, Address(FP, frame::interpreter_frame_bcp_offset * wordSize)); }
-  void restore_locals()                                    { ldr(Rlocals, Address(FP, frame::interpreter_frame_locals_offset * wordSize)); }
+  void restore_locals() {
+    ldr(Rlocals, Address(FP, frame::interpreter_frame_locals_offset * wordSize));
+    add(Rlocals, FP, AsmOperand(Rlocals, lsl, LogBytesPerWord));
+  }
   void restore_method()                                    { ldr(Rmethod, Address(FP, frame::interpreter_frame_method_offset * wordSize)); }
   void restore_dispatch();
 
-#ifdef AARCH64
-  void save_stack_top()                                    { check_stack_top(); str(Rstack_top, Address(FP, frame::interpreter_frame_stack_top_offset * wordSize)); }
-  void clear_cached_stack_top()                            { str(ZR, Address(FP, frame::interpreter_frame_stack_top_offset * wordSize)); }
-  void restore_stack_top()                                 { ldr(Rstack_top, Address(FP, frame::interpreter_frame_stack_top_offset * wordSize)); clear_cached_stack_top(); check_stack_top(); }
-  void cut_sp_before_call()                                { align_reg(SP, Rstack_top, StackAlignmentInBytes); }
-  void restore_sp_after_call(Register tmp)                 { ldr(tmp, Address(FP, frame::interpreter_frame_extended_sp_offset * wordSize)); mov(SP, tmp); }
-#endif
 
   // Helpers for runtime call arguments/results
   void get_const(Register reg)                             { ldr(reg, Address(Rmethod, Method::const_offset())); }
   void get_constant_pool(Register reg)                     { get_const(reg); ldr(reg, Address(reg, ConstMethod::constants_offset())); }
-  void get_constant_pool_cache(Register reg)               { get_constant_pool(reg); ldr(reg, Address(reg, ConstantPool::cache_offset_in_bytes())); }
-  void get_cpool_and_tags(Register cpool, Register tags)   { get_constant_pool(cpool); ldr(tags, Address(cpool, ConstantPool::tags_offset_in_bytes())); }
+  void get_constant_pool_cache(Register reg)               { get_constant_pool(reg); ldr(reg, Address(reg, ConstantPool::cache_offset())); }
+  void get_cpool_and_tags(Register cpool, Register tags)   { get_constant_pool(cpool); ldr(tags, Address(cpool, ConstantPool::tags_offset())); }
 
   // Sets reg. Blows Rtemp.
   void get_unsigned_2_byte_index_at_bcp(Register reg, int bcp_offset);
 
   // Sets index. Blows reg_tmp.
   void get_index_at_bcp(Register index, int bcp_offset, Register reg_tmp, size_t index_size = sizeof(u2));
-  // Sets cache, index.
-  void get_cache_and_index_at_bcp(Register cache, Register index, int bcp_offset, size_t index_size = sizeof(u2));
-  void get_cache_and_index_and_bytecode_at_bcp(Register cache, Register index, Register bytecode, int byte_no, int bcp_offset, size_t index_size = sizeof(u2));
-  // Sets cache. Blows reg_tmp.
-  void get_cache_entry_pointer_at_bcp(Register cache, Register reg_tmp, int bcp_offset, size_t index_size = sizeof(u2));
 
   // Load object from cpool->resolved_references(*bcp+1)
   void load_resolved_reference_at_index(Register result, Register tmp);
@@ -143,23 +96,19 @@ class InterpreterMacroAssembler: public MacroAssembler {
   // load cpool->resolved_klass_at(index); Rtemp is corrupted upon return
   void load_resolved_klass_at_offset(Register Rcpool, Register Rindex, Register Rklass);
 
+  void load_resolved_indy_entry(Register cache, Register index);
+  void load_field_entry(Register cache, Register index, int bcp_offset = 1);
+  void load_method_entry(Register cache, Register index, int bcp_offset = 1);
+
   void pop_ptr(Register r);
   void pop_i(Register r = R0_tos);
-#ifdef AARCH64
-  void pop_l(Register r = R0_tos);
-#else
   void pop_l(Register lo = R0_tos_lo, Register hi = R1_tos_hi);
-#endif
   void pop_f(FloatRegister fd);
   void pop_d(FloatRegister fd);
 
   void push_ptr(Register r);
   void push_i(Register r = R0_tos);
-#ifdef AARCH64
-  void push_l(Register r = R0_tos);
-#else
   void push_l(Register lo = R0_tos_lo, Register hi = R1_tos_hi);
-#endif
   void push_f();
   void push_d();
 
@@ -168,7 +117,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
   // Transition state -> vtos. Blows Rtemp.
   void push(TosState state);
 
-#ifndef AARCH64
   // The following methods are overridden to allow overloaded calls to
   //   MacroAssembler::push/pop(Register)
   //   MacroAssembler::push/pop(RegisterSet)
@@ -183,7 +131,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void convert_retval_to_tos(TosState state);
   // Converts TOS cached value to return value in R0/R1 (according to interpreter calling conventions).
   void convert_tos_to_retval(TosState state);
-#endif
 
   // JVMTI ForceEarlyReturn support
   void load_earlyret_value(TosState state);
@@ -194,12 +141,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void empty_expression_stack() {
       ldr(Rstack_top, Address(FP, frame::interpreter_frame_monitor_block_top_offset * wordSize));
       check_stack_top();
-#ifdef AARCH64
-      clear_cached_stack_top();
-#else
-      // NULL last_sp until next java call
+      // null last_sp until next java call
       str(zero_register(Rtemp), Address(FP, frame::interpreter_frame_last_sp_offset * wordSize));
-#endif // AARCH64
   }
 
   // Helpers for swap and dup
@@ -217,10 +160,10 @@ class InterpreterMacroAssembler: public MacroAssembler {
   // Dispatching
   void dispatch_prolog(TosState state, int step = 0);
   void dispatch_epilog(TosState state, int step = 0);
-  void dispatch_only(TosState state);                      // dispatch by R3_bytecode
-  void dispatch_only_normal(TosState state);               // dispatch normal table by R3_bytecode
+  void dispatch_only(TosState state, bool generate_poll = false);  // dispatch by R3_bytecode
+  void dispatch_only_normal(TosState state);                       // dispatch normal table by R3_bytecode
   void dispatch_only_noverify(TosState state);
-  void dispatch_next(TosState state, int step = 0);        // load R3_bytecode from [Rbcp + step] and dispatch by R3_bytecode
+  void dispatch_next(TosState state, int step = 0, bool generate_poll = false); // load R3_bytecode from [Rbcp + step] and dispatch by R3_bytecode
 
   // jump to an invoked target
   void prepare_to_jump_from_interpreted();
@@ -334,4 +277,4 @@ void get_method_counters(Register method,
                          Register reg3 = noreg);
 };
 
-#endif // CPU_ARM_VM_INTERP_MASM_ARM_HPP
+#endif // CPU_ARM_INTERP_MASM_ARM_HPP

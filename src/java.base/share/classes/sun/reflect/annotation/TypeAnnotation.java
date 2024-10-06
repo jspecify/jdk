@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -90,7 +90,11 @@ public final class TypeAnnotation {
         METHOD_RETURN,
         METHOD_RECEIVER,
         METHOD_FORMAL_PARAMETER,
-        THROWS;
+        THROWS,
+        /**
+         * @since 16
+         */
+        RECORD_COMPONENT;
     }
 
     public static final class TypeAnnotationTargetInfo {
@@ -187,19 +191,17 @@ public final class TypeAnnotation {
             return new LocationInfo(newDepth, res);
         }
 
-        /** Pop a series of locations matching {@code tag}. Stop poping as soon as a non-matching tag is found. */
-        public LocationInfo popAllLocations(byte tag) {
-            LocationInfo l = this;
-            int newDepth = l.depth;
-            while(newDepth > 0 && l.locations[newDepth - 1].tag == tag) {
-                newDepth--;
+        /**
+         * Pops a location matching {@code tag}, or returns {@code null}
+         * if no matching location was found.
+         */
+        public LocationInfo popLocation(byte tag) {
+            if (depth == 0 || locations[depth - 1].tag != tag) {
+                return null;
             }
-            if (newDepth != l.depth) {
-                Location[] res = new Location[newDepth];
-                System.arraycopy(this.locations, 0, res, 0, newDepth);
-                return new LocationInfo(newDepth, res);
-            } else
-                return l;
+            Location[] res = new Location[depth - 1];
+            System.arraycopy(locations, 0, res, 0, depth - 1);
+            return new LocationInfo(depth - 1, res);
         }
 
         public TypeAnnotation[] filter(TypeAnnotation[] ta) {

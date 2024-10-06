@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,15 @@
 package sun.security.provider;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.security.MessageDigest;
 import java.security.SecureRandomSpi;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.util.Arrays;
 
 /**
- * <p>This class provides a crytpographically strong pseudo-random number
+ * <p>This class provides a cryptographically strong pseudo-random number
  * generator based on the SHA-1 hash algorithm.
  *
  * <p>Note that if a seed is not provided, we attempt to provide sufficient
@@ -55,6 +57,7 @@ import java.security.NoSuchProviderException;
 public final class SecureRandom extends SecureRandomSpi
 implements java.io.Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = 3581829991155417889L;
 
     private static final int DIGEST_SIZE = 20;
@@ -64,16 +67,21 @@ implements java.io.Serializable {
     private int remCount;
 
     /**
-     * This empty constructor automatically seeds the generator.  We attempt
-     * to provide sufficient seed bytes to completely randomize the internal
-     * state of the generator (20 bytes).  Note, however, that our seed
-     * generation algorithm has not been thoroughly studied or widely deployed.
-     *
-     * <p>The first time this constructor is called in a given Virtual Machine,
-     * it may take several seconds of CPU time to seed the generator, depending
-     * on the underlying hardware.  Successive calls run quickly because they
-     * rely on the same (internal) pseudo-random number generator for their
-     * seed bits.
+     * An empty constructor that creates an unseeded SecureRandom object.
+     * <p>
+     * Unless the user calls setSeed(), the first call to engineGetBytes()
+     * will have the SeedGenerator provide sufficient seed bytes to
+     * completely randomize the internal state of the generator (20 bytes).
+     * Note that the old threaded seed generation algorithm is provided
+     * only as a fallback, and has not been thoroughly studied or widely
+     * deployed.
+     * <p>
+     * The SeedGenerator relies on a VM-wide entropy pool to generate
+     * seed bytes for these objects.  The first time the SeedGenerator is
+     * called, it may take several seconds of CPU time to initialize,
+     * depending on the underlying hardware.  Successive calls run
+     * quickly because they rely on the same (internal) pseudo-random
+     * number generator for their seed bits.
      */
     public SecureRandom() {
         init(null);
@@ -151,9 +159,7 @@ implements java.io.Serializable {
     public synchronized void engineSetSeed(byte[] seed) {
         if (state != null) {
             digest.update(state);
-            for (int i = 0; i < state.length; i++) {
-                state[i] = 0;
-            }
+            Arrays.fill(state, (byte) 0);
         }
         state = digest.digest(seed);
         remCount = 0;
@@ -187,7 +193,7 @@ implements java.io.Serializable {
     /**
      * This static object will be seeded by SeedGenerator, and used
      * to seed future instances of SHA1PRNG SecureRandoms.
-     *
+     * <p>
      * Bloch, Effective Java Second Edition: Item 71
      */
     private static class SeederHolder {
@@ -227,8 +233,7 @@ implements java.io.Serializable {
         int r = remCount;
         if (r > 0) {
             // How many bytes?
-            todo = (result.length - index) < (DIGEST_SIZE - r) ?
-                        (result.length - index) : (DIGEST_SIZE - r);
+            todo = Math.min(result.length - index, DIGEST_SIZE - r);
             // Copy the bytes, zero the buffer
             for (int i = 0; i < todo; i++) {
                 result[i] = output[r];
@@ -246,8 +251,7 @@ implements java.io.Serializable {
             updateState(state, output);
 
             // How many bytes?
-            todo = (result.length - index) > DIGEST_SIZE ?
-                DIGEST_SIZE : result.length - index;
+            todo = Math.min((result.length - index), DIGEST_SIZE);
             // Copy the bytes, zero the buffer
             for (int i = 0; i < todo; i++) {
                 result[index++] = output[i];
@@ -262,17 +266,24 @@ implements java.io.Serializable {
     }
 
     /*
-     * readObject is called to restore the state of the random object from
-     * a stream.  We have to create a new instance of MessageDigest, because
+     * This method is called to restore the state of the random object from
+     * a stream.
+     * <p>
+     * We have to create a new instance of {@code MessageDigest}, because
      * it is not included in the stream (it is marked "transient").
-     *
-     * Note that the engineNextBytes() method invoked on the restored random
-     * object will yield the exact same (random) bytes as the original.
+     * <p>
+     * Note that the {@code engineNextBytes()} method invoked on the restored
+     * random object will yield the exact same (random) bytes as the original.
      * If you do not want this behaviour, you should re-seed the restored
-     * random object, using engineSetSeed().
+     * random object, using {@code engineSetSeed()}.
+     *
+     * @param  s the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s)
-        throws IOException, ClassNotFoundException {
+            throws IOException, ClassNotFoundException {
 
         s.defaultReadObject ();
 
@@ -290,6 +301,35 @@ implements java.io.Serializable {
                 throw new InternalError(
                     "internal error: SHA-1 not available.", exc);
             }
+        }
+
+        // Various consistency checks
+        if ((remainder == null) && (remCount > 0)) {
+            throw new InvalidObjectException(
+                    "Remainder indicated, but no data available");
+        }
+
+        // Not yet allocated state
+        if (state == null) {
+            if (remainder == null) {
+                return;
+            } else {
+                throw new InvalidObjectException(
+                        "Inconsistent buffer allocations");
+            }
+        }
+
+        // Sanity check on sizes/pointer
+        if ((state.length != DIGEST_SIZE) ||
+                ((remainder != null) && (remainder.length != DIGEST_SIZE)) ||
+                (remCount < 0 ) || (remCount >= DIGEST_SIZE)) {
+            throw new InvalidObjectException(
+                    "Inconsistent buffer sizes/state");
+        }
+
+        state = state.clone();
+        if (remainder != null) {
+            remainder = remainder.clone();
         }
     }
 }

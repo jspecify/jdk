@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,43 +21,38 @@
  * questions.
  */
 
+package gc;
+
 /*
- * @test TestAgeOutput
+ * @test TestAgeOutputSerial
+ * @bug 8164936
+ * @requires vm.gc.Serial
+ * @modules java.base/jdk.internal.misc
+ * @library /test/lib
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run driver gc.TestAgeOutput UseSerialGC
+ */
+
+/*
+ * @test TestAgeOutputG1
  * @bug 8164936
  * @summary Check that collectors using age table based aging print an age table even for the first garbage collection
- * @key gc
- * @requires vm.gc=="null"
+ * @requires vm.gc.G1
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -XX:+UseSerialGC TestAgeOutput UseSerialGC
- * @run main/othervm -XX:+UseG1GC TestAgeOutput UseG1GC
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run driver gc.TestAgeOutput UseG1GC
  */
 
-/*
- * @test TestAgeOutputCMS
- * @bug 8164936
- * @key gc
- * @comment Graal does not support CMS
- * @requires vm.gc=="null" & !vm.graal.enabled
- * @modules java.base/jdk.internal.misc
- * @library /test/lib
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -XX:+UseConcMarkSweepGC TestAgeOutput UseConcMarkSweepGC
- */
-
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import jdk.test.lib.Platform;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
-
-import static jdk.test.lib.Asserts.*;
 
 public class TestAgeOutput {
 
@@ -71,7 +66,7 @@ public class TestAgeOutput {
     }
 
     public static void runTest(String gcArg) throws Exception {
-        final String[] arguments = {
+        OutputAnalyzer output = ProcessTools.executeLimitedTestJava(
             "-Xbootclasspath/a:.",
             "-XX:+UnlockExperimentalVMOptions",
             "-XX:+UnlockDiagnosticVMOptions",
@@ -79,11 +74,7 @@ public class TestAgeOutput {
             "-XX:+" + gcArg,
             "-Xmx10M",
             "-Xlog:gc+age=trace",
-            GCTest.class.getName()
-            };
-
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(arguments);
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+            GCTest.class.getName());
 
         output.shouldHaveExitValue(0);
 
@@ -92,7 +83,7 @@ public class TestAgeOutput {
         String stdout = output.getStdout();
 
         checkPattern(".*GC\\(0\\) .*Desired survivor size.*", stdout);
-        checkPattern(".*GC\\(0\\) .*Age table with threshold.*", stdout);
+        checkPattern(".*GC\\(0\\) .*Age table:.*", stdout);
         checkPattern(".*GC\\(0\\) .*- age   1:.*", stdout);
     }
 
@@ -112,4 +103,3 @@ public class TestAgeOutput {
         }
     }
 }
-

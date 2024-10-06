@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,14 @@
  * @summary Tests duplicate mnemonics
  * @author Peter Zhelezniakov
  * @library ../../regtesthelpers
- * @library ../../../../lib/testlibrary
+ * @library /test/lib
  * @modules java.desktop/sun.awt
- * @build jdk.testlibrary.OSInfo
+ * @build jdk.test.lib.Platform
  * @build Util
  * @run main bug6827786
  */
-import jdk.testlibrary.OSInfo;
+
+import jdk.test.lib.Platform;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import javax.swing.*;
@@ -43,56 +44,62 @@ public class bug6827786 {
 
     private static JMenu menu;
     private static Component focusable;
+    private static JFrame frame;
 
     public static void main(String[] args) throws Exception {
-        Robot robot = new Robot();
-        robot.setAutoDelay(50);
-        // move mouse outside menu to prevent auto selection
-        robot.mouseMove(100,100);
+        try {
+            Robot robot = new Robot();
+            robot.setAutoDelay(100);
+            // move mouse outside menu to prevent auto selection
+            robot.mouseMove(100,100);
+            robot.waitForIdle();
 
-        SwingUtilities.invokeAndWait(new Runnable() {
+            SwingUtilities.invokeAndWait(new Runnable() {
 
-            public void run() {
-                createAndShowGUI();
+                public void run() {
+                    createAndShowGUI();
+                }
+            });
+
+            robot.waitForIdle();
+            robot.delay(1000);
+
+            SwingUtilities.invokeAndWait(new Runnable() {
+
+                public void run() {
+                    focusable.requestFocus();
+                }
+            });
+
+            robot.waitForIdle();
+            checkfocus();
+
+            // select menu
+            if (Platform.isOSX()) {
+                Util.hitKeys(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_ALT, KeyEvent.VK_F);
+            } else {
+                Util.hitKeys(robot, KeyEvent.VK_ALT, KeyEvent.VK_F);
             }
-        });
+            // select submenu
+            Util.hitKeys(robot, KeyEvent.VK_S);
+            robot.waitForIdle();
+            // verify submenu is selected
+            verify(1);
 
-        robot.waitForIdle();
+            Util.hitKeys(robot, KeyEvent.VK_S);
+            robot.waitForIdle();
+            // verify last item is selected
+            verify(2);
 
-        SwingUtilities.invokeAndWait(new Runnable() {
+            Util.hitKeys(robot, KeyEvent.VK_S);
+            robot.waitForIdle();
+            // selection should wrap to first item
+            verify(0);
 
-            public void run() {
-                focusable.requestFocus();
-            }
-        });
-
-        robot.waitForIdle();
-        checkfocus();
-
-        // select menu
-        if (OSInfo.getOSType() == OSInfo.OSType.MACOSX) {
-            Util.hitKeys(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_ALT, KeyEvent.VK_F);
-        } else {
-            Util.hitKeys(robot, KeyEvent.VK_ALT, KeyEvent.VK_F);
+            System.out.println("PASSED");
+        } finally {
+            if (frame != null) SwingUtilities.invokeAndWait(() -> frame.dispose());
         }
-        // select submenu
-        Util.hitKeys(robot, KeyEvent.VK_S);
-        robot.waitForIdle();
-        // verify submenu is selected
-        verify(1);
-
-        Util.hitKeys(robot, KeyEvent.VK_S);
-        robot.waitForIdle();
-        // verify last item is selected
-        verify(2);
-
-        Util.hitKeys(robot, KeyEvent.VK_S);
-        robot.waitForIdle();
-        // selection should wrap to first item
-        verify(0);
-
-        System.out.println("PASSED");
-
     }
 
     private static void checkfocus() throws Exception {
@@ -143,7 +150,7 @@ public class bug6827786 {
     }
 
     private static void createAndShowGUI() {
-        JFrame frame = new JFrame("bug6827786");
+        frame = new JFrame("bug6827786");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setJMenuBar(createMenuBar());
         focusable = new JButton("Set Focus Here");

@@ -39,8 +39,10 @@ import org.jspecify.annotations.Nullable;
 
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -52,9 +54,13 @@ import java.util.RandomAccess;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
-import jdk.internal.misc.SharedSecrets;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.util.ArraysSupport;
 
 /**
  * A thread-safe variant of {@link java.util.ArrayList} in which all mutative
@@ -98,6 +104,8 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
     implements List<E>, RandomAccess, Cloneable, java.io.Serializable {
     private static final long serialVersionUID = 8673264195747942595L;
 
+    private static final Object[] EMPTY_ELEMENTDATA = {};
+
     /**
      * The lock protecting all mutators.  (We have a mild preference
      * for builtin monitors over ReentrantLock when either will do.)
@@ -126,7 +134,7 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      * Creates an empty list.
      */
     public CopyOnWriteArrayList() {
-        setArray(new Object[0]);
+        setArray(EMPTY_ELEMENTDATA);
     }
 
     /**
@@ -141,11 +149,11 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
         Object[] es;
         if (c.getClass() == CopyOnWriteArrayList.class)
             es = ((CopyOnWriteArrayList<?>)c).getArray();
+        else if (c.isEmpty())
+            es = EMPTY_ELEMENTDATA;
         else {
             es = c.toArray();
-            // defend against c.toArray (incorrectly) not returning Object[]
-            // (see e.g. https://bugs.openjdk.java.net/browse/JDK-6260652)
-            if (es.getClass() != Object[].class)
+            if (c.getClass() != java.util.ArrayList.class)
                 es = Arrays.copyOf(es, es.length, Object[].class);
         }
         setArray(es);
@@ -159,7 +167,10 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      * @throws NullPointerException if the specified array is null
      */
     public CopyOnWriteArrayList(E[] toCopyIn) {
-        setArray(Arrays.copyOf(toCopyIn, toCopyIn.length, Object[].class));
+        if (toCopyIn.length == 0)
+            setArray(EMPTY_ELEMENTDATA);
+        else
+            setArray(Arrays.copyOf(toCopyIn, toCopyIn.length, Object[].class));
     }
 
     /**
@@ -406,6 +417,34 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
     }
 
     /**
+     * {@inheritDoc}
+     *
+     * @throws NoSuchElementException {@inheritDoc}
+     * @since 21
+     */
+    public E getFirst() {
+        Object[] es = getArray();
+        if (es.length == 0)
+            throw new NoSuchElementException();
+        else
+            return elementAt(es, 0);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @throws NoSuchElementException {@inheritDoc}
+     * @since 21
+     */
+    public E getLast() {
+        Object[] es = getArray();
+        if (es.length == 0)
+            throw new NoSuchElementException();
+        else
+            return elementAt(es, es.length - 1);
+    }
+
+    /**
      * Replaces the element at the specified position in this list with the
      * specified element.
      *
@@ -419,8 +458,9 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             if (oldValue != element) {
                 es = es.clone();
                 es[index] = element;
-                setArray(es);
             }
+            // Ensure volatile write semantics even when oldvalue == element
+            setArray(es);
             return oldValue;
         }
     }
@@ -471,6 +511,26 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
     }
 
     /**
+     * {@inheritDoc}
+     *
+     * @since 21
+     */
+    public void addFirst(E e) {
+        add(0, e);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @since 21
+     */
+    public void addLast(E e) {
+        synchronized (lock) {
+            add(getArray().length, e);
+        }
+    }
+
+    /**
      * Removes the element at the specified position in this list.
      * Shifts any subsequent elements to the left (subtracts one from their
      * indices).  Returns the element that was removed from the list.
@@ -486,6 +546,8 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             Object[] newElements;
             if (numMoved == 0)
                 newElements = Arrays.copyOf(es, len - 1);
+            else if (len == 1)
+                newElements = EMPTY_ELEMENTDATA;
             else {
                 newElements = new Object[len - 1];
                 System.arraycopy(es, 0, newElements, 0, index);
@@ -494,6 +556,37 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             }
             setArray(newElements);
             return oldValue;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @throws NoSuchElementException {@inheritDoc}
+     * @since 21
+     */
+    public E removeFirst() {
+        synchronized (lock) {
+            if (getArray().length == 0)
+                throw new NoSuchElementException();
+            else
+                return remove(0);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @throws NoSuchElementException {@inheritDoc}
+     * @since 21
+     */
+    public E removeLast() {
+        synchronized (lock) {
+            int size = getArray().length;
+            if (size == 0)
+                throw new NoSuchElementException();
+            else
+                return remove(size - 1);
         }
     }
 
@@ -539,6 +632,11 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
                 index = indexOfRange(o, current, index, len);
                 if (index < 0)
                     return false;
+            }
+            if (len == 1) {
+                // one element exists and that element should be removed
+                setArray(EMPTY_ELEMENTDATA);
+                return true;
             }
             Object[] newElements = new Object[len - 1];
             System.arraycopy(current, 0, newElements, 0, index);
@@ -695,6 +793,9 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      */
     public int addAllAbsent(Collection<? extends E> c) {
         Object[] cs = c.toArray();
+        if (c.getClass() != ArrayList.class) {
+            cs = cs.clone();
+        }
         if (cs.length == 0)
             return 0;
         synchronized (lock) {
@@ -723,7 +824,7 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      */
     public void clear() {
         synchronized (lock) {
-            setArray(new Object[0]);
+            setArray(EMPTY_ELEMENTDATA);
         }
     }
 
@@ -746,9 +847,10 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             Object[] es = getArray();
             int len = es.length;
             Object[] newElements;
-            if (len == 0 && cs.getClass() == Object[].class)
+            if (len == 0 && (c.getClass() == CopyOnWriteArrayList.class ||
+                             c.getClass() == ArrayList.class)) {
                 newElements = cs;
-            else {
+            } else {
                 newElements = Arrays.copyOf(es, len + cs.length);
                 System.arraycopy(cs, 0, newElements, len, cs.length);
             }
@@ -940,7 +1042,7 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
         // Read in array length and allocate array
         int len = s.readInt();
         SharedSecrets.getJavaObjectInputStreamAccess().checkArray(s, Object[].class, len);
-        Object[] es = new Object[len];
+        Object[] es = (len == 0 ? EMPTY_ELEMENTDATA : new Object[len]);
 
         // Read in all elements in the proper order.
         for (int i = 0; i < len; i++)
@@ -1363,7 +1465,24 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             }
         }
 
-        
+        public E getFirst() {
+            synchronized (lock) {
+                if (size == 0)
+                    throw new NoSuchElementException();
+                else
+                    return get(0);
+            }
+        }
+
+        public E getLast() {
+            synchronized (lock) {
+                if (size == 0)
+                    throw new NoSuchElementException();
+                else
+                    return get(size - 1);
+            }
+        }
+
         public int size() {
             synchronized (lock) {
                 checkForComodification();
@@ -1388,6 +1507,16 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
                 CopyOnWriteArrayList.this.add(offset + index, element);
                 expectedArray = getArray();
                 size++;
+            }
+        }
+
+        public void addFirst(E e) {
+            add(0, e);
+        }
+
+        public void addLast(E e) {
+            synchronized (lock) {
+                add(size, e);
             }
         }
 
@@ -1432,7 +1561,25 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             }
         }
 
-        public boolean remove(@Nullable Object o) {
+        public E removeFirst() {
+            synchronized (lock) {
+                if (size == 0)
+                    throw new NoSuchElementException();
+                else
+                    return remove(0);
+            }
+        }
+
+        public E removeLast() {
+            synchronized (lock) {
+                if (size == 0)
+                    throw new NoSuchElementException();
+                else
+                    return remove(size - 1);
+            }
+        }
+
+        public boolean remove(Object o) {
             synchronized (lock) {
                 checkForComodification();
                 int index = indexOf(o);
@@ -1530,6 +1677,9 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             }
         }
 
+        public List<E> reversed() {
+            return new Reversed<>(this, lock);
+        }
     }
 
     private static class COWSubListIterator<E> implements ListIterator<E> {
@@ -1595,8 +1745,367 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
         }
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Modifications to the reversed view are permitted and will be propagated
+     * to this list. In addition, modifications to this list will be visible
+     * in the reversed view. Sublists and iterators of the reversed view have
+     * the same restrictions as those of this list.
+     *
+     * @since 21
+     */
+    public List<E> reversed() {
+        return new Reversed<>(this, lock);
+    }
+
+    /**
+     * Reversed view for CopyOnWriteArrayList and its sublists.
+     */
+    private static class Reversed<E> implements List<E>, RandomAccess {
+        final List<E> base;
+        final Object lock;
+
+        Reversed(List<E> base, Object lock) {
+            this.base = base;
+            this.lock = lock;
+        }
+
+        class DescendingIterator implements Iterator<E> {
+            final ListIterator<E> it;
+            DescendingIterator() {
+                synchronized (lock) {
+                    it = base.listIterator(base.size());
+                }
+            }
+            public boolean hasNext() { return it.hasPrevious(); }
+            public E next() { return it.previous(); }
+            public void remove() { it.remove(); }
+        }
+
+        class DescendingListIterator implements ListIterator<E> {
+            final ListIterator<E> it;
+            final int size; // iterator holds a snapshot of the array so this is constant
+
+            DescendingListIterator(int pos) {
+                synchronized (lock) {
+                    size = base.size();
+                    if (pos < 0 || pos > size)
+                        throw new IndexOutOfBoundsException();
+                    it = base.listIterator(size - pos);
+                }
+            }
+
+            public boolean hasNext() {
+                return it.hasPrevious();
+            }
+
+            public E next() {
+                return it.previous();
+            }
+
+            public boolean hasPrevious() {
+                return it.hasNext();
+            }
+
+            public E previous() {
+                return it.next();
+            }
+
+            public int nextIndex() {
+                return size - it.nextIndex();
+            }
+
+            public int previousIndex() {
+                return nextIndex() - 1;
+            }
+
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+
+            public void set(E e) {
+                throw new UnsupportedOperationException();
+            }
+
+            public void add(E e) {
+                throw new UnsupportedOperationException();
+            }
+        }
+
+        // ========== Iterable ==========
+
+        public void forEach(Consumer<? super E> action) {
+            for (E e : this)
+                action.accept(e);
+        }
+
+        public Iterator<E> iterator() {
+            return new DescendingIterator();
+        }
+
+        public Spliterator<E> spliterator() {
+            return Spliterators.spliterator(this, Spliterator.ORDERED);
+        }
+
+        // ========== Collection ==========
+
+        public boolean add(E e) {
+            base.add(0, e);
+            return true;
+        }
+
+        public boolean addAll(Collection<? extends E> c) {
+            @SuppressWarnings("unchecked")
+            E[] es = (E[]) c.toArray();
+            if (es.length > 0) {
+                ArraysSupport.reverse(es);
+                base.addAll(0, Arrays.asList(es));
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        public void clear() {
+            base.clear();
+        }
+
+        public boolean contains(Object o) {
+            return base.contains(o);
+        }
+
+        public boolean containsAll(Collection<?> c) {
+            return base.containsAll(c);
+        }
+
+        // copied from AbstractList
+        public boolean equals(Object o) {
+            if (o == this)
+                return true;
+            if (!(o instanceof List))
+                return false;
+
+            ListIterator<E> e1 = listIterator();
+            ListIterator<?> e2 = ((List<?>) o).listIterator();
+            while (e1.hasNext() && e2.hasNext()) {
+                E o1 = e1.next();
+                Object o2 = e2.next();
+                if (!(o1==null ? o2==null : o1.equals(o2)))
+                    return false;
+            }
+            return !(e1.hasNext() || e2.hasNext());
+        }
+
+        // copied from AbstractList
+        public int hashCode() {
+            int hashCode = 1;
+            for (E e : this)
+                hashCode = 31*hashCode + (e==null ? 0 : e.hashCode());
+            return hashCode;
+        }
+
+        public boolean isEmpty() {
+            return base.isEmpty();
+        }
+
+        public Stream<E> parallelStream() {
+            return StreamSupport.stream(spliterator(), true);
+        }
+
+        public boolean remove(Object o) {
+            synchronized (lock) {
+                int index = indexOf(o);
+                if (index == -1)
+                    return false;
+                remove(index);
+                return true;
+            }
+        }
+
+        public boolean removeAll(Collection<?> c) {
+            return base.removeAll(c);
+        }
+
+        public boolean retainAll(Collection<?> c) {
+            return base.retainAll(c);
+        }
+
+        public int size() {
+            return base.size();
+        }
+
+        public Stream<E> stream() {
+            return StreamSupport.stream(spliterator(), false);
+        }
+
+        public Object[] toArray() {
+            return ArraysSupport.reverse(base.toArray());
+        }
+
+        @SuppressWarnings("unchecked")
+        public <T> T[] toArray(T[] a) {
+            // TODO optimize this
+            return toArray(i -> (T[]) java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), i));
+        }
+
+        public <T> T[] toArray(IntFunction<T[]> generator) {
+            return ArraysSupport.reverse(base.toArray(generator));
+        }
+
+        // copied from AbstractCollection
+        public String toString() {
+            Iterator<E> it = iterator();
+            if (! it.hasNext())
+                return "[]";
+
+            StringBuilder sb = new StringBuilder();
+            sb.append('[');
+            for (;;) {
+                E e = it.next();
+                sb.append(e == this ? "(this Collection)" : e);
+                if (! it.hasNext())
+                    return sb.append(']').toString();
+                sb.append(',').append(' ');
+            }
+        }
+
+        // ========== List ==========
+
+        public void add(int index, E element) {
+            synchronized (lock) {
+                base.add(base.size() - index, element);
+            }
+        }
+
+        public void addFirst(E e) {
+            base.add(e);
+        }
+
+        public void addLast(E e) {
+            base.add(0, e);
+        }
+
+        public boolean addAll(int index, Collection<? extends E> c) {
+            @SuppressWarnings("unchecked")
+            E[] es = (E[]) c.toArray();
+            if (es.length > 0) {
+                ArraysSupport.reverse(es);
+                synchronized (lock) {
+                    base.addAll(base.size() - index, Arrays.asList(es));
+                }
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        public E get(int i) {
+            synchronized (lock) {
+                return base.get(base.size() - i - 1);
+            }
+        }
+
+        public E getFirst() {
+            synchronized (lock) {
+                int size = base.size();
+                if (size == 0)
+                    throw new NoSuchElementException();
+                else
+                    return base.get(size - 1);
+            }
+        }
+
+        public E getLast() {
+            synchronized (lock) {
+                if (base.size() == 0)
+                    throw new NoSuchElementException();
+                else
+                    return base.get(0);
+            }
+        }
+
+        public int indexOf(Object o) {
+            synchronized (lock) {
+                int i = base.lastIndexOf(o);
+                return i == -1 ? -1 : base.size() - i - 1;
+            }
+        }
+
+        public int lastIndexOf(Object o) {
+            synchronized (lock) {
+                int i = base.indexOf(o);
+                return i == -1 ? -1 : base.size() - i - 1;
+            }
+        }
+
+        public ListIterator<E> listIterator() {
+            return new DescendingListIterator(0);
+        }
+
+        public ListIterator<E> listIterator(int index) {
+            return new DescendingListIterator(index);
+        }
+
+        public E remove(int index) {
+            synchronized (lock) {
+                return base.remove(base.size() - index - 1);
+            }
+        }
+
+        public E removeFirst() {
+            synchronized (lock) {
+                int size = base.size();
+                if (size == 0)
+                    throw new NoSuchElementException();
+                else
+                    return base.remove(size - 1);
+            }
+        }
+
+        public E removeLast() {
+            synchronized (lock) {
+                if (base.size() == 0)
+                    throw new NoSuchElementException();
+                else
+                    return base.remove(0);
+            }
+        }
+
+        public boolean removeIf(Predicate<? super E> filter) {
+            return base.removeIf(filter);
+        }
+
+        public void replaceAll(UnaryOperator<E> operator) {
+            base.replaceAll(operator);
+        }
+
+        public void sort(Comparator<? super E> c) {
+            base.sort(Collections.reverseOrder(c));
+        }
+
+        public E set(int index, E element) {
+            synchronized (lock) {
+                return base.set(base.size() - index - 1, element);
+            }
+        }
+
+        public List<E> subList(int fromIndex, int toIndex) {
+            synchronized (lock) {
+                int size = base.size();
+                var sub = base.subList(size - toIndex, size - fromIndex);
+                return new Reversed<>(sub, lock);
+            }
+        }
+
+        public List<E> reversed() {
+            return base;
+        }
+    }
+
     /** Initializes the lock; for use when deserializing or cloning. */
     private void resetLock() {
+        @SuppressWarnings("removal")
         Field lockField = java.security.AccessController.doPrivileged(
             (java.security.PrivilegedAction<Field>) () -> {
                 try {

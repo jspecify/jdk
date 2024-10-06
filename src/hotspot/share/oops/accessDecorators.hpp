@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,10 @@
 #define SHARE_OOPS_ACCESSDECORATORS_HPP
 
 #include "gc/shared/barrierSetConfig.hpp"
-#include "memory/allocation.hpp"
-#include "metaprogramming/integralConstant.hpp"
+#include "memory/allStatic.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+#include <type_traits>
 
 // A decorator is an attribute or property that affects the way a memory access is performed in some way.
 // There are different groups of decorators. Some have to do with memory ordering, others to do with,
@@ -41,23 +42,18 @@ typedef uint64_t DecoratorSet;
 // The HasDecorator trait can help at compile-time determining whether a decorator set
 // has an intersection with a certain other decorator set
 template <DecoratorSet decorators, DecoratorSet decorator>
-struct HasDecorator: public IntegralConstant<bool, (decorators & decorator) != 0> {};
+struct HasDecorator: public std::integral_constant<bool, (decorators & decorator) != 0> {};
+
+// == General Decorators ==
+// * DECORATORS_NONE: This is the name for the empty decorator set (in absence of other decorators).
+const DecoratorSet DECORATORS_NONE                   = UCONST64(0);
 
 // == Internal Decorators - do not use ==
-// * INTERNAL_EMPTY: This is the name for the empty decorator set (in absence of other decorators).
 // * INTERNAL_CONVERT_COMPRESSED_OOPS: This is an oop access that will require converting an oop
 //   to a narrowOop or vice versa, if UseCompressedOops is known to be set.
 // * INTERNAL_VALUE_IS_OOP: Remember that the involved access is on oop rather than primitive.
-const DecoratorSet INTERNAL_EMPTY                    = UCONST64(0);
 const DecoratorSet INTERNAL_CONVERT_COMPRESSED_OOP   = UCONST64(1) << 1;
 const DecoratorSet INTERNAL_VALUE_IS_OOP             = UCONST64(1) << 2;
-
-// == Internal build-time Decorators ==
-// * INTERNAL_BT_BARRIER_ON_PRIMITIVES: This is set in the barrierSetConfig.hpp file.
-// * INTERNAL_BT_TO_SPACE_INVARIANT: This is set in the barrierSetConfig.hpp file iff
-//   no GC is bundled in the build that is to-space invariant.
-const DecoratorSet INTERNAL_BT_BARRIER_ON_PRIMITIVES = UCONST64(1) << 3;
-const DecoratorSet INTERNAL_BT_TO_SPACE_INVARIANT    = UCONST64(1) << 4;
 
 // == Internal run-time Decorators ==
 // * INTERNAL_RT_USE_COMPRESSED_OOPS: This decorator will be set in runtime resolved
@@ -65,7 +61,7 @@ const DecoratorSet INTERNAL_BT_TO_SPACE_INVARIANT    = UCONST64(1) << 4;
 const DecoratorSet INTERNAL_RT_USE_COMPRESSED_OOPS   = UCONST64(1) << 5;
 
 const DecoratorSet INTERNAL_DECORATOR_MASK           = INTERNAL_CONVERT_COMPRESSED_OOP | INTERNAL_VALUE_IS_OOP |
-                                                       INTERNAL_BT_BARRIER_ON_PRIMITIVES | INTERNAL_RT_USE_COMPRESSED_OOPS;
+                                                       INTERNAL_RT_USE_COMPRESSED_OOPS;
 
 // == Memory Ordering Decorators ==
 // The memory ordering decorators can be described in the following way:
@@ -76,7 +72,6 @@ const DecoratorSet INTERNAL_DECORATOR_MASK           = INTERNAL_CONVERT_COMPRESS
 // have a JMM equivalent property.
 // The equivalence may be viewed like this:
 // MO_UNORDERED is equivalent to JMM plain.
-// MO_VOLATILE has no equivalence in JMM, because it's a C++ thing.
 // MO_RELAXED is equivalent to JMM opaque.
 // MO_ACQUIRE is equivalent to JMM acquire.
 // MO_RELEASE is equivalent to JMM release.
@@ -85,12 +80,12 @@ const DecoratorSet INTERNAL_DECORATOR_MASK           = INTERNAL_CONVERT_COMPRESS
 // === Stores ===
 //  * MO_UNORDERED (Default): No guarantees.
 //    - The compiler and hardware are free to reorder aggressively. And they will.
-//  * MO_VOLATILE: Volatile stores (in the C++ sense).
-//    - The stores are not reordered by the compiler (but possibly the HW) w.r.t. other
-//      volatile accesses in program order (but possibly non-volatile accesses).
 //  * MO_RELAXED: Relaxed atomic stores.
 //    - The stores are atomic.
-//    - Guarantees from volatile stores hold.
+//    - The stores are not reordered by the compiler (but possibly the HW) w.r.t
+//      other ordered accesses in program order.
+//    - Also used for C++ volatile stores, since actual usage of volatile
+//      requires no word tearing.
 //  * MO_RELEASE: Releasing stores.
 //    - The releasing store will make its preceding memory accesses observable to memory accesses
 //      subsequent to an acquiring load observing this releasing store.
@@ -102,12 +97,12 @@ const DecoratorSet INTERNAL_DECORATOR_MASK           = INTERNAL_CONVERT_COMPRESS
 // === Loads ===
 //  * MO_UNORDERED (Default): No guarantees
 //    - The compiler and hardware are free to reorder aggressively. And they will.
-//  * MO_VOLATILE: Volatile loads (in the C++ sense).
-//    - The loads are not reordered by the compiler (but possibly the HW) w.r.t. other
-//      volatile accesses in program order (but possibly non-volatile accesses).
 //  * MO_RELAXED: Relaxed atomic loads.
 //    - The loads are atomic.
-//    - Guarantees from volatile loads hold.
+//    - The loads are not reordered by the compiler (but possibly the HW) w.r.t.
+//      other ordered accesses in program order.
+//    - Also used for C++ volatile loads, since actual usage of volatile
+//      requires no word tearing.
 //  * MO_ACQUIRE: Acquiring loads.
 //    - An acquiring load will make subsequent memory accesses observe the memory accesses
 //      preceding the releasing store that the acquiring load observed.
@@ -127,18 +122,17 @@ const DecoratorSet INTERNAL_DECORATOR_MASK           = INTERNAL_CONVERT_COMPRESS
 //  * MO_SEQ_CST: Sequentially consistent xchg.
 //    - Guarantees from MO_SEQ_CST loads and MO_SEQ_CST stores hold.
 const DecoratorSet MO_UNORDERED      = UCONST64(1) << 6;
-const DecoratorSet MO_VOLATILE       = UCONST64(1) << 7;
-const DecoratorSet MO_RELAXED        = UCONST64(1) << 8;
-const DecoratorSet MO_ACQUIRE        = UCONST64(1) << 9;
-const DecoratorSet MO_RELEASE        = UCONST64(1) << 10;
-const DecoratorSet MO_SEQ_CST        = UCONST64(1) << 11;
-const DecoratorSet MO_DECORATOR_MASK = MO_UNORDERED | MO_VOLATILE | MO_RELAXED |
+const DecoratorSet MO_RELAXED        = UCONST64(1) << 7;
+const DecoratorSet MO_ACQUIRE        = UCONST64(1) << 8;
+const DecoratorSet MO_RELEASE        = UCONST64(1) << 9;
+const DecoratorSet MO_SEQ_CST        = UCONST64(1) << 10;
+const DecoratorSet MO_DECORATOR_MASK = MO_UNORDERED | MO_RELAXED |
                                        MO_ACQUIRE | MO_RELEASE | MO_SEQ_CST;
 
 // === Barrier Strength Decorators ===
 // * AS_RAW: The access will translate into a raw memory access, hence ignoring all semantic concerns
 //   except memory ordering and compressed oops. This will bypass runtime function pointer dispatching
-//   in the pipeline and hardwire to raw accesses without going trough the GC access barriers.
+//   in the pipeline and hardwire to raw accesses without going through the GC access barriers.
 //  - Accesses on oop* translate to raw memory accesses without runtime checks
 //  - Accesses on narrowOop* translate to encoded/decoded memory accesses without runtime checks
 //  - Accesses on HeapWord* translate to a runtime check choosing one of the above
@@ -152,9 +146,9 @@ const DecoratorSet MO_DECORATOR_MASK = MO_UNORDERED | MO_VOLATILE | MO_RELAXED |
 //   responsibility of performing the access and what barriers to be performed to the GC. This is the default.
 //   Note that primitive accesses will only be resolved on the barrier set if the appropriate build-time
 //   decorator for enabling primitive barriers is enabled for the build.
-const DecoratorSet AS_RAW                  = UCONST64(1) << 12;
-const DecoratorSet AS_NO_KEEPALIVE         = UCONST64(1) << 13;
-const DecoratorSet AS_NORMAL               = UCONST64(1) << 14;
+const DecoratorSet AS_RAW                  = UCONST64(1) << 11;
+const DecoratorSet AS_NO_KEEPALIVE         = UCONST64(1) << 12;
+const DecoratorSet AS_NORMAL               = UCONST64(1) << 13;
 const DecoratorSet AS_DECORATOR_MASK       = AS_RAW | AS_NO_KEEPALIVE | AS_NORMAL;
 
 // === Reference Strength Decorators ===
@@ -166,22 +160,24 @@ const DecoratorSet AS_DECORATOR_MASK       = AS_RAW | AS_NO_KEEPALIVE | AS_NORMA
 // * ON_UNKNOWN_OOP_REF: The memory access is performed on a reference of unknown strength.
 //   This could for example come from the unsafe API.
 // * Default (no explicit reference strength specified): ON_STRONG_OOP_REF
-const DecoratorSet ON_STRONG_OOP_REF  = UCONST64(1) << 15;
-const DecoratorSet ON_WEAK_OOP_REF    = UCONST64(1) << 16;
-const DecoratorSet ON_PHANTOM_OOP_REF = UCONST64(1) << 17;
-const DecoratorSet ON_UNKNOWN_OOP_REF = UCONST64(1) << 18;
+const DecoratorSet ON_STRONG_OOP_REF  = UCONST64(1) << 14;
+const DecoratorSet ON_WEAK_OOP_REF    = UCONST64(1) << 15;
+const DecoratorSet ON_PHANTOM_OOP_REF = UCONST64(1) << 16;
+const DecoratorSet ON_UNKNOWN_OOP_REF = UCONST64(1) << 17;
 const DecoratorSet ON_DECORATOR_MASK  = ON_STRONG_OOP_REF | ON_WEAK_OOP_REF |
                                         ON_PHANTOM_OOP_REF | ON_UNKNOWN_OOP_REF;
 
 // === Access Location ===
-// Accesses can take place in, e.g. the heap, old or young generation and different native roots.
+// Accesses can take place in, e.g. the heap, old or young generation, different native roots, or native memory off the heap.
 // The location is important to the GC as it may imply different actions. The following decorators are used:
 // * IN_HEAP: The access is performed in the heap. Many barriers such as card marking will
 //   be omitted if this decorator is not set.
-// * IN_NATIVE: The access is performed in an off-heap data structure pointing into the Java heap.
-const DecoratorSet IN_HEAP            = UCONST64(1) << 19;
-const DecoratorSet IN_NATIVE          = UCONST64(1) << 20;
-const DecoratorSet IN_DECORATOR_MASK  = IN_HEAP | IN_NATIVE;
+// * IN_NATIVE: The access is performed in an off-heap data structure.
+// * IN_NMETHOD: The access is performed inside of an nmethod.
+const DecoratorSet IN_HEAP            = UCONST64(1) << 18;
+const DecoratorSet IN_NATIVE          = UCONST64(1) << 19;
+const DecoratorSet IN_NMETHOD         = UCONST64(1) << 20;
+const DecoratorSet IN_DECORATOR_MASK  = IN_HEAP | IN_NATIVE | IN_NMETHOD;
 
 // == Boolean Flag Decorators ==
 // * IS_ARRAY: The access is performed on a heap allocated array. This is sometimes a special case
@@ -212,8 +208,15 @@ const DecoratorSet ARRAYCOPY_DECORATOR_MASK       = ARRAYCOPY_CHECKCAST | ARRAYC
                                                     ARRAYCOPY_DISJOINT | ARRAYCOPY_ARRAYOF |
                                                     ARRAYCOPY_ATOMIC | ARRAYCOPY_ALIGNED;
 
+// == Resolve barrier decorators ==
+// * ACCESS_READ: Indicate that the resolved object is accessed read-only. This allows the GC
+//   backend to use weaker and more efficient barriers.
+// * ACCESS_WRITE: Indicate that the resolved object is used for write access.
+const DecoratorSet ACCESS_READ                    = UCONST64(1) << 29;
+const DecoratorSet ACCESS_WRITE                   = UCONST64(1) << 30;
+
 // Keep track of the last decorator.
-const DecoratorSet DECORATOR_LAST = UCONST64(1) << 28;
+const DecoratorSet DECORATOR_LAST = UCONST64(1) << 30;
 
 namespace AccessInternal {
   // This class adds implied decorators that follow according to decorator rules.
@@ -224,31 +227,32 @@ namespace AccessInternal {
     // If no reference strength has been picked, then strong will be picked
     static const DecoratorSet ref_strength_default = input_decorators |
       (((ON_DECORATOR_MASK & input_decorators) == 0 && (INTERNAL_VALUE_IS_OOP & input_decorators) != 0) ?
-       ON_STRONG_OOP_REF : INTERNAL_EMPTY);
+       ON_STRONG_OOP_REF : DECORATORS_NONE);
     // If no memory ordering has been picked, unordered will be picked
     static const DecoratorSet memory_ordering_default = ref_strength_default |
-      ((MO_DECORATOR_MASK & ref_strength_default) == 0 ? MO_UNORDERED : INTERNAL_EMPTY);
+      ((MO_DECORATOR_MASK & ref_strength_default) == 0 ? MO_UNORDERED : DECORATORS_NONE);
     // If no barrier strength has been picked, normal will be used
     static const DecoratorSet barrier_strength_default = memory_ordering_default |
-      ((AS_DECORATOR_MASK & memory_ordering_default) == 0 ? AS_NORMAL : INTERNAL_EMPTY);
-    static const DecoratorSet value = barrier_strength_default | BT_BUILDTIME_DECORATORS;
+      ((AS_DECORATOR_MASK & memory_ordering_default) == 0 ? AS_NORMAL : DECORATORS_NONE);
+    static const DecoratorSet value = barrier_strength_default;
   };
 
   // This function implements the above DecoratorFixup rules, but without meta
   // programming for code generation that does not use templates.
-  inline DecoratorSet decorator_fixup(DecoratorSet input_decorators) {
+  inline DecoratorSet decorator_fixup(DecoratorSet input_decorators, BasicType type) {
+    // Some call-sites don't specify that the access is performed on oops
+    DecoratorSet with_oop_decorators = input_decorators |= (is_reference_type(type) ? INTERNAL_VALUE_IS_OOP : 0);
     // If no reference strength has been picked, then strong will be picked
-    DecoratorSet ref_strength_default = input_decorators |
-      (((ON_DECORATOR_MASK & input_decorators) == 0 && (INTERNAL_VALUE_IS_OOP & input_decorators) != 0) ?
-       ON_STRONG_OOP_REF : INTERNAL_EMPTY);
+    DecoratorSet ref_strength_default = with_oop_decorators |
+      (((ON_DECORATOR_MASK & with_oop_decorators) == 0 && (INTERNAL_VALUE_IS_OOP & input_decorators) != 0) ?
+       ON_STRONG_OOP_REF : DECORATORS_NONE);
     // If no memory ordering has been picked, unordered will be picked
     DecoratorSet memory_ordering_default = ref_strength_default |
-      ((MO_DECORATOR_MASK & ref_strength_default) == 0 ? MO_UNORDERED : INTERNAL_EMPTY);
+      ((MO_DECORATOR_MASK & ref_strength_default) == 0 ? MO_UNORDERED : DECORATORS_NONE);
     // If no barrier strength has been picked, normal will be used
     DecoratorSet barrier_strength_default = memory_ordering_default |
-      ((AS_DECORATOR_MASK & memory_ordering_default) == 0 ? AS_NORMAL : INTERNAL_EMPTY);
-    DecoratorSet value = barrier_strength_default | BT_BUILDTIME_DECORATORS;
-    return value;
+      ((AS_DECORATOR_MASK & memory_ordering_default) == 0 ? AS_NORMAL : DECORATORS_NONE);
+    return barrier_strength_default;
   }
 }
 

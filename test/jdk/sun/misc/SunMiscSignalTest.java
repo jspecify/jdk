@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -95,7 +93,7 @@ public class SunMiscSignalTest {
 
     // Provider of signals to be tested with variations for -Xrs and
     // platform dependencies
-    // -Xrs restricted signals signals the VM will not handle SIGINT, SIGTERM, SIGHUP and others
+    // -Xrs restricted signals the VM will not handle SIGINT, SIGTERM, SIGHUP and others
     @DataProvider(name = "supportedSignals")
     static Object[][] supportedSignals() {
         RestrictedSignals rs = RUNNING_WITH_Xrs ? RestrictedSignals.XRS : RestrictedSignals.NORMAL;
@@ -133,10 +131,12 @@ public class SunMiscSignalTest {
 
         Object[][] posixNonOSXSignals = {
                 {"BUS",  IsSupported.YES, CanRegister.YES, CanRaise.YES, invokedXrs},
+                {"INFO", IsSupported.NO, CanRegister.NO, CanRaise.NO, Invoked.NO},
         };
 
         Object[][] posixOSXSignals = {
                 {"BUS",  IsSupported.YES, CanRegister.NO, CanRaise.NO, Invoked.NO},
+                {"INFO", IsSupported.YES, CanRegister.YES, CanRaise.YES, invokedXrs},
         };
 
         Object[][] windowsSignals = {

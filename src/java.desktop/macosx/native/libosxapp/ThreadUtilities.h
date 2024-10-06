@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 
 #ifndef __THREADUTILITIES_H
 #define __THREADUTILITIES_H
+
+#include "jni.h"
 
 #import <pthread.h>
 
@@ -123,18 +125,19 @@ do {                                  \
 // --------------------------------------------------------------------------
 
 __attribute__((visibility("default")))
-@interface ThreadUtilities { }
+@interface ThreadUtilities : NSObject { } /* Extend NSObject so can call performSelectorOnMainThread */
 
 + (JNIEnv*)getJNIEnv;
 + (JNIEnv*)getJNIEnvUncached;
 + (void)detachCurrentThread;
 + (void)setAppkitThreadGroup:(jobject)group;
++ (void)setApplicationOwner:(BOOL)owner;
 
-//Wrappers for the corresponding JNFRunLoop methods with a check for main thread
 + (void)performOnMainThreadWaiting:(BOOL)wait block:(void (^)())block;
 + (void)performOnMainThread:(SEL)aSelector on:(id)target withObject:(id)arg waitUntilDone:(BOOL)wait;
++ (NSString*)javaRunLoopMode;
 @end
 
-void OSXAPP_SetJavaVM(JavaVM *vm);
+JNIEXPORT void OSXAPP_SetJavaVM(JavaVM *vm);
 
 #endif /* __THREADUTILITIES_H */

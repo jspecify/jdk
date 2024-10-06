@@ -22,14 +22,30 @@
 package com.sun.org.apache.bcel.internal.classfile;
 
 /**
- * Interface to make use of the Visitor pattern programming style. I.e. a class
- * that implements this interface can traverse the contents of a Java class just
- * by calling the `accept' method which all classes have.
- *
- * @version $Id: Visitor.java 1747278 2016-06-07 17:28:43Z britter $
+ * Interface to make use of the Visitor pattern programming style. I.e. a class that implements this interface can
+ * traverse the contents of a Java class just by calling the 'accept' method which all classes have.
  */
-public interface Visitor
-{
+public interface Visitor {
+    /**
+     * @since 6.0
+     */
+    void visitAnnotation(Annotations obj);
+
+    /**
+     * @since 6.0
+     */
+    void visitAnnotationDefault(AnnotationDefault obj);
+
+    /**
+     * @since 6.0
+     */
+    void visitAnnotationEntry(AnnotationEntry obj);
+
+    /**
+     * @since 6.0
+     */
+    void visitBootstrapMethods(BootstrapMethods obj);
+
     void visitCode(Code obj);
 
     void visitCodeException(CodeException obj);
@@ -37,6 +53,13 @@ public interface Visitor
     void visitConstantClass(ConstantClass obj);
 
     void visitConstantDouble(ConstantDouble obj);
+
+    /**
+     * @since 6.3
+     */
+    default void visitConstantDynamic(final ConstantDynamic constantDynamic) {
+        // empty
+    }
 
     void visitConstantFieldref(ConstantFieldref obj);
 
@@ -50,9 +73,29 @@ public interface Visitor
 
     void visitConstantLong(ConstantLong obj);
 
+    /**
+     * @since 6.0
+     */
+    void visitConstantMethodHandle(ConstantMethodHandle obj);
+
     void visitConstantMethodref(ConstantMethodref obj);
 
+    /**
+     * @since 6.0
+     */
+    void visitConstantMethodType(ConstantMethodType obj);
+
+    /**
+     * @since 6.1
+     */
+    void visitConstantModule(ConstantModule constantModule);
+
     void visitConstantNameAndType(ConstantNameAndType obj);
+
+    /**
+     * @since 6.1
+     */
+    void visitConstantPackage(ConstantPackage constantPackage);
 
     void visitConstantPool(ConstantPool obj);
 
@@ -63,6 +106,11 @@ public interface Visitor
     void visitConstantValue(ConstantValue obj);
 
     void visitDeprecated(Deprecated obj);
+
+    /**
+     * @since 6.0
+     */
+    void visitEnclosingMethod(EnclosingMethod obj);
 
     void visitExceptionTable(ExceptionTable obj);
 
@@ -82,24 +130,87 @@ public interface Visitor
 
     void visitLocalVariableTable(LocalVariableTable obj);
 
+    /**
+     * @since 6.0
+     */
+    void visitLocalVariableTypeTable(LocalVariableTypeTable obj);
+
     void visitMethod(Method obj);
 
-    void visitSignature(Signature obj);
-
-    void visitSourceFile(SourceFile obj);
-
-    void visitSynthetic(Synthetic obj);
-
-    void visitUnknown(Unknown obj);
-
-    void visitStackMap(StackMap obj);
-
-    void visitStackMapEntry(StackMapEntry obj);
+    /**
+     * @since 6.4.0
+     */
+    default void visitMethodParameter(final MethodParameter obj) {
+        // empty
+    }
 
     /**
      * @since 6.0
      */
-    void visitAnnotation(Annotations obj);
+    void visitMethodParameters(MethodParameters obj);
+
+    /**
+     * @since 6.4.0
+     */
+    default void visitModule(final Module constantModule) {
+        // empty
+    }
+
+    /**
+     * @since 6.4.0
+     */
+    default void visitModuleExports(final ModuleExports constantModule) {
+        // empty
+    }
+
+    /**
+     * @since 6.4.0
+     */
+    default void visitModuleMainClass(final ModuleMainClass obj) {
+        // empty
+    }
+
+    /**
+     * @since 6.4.0
+     */
+    default void visitModuleOpens(final ModuleOpens constantModule) {
+        // empty
+    }
+
+    /**
+     * @since 6.4.0
+     */
+    default void visitModulePackages(final ModulePackages constantModule) {
+        // empty
+    }
+
+    /**
+     * @since 6.4.0
+     */
+    default void visitModuleProvides(final ModuleProvides constantModule) {
+        // empty
+    }
+
+    /**
+     * @since 6.4.0
+     */
+    default void visitModuleRequires(final ModuleRequires constantModule) {
+        // empty
+    }
+
+    /**
+     * @since 6.4.0
+     */
+    default void visitNestHost(final NestHost obj) {
+        // empty
+    }
+
+    /**
+     * @since 6.4.0
+     */
+    default void visitNestMembers(final NestMembers obj) {
+        // empty
+    }
 
     /**
      * @since 6.0
@@ -109,45 +220,17 @@ public interface Visitor
     /**
      * @since 6.0
      */
-    void visitAnnotationEntry(AnnotationEntry obj);
-
-    /**
-     * @since 6.0
-     */
-    void visitAnnotationDefault(AnnotationDefault obj);
-
-    /**
-     * @since 6.0
-     */
-    void visitLocalVariableTypeTable(LocalVariableTypeTable obj);
-
-    /**
-     * @since 6.0
-     */
-    void visitEnclosingMethod(EnclosingMethod obj);
-
-    /**
-     * @since 6.0
-     */
-    void visitBootstrapMethods(BootstrapMethods obj);
-
-    /**
-     * @since 6.0
-     */
-    void visitMethodParameters(MethodParameters obj);
-
-    /**
-     * @since 6.0
-     */
-    void visitConstantMethodType(ConstantMethodType obj);
-
-    /**
-     * @since 6.0
-     */
-    void visitConstantMethodHandle(ConstantMethodHandle obj);
-
-    /**
-     * @since 6.0
-     */
     void visitParameterAnnotationEntry(ParameterAnnotationEntry obj);
+
+    void visitSignature(Signature obj);
+
+    void visitSourceFile(SourceFile obj);
+
+    void visitStackMap(StackMap obj);
+
+    void visitStackMapEntry(StackMapEntry obj);
+
+    void visitSynthetic(Synthetic obj);
+
+    void visitUnknown(Unknown obj);
 }

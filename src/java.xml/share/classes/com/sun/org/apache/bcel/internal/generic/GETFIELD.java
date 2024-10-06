@@ -25,17 +25,21 @@ import com.sun.org.apache.bcel.internal.ExceptionConst;
 
 /**
  * GETFIELD - Fetch field from object
- * <PRE>Stack: ..., objectref -&gt; ..., value</PRE> OR
- * <PRE>Stack: ..., objectref -&gt; ..., value.word1, value.word2</PRE>
  *
- * @version $Id: GETFIELD.java 1747278 2016-06-07 17:28:43Z britter $
+ * <PRE>
+ * Stack: ..., objectref -&gt; ..., value
+ * </PRE>
+ *
+ * OR
+ *
+ * <PRE>
+ * Stack: ..., objectref -&gt; ..., value.word1, value.word2
+ * </PRE>
  */
-public class GETFIELD extends FieldInstruction implements ExceptionThrower, StackConsumer,
-        StackProducer {
+public class GETFIELD extends FieldInstruction implements ExceptionThrower, StackConsumer, StackProducer {
 
     /**
-     * Empty constructor needed for the Class.newInstance() statement in
-     * Instruction.readInstruction(). Not to be used otherwise.
+     * Empty constructor needed for Instruction.readInstruction. Not to be used otherwise.
      */
     GETFIELD() {
     }
@@ -44,23 +48,9 @@ public class GETFIELD extends FieldInstruction implements ExceptionThrower, Stac
         super(Const.GETFIELD, index);
     }
 
-    @Override
-    public int produceStack(final ConstantPoolGen cpg) {
-        return getFieldSize(cpg);
-    }
-
-    @Override
-    public Class<?>[] getExceptions() {
-        return ExceptionConst.createExceptions(ExceptionConst.EXCS.EXCS_FIELD_AND_METHOD_RESOLUTION,
-                ExceptionConst.NULL_POINTER_EXCEPTION,
-                ExceptionConst.INCOMPATIBLE_CLASS_CHANGE_ERROR);
-    }
-
     /**
-     * Call corresponding visitor method(s). The order is: Call visitor methods
-     * of implemented interfaces first, then call methods according to the class
-     * hierarchy in descending order, i.e., the most specific visitXXX() call
-     * comes last.
+     * Call corresponding visitor method(s). The order is: Call visitor methods of implemented interfaces first, then call
+     * methods according to the class hierarchy in descending order, i.e., the most specific visitXXX() call comes last.
      *
      * @param v Visitor object
      */
@@ -75,5 +65,16 @@ public class GETFIELD extends FieldInstruction implements ExceptionThrower, Stac
         v.visitFieldOrMethod(this);
         v.visitFieldInstruction(this);
         v.visitGETFIELD(this);
+    }
+
+    @Override
+    public Class<?>[] getExceptions() {
+        return ExceptionConst.createExceptions(ExceptionConst.EXCS.EXCS_FIELD_AND_METHOD_RESOLUTION, ExceptionConst.NULL_POINTER_EXCEPTION,
+            ExceptionConst.INCOMPATIBLE_CLASS_CHANGE_ERROR);
+    }
+
+    @Override
+    public int produceStack(final ConstantPoolGen cpg) {
+        return getFieldSize(cpg);
     }
 }

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -35,12 +33,12 @@ import java.util.stream.Stream;
 /*
  * @test
  * @bug 8169415
- * @library /lib/testlibrary/
+ * @library /test/lib
  * @modules java.logging
  *          java.base/sun.net.www
  *          java.base/sun.net.www.protocol.http
  *          jdk.httpserver/sun.net.httpserver
- * @build jdk.testlibrary.SimpleSSLContext HTTPTest HTTPTestServer HTTPTestClient HTTPSetAuthenticatorTest
+ * @build jdk.test.lib.net.SimpleSSLContext HTTPTest HTTPTestServer HTTPTestClient HTTPSetAuthenticatorTest
  * @summary A simple HTTP test that starts an echo server supporting the given
  *          authentication scheme, then starts a regular HTTP client to invoke it.
  *          The client first does a GET request on "/", then follows on
@@ -65,10 +63,10 @@ import java.util.stream.Stream;
  *                 no real difference between BASICSERVER and BASIC - it should
  *                 be transparent on the client side.
  * @run main/othervm HTTPSetAuthenticatorTest NONE SERVER PROXY SERVER307 PROXY305
- * @run main/othervm HTTPSetAuthenticatorTest DIGEST SERVER
- * @run main/othervm HTTPSetAuthenticatorTest DIGEST PROXY
- * @run main/othervm HTTPSetAuthenticatorTest DIGEST PROXY305
- * @run main/othervm HTTPSetAuthenticatorTest DIGEST SERVER307
+ * @run main/othervm -Dhttp.auth.digest.reEnabledAlgorithms=MD5 HTTPSetAuthenticatorTest DIGEST SERVER
+ * @run main/othervm -Dhttp.auth.digest.reEnabledAlgorithms=MD5 HTTPSetAuthenticatorTest DIGEST PROXY
+ * @run main/othervm -Dhttp.auth.digest.reEnabledAlgorithms=MD5 HTTPSetAuthenticatorTest DIGEST PROXY305
+ * @run main/othervm -Dhttp.auth.digest.reEnabledAlgorithms=MD5 HTTPSetAuthenticatorTest DIGEST SERVER307
  * @run main/othervm HTTPSetAuthenticatorTest BASIC  SERVER
  * @run main/othervm HTTPSetAuthenticatorTest BASIC  PROXY
  * @run main/othervm HTTPSetAuthenticatorTest BASIC  PROXY305
@@ -117,13 +115,12 @@ public class HTTPSetAuthenticatorTest extends HTTPTest {
                    HttpAuthType mode)
             throws IOException
     {
-        HttpTestAuthenticator authOne = new HttpTestAuthenticator("dublin", "foox");
-        HttpTestAuthenticator authTwo = new HttpTestAuthenticator("dublin", "foox");
+        HttpTestAuthenticator authOne = new HttpTestAuthenticator("authOne", "dublin", "foox");
+        HttpTestAuthenticator authTwo = new HttpTestAuthenticator("authTwo", "dublin", "foox");
         int expectedIncrement = scheme == HttpSchemeType.NONE
                                 ? 0 : EXPECTED_AUTH_CALLS_PER_TEST;
         int count;
         int defaultCount = AUTHENTICATOR.count.get();
-
         // Connect to the server with a GET request, then with a
         // POST that contains "Hello World!"
         // Uses authenticator #1
@@ -193,25 +190,25 @@ public class HTTPSetAuthenticatorTest extends HTTPTest {
         // Now tries with explicitly setting the default authenticator: it should
         // be invoked again.
         // Uncomment the code below when 8169068 is available.
-//        System.out.println("\nClient: Explicitly setting the default authenticator: "
-//            + toString(Authenticator.getDefault()));
-//        HTTPTestClient.connect(protocol, server, mode, Authenticator.getDefault());
-//        count = authOne.count.get();
-//        if (count != expectedIncrement) {
-//            throw new AssertionError("Authenticator #1 called " + count(count)
-//                + " expected it to be called " + expected(expectedIncrement));
-//        }
-//        count = authTwo.count.get();
-//        if (count != expectedIncrement) {
-//            throw new AssertionError("Authenticator #2 called " + count(count)
-//                + " expected it to be called " + expected(expectedIncrement));
-//        }
-//        count =  AUTHENTICATOR.count.get();
-//        if (count != defaultCount + 2 * expectedIncrement) {
-//            throw new AssertionError("Default Authenticator called " + count(count)
-//                + " expected it to be called "
-//                + expected(defaultCount + 2 * expectedIncrement));
-//        }
+        System.out.println("\nClient: Explicitly setting the default authenticator: "
+            + toString(Authenticator.getDefault()));
+        HTTPTestClient.connect(protocol, server, mode, Authenticator.getDefault());
+        count = authOne.count.get();
+        if (count != expectedIncrement) {
+            throw new AssertionError("Authenticator #1 called " + count(count)
+                + " expected it to be called " + expected(expectedIncrement));
+        }
+        count = authTwo.count.get();
+        if (count != expectedIncrement) {
+            throw new AssertionError("Authenticator #2 called " + count(count)
+                + " expected it to be called " + expected(expectedIncrement));
+        }
+        count =  AUTHENTICATOR.count.get();
+        if (count != defaultCount + 2 * expectedIncrement) {
+            throw new AssertionError("Default Authenticator called " + count(count)
+                + " expected it to be called "
+                + expected(defaultCount + 2 * expectedIncrement));
+        }
 
         // Now tries to set an authenticator on a connected connection.
         URL url = url(protocol,  server.getAddress(), "/");
@@ -240,16 +237,16 @@ public class HTTPSetAuthenticatorTest extends HTTPTest {
                         + ise);
             }
             // Uncomment the code below when 8169068 is available.
-//            try {
-//                conn.setAuthenticator(Authenticator.getDefault());
-//                throw new RuntimeException("Expected IllegalStateException"
-//                        + " trying to set an authenticator after connect"
-//                        + " not raised.");
-//            } catch (IllegalStateException ise) {
-//                System.out.println("Client: caught expected ISE"
-//                        + " trying to set an authenticator after connect: "
-//                        + ise);
-//            }
+            try {
+                conn.setAuthenticator(Authenticator.getDefault());
+                throw new RuntimeException("Expected IllegalStateException"
+                        + " trying to set an authenticator after connect"
+                        + " not raised.");
+            } catch (IllegalStateException ise) {
+                System.out.println("Client: caught expected ISE"
+                        + " trying to set an authenticator after connect: "
+                        + ise);
+            }
             try {
                 conn.setAuthenticator(null);
                 throw new RuntimeException("Expected"
@@ -281,11 +278,11 @@ public class HTTPSetAuthenticatorTest extends HTTPTest {
         // All good!
         // return the number of times the default authenticator is supposed
         // to have been called.
-        return scheme == HttpSchemeType.NONE ? 0 : 1 * EXPECTED_AUTH_CALLS_PER_TEST;
+        return scheme == HttpSchemeType.NONE ? 0 : 2 * EXPECTED_AUTH_CALLS_PER_TEST;
     }
 
     static String toString(Authenticator a) {
-        return sun.net.www.protocol.http.AuthenticatorKeys.getKey(a);
+        return a == null ? "null" : a.toString();
     }
 
 }

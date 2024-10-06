@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,8 @@ import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.types.Type;
 import sun.jvm.hotspot.types.TypeDataBase;
 import sun.jvm.hotspot.types.WrongTypeException;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class ciInstanceKlass extends ciKlass {
   static {
@@ -94,7 +96,7 @@ public class ciInstanceKlass extends ciKlass {
       sub = sub.getNextSiblingKlass();
     }
 
-    final int length = (int) cp.getLength();
+    final int length = cp.getLength();
     out.print("ciInstanceKlass " + name() + " " + (isLinked() ? 1 : 0) + " " + (isInitialized() ? 1 : 0) + " " + length);
     for (int index = 1; index < length; index++) {
       out.print(" " + cp.getTags().at(index));

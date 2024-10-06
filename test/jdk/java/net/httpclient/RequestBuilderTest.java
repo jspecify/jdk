@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @bug 8276559
  * @summary HttpRequest[.Builder] API and behaviour checks
  * @run testng RequestBuilderTest
  */
@@ -107,7 +108,6 @@ public class RequestBuilderTest {
                 URI.create("ws://foo.com"),
                 URI.create("wss://foo.com"),
                 URI.create("ftp://foo.com"),
-                URI.create("gopher://foo.com"),
                 URI.create("mailto:a@b.com"),
                 URI.create("scheme:example.com"),
                 URI.create("scheme:example.com"),
@@ -160,6 +160,10 @@ public class RequestBuilderTest {
         request = newBuilder(uri).DELETE().build();
         assertEquals(request.method(), "DELETE");
         assertTrue(!request.bodyPublisher().isPresent());
+
+        request = newBuilder(uri).HEAD().build();
+        assertEquals(request.method(), "HEAD");
+        assertFalse(request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).GET().POST(BodyPublishers.ofString("")).build();
         assertEquals(request.method(), "POST");
@@ -337,15 +341,26 @@ public class RequestBuilderTest {
         }
     }
 
+    // headers that are allowed now, but weren't before
+    private static final Set<String> FORMERLY_RESTRICTED = Set.of("referer", "origin",
+            "OriGin", "Referer", "Date", "via", "WarnIng");
+
+    @Test
+    public void testFormerlyRestricted()  throws URISyntaxException {
+        URI uri = new URI("http://localhost:80/test/");
+        URI otherURI = new URI("http://www.foo.com/test/");
+        for (String header : FORMERLY_RESTRICTED) {
+            HttpRequest req = HttpRequest.newBuilder(uri)
+                .header(header, otherURI.toString())
+                .GET()
+                .build();
+        }
+    }
+
     private static final Set<String> RESTRICTED = Set.of("connection", "content-length",
-            "date", "expect", "from", "host", "origin",
-            "referer", "upgrade", "via", "warning",
-            "Connection", "Content-Length",
-            "DATE", "eXpect", "frOm", "hosT", "origIN",
-            "ReFerer", "upgradE", "vIa", "Warning",
-            "CONNection", "CONTENT-LENGTH",
-            "Date", "EXPECT", "From", "Host", "Origin",
-            "Referer", "Upgrade", "Via", "WARNING");
+            "expect", "host", "upgrade", "Connection", "Content-Length",
+            "eXpect", "hosT", "upgradE", "CONNection", "CONTENT-LENGTH",
+            "EXPECT", "Host", "Upgrade");
 
     interface WithHeader {
         HttpRequest.Builder withHeader(HttpRequest.Builder builder, String name, String value);

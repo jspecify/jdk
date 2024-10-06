@@ -25,8 +25,8 @@
  * @test
  * @bug 8152616
  * @summary Unit test for corner case of PrettyPrinting when SourceOutput is false
- * @run compile --add-exports jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED T8152616.java
- * @run main T8152616
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.tree
  */
 
 import java.io.File;
@@ -60,15 +60,17 @@ public class T8152616 {
         JavacTool javac = JavacTool.create();
         StandardJavaFileManager jfm = javac.getStandardFileManager(null,null,null);
         File file = File.createTempFile("test", ".java");
-        OutputStream outputStream = new FileOutputStream(file);
-        outputStream.write("enum Foo {AA(10), BB, CC { void m() {} }; void m() {};}".getBytes());
+        try (OutputStream outputStream = new FileOutputStream(file)) {
+            outputStream.write("enum Foo {AA(10), BB, CC { void m() {} }; void m() {};}".getBytes());
+        }
         JavacTask task = javac.getTask(null, jfm, null, null, null,
                    jfm.getJavaFileObjects(file.getAbsolutePath()));
         Iterable<? extends CompilationUnitTree> trees = task.parse();
         CompilationUnitTree thisTree = trees.iterator().next();
         file.delete();
-        outputStream = new FileOutputStream(file);
-        outputStream.write((obj.PrettyPrint((JCTree)thisTree)).getBytes());
+        try (OutputStream outputStream = new FileOutputStream(file)) {
+            outputStream.write((obj.PrettyPrint((JCTree)thisTree)).getBytes());
+        }
         task = javac.getTask(null, jfm, null, null, null,
                    jfm.getJavaFileObjects(file.getAbsolutePath()));
         if(task.parse().toString().contains("ERROR")){

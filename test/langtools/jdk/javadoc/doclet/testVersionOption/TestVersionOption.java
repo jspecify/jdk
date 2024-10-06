@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,23 @@
  * @test
  * @bug      8177048
  * @summary  javadoc should support --version and --full-version flags
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester TestVersionOption
+ * @build    javadoc.tester.* TestVersionOption
  * @run main TestVersionOption
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestVersionOption extends JavadocTester {
 
     public static void main(String... args) throws Exception {
-        TestVersionOption tester = new TestVersionOption();
+        var tester = new TestVersionOption();
         tester.runTests();
     }
 
     @Test
-    void testFullVersionOption() {
+    public void testFullVersionOption() {
         javadoc("--full-version");
         checkExit(Exit.OK);
 
@@ -48,7 +50,7 @@ public class TestVersionOption extends JavadocTester {
 
 
     @Test
-    void testVersionOption() {
+    public void testVersionOption() {
         javadoc("--version");
         checkExit(Exit.OK);
 

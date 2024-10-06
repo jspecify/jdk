@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,7 +82,6 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
     /* define doc flavors for text types in the default encoding of
      * this platform since we can always read those.
      */
-    private static String encoding = "ISO8859_1";
     private static DocFlavor textByteFlavor;
 
     private static DocFlavor[] supportedDocFlavors = null;
@@ -148,10 +147,9 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
       "| grep -E '^[ 0-9a-zA-Z_-]*@' | awk '{print $4}'"
     };
 
-    static {
-        encoding = java.security.AccessController.doPrivileged(
+    @SuppressWarnings("removal")
+    private static String encoding = java.security.AccessController.doPrivileged(
             new sun.security.action.GetPropertyAction("file.encoding"));
-    }
 
     /* let's try to support a few of these */
     private static final Class<?>[] serviceAttrCats = {
@@ -181,7 +179,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
 
     private static int MAXCOPIES = 1000;
 
-    private static final MediaSizeName mediaSizes[] = {
+    private static final MediaSizeName[] mediaSizes = {
         MediaSizeName.NA_LETTER,
         MediaSizeName.TABLOID,
         MediaSizeName.LEDGER,
@@ -224,31 +222,6 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
         return name;
     }
 
-    private PrinterIsAcceptingJobs getPrinterIsAcceptingJobsSysV() {
-        String command = "/usr/bin/lpstat -a " + printer;
-        String results[]= PrintServiceLookupProvider.execCmd(command);
-
-        if (results != null && results.length > 0) {
-            if (results[0].startsWith(printer + " accepting requests")) {
-                return PrinterIsAcceptingJobs.ACCEPTING_JOBS;
-            }
-            else if (results[0].startsWith(printer)) {
-                /* As well as "myprinter accepting requests", look for
-                 * "myprinter@somehost accepting requests".
-                 */
-                int index = printer.length();
-                String str = results[0];
-                if (str.length() > index &&
-                    str.charAt(index) == '@' &&
-                    str.indexOf(" accepting requests", index) > 0 &&
-                    str.indexOf(" not accepting requests", index) == -1) {
-                   return PrinterIsAcceptingJobs.ACCEPTING_JOBS;
-                }
-            }
-        }
-        return PrinterIsAcceptingJobs.NOT_ACCEPTING_JOBS ;
-    }
-
     private PrinterIsAcceptingJobs getPrinterIsAcceptingJobsBSD() {
         if (PrintServiceLookupProvider.cmdIndex ==
             PrintServiceLookupProvider.UNINITIALIZED) {
@@ -259,7 +232,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
 
         String command = "/usr/sbin/lpc status " + printer
             + lpcStatusCom[PrintServiceLookupProvider.cmdIndex];
-        String results[]= PrintServiceLookupProvider.execCmd(command);
+        String[] results= PrintServiceLookupProvider.execCmd(command);
 
         if (results != null && results.length > 0) {
             if (PrintServiceLookupProvider.cmdIndex ==
@@ -291,7 +264,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
             // Remove the header lines
             if (posPrinters[i].startsWith("---") ||
                 posPrinters[i].startsWith("Queue") ||
-                posPrinters[i].equals("")) continue;
+                posPrinters[i].isEmpty()) continue;
 
             // Check if there is a ":" in the end of the first colomn.
             // This means that it is not a valid printer definition.
@@ -307,7 +280,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
     private PrinterIsAcceptingJobs getPrinterIsAcceptingJobsAIX() {
         // On AIX there should not be a blank after '-a'.
         String command = "/usr/bin/lpstat -a" + printer;
-        String results[]= PrintServiceLookupProvider.execCmd(command);
+        String[] results= PrintServiceLookupProvider.execCmd(command);
 
         // Remove headers and bogus entries added by remote printers.
         results = filterPrinterNamesAIX(results);
@@ -326,9 +299,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
     }
 
     private PrinterIsAcceptingJobs getPrinterIsAcceptingJobs() {
-        if (PrintServiceLookupProvider.isSysV()) {
-            return getPrinterIsAcceptingJobsSysV();
-        } else if (PrintServiceLookupProvider.isBSD()) {
+        if (PrintServiceLookupProvider.isBSD()) {
             return getPrinterIsAcceptingJobsBSD();
         } else if (PrintServiceLookupProvider.isAIX()) {
             return getPrinterIsAcceptingJobsAIX();
@@ -355,14 +326,6 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
         }
     }
 
-    private QueuedJobCount getQueuedJobCountSysV() {
-        String command = "/usr/bin/lpstat -R " + printer;
-        String results[]= PrintServiceLookupProvider.execCmd(command);
-        int qlen = (results == null) ? 0 : results.length;
-
-        return new QueuedJobCount(qlen);
-    }
-
     private QueuedJobCount getQueuedJobCountBSD() {
         if (PrintServiceLookupProvider.cmdIndex ==
             PrintServiceLookupProvider.UNINITIALIZED) {
@@ -374,7 +337,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
         int qlen = 0;
         String command = "/usr/sbin/lpc status " + printer
             + lpcQueueCom[PrintServiceLookupProvider.cmdIndex];
-        String results[] = PrintServiceLookupProvider.execCmd(command);
+        String[] results = PrintServiceLookupProvider.execCmd(command);
 
         if (results != null && results.length > 0) {
             String queued;
@@ -402,7 +365,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
     private QueuedJobCount getQueuedJobCountAIX() {
         // On AIX there should not be a blank after '-a'.
         String command = "/usr/bin/lpstat -a" + printer;
-        String results[]=  PrintServiceLookupProvider.execCmd(command);
+        String[] results=  PrintServiceLookupProvider.execCmd(command);
 
         // Remove headers and bogus entries added by remote printers.
         results = filterPrinterNamesAIX(results);
@@ -419,22 +382,13 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
     }
 
     private QueuedJobCount getQueuedJobCount() {
-        if (PrintServiceLookupProvider.isSysV()) {
-            return getQueuedJobCountSysV();
-        } else if (PrintServiceLookupProvider.isBSD()) {
+        if (PrintServiceLookupProvider.isBSD()) {
             return getQueuedJobCountBSD();
         } else if (PrintServiceLookupProvider.isAIX()) {
             return getQueuedJobCountAIX();
         } else {
             return new QueuedJobCount(0);
         }
-    }
-
-    private PrintServiceAttributeSet getSysVServiceAttributes() {
-        PrintServiceAttributeSet attrs = new HashPrintServiceAttributeSet();
-        attrs.add(getQueuedJobCountSysV());
-        attrs.add(getPrinterIsAcceptingJobsSysV());
-        return attrs;
     }
 
     private PrintServiceAttributeSet getBSDServiceAttributes() {
@@ -466,6 +420,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
     }
 
     public DocPrintJob createPrintJob() {
+      @SuppressWarnings("removal")
       SecurityManager security = System.getSecurityManager();
       if (security != null) {
         security.checkPrintJobAccess();
@@ -474,9 +429,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
     }
 
     private PrintServiceAttributeSet getDynamicAttributes() {
-        if (PrintServiceLookupProvider.isSysV()) {
-            return getSysVServiceAttributes();
-        } else if (PrintServiceLookupProvider.isAIX()) {
+        if (PrintServiceLookupProvider.isAIX()) {
             return getAIXServiceAttributes();
         } else {
             return getBSDServiceAttributes();
@@ -696,7 +649,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
         } else if (category == Media.class) {
             String defaultCountry = Locale.getDefault().getCountry();
             if (defaultCountry != null &&
-                (defaultCountry.equals("") ||
+                (defaultCountry.isEmpty() ||
                  defaultCountry.equals(Locale.US.getCountry()) ||
                  defaultCountry.equals(Locale.CANADA.getCountry()))) {
                 return MediaSizeName.NA_LETTER;
@@ -707,7 +660,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
             String defaultCountry = Locale.getDefault().getCountry();
             float iw, ih;
             if (defaultCountry != null &&
-                (defaultCountry.equals("") ||
+                (defaultCountry.isEmpty() ||
                  defaultCountry.equals(Locale.US.getCountry()) ||
                  defaultCountry.equals(Locale.CANADA.getCountry()))) {
                 iw = MediaSize.NA.LETTER.getX(Size2DSyntax.INCH) - 0.5f;
@@ -796,7 +749,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
         } else if (category == JobName.class) {
             return new JobName("Java Printing", null);
         } else if (category == JobSheets.class) {
-            JobSheets arr[] = new JobSheets[2];
+            JobSheets[] arr = new JobSheets[2];
             arr[0] = JobSheets.NONE;
             arr[1] = JobSheets.STANDARD;
             return arr;
@@ -999,7 +952,7 @@ public class UnixPrintService implements PrintService, AttributeUpdater,
         } else if (attr.getCategory() == Destination.class) {
             URI uri = ((Destination)attr).getURI();
                 if ("file".equals(uri.getScheme()) &&
-                    !(uri.getSchemeSpecificPart().equals(""))) {
+                    !uri.getSchemeSpecificPart().isEmpty()) {
                 return true;
             } else {
             return false;

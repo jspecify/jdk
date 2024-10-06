@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,31 +28,24 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/nativeCallStack.hpp"
 
-NativeCallStack NativeCallStack::EMPTY_STACK(0, false);
+const NativeCallStack NativeCallStack::_empty_stack; // Uses default ctor
 
-NativeCallStack::NativeCallStack(int toSkip, bool fillStack) :
-  _hash_value(0) {
+NativeCallStack::NativeCallStack(int toSkip) {
 
-  if (fillStack) {
-    // We need to skip the NativeCallStack::NativeCallStack frame if a tail call is NOT used
-    // to call os::get_native_stack. A tail call is used if _NMT_NOINLINE_ is not defined
-    // (which means this is not a slowdebug build), and we are on 64-bit (except Windows).
-    // This is not necessarily a rule, but what has been obvserved to date.
-#if (defined(_NMT_NOINLINE_) || defined(_WINDOWS) || !defined(_LP64))
-    // Not a tail call.
-    toSkip++;
+  // We need to skip the NativeCallStack::NativeCallStack frame if a tail call is NOT used
+  // to call os::get_native_stack. A tail call is used if _NMT_NOINLINE_ is not defined
+  // (which means this is not a slowdebug build), and we are on 64-bit (except Windows).
+  // This is not necessarily a rule, but what has been obvserved to date.
+#if (defined(_NMT_NOINLINE_) || defined(_WINDOWS) || !defined(_LP64) || defined(PPC64) || (defined(BSD) && defined (__aarch64__)))
+  // Not a tail call.
+  toSkip++;
 #if (defined(_NMT_NOINLINE_) && defined(BSD) && defined(_LP64))
-    // Mac OS X slowdebug builds have this odd behavior where NativeCallStack::NativeCallStack
-    // appears as two frames, so we need to skip an extra frame.
-    toSkip++;
+  // Mac OS X slowdebug builds have this odd behavior where NativeCallStack::NativeCallStack
+  // appears as two frames, so we need to skip an extra frame.
+  toSkip++;
 #endif // Special-case for BSD.
 #endif // Not a tail call.
-    os::get_native_stack(_stack, NMT_TrackingStackDepth, toSkip);
-  } else {
-    for (int index = 0; index < NMT_TrackingStackDepth; index ++) {
-      _stack[index] = NULL;
-    }
-  }
+  os::get_native_stack(_stack, NMT_TrackingStackDepth, toSkip);
 }
 
 NativeCallStack::NativeCallStack(address* pc, int frameCount) {
@@ -63,66 +56,64 @@ NativeCallStack::NativeCallStack(address* pc, int frameCount) {
     _stack[index] = pc[index];
   }
   for (; index < NMT_TrackingStackDepth; index ++) {
-    _stack[index] = NULL;
+    _stack[index] = nullptr;
   }
-  _hash_value = 0;
 }
 
 // number of stack frames captured
 int NativeCallStack::frames() const {
   int index;
   for (index = 0; index < NMT_TrackingStackDepth; index ++) {
-    if (_stack[index] == NULL) {
+    if (_stack[index] == nullptr) {
       break;
     }
   }
   return index;
 }
 
-// Hash code. Any better algorithm?
-unsigned int NativeCallStack::hash() const {
-  uintptr_t hash_val = _hash_value;
-  if (hash_val == 0) {
-    for (int index = 0; index < NMT_TrackingStackDepth; index++) {
-      if (_stack[index] == NULL) break;
-      hash_val += (uintptr_t)_stack[index];
-    }
+// Decode and print this call path
 
-    NativeCallStack* p = const_cast<NativeCallStack*>(this);
-    p->_hash_value = (unsigned int)(hash_val & 0xFFFFFFFF);
+void NativeCallStack::print_frame(outputStream* out, address pc) const {
+  char    buf[1024];
+  int     offset;
+  int     line;
+  const bool pc_in_VM = os::address_is_in_vm(pc);
+  out->print("[" PTR_FORMAT "]", p2i(pc));
+  // Print function and library; shorten library name to just its last component
+  // for brevity, and omit it completely for libjvm.so
+  bool function_printed = false;
+  if (os::dll_address_to_function_name(pc, buf, sizeof(buf), &offset)) {
+    out->print("%s+0x%x", buf, offset);
+    function_printed = true;
+    if (Decoder::get_source_info(pc, buf, sizeof(buf), &line, false)) {
+      // For intra-vm functions, we omit the full path
+      const char* s = buf;
+      if (pc_in_VM) {
+        s = strrchr(s, os::file_separator()[0]);
+        s = (s != nullptr) ? s + 1 : buf;
+      }
+      out->print("   (%s:%d)", s, line);
+    }
   }
-  return _hash_value;
+  if ((!function_printed || !pc_in_VM) &&
+      os::dll_address_to_library_name(pc, buf, sizeof(buf), &offset)) {
+    const char* libname = strrchr(buf, os::file_separator()[0]);
+    if (libname != nullptr) {
+      libname++;
+    } else {
+      libname = buf;
+    }
+    out->print(" in %s", libname);
+    if (!function_printed) {
+      out->print("+0x%x", offset);
+    }
+  }
 }
 
 void NativeCallStack::print_on(outputStream* out) const {
-  print_on(out, 0);
-}
-
-// Decode and print this call path
-void NativeCallStack::print_on(outputStream* out, int indent) const {
-  address pc;
-  char    buf[1024];
-  int     offset;
-  int     line_no;
-  if (is_empty()) {
-    for (int index = 0; index < indent; index ++) out->print(" ");
-    out->print("[BOOTSTRAP]");
-  } else {
-    for (int frame = 0; frame < NMT_TrackingStackDepth; frame ++) {
-      pc = get_frame(frame);
-      if (pc == NULL) break;
-      // Print indent
-      for (int index = 0; index < indent; index ++) out->print(" ");
-      if (os::dll_address_to_function_name(pc, buf, sizeof(buf), &offset)) {
-        out->print("[" PTR_FORMAT "] %s+0x%x", p2i(pc), buf, offset);
-      } else {
-        out->print("[" PTR_FORMAT "]", p2i(pc));
-      }
-
-      if (Decoder::get_source_info(pc, buf, sizeof(buf), &line_no)) {
-        out->print("  (%s:%d)", buf, line_no);
-      }
-      out->cr();
-    }
+  DEBUG_ONLY(assert_not_fake();)
+  for (int i = 0; i < NMT_TrackingStackDepth && _stack[i] != nullptr; i++) {
+    print_frame(out, _stack[i]);
   }
+  out->cr();
 }

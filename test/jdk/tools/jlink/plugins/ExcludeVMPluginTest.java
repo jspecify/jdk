@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -149,7 +149,7 @@ public class ExcludeVMPluginTest {
 
     }
 
-    public void checkVM(String vm, String[] input, String jvmcfg, String[] expectedOutput, String expectdJvmCfg) throws Exception {
+    public void checkVM(String vm, String[] input, String jvmcfg, String[] expectedOutput, String expectedJvmCfg) throws Exception {
 
         for (String arch : ARCHITECTURES) {
             String[] winput = new String[input.length];
@@ -160,11 +160,11 @@ public class ExcludeVMPluginTest {
             for (int i = 0; i < expectedOutput.length; i++) {
                 woutput[i] = "/java.base/lib" + arch + expectedOutput[i];
             }
-            doCheckVM(vm, winput, jvmcfg, woutput, expectdJvmCfg);
+            doCheckVM(vm, winput, jvmcfg, woutput, expectedJvmCfg);
         }
     }
 
-    private void doCheckVM(String vm, String[] input, String jvmcfg, String[] expectedOutput, String expectdJvmCfg) throws Exception {
+    private void doCheckVM(String vm, String[] input, String jvmcfg, String[] expectedOutput, String expectedJvmCfg) throws Exception {
         // Create a pool with jvm.cfg and the input paths.
         byte[] jvmcfgContent = jvmcfg.getBytes();
         ResourcePoolManager poolMgr = new ResourcePoolManager();
@@ -187,15 +187,15 @@ public class ExcludeVMPluginTest {
         Plugin p = new ExcludeVMPlugin();
         Map<String, String> config = new HashMap<>();
         if (vm != null) {
-            config.put(ExcludeVMPlugin.NAME, vm);
+            config.put(p.getName(), vm);
         }
         p.configure(config);
         ResourcePool out = p.transform(poolMgr.resourcePool(), outMgr.resourcePoolBuilder());
 
         String newContent = new String(out.findEntry("/java.base/lib/jvm.cfg").get().contentBytes());
 
-        if (!expectdJvmCfg.equals(newContent)) {
-            throw new Exception("Got content " + newContent + " expected " + expectdJvmCfg);
+        if (!expectedJvmCfg.equals(newContent)) {
+            throw new Exception("Got content " + newContent + " expected " + expectedJvmCfg);
         }
 
         // Apart from native resources, we should find jvm.cfg and
@@ -228,7 +228,7 @@ public class ExcludeVMPluginTest {
 
     // read java.base/module-info.class from jrt-fs
     private static Path getJavaBaseModuleInfo() {
-        return Paths.get(URI.create("jrt:/modules/java.base/module-info.class"));
+        return Paths.get(URI.create("jrt:/java.base/module-info.class"));
     }
 
     private static boolean isWindows() {

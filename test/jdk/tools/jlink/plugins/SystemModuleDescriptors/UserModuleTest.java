@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ import java.util.stream.Stream;
 import jdk.test.lib.compiler.CompilerUtils;
 import jdk.test.lib.util.FileUtils;
 
-import static jdk.testlibrary.ProcessTools.*;
+import static jdk.test.lib.process.ProcessTools.*;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -44,14 +44,13 @@ import static org.testng.Assert.*;
 /**
  * @test
  * @bug 8142968 8173381 8174740
- * @library /lib/testlibrary /test/lib
+ * @library /test/lib
  * @modules jdk.compiler jdk.jlink
  * @modules java.base/jdk.internal.module
- * @modules java.base/jdk.internal.org.objectweb.asm
  * @build jdk.test.lib.compiler.CompilerUtils
  *        jdk.test.lib.util.FileUtils
  *        jdk.test.lib.Platform
- *        ModuleTargetHelper UserModuleTest jdk.testlibrary.ProcessTools
+ *        ModuleTargetHelper UserModuleTest jdk.test.lib.process.ProcessTools
  * @run testng UserModuleTest
  */
 
@@ -89,8 +88,7 @@ public class UserModuleTest {
             Path msrc = SRC_DIR.resolve(mn);
             assertTrue(CompilerUtils.compile(msrc, MODS_DIR,
                 "--module-source-path", SRC_DIR.toString(),
-                "--add-exports", "java.base/jdk.internal.module=" + mn,
-                "--add-exports", "java.base/jdk.internal.org.objectweb.asm=" + mn));
+                "--add-exports", "java.base/jdk.internal.module=" + mn));
         }
 
         if (Files.exists(IMAGE)) {
@@ -113,7 +111,6 @@ public class UserModuleTest {
         Path java = IMAGE.resolve("bin").resolve("java");
         assertTrue(executeProcess(java.toString(),
                         "--add-exports", "java.base/jdk.internal.module=m1,m4",
-                        "--add-exports", "java.base/jdk.internal.org.objectweb.asm=m1,m4",
                         "-m", MAIN_MID)
                         .outputTo(System.out)
                         .errorTo(System.out)
@@ -145,7 +142,6 @@ public class UserModuleTest {
         Path java = IMAGE.resolve("bin").resolve("java");
         assertTrue(executeProcess(java.toString(),
                                   "--add-exports", "java.base/jdk.internal.module=m1,m4",
-                                  "--add-exports", "java.base/jdk.internal.org.objectweb.asm=m1,m4",
                                   "-Djdk.system.module.finder.disabledFastPath",
                                   "-m", MAIN_MID)
                         .outputTo(System.out)
@@ -166,7 +162,6 @@ public class UserModuleTest {
         Path java = dir.resolve("bin").resolve("java");
         assertTrue(executeProcess(java.toString(),
                          "--add-exports", "java.base/jdk.internal.module=m1,m4",
-                         "--add-exports", "java.base/jdk.internal.org.objectweb.asm=m1,m4",
                          "-m", MAIN_MID)
                         .outputTo(System.out)
                         .errorTo(System.out)
@@ -262,7 +257,6 @@ public class UserModuleTest {
         Path java = dir.resolve("bin").resolve("java");
         assertTrue(executeProcess(java.toString(),
                         "--add-exports", "java.base/jdk.internal.module=m1,m4",
-                        "--add-exports", "java.base/jdk.internal.org.objectweb.asm=m1,m4",
                         "--add-modules=m1", "-m", "m4")
             .outputTo(System.out)
             .errorTo(System.out)
@@ -292,7 +286,6 @@ public class UserModuleTest {
         Path java = dir.resolve("bin").resolve("java");
         assertTrue(executeProcess(java.toString(),
                         "--add-exports", "java.base/jdk.internal.module=m1,m4",
-                        "--add-exports", "java.base/jdk.internal.org.objectweb.asm=m1,m4",
                         "--add-modules=m1", "-m", "m4", "retainModuleTarget")
             .outputTo(System.out)
             .errorTo(System.out)

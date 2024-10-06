@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_BSD_VM_OSTHREAD_BSD_HPP
-#define OS_BSD_VM_OSTHREAD_BSD_HPP
+#ifndef OS_BSD_OSTHREAD_BSD_HPP
+#define OS_BSD_OSTHREAD_BSD_HPP
 
  private:
   int _thread_type;
@@ -67,14 +67,6 @@
   intptr_t thread_identifier() const   { return (intptr_t)_pthread_id; }
 #endif
 
-#ifdef ASSERT
-  // We expect no reposition failures so kill vm if we get one.
-  //
-  bool valid_reposition_failure() {
-    return false;
-  }
-#endif // ASSERT
-
   pthread_t pthread_id() const {
     return _pthread_id;
   }
@@ -82,9 +74,7 @@
     _pthread_id = tid;
   }
 
-  void set_unique_thread_id(uint64_t id) {
-    _unique_thread_id = id;
-  }
+  void set_unique_thread_id();
 
   // ***************************************************************
   // suspension support.
@@ -94,7 +84,7 @@ public:
   // flags that support signal based suspend/resume on Bsd are in a
   // separate class to avoid confusion with many flags in OSThread that
   // are used by VM level suspend/resume.
-  os::SuspendResume sr;
+  SuspendResume sr;
 
   // _ucontext and _siginfo are used by SR_handler() to save thread context,
   // and they will later be used to walk the stack or reposition thread PC.
@@ -149,4 +139,4 @@ private:
 // osThread_solaris.hpp 1.24 99/08/27 13:11:54
 // End
 
-#endif // OS_BSD_VM_OSTHREAD_BSD_HPP
+#endif // OS_BSD_OSTHREAD_BSD_HPP

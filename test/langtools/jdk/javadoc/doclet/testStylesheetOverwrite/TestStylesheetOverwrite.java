@@ -1,4 +1,4 @@
-/* * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,9 @@
  * @test
  * @bug      8196913
  * @summary  javadoc does not (over)write stylesheet.css
- * @library  /tools/lib ../lib
+ * @library  /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester toolbox.ToolBox builder.ClassBuilder
+ * @build    javadoc.tester.* toolbox.ToolBox builder.ClassBuilder
  * @run main TestStylesheetOverwrite
  */
 
@@ -38,12 +38,14 @@ import java.util.List;
 import builder.ClassBuilder;
 import toolbox.ToolBox;
 
+import javadoc.tester.JavadocTester;
+
 public class TestStylesheetOverwrite extends JavadocTester {
     final ToolBox tb;
 
     public static void main(String... args) throws Exception {
-        TestStylesheetOverwrite tester = new TestStylesheetOverwrite();
-        tester.runTests(m -> new Object[]{Paths.get(m.getName())});
+        var tester = new TestStylesheetOverwrite();
+        tester.runTests();
     }
 
     TestStylesheetOverwrite() {
@@ -51,14 +53,15 @@ public class TestStylesheetOverwrite extends JavadocTester {
     }
 
     @Test
-    void testStylesheetFile(Path base) throws Exception {
+    public void testStylesheetFile(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         createTestClass(srcDir);
 
         Path outDir = base.resolve("out");
+        Path resourceDir = outDir.resolve("resource-files");
+        Files.createDirectories(resourceDir);
 
-        Files.createDirectory(outDir);
-        Path stylesheet = outDir.resolve("stylesheet.css");
+        Path stylesheet = resourceDir.resolve("stylesheet.css");
         Files.createFile(stylesheet);
         Files.write(stylesheet, List.of("/* custom stylesheet */"));
 
@@ -69,7 +72,7 @@ public class TestStylesheetOverwrite extends JavadocTester {
                 "pkg");
 
         checkExit(Exit.OK);
-        checkOutput("stylesheet.css", true, "Javadoc style sheet");
+        checkOutput("resource-files/stylesheet.css", true, "Javadoc style sheet");
     }
 
     void createTestClass(Path srcDir) throws Exception {

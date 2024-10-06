@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -31,11 +29,9 @@ package test.java.lang.invoke;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
-import java.util.List;
 import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
-import static org.testng.AssertJUnit.*;
+import static org.testng.Assert.*;
 import org.testng.annotations.*;
 
 public class ConstantIdentityMHTest {
@@ -61,8 +57,7 @@ public class ConstantIdentityMHTest {
         assertEquals(MethodHandles.zero(expectedtype).type().toString(), expected);
     }
 
-    @Test
-    @ExpectedExceptions(NullPointerException.class)
+    @Test(expectedExceptions={ NullPointerException.class })
     public void testZeroNPE() {
         MethodHandle mh = MethodHandles.zero(null);
     }
@@ -70,13 +65,12 @@ public class ConstantIdentityMHTest {
     @Test
     void testEmpty() throws Throwable {
         MethodHandle cat = lookup().findVirtual(String.class, "concat", methodType(String.class, String.class));
-        assertEquals("xy", (String)cat.invoke("x","y"));
+        assertEquals((String)cat.invoke("x","y"), "xy");
         MethodHandle mhEmpty = MethodHandles.empty(cat.type());
-        assertEquals(null, (String)mhEmpty.invoke("x","y"));
+        assertEquals((String)mhEmpty.invoke("x","y"), null);
     }
 
-    @Test
-    @ExpectedExceptions(NullPointerException.class)
+    @Test(expectedExceptions = { NullPointerException.class })
     void testEmptyNPE() {
         MethodHandle lenEmptyMH = MethodHandles.empty(null);
     }

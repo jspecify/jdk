@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_SERVICE_JFROPTIONSET_HPP
-#define SHARE_VM_JFR_RECORDER_SERVICE_JFROPTIONSET_HPP
+#ifndef SHARE_JFR_RECORDER_SERVICE_JFROPTIONSET_HPP
+#define SHARE_JFR_RECORDER_SERVICE_JFROPTIONSET_HPP
 
 #include "jni.h"
-#include "memory/allocation.hpp"
+#include "memory/allStatic.hpp"
 #include "utilities/exceptions.hpp"
 
 template <typename>
@@ -45,11 +45,10 @@ class JfrOptionSet : public AllStatic {
   static jlong _num_global_buffers;
   static jlong _old_object_queue_size;
   static u4 _stack_depth;
-  static jboolean _sample_threads;
   static jboolean _retransform;
   static jboolean _sample_protection;
 
-  static bool initialize(Thread* thread);
+  static bool initialize(JavaThread* thread);
   static bool configure(TRAPS);
   static bool adjust_memory_options();
 
@@ -68,8 +67,6 @@ class JfrOptionSet : public AllStatic {
   static void set_old_object_queue_size(jlong value);
   static u4 stackdepth();
   static void set_stackdepth(u4 depth);
-  static bool sample_threads();
-  static void set_sample_threads(jboolean sample);
   static bool can_retransform();
   static void set_retransform(jboolean value);
   static bool compressed_integers();
@@ -80,8 +77,8 @@ class JfrOptionSet : public AllStatic {
 
   static bool parse_flight_recorder_option(const JavaVMOption** option, char* delimiter);
   static bool parse_start_flight_recording_option(const JavaVMOption** option, char* delimiter);
-  static const GrowableArray<const char*>* startup_recording_options();
-  static void release_startup_recording_options();
+  static const GrowableArray<const char*>* start_flight_recording_options();
+  static void release_start_flight_recording_options();
 };
 
-#endif // SHARE_VM_JFR_RECORDER_SERVICE_JFROPTIONSET_HPP
+#endif // SHARE_JFR_RECORDER_SERVICE_JFROPTIONSET_HPP

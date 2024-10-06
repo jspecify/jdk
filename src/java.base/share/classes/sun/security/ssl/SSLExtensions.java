@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,12 +38,12 @@ import sun.security.util.HexDumpEncoder;
  */
 final class SSLExtensions {
     private final HandshakeMessage handshakeMessage;
-    private Map<SSLExtension, byte[]> extMap = new LinkedHashMap<>();
+    private final Map<SSLExtension, byte[]> extMap = new LinkedHashMap<>();
     private int encodedLength;
 
     // Extension map for debug logging
     private final Map<Integer, byte[]> logMap =
-            SSLLogger.isOn ? null : new LinkedHashMap<>();
+            SSLLogger.isOn ? new LinkedHashMap<>() : null;
 
     SSLExtensions(HandshakeMessage handshakeMessage) {
         this.handshakeMessage = handshakeMessage;
@@ -54,49 +54,86 @@ final class SSLExtensions {
             ByteBuffer m, SSLExtension[] extensions) throws IOException {
         this.handshakeMessage = hm;
 
+        if (m.remaining() < 2) {
+            throw hm.handshakeContext.conContext.fatal(
+                    Alert.DECODE_ERROR,
+                    "Incorrect extensions: no length field");
+        }
+
         int len = Record.getInt16(m);
+        if (len > m.remaining()) {
+            throw hm.handshakeContext.conContext.fatal(
+                    Alert.DECODE_ERROR,
+                    "Insufficient extensions data");
+        }
+
         encodedLength = len + 2;        // 2: the length of the extensions.
         while (len > 0) {
             int extId = Record.getInt16(m);
             int extLen = Record.getInt16(m);
             if (extLen > m.remaining()) {
-                hm.handshakeContext.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw hm.handshakeContext.conContext.fatal(
+                        Alert.DECODE_ERROR,
                         "Error parsing extension (" + extId +
                         "): no sufficient data");
             }
 
+            boolean isSupported = true;
             SSLHandshake handshakeType = hm.handshakeType();
             if (SSLExtension.isConsumable(extId) &&
                     SSLExtension.valueOf(handshakeType, extId) == null) {
-                hm.handshakeContext.conContext.fatal(
-                        Alert.UNSUPPORTED_EXTENSION,
-                        "extension (" + extId +
-                        ") should not be presented in " + handshakeType.name);
+                if (extId == SSLExtension.CH_SUPPORTED_GROUPS.id &&
+                        handshakeType == SSLHandshake.SERVER_HELLO) {
+                    // Note: It does not comply to the specification.  However,
+                    // there are servers that send the supported_groups
+                    // extension in ServerHello handshake message.
+                    //
+                    // TLS 1.3 should not send this extension.   We may want to
+                    // limit the workaround for TLS 1.2 and prior version only.
+                    // However, the implementation of the limit is complicated
+                    // and inefficient, and may not worthy the maintenance.
+                    isSupported = false;
+                    if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                        SSLLogger.warning(
+                                "Received buggy supported_groups extension " +
+                                "in the ServerHello handshake message");
+                    }
+                } else if (handshakeType == SSLHandshake.SERVER_HELLO) {
+                    throw hm.handshakeContext.conContext.fatal(
+                            Alert.UNSUPPORTED_EXTENSION, "extension (" +
+                                    extId + ") should not be presented in " +
+                                    handshakeType.name);
+                } else {
+                    isSupported = false;
+                    // debug log to ignore unknown extension for handshakeType
+                }
             }
 
-            boolean isSupported = false;
-            for (SSLExtension extension : extensions) {
-                if ((extension.id != extId) ||
-                        (extension.onLoadConsumer == null)) {
-                    continue;
-                }
+            if (isSupported) {
+                isSupported = false;
+                for (SSLExtension extension : extensions) {
+                    if ((extension.id != extId) ||
+                            (extension.onLoadConsumer == null)) {
+                        continue;
+                    }
 
-                if (extension.handshakeType != handshakeType) {
-                    hm.handshakeContext.conContext.fatal(
-                            Alert.UNSUPPORTED_EXTENSION,
-                            "extension (" + extId + ") should not be " +
-                            "presented in " + handshakeType.name);
-                }
+                    if (extension.handshakeType != handshakeType) {
+                        throw hm.handshakeContext.conContext.fatal(
+                                Alert.UNSUPPORTED_EXTENSION,
+                                "extension (" + extId + ") should not be " +
+                                "presented in " + handshakeType.name);
+                    }
 
-                byte[] extData = new byte[extLen];
-                m.get(extData);
-                extMap.put(extension, extData);
-                if (logMap != null) {
-                    logMap.put(extId, extData);
-                }
+                    byte[] extData = new byte[extLen];
+                    m.get(extData);
+                    extMap.put(extension, extData);
+                    if (logMap != null) {
+                        logMap.put(extId, extData);
+                    }
 
-                isSupported = true;
-                break;
+                    isSupported = true;
+                    break;
+                }
             }
 
             if (!isSupported) {
@@ -262,13 +299,12 @@ final class SSLExtensions {
                     if (old != null) {
                         encodedLength -= old.length + 4;
                     }
-                    encodedLength += encoded.length + 4;
                 } else {
                     extMap.put(extension, encoded);
-                    encodedLength += encoded.length + 4;
-                                                    // extension_type (2)
-                                                    // extension_data length(2)
                 }
+                encodedLength += encoded.length + 4;
+                // extension_type (2)
+                // extension_data length(2)
             } else if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 // The extension is not available in the context.
                 SSLLogger.fine(
@@ -312,7 +348,7 @@ final class SSLExtensions {
             return "<no extension>";
         } else {
             StringBuilder builder = new StringBuilder(512);
-            if (logMap != null) {
+            if (logMap != null && !logMap.isEmpty()) {
                 for (Map.Entry<Integer, byte[]> en : logMap.entrySet()) {
                     SSLExtension ext = SSLExtension.valueOf(
                             handshakeMessage.handshakeType(), en.getKey());
@@ -321,38 +357,42 @@ final class SSLExtensions {
                     }
                     if (ext != null) {
                         builder.append(
-                                ext.toString(ByteBuffer.wrap(en.getValue())));
+                            ext.toString(handshakeMessage.handshakeContext,
+                                    ByteBuffer.wrap(en.getValue())));
                     } else {
                         builder.append(toString(en.getKey(), en.getValue()));
                     }
                 }
 
-                return builder.toString();
             } else {
                 for (Map.Entry<SSLExtension, byte[]> en : extMap.entrySet()) {
                     if (builder.length() != 0) {
                         builder.append(",\n");
                     }
                     builder.append(
-                        en.getKey().toString(ByteBuffer.wrap(en.getValue())));
+                        en.getKey().toString(handshakeMessage.handshakeContext,
+                                ByteBuffer.wrap(en.getValue())));
                 }
 
-                return builder.toString();
             }
+            return builder.toString();
         }
     }
 
     private static String toString(int extId, byte[] extData) {
+        String extName = SSLExtension.nameOf(extId);
         MessageFormat messageFormat = new MessageFormat(
-            "\"unknown extension ({0})\": '{'\n" +
-            "{1}\n" +
-            "'}'",
+                """
+                        "{0} ({1})": '{'
+                        {2}
+                        '}'""",
             Locale.ENGLISH);
 
         HexDumpEncoder hexEncoder = new HexDumpEncoder();
         String encoded = hexEncoder.encodeBuffer(extData);
 
         Object[] messageFields = {
+            extName,
             extId,
             Utilities.indent(encoded)
         };

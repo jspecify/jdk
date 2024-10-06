@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,12 +45,12 @@ abstract class SunFileWriter extends AudioFileWriter {
     // buffer size for temporary input streams
     protected static final int bisBufferSize = 4096;
 
-    final AudioFileFormat.Type types[];
+    final AudioFileFormat.Type[] types;
 
     /**
      * Constructs a new SunParser object.
      */
-    SunFileWriter(AudioFileFormat.Type types[]) {
+    SunFileWriter(AudioFileFormat.Type[] types) {
         this.types = types;
     }
 
@@ -70,7 +70,7 @@ abstract class SunFileWriter extends AudioFileWriter {
      * Protected helper method to read 64 bits and changing the order of
      * each bytes.
      * @return 32 bits swapped value.
-     * @exception IOException
+     * @throws IOException
      */
     final int rllong(DataInputStream dis) throws IOException {
 
@@ -112,7 +112,7 @@ abstract class SunFileWriter extends AudioFileWriter {
      * rlshort
      * Protected helper method to read 16 bits value. Swap high with low byte.
      * @return the swapped value.
-     * @exception IOException
+     * @throws IOException
      */
     final short rlshort(DataInputStream dis)  throws IOException {
 
@@ -148,10 +148,10 @@ abstract class SunFileWriter extends AudioFileWriter {
 
     /**
      * InputStream wrapper class which prevent source stream from being closed.
-     * The class is usefull for use with SequenceInputStream to prevent
+     * The class is useful for use with SequenceInputStream to prevent
      * closing of the source input streams.
      */
-    final class NoCloseInputStream extends InputStream {
+    static final class NoCloseInputStream extends InputStream {
         private final InputStream in;
 
         NoCloseInputStream(InputStream in) {
@@ -164,12 +164,12 @@ abstract class SunFileWriter extends AudioFileWriter {
         }
 
         @Override
-        public int read(byte b[]) throws IOException {
+        public int read(byte[] b) throws IOException {
             return in.read(b);
         }
 
         @Override
-        public int read(byte b[], int off, int len) throws IOException {
+        public int read(byte[] b, int off, int len) throws IOException {
             return in.read(b, off, len);
         }
 

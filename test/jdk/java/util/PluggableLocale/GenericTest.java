@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,30 +20,58 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 /*
- *
+ * @test
+ * @bug 4052440 8062588 8210406 8174269
+ * @summary Generic tests for the pluggable locales feature
+ * @library providersrc/foobarutils
+ *          providersrc/barprovider
+ *          providersrc/fooprovider
+ * @modules java.base/sun.util.locale.provider
+ * @build com.foobar.Utils
+ *        com.bar.*
+ *        com.foo.*
+ * @run main/othervm -Djava.locale.providers=CLDR,SPI GenericTest
  */
 
-import java.text.*;
-import java.util.*;
-import sun.util.locale.provider.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+
+import com.bar.CalendarDataProviderImpl;
+import com.bar.CalendarNameProviderImpl;
+import com.bar.CurrencyNameProviderImpl;
+import com.bar.CurrencyNameProviderImpl2;
+import com.bar.GenericTimeZoneNameProviderImpl;
+import com.bar.LocaleNameProviderImpl;
+import com.bar.TimeZoneNameProviderImpl;
+import com.foo.BreakIteratorProviderImpl;
+import com.foo.CollatorProviderImpl;
+import com.foo.DateFormatProviderImpl;
+import com.foo.DateFormatSymbolsProviderImpl;
+import com.foo.DecimalFormatSymbolsProviderImpl;
+import com.foo.NumberFormatProviderImpl;
+
+import sun.util.locale.provider.LocaleProviderAdapter;
 
 public class GenericTest {
 
     // test providers
-    com.foo.BreakIteratorProviderImpl breakIP = new com.foo.BreakIteratorProviderImpl();
-    com.foo.CollatorProviderImpl collatorP = new com.foo.CollatorProviderImpl();
-    com.foo.DateFormatProviderImpl dateFP = new com.foo.DateFormatProviderImpl();
-    com.foo.DateFormatSymbolsProviderImpl dateFSP = new com.foo.DateFormatSymbolsProviderImpl();
-    com.foo.DecimalFormatSymbolsProviderImpl decimalFSP = new com.foo.DecimalFormatSymbolsProviderImpl();
-    com.foo.NumberFormatProviderImpl numberFP = new com.foo.NumberFormatProviderImpl();
-    com.bar.CurrencyNameProviderImpl currencyNP = new com.bar.CurrencyNameProviderImpl();
-    com.bar.CurrencyNameProviderImpl2 currencyNP2 = new com.bar.CurrencyNameProviderImpl2();
-    com.bar.LocaleNameProviderImpl localeNP = new com.bar.LocaleNameProviderImpl();
-    com.bar.TimeZoneNameProviderImpl tzNP = new com.bar.TimeZoneNameProviderImpl();
-    com.bar.GenericTimeZoneNameProviderImpl tzGenNP = new com.bar.GenericTimeZoneNameProviderImpl();
-    com.bar.CalendarDataProviderImpl calDataP = new com.bar.CalendarDataProviderImpl();
-    com.bar.CalendarNameProviderImpl calNameP = new com.bar.CalendarNameProviderImpl();
+    BreakIteratorProviderImpl breakIP = new BreakIteratorProviderImpl();
+    CollatorProviderImpl collatorP = new CollatorProviderImpl();
+    DateFormatProviderImpl dateFP = new DateFormatProviderImpl();
+    DateFormatSymbolsProviderImpl dateFSP = new DateFormatSymbolsProviderImpl();
+    DecimalFormatSymbolsProviderImpl decimalFSP = new DecimalFormatSymbolsProviderImpl();
+    NumberFormatProviderImpl numberFP = new NumberFormatProviderImpl();
+    CurrencyNameProviderImpl currencyNP = new CurrencyNameProviderImpl();
+    CurrencyNameProviderImpl2 currencyNP2 = new CurrencyNameProviderImpl2();
+    LocaleNameProviderImpl localeNP = new LocaleNameProviderImpl();
+    TimeZoneNameProviderImpl tzNP = new TimeZoneNameProviderImpl();
+    GenericTimeZoneNameProviderImpl tzGenNP = new GenericTimeZoneNameProviderImpl();
+    CalendarDataProviderImpl calDataP = new CalendarDataProviderImpl();
+    CalendarNameProviderImpl calNameP = new CalendarNameProviderImpl();
 
     public static void main(String[] s) {
         new GenericTest();
@@ -58,12 +86,13 @@ public class GenericTest {
      * Make sure that all the locales are available from the existing providers
      */
     void availableLocalesTest() {
-        // Check that Locale.getAvailableLocales() returns the union of the JRE supported
+        // Check that Locale.getAvailableLocales() returns the union of the CLDR/FALLBACK supported
         // locales and providers' locales
         HashSet<Locale> result =
             new HashSet<>(Arrays.asList(Locale.getAvailableLocales()));
         HashSet<Locale> expected =
-            new HashSet<>(Arrays.asList(LocaleProviderAdapter.forJRE().getAvailableLocales()));
+            new HashSet<>(Arrays.asList(LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.CLDR).getAvailableLocales()));
+        expected.addAll(Arrays.asList(LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.FALLBACK).getAvailableLocales()));
         expected.addAll(Arrays.asList(breakIP.getAvailableLocales()));
         expected.addAll(Arrays.asList(collatorP.getAvailableLocales()));
         expected.addAll(Arrays.asList(dateFP.getAvailableLocales()));
@@ -89,8 +118,8 @@ public class GenericTest {
      * are done in each xxxProviderTest test cases.
      */
     void localeFallbackTest() {
-        Locale xx = new Locale("xx");
-        Locale dispLocale = new Locale ("xx", "YY", "ZZ");
+        Locale xx = Locale.of("xx");
+        Locale dispLocale = Locale.of("xx", "YY", "ZZ");
 
         String xxname = xx.getDisplayLanguage(xx);
         String expected = localeNP.getDisplayLanguage(xx.getLanguage(), dispLocale);

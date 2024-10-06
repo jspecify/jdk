@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,8 @@
 
 package java.awt.image;
 
-import static sun.java2d.StateTrackable.State.*;
+import static sun.java2d.StateTrackable.State.STABLE;
+import static sun.java2d.StateTrackable.State.UNTRACKABLE;
 
 /**
  * This class extends {@code DataBuffer} and stores data internally as shorts.
@@ -58,10 +59,10 @@ import static sun.java2d.StateTrackable.State.*;
 public final class DataBufferShort extends DataBuffer
 {
     /** The default data bank. */
-    short data[];
+    short[] data;
 
     /** All data banks */
-    short bankdata[][];
+    short[][] bankdata;
 
     /**
      * Constructs a short-based {@code DataBuffer} with a single bank and the
@@ -81,7 +82,7 @@ public final class DataBufferShort extends DataBuffer
      * banks all of which are the specified size.
      *
      * @param size The size of the banks in the {@code DataBuffer}.
-     * @param numBanks The number of banks in the a {@code DataBuffer}.
+     * @param numBanks The number of banks in the {@code DataBuffer}.
      */
     public DataBufferShort(int size, int numBanks) {
         super(STABLE, TYPE_SHORT,size,numBanks);
@@ -107,7 +108,7 @@ public final class DataBufferShort extends DataBuffer
      * @param dataArray The short array for the {@code DataBuffer}.
      * @param size The size of the {@code DataBuffer} bank.
      */
-    public DataBufferShort(short dataArray[], int size) {
+    public DataBufferShort(short[] dataArray, int size) {
         super(UNTRACKABLE, TYPE_SHORT, size);
         data = dataArray;
         bankdata = new short[1][];
@@ -130,7 +131,7 @@ public final class DataBufferShort extends DataBuffer
      * @param size The size of the {@code DataBuffer} bank.
      * @param offset The offset into the {@code dataArray}.
      */
-    public DataBufferShort(short dataArray[], int size, int offset) {
+    public DataBufferShort(short[] dataArray, int size, int offset) {
         super(UNTRACKABLE, TYPE_SHORT, size, 1, offset);
         data = dataArray;
         bankdata = new short[1][];
@@ -151,7 +152,7 @@ public final class DataBufferShort extends DataBuffer
      * @param dataArray The short arrays for the {@code DataBuffer}.
      * @param size The size of the banks in the {@code DataBuffer}.
      */
-    public DataBufferShort(short dataArray[][], int size) {
+    public DataBufferShort(short[][] dataArray, int size) {
         super(UNTRACKABLE, TYPE_SHORT, size, dataArray.length);
         bankdata = dataArray.clone();
         data = bankdata[0];
@@ -176,7 +177,7 @@ public final class DataBufferShort extends DataBuffer
      * @param size The size of the banks in the {@code DataBuffer}.
      * @param offsets The offsets into each array.
      */
-    public DataBufferShort(short dataArray[][], int size, int offsets[]) {
+    public DataBufferShort(short[][] dataArray, int size, int[] offsets) {
         super(UNTRACKABLE, TYPE_SHORT, size, dataArray.length, offsets);
         bankdata = dataArray.clone();
         data = bankdata[0];

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@ package javax.swing.text.html;
 
 import java.awt.Rectangle;
 import java.awt.Image;
+import java.awt.Dimension;
 import java.awt.Container;
 import java.awt.Color;
 import java.awt.Shape;
@@ -70,7 +71,7 @@ import javax.swing.event.DocumentEvent;
  * as of 1.4.
  *
  * @author  Scott Violet
- * @see IconView
+ * @see javax.swing.text.IconView
  * @since 1.4
  */
 public class ImageView extends View {
@@ -195,6 +196,7 @@ public class ImageView extends View {
 
         URL reference = ((HTMLDocument)getDocument()).getBase();
         try {
+            @SuppressWarnings("deprecation")
             URL u = new URL(reference,src);
             return u;
         } catch (MalformedURLException e) {
@@ -292,7 +294,7 @@ public class ImageView extends View {
 
     /**
      * For images the tooltip text comes from text specified with the
-     * <code>ALT</code> attribute. This is overriden to return
+     * <code>ALT</code> attribute. This is overridden to return
      * <code>getAltText</code>.
      *
      * @see JTextComponent#getToolTipText
@@ -556,7 +558,7 @@ public class ImageView extends View {
      * @param pos the position to convert
      * @param a the allocated region to render into
      * @return the bounding box of the given position
-     * @exception BadLocationException  if the given position does not represent a
+     * @throws BadLocationException  if the given position does not represent a
      *   valid location in the associated document
      * @see View#modelToView
      */
@@ -776,32 +778,39 @@ public class ImageView extends View {
 
             if (newWidth > 0) {
                 newState |= WIDTH_FLAG;
-                if (newHeight <= 0) {
-                    newHeight = newWidth;
-                    newState |= HEIGHT_FLAG;
-                }
             }
 
             if (newHeight > 0) {
                 newState |= HEIGHT_FLAG;
-                if (newWidth <= 0) {
-                    newWidth = newHeight;
-                    newState |= WIDTH_FLAG;
-                }
             }
 
+            Image img;
+            synchronized(this) {
+                img = image;
+            }
             if (newWidth <= 0) {
-                newWidth = newImage.getWidth(imageObserver);
+                newWidth = img.getWidth(imageObserver);
                 if (newWidth <= 0) {
                     newWidth = DEFAULT_WIDTH;
                 }
             }
-
             if (newHeight <= 0) {
-                newHeight = newImage.getHeight(imageObserver);
+                newHeight = img.getHeight(imageObserver);
                 if (newHeight <= 0) {
                     newHeight = DEFAULT_HEIGHT;
                 }
+            }
+            /*
+            If synchronous loading flag is set, then make sure that the image is
+            scaled appropriately.
+            Otherwise, the ImageHandler::imageUpdate takes care of scaling the image
+            appropriately.
+            */
+            if (getLoadsSynchronously()) {
+                Dimension d = adjustWidthHeight(newWidth, newHeight);
+                newWidth = d.width;
+                newHeight = d.height;
+                newState |= (WIDTH_FLAG | HEIGHT_FLAG);
             }
 
             // Make sure the image starts loading:
@@ -884,7 +893,7 @@ public class ImageView extends View {
     }
 
     /**
-     * Invokes <code>preferenceChanged</code> on the event displatching
+     * Invokes <code>preferenceChanged</code> on the event dispatching
      * thread.
      */
     private void safePreferenceChanged() {
@@ -905,6 +914,40 @@ public class ImageView extends View {
                     }
                 });
         }
+    }
+
+    private Dimension adjustWidthHeight(int newWidth, int newHeight) {
+        Dimension d = new Dimension();
+        double proportion = 0.0;
+        final int specifiedWidth = getIntAttr(HTML.Attribute.WIDTH, -1);
+        final int specifiedHeight = getIntAttr(HTML.Attribute.HEIGHT, -1);
+        /**
+         * If either of the attributes are not specified, then calculate the
+         * proportion for the specified dimension wrt actual value, and then
+         * apply the same proportion to the unspecified dimension as well,
+         * so that the aspect ratio of the image is maintained.
+         */
+        if (specifiedWidth != -1 && specifiedHeight != -1) {
+            newWidth = specifiedWidth;
+            newHeight = specifiedHeight;
+        } else if (specifiedWidth != -1 ^ specifiedHeight != -1) {
+            if (specifiedWidth <= 0) {
+                proportion = specifiedHeight / ((double)newHeight);
+                newWidth = (int)(proportion * newWidth);
+                newHeight = specifiedHeight;
+            }
+
+            if (specifiedHeight <= 0) {
+                proportion = specifiedWidth / ((double)newWidth);
+                newHeight = (int)(proportion * newHeight);
+                newWidth = specifiedWidth;
+            }
+        }
+
+        d.width = newWidth;
+        d.height = newHeight;
+
+        return d;
     }
 
     /**
@@ -931,7 +974,7 @@ public class ImageView extends View {
                 synchronized(ImageView.this) {
                     if (image == img) {
                         // Be sure image hasn't changed since we don't
-                        // initialy synchronize
+                        // initially synchronize
                         image = null;
                         if ((state & WIDTH_FLAG) != WIDTH_FLAG) {
                             width = DEFAULT_WIDTH;
@@ -965,6 +1008,18 @@ public class ImageView extends View {
                     changed |= 2;
                 }
 
+                /**
+                 * If the image properties (height and width) have been loaded,
+                 * then figure out if scaling is necessary based on the
+                 * specified HTML attributes.
+                 */
+                if (((flags & ImageObserver.HEIGHT) != 0) &&
+                    ((flags & ImageObserver.WIDTH) != 0)) {
+                        Dimension d = adjustWidthHeight(newWidth, newHeight);
+                        newWidth = d.width;
+                        newHeight = d.height;
+                        changed |= 3;
+                }
                 synchronized(ImageView.this) {
                     if ((changed & 1) == 1 && (state & HEIGHT_FLAG) == 0) {
                         height = newHeight;
@@ -999,10 +1054,10 @@ public class ImageView extends View {
 
     /**
      * ImageLabelView is used if the image can't be loaded, and
-     * the attribute specified an alt attribute. It overriden a handle of
+     * the attribute specified an alt attribute. It overridden a handle of
      * methods as the text is hardcoded and does not come from the document.
      */
-    private class ImageLabelView extends InlineView {
+    private static class ImageLabelView extends InlineView {
         private Segment segment;
         private Color fg;
 

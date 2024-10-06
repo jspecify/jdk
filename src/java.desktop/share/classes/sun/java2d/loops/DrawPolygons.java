@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@
 
 package sun.java2d.loops;
 
-import sun.java2d.loops.GraphicsPrimitive;
 import sun.java2d.SunGraphics2D;
 import sun.java2d.SurfaceData;
 
@@ -73,19 +72,10 @@ public class DrawPolygons extends GraphicsPrimitive
      *   All DrawPolygon implementors must have this invoker method
      */
     public native void DrawPolygons(SunGraphics2D sg2d, SurfaceData sData,
-                                    int xPoints[], int yPoints[],
-                                    int nPoints[], int numPolys,
+                                    int[] xPoints, int[] yPoints,
+                                    int[] nPoints, int numPolys,
                                     int transX, int transY,
                                     boolean close);
-
-    public GraphicsPrimitive makePrimitive(SurfaceType srctype,
-                                           CompositeType comptype,
-                                           SurfaceType dsttype)
-    {
-        // REMIND: use FillSpans or converter object?
-        throw new InternalError("DrawPolygons not implemented for "+
-                                srctype+" with "+comptype);
-    }
 
     public GraphicsPrimitive traceWrap() {
         return new TraceDrawPolygons(this);
@@ -106,8 +96,8 @@ public class DrawPolygons extends GraphicsPrimitive
         }
 
         public void DrawPolygons(SunGraphics2D sg2d, SurfaceData sData,
-                                 int xPoints[], int yPoints[],
-                                 int nPoints[], int numPolys,
+                                 int[] xPoints, int[] yPoints,
+                                 int[] nPoints, int numPolys,
                                  int transX, int transY,
                                  boolean close)
         {

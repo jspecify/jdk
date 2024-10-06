@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package javax.security.auth.kerberos;
-
-import org.jspecify.annotations.Nullable;
 
 import java.io.File;
 import java.security.AccessControlException;
@@ -222,11 +220,12 @@ public final class KeyTab {
     sun.security.krb5.internal.ktab.KeyTab takeSnapshot() {
         try {
             return sun.security.krb5.internal.ktab.KeyTab.getInstance(file);
-        } catch (AccessControlException ace) {
+        } catch (@SuppressWarnings("removal") AccessControlException ace) {
             if (file != null) {
                 // It's OK to show the name if caller specified it
                 throw ace;
             } else {
+                @SuppressWarnings("removal")
                 AccessControlException ace2 = new AccessControlException(
                         "Access to default keytab denied (modified exception)");
                 ace2.setStackTrace(ace.getStackTrace());
@@ -307,9 +306,7 @@ public final class KeyTab {
      * Checks if the keytab file exists. Implementation of this method
      * should make sure that the result matches the latest status of the
      * keytab file.
-     * <p>
-     * The caller can use the result to determine if it should fallback to
-     * another mechanism to read the keys.
+     *
      * @return true if the keytab file exists; false otherwise.
      * @throws SecurityException if a security manager exists and the read
      * access to the keytab file is not permitted
@@ -331,10 +328,9 @@ public final class KeyTab {
     }
 
     /**
-     * Returns a hash code for this {@code KeyTab}.
-     *
-     * @return a hash code for this {@code KeyTab}.
+     * {@return a hash code for this {@code KeyTab}}
      */
+    @Override
     public int hashCode() {
         return Objects.hash(file, princ, bound);
     }
@@ -348,17 +344,15 @@ public final class KeyTab {
      * @param other the object to compare to
      * @return true if the specified object is equal to this {@code KeyTab}
      */
-    
-    
-    public boolean equals(@Nullable Object other) {
+    @Override
+    public boolean equals(Object other) {
         if (other == this)
             return true;
 
-        if (! (other instanceof KeyTab)) {
+        if (! (other instanceof KeyTab otherKtab)) {
             return false;
         }
 
-        KeyTab otherKtab = (KeyTab) other;
         return Objects.equals(otherKtab.princ, princ) &&
                 Objects.equals(otherKtab.file, file) &&
                 bound == otherKtab.bound;

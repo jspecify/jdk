@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@ import java.util.BitSet;
 
 import com.sun.tools.javac.util.DefinedBy.Api;
 
+import javax.tools.Diagnostic;
+
 import static com.sun.tools.javac.util.LayoutCharacters.*;
 
 /** A class that defines source code positions as simple character
@@ -36,7 +38,7 @@ import static com.sun.tools.javac.util.LayoutCharacters.*;
  *  is at position 0.
  *
  *  Support is also provided for (line,column) coordinates, but tab
- *  expansion is optional and no Unicode excape translation is considered.
+ *  expansion is optional and no Unicode escape translation is considered.
  *  The first character is at location (1,1).
  *
  *  <p><b>This is NOT part of any supported API.
@@ -45,7 +47,7 @@ import static com.sun.tools.javac.util.LayoutCharacters.*;
  *  deletion without notice.</b>
  */
 public class Position {
-    public static final int NOPOS        = -1;
+    public static final int NOPOS        = (int) Diagnostic.NOPOS;
 
     public static final int FIRSTPOS     = 0;
     public static final int FIRSTLINE    = 1;
@@ -265,7 +267,7 @@ public class Position {
             int column = 0;
             for (int bp = lineStart; bp < pos; bp++) {
                 if (tabMap.get(bp))
-                    column = (column / TabInc * TabInc) + TabInc;
+                    column = tabulate(column);
                 else
                     column++;
             }
@@ -279,7 +281,7 @@ public class Position {
             while (col < column) {
                 pos++;
                 if (tabMap.get(pos))
-                    col = (col / TabInc * TabInc) + TabInc;
+                    col = tabulate(col);
                 else
                     col++;
             }

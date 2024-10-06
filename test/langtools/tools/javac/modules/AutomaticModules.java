@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8155026 8178011
+ * @bug 8155026 8178011 8220702 8261625
  * @summary Test automatic modules
  * @library /tools/lib
  * @modules
@@ -39,8 +39,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.TypeElement;
 
 import toolbox.JarTask;
 import toolbox.JavacTask;
@@ -461,10 +466,11 @@ public class AutomaticModules extends ModuleTestBase {
         Path src = base.resolve("src");
 
         tb.writeJavaFiles(src,
-                          "module m1x {\n" +
-                          "    requires transitive automaticA;\n" +
-                          "    requires automaticB;\n" +
-                          "}");
+                          """
+                              module m1x {
+                                  requires transitive automaticA;
+                                  requires automaticB;
+                              }""");
 
         Path classes = base.resolve("classes");
 
@@ -550,11 +556,12 @@ public class AutomaticModules extends ModuleTestBase {
             .getOutputLines(Task.OutputKind.DIRECT);
 
         tb.writeJavaFiles(src,
-                          "@SuppressWarnings(\"requires-transitive-automatic\")\n" +
-                          "module m1x {\n" +
-                          "    requires transitive automaticA;\n" +
-                          "    requires automaticB;\n" +
-                          "}");
+                          """
+                              @SuppressWarnings("requires-transitive-automatic")
+                              module m1x {
+                                  requires transitive automaticA;
+                                  requires automaticB;
+                              }""");
 
         new JavacTask(tb)
             .options("--source-path", src.toString(),
@@ -590,11 +597,12 @@ public class AutomaticModules extends ModuleTestBase {
         }
 
         tb.writeJavaFiles(src,
-                          "@SuppressWarnings(\"requires-automatic\")\n" +
-                          "module m1x {\n" +
-                          "    requires transitive automaticA;\n" +
-                          "    requires automaticB;\n" +
-                          "}");
+                          """
+                              @SuppressWarnings("requires-automatic")
+                              module m1x {
+                                  requires transitive automaticA;
+                                  requires automaticB;
+                              }""");
 
         log = new JavacTask(tb)
             .options("--source-path", src.toString(),
@@ -662,9 +670,31 @@ public class AutomaticModules extends ModuleTestBase {
                          "-XDrawDiagnostics")
                 .outdir(classes)
                 .files(findJavaFiles(src))
-                .run(Task.Expect.SUCCESS)
-                .writeAll()
-                .getOutputLines(Task.OutputKind.DIRECT);
+                .processors(new AbstractProcessor() {
+                         // Processor verifies api.Api is enclosed by an automatic module.
+                         @Override
+                         public Set<String> getSupportedAnnotationTypes() {
+                             return Set.of("*");
+                         }
+
+                         @Override
+                         public SourceVersion getSupportedSourceVersion() {
+                             return SourceVersion.latestSupported();
+                         }
+
+                         @Override
+                         public boolean process(Set<? extends TypeElement> annotations,
+                                                RoundEnvironment roundEnv) {
+                             if (!roundEnv.processingOver()) {
+                                 var elts = processingEnv.getElementUtils();
+                                 if (!elts.isAutomaticModule(elts.getModuleOf(elts.getTypeElement("api.Api")))) {
+                                     throw new RuntimeException("module of class api.Api is not automatic");
+                                 }
+                             }
+                             return true;
+                         }
+                    })
+                .run(Task.Expect.SUCCESS);
 
         tb.writeJavaFiles(src,
                           "module m { requires automatic; }");
@@ -816,6 +846,90 @@ public class AutomaticModules extends ModuleTestBase {
         if (!expected.equals(log)) {
             throw new Exception("expected output not found: " + log);
         }
+    }
+
+    @Test
+    public void testAutomaticModulePatchingAndAllModulePath(Path base) throws Exception {
+        Path modulePath = base.resolve("module-path");
+
+        Files.createDirectories(modulePath);
+
+        Path libaSrc = base.resolve("libaSrc");
+        tb.writeJavaFiles(libaSrc,
+                          "module liba { exports api1; }",
+                          "package api1; public class Api1 {}");
+        Path libaClasses = modulePath.resolve("liba");
+        tb.createDirectories(libaClasses);
+
+        new JavacTask(tb)
+            .outdir(libaClasses)
+            .files(findJavaFiles(libaSrc))
+            .run()
+            .writeAll();
+
+        Path libbSrc = base.resolve("libbSrc");
+        tb.writeJavaFiles(libbSrc,
+                          "module libb { exports api2; }",
+                          "package api2; public class Api2 {}");
+        Path libbClasses = modulePath.resolve("libb");
+        tb.createDirectories(libbClasses);
+
+        new JavacTask(tb)
+            .outdir(libbClasses)
+            .files(findJavaFiles(libbSrc))
+            .run()
+            .writeAll();
+
+        Path automaticSrc = base.resolve("automaticSrc");
+        tb.writeJavaFiles(automaticSrc, "package aut; public class Aut1 { api1.Api1 a1; }");
+        Path automaticClasses = base.resolve("automaticClasses");
+        tb.createDirectories(automaticClasses);
+
+        new JavacTask(tb)
+            .outdir(automaticClasses)
+            .options("--add-modules", "liba",
+                     "--module-path", modulePath.toString())
+            .files(findJavaFiles(automaticSrc))
+            .run()
+            .writeAll()
+            .getOutput(Task.OutputKind.DIRECT);
+
+        Path automaticJar = modulePath.resolve("automatic-1.0.jar");
+
+        try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(automaticJar))) {
+            out.putNextEntry(new ZipEntry("aut/Aut1.class"));
+            Files.copy(automaticClasses.resolve("aut").resolve("Aut1.class"), out);
+        }
+
+        Path src = base.resolve("src");
+
+        tb.writeJavaFiles(src,
+                          "package aut; public class Aut2 { api2.Api2 a2; aut.Aut1 aut1;}");
+
+        Path classes = base.resolve("classes");
+
+        Files.createDirectories(classes);
+
+        new JavacTask(tb)
+                .options("--module-path", modulePath.toString(),
+                         "--patch-module", "automatic=" + src.toString(),
+                         "--add-modules", "ALL-MODULE-PATH")
+                .outdir(classes)
+                .files(findJavaFiles(src))
+                .run(Task.Expect.SUCCESS)
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+
+        new JavacTask(tb)
+                .options("--module-path", modulePath.toString(),
+                         "--patch-module", "automatic=" + src.toString(),
+                         "--module-source-path", "dummy",
+                         "--add-modules", "ALL-MODULE-PATH")
+                .outdir(classes)
+                .files(findJavaFiles(src))
+                .run(Task.Expect.SUCCESS)
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
     }
 
 }

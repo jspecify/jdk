@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,8 +67,12 @@ public class MonitorCacheDumpPanel extends JPanel {
     tty.println();
     tty.println("  _header: 0x" + Long.toHexString(mon.header().value()));
     OopHandle obj = mon.object();
-    Oop oop = heap.newOop(obj);
-    tty.println("  _object: " + obj + ", a " + oop.getKlass().getName().asString());
+    if (obj == null) {
+      tty.println("  _object: null");
+    } else {
+      Oop oop = heap.newOop(obj);
+      tty.println("  _object: " + obj + ", a " + oop.getKlass().getName().asString());
+    }
     Address owner = mon.owner();
     tty.println("  _owner: " + owner);
     if (!raw && owner != null) {
@@ -83,22 +87,17 @@ public class MonitorCacheDumpPanel extends JPanel {
         }
       }
     }
-    tty.println("  _count: " + mon.count());
+    tty.println("  _contentions: " + mon.contentions());
     tty.println("  _waiters: " + mon.waiters());
     tty.println("  _recursions: " + mon.recursions());
   }
 
   private void dumpOn(PrintStream tty) {
     Iterator i = ObjectSynchronizer.objectMonitorIterator();
-    if (i == null) {
-      tty.println("This version of HotSpot VM doesn't support monitor cache dump.");
-      tty.println("You need 1.4.0_04, 1.4.1_01 or later versions");
-      return;
-    }
     ObjectMonitor mon;
     while (i.hasNext()) {
       mon = (ObjectMonitor)i.next();
-      if (mon.count() != 0 || mon.waiters() != 0 || mon.owner() != null) {
+      if (mon.contentions() != 0 || mon.waiters() != 0 || mon.owner() != null) {
         OopHandle object = mon.object();
         if (object == null) {
           dumpMonitor(tty, mon, true);

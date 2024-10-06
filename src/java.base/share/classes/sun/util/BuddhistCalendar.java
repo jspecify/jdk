@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,17 +37,18 @@ import sun.util.locale.provider.CalendarDataUtility;
 
 public class BuddhistCalendar extends GregorianCalendar {
 
-//////////////////
+//----------------
 // Class Variables
-//////////////////
+//----------------
 
+    @java.io.Serial
     private static final long serialVersionUID = -8527488697350388578L;
 
     private static final int BUDDHIST_YEAR_OFFSET = 543;
 
-///////////////
+//-------------
 // Constructors
-///////////////
+//-------------
 
     /**
      * Constructs a default BuddhistCalendar using the current time
@@ -85,9 +86,9 @@ public class BuddhistCalendar extends GregorianCalendar {
         super(zone, aLocale);
     }
 
-/////////////////
+//---------------
 // Public methods
-/////////////////
+//---------------
 
     /**
      * Returns {@code "buddhist"} as the calendar type of this Calendar.
@@ -258,6 +259,7 @@ public class BuddhistCalendar extends GregorianCalendar {
 
     private transient int yearOffset = BUDDHIST_YEAR_OFFSET;
 
+    @java.io.Serial
     private void readObject(ObjectInputStream stream)
         throws IOException, ClassNotFoundException {
         stream.defaultReadObject();

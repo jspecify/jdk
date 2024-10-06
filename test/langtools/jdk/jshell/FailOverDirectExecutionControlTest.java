@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -129,7 +129,7 @@ public class FailOverDirectExecutionControlTest extends ExecutionControlTestBase
         Map<String, String> pm = provider.defaultParameters();
         pm.put("0", "alwaysFailing");
         pm.put("1", "alwaysFailing");
-        pm.put("2", "jdi");
+        pm.put("2", "local");
         setUp(builder -> builder.executionEngine(provider, pm));
     }
 
@@ -156,6 +156,8 @@ public class FailOverDirectExecutionControlTest extends ExecutionControlTestBase
         assertTrue(log.contains("Failure failover -- 1 = alwaysFailing"), log);
         assertTrue(log.contains("This operation intentionally broken"), log);
         log = logged.get(Level.FINEST).get(0);
-        assertTrue(log.contains("Success failover -- 2 = jdi"), log);
+        assertTrue(
+                log.contains("Success failover -- 2 = local"),
+                log);
     }
 }

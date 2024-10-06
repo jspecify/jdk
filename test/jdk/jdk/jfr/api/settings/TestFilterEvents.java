@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -72,6 +70,7 @@ public class TestFilterEvents {
         continuous.enable(HTTPGetEvent.class).with("threadNames", "\"unused-threadname-1\"");
         assertEquals(0, makeProfilingRecording("\"unused-threadname-2\""));
         assertEquals(1, makeProfilingRecording("\"" + Thread.currentThread().getName() + "\""));
+        assertEquals(2, makeCombineControl());
         continuous.close();
     }
 
@@ -93,6 +92,34 @@ public class TestFilterEvents {
             recording.stop();
 
             return Events.fromRecording(recording).size();
+        }
+    }
+
+    private static int makeCombineControl() throws Exception {
+        try (Recording r1 = new Recording()) {
+            r1.enable(HTTPPostEvent.class).with("uriFilter", "https://www.example.com/list");
+            r1.start();
+
+            try (Recording r2 = new Recording()) {
+                r2.enable(HTTPPostEvent.class).with("uriFilter", "https://www.example.com/get");
+                r2.start();
+
+                HTTPPostEvent e1 = new HTTPPostEvent();
+                e1.uri = "https://www.example.com/list";
+                e1.commit();
+
+                HTTPPostEvent e2 = new HTTPPostEvent();
+                e2.uri = "https://www.example.com/get";
+                e2.commit();
+
+                HTTPPostEvent e3 = new HTTPPostEvent();
+                e3.uri = "https://www.example.com/put";
+                e3.commit();
+            }
+
+            r1.stop();
+
+            return Events.fromRecording(r1).size();
         }
     }
 
