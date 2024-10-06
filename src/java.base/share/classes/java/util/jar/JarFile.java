@@ -849,7 +849,7 @@ public class JarFile extends ZipFile {
      * @throws IllegalStateException
      *         may be thrown if the jar file has been closed
      */
-    public synchronized InputStream getInputStream(ZipEntry ze)
+    public synchronized @Nullable InputStream getInputStream(ZipEntry ze)
         throws IOException
     {
         Objects.requireNonNull(ze, "ze");
