@@ -3742,6 +3742,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param <U> the return type of the transformer
      * @since 1.8
      */
+    // JSpecify: We could instead use `<U extends @Nullable Object>` along with `@NonNull U`.
+    // Advantages to our current approach include:
+    // - calls out the null support in an otherwise null-hostile class
+    // - is consistent with the declarations for `search` and `reduce`
+    // - saves the user from a decision: https://github.com/jspecify/jspecify/issues/525
     public <U> void forEach(long parallelismThreshold,
                             BiFunction<? super K, ? super V, ? extends @Nullable U> transformer,
                             Consumer<? super U> action) {
@@ -3909,6 +3914,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param <U> the return type of the transformer
      * @since 1.8
      */
+    // JSpecify: See discussion on `forEach` above.
     public <U> void forEachKey(long parallelismThreshold,
                                Function<? super K, ? extends @Nullable U> transformer,
                                Consumer<? super U> action) {
@@ -4096,6 +4102,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param <U> the return type of the transformer
      * @since 1.8
      */
+    // JSpecify: See discussion on `forEach` above.
     public <U> void forEachValue(long parallelismThreshold,
                                  Function<? super V, ? extends @Nullable U> transformer,
                                  Consumer<? super U> action) {
@@ -4280,6 +4287,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param <U> the return type of the transformer
      * @since 1.8
      */
+    // JSpecify: See discussion on `forEach` above.
     public <U> void forEachEntry(long parallelismThreshold,
                                  Function<Map.Entry<K,V>, ? extends @Nullable U> transformer,
                                  Consumer<? super U> action) {
