@@ -1105,7 +1105,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * @since 22
      */
     @PreviewFeature(feature = PreviewFeature.Feature.STREAM_GATHERERS)
-    default <R> Stream<R> gather(Gatherer<? super T, ?, R> gatherer) {
+    default <R extends @Nullable Object> Stream<R> gather(Gatherer<? super T, ?, R> gatherer) {
         return StreamSupport.stream(spliterator(), isParallel())
                             .gather(gatherer)
                             .onClose(this::close);

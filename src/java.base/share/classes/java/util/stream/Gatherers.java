@@ -24,6 +24,9 @@
  */
 package java.util.stream;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.vm.annotation.ForceInline;
@@ -50,6 +53,7 @@ import java.util.stream.Gatherer.Downstream;
  *
  * @since 22
 */
+@NullMarked
 @PreviewFeature(feature = PreviewFeature.Feature.STREAM_GATHERERS)
 public final class Gatherers {
     private Gatherers() { } // This class is not intended to be instantiated
@@ -85,7 +89,7 @@ public final class Gatherers {
      * @return a new gatherer which groups elements into fixed-size windows
      * @throws IllegalArgumentException when {@code windowSize} is less than 1
      */
-    public static <TR> Gatherer<TR, ?, List<TR>> windowFixed(int windowSize) {
+    public static <TR extends @Nullable Object> Gatherer<TR, ?, List<TR>> windowFixed(int windowSize) {
         if (windowSize < 1)
             throw new IllegalArgumentException("'windowSize' must be greater than zero");
 
@@ -174,7 +178,7 @@ public final class Gatherers {
      * @return a new gatherer which groups elements into sliding windows
      * @throws IllegalArgumentException when windowSize is less than 1
      */
-    public static <TR> Gatherer<TR, ?, List<TR>> windowSliding(int windowSize) {
+    public static <TR extends @Nullable Object> Gatherer<TR, ?, List<TR>> windowSliding(int windowSize) {
         if (windowSize < 1)
             throw new IllegalArgumentException("'windowSize' must be greater than zero");
 
@@ -261,7 +265,7 @@ public final class Gatherers {
      * @return a new Gatherer
      * @throws NullPointerException if any of the parameters are {@code null}
      */
-    public static <T, R> Gatherer<T, ?, R> fold(
+    public static <T extends @Nullable Object, R extends @Nullable Object> Gatherer<T, ?, R> fold(
             Supplier<R> initial,
             BiFunction<? super R, ? super T, ? extends R> folder) {
         Objects.requireNonNull(initial, "'initial' must not be null");
@@ -308,7 +312,7 @@ public final class Gatherers {
      * @return a new Gatherer which performs a prefix scan
      * @throws NullPointerException if any of the parameters are {@code null}
      */
-    public static <T, R> Gatherer<T, ?, R> scan(
+    public static <T extends @Nullable Object, R extends @Nullable Object> Gatherer<T, ?, R> scan(
             Supplier<R> initial,
             BiFunction<? super R, ? super T, ? extends R> scanner) {
         Objects.requireNonNull(initial, "'initial' must not be null");
@@ -348,7 +352,7 @@ public final class Gatherers {
      * @throws IllegalArgumentException if {@code maxConcurrency} is less than 1
      * @throws NullPointerException if {@code mapper} is {@code null}
      */
-    public static <T, R> Gatherer<T,?,R> mapConcurrent(
+    public static <T extends @Nullable Object, R extends @Nullable Object> Gatherer<T,?,R> mapConcurrent(
             final int maxConcurrency,
             final Function<? super T, ? extends R> mapper) {
         if (maxConcurrency < 1)
