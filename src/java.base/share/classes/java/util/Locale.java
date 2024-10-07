@@ -1465,7 +1465,7 @@ public final class Locale implements Cloneable, Serializable {
      * @see #UNICODE_LOCALE_EXTENSION
      * @since 1.7
      */
-    public String getExtension(char key) {
+    public @Nullable String getExtension(char key) {
         if (!LocaleExtensions.isValidKey(key)) {
             throw new IllegalArgumentException("Ill-formed extension key: " + key);
         }
