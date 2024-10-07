@@ -1913,7 +1913,7 @@ public final class Collectors {
      * @return a {@code Collector} which aggregates the results of two supplied collectors.
      * @since 12
      */
-    public static <T, R1, R2, R>
+    public static <T extends @Nullable Object, R1 extends @Nullable Object, R2 extends @Nullable Object, R extends @Nullable Object>
     Collector<T, ?, R> teeing(Collector<? super T, ?, R1> downstream1,
                               Collector<? super T, ?, R2> downstream2,
                               BiFunction<? super R1, ? super R2, R> merger) {
