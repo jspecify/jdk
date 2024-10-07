@@ -25,6 +25,8 @@
 
 package java.io;
 
+import org.jspecify.annotations.Nullable;
+
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.util.StaticProperty;
 
@@ -379,7 +381,7 @@ public interface ObjectInputFilter {
      * @return an {@link ObjectInputFilter} that merges the status of the filter and another filter
      * @since 17
      */
-    static ObjectInputFilter merge(ObjectInputFilter filter, ObjectInputFilter anotherFilter) {
+    static ObjectInputFilter merge(ObjectInputFilter filter, @Nullable ObjectInputFilter anotherFilter) {
         Objects.requireNonNull(filter, "filter");
         return (anotherFilter == null) ? filter : new Config.MergeFilter(filter, anotherFilter);
     }
@@ -445,7 +447,7 @@ public interface ObjectInputFilter {
          *
          * @return class of an object being deserialized; may be null
          */
-        Class<?> serialClass();
+        @Nullable Class<?> serialClass();
 
         /**
          * The number of array elements when deserializing an array of the class.
@@ -717,7 +719,7 @@ public interface ObjectInputFilter {
          *      system property {@code jdk.serialFilter} or
          *      the security property {@code jdk.serialFilter} fails.
          */
-        public static ObjectInputFilter getSerialFilter() {
+        public static @Nullable ObjectInputFilter getSerialFilter() {
             if (invalidFilterMessage != null) {
                 throw new IllegalStateException(invalidFilterMessage);
             }
