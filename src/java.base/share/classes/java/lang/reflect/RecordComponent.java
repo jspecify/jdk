@@ -25,6 +25,9 @@
 
 package java.lang.reflect;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import jdk.internal.access.SharedSecrets;
 import sun.reflect.annotation.AnnotationParser;
 import sun.reflect.annotation.TypeAnnotation;
@@ -46,6 +49,7 @@ import java.util.Objects;
  * @jls 8.10 Record Classes
  * @since 16
  */
+@NullMarked
 public final class RecordComponent implements AnnotatedElement {
     // declaring class
     private Class<?> clazz;
@@ -91,7 +95,7 @@ public final class RecordComponent implements AnnotatedElement {
      *
      * @jvms 4.7.9.1 Signatures
      */
-    public String getGenericSignature() {
+    public @Nullable String getGenericSignature() {
         return signature;
     }
 
@@ -178,7 +182,7 @@ public final class RecordComponent implements AnnotatedElement {
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> @Nullable T getAnnotation(Class<T> annotationClass) {
         Objects.requireNonNull(annotationClass);
         return annotationClass.cast(declaredAnnotations().get(annotationClass));
     }
