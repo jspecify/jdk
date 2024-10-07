@@ -25,6 +25,7 @@
 
 package java.util;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -581,7 +582,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     }
 
     @Override
-    public V putIfAbsent(K key, V value) {
+    public @Nullable V putIfAbsent(K key, V value) {
         return put(key, value, false);
     }
 
@@ -666,7 +667,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * remapping function modified this map
      */
     @Override
-    public V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    public @Nullable V computeIfPresent(K key, BiFunction<? super K, ? super @NonNull V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         Entry<K,V> oldEntry = getEntry(key);
         if (oldEntry != null && oldEntry.value != null) {
@@ -687,7 +688,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * remapping function modified this map
      */
     @Override
-    public V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    public @Nullable V compute(K key, BiFunction<? super K, ? super @Nullable V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         V newValue;
         Entry<K,V> t = root;
@@ -749,7 +750,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * remapping function modified this map
      */
     @Override
-    public V merge(K key, V value, BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+    public @Nullable V merge(K key, @NonNull V value, BiFunction<? super @NonNull V, ? super @NonNull V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         Objects.requireNonNull(value);
         Entry<K,V> t = root;
