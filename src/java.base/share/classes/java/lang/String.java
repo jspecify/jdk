@@ -4480,7 +4480,7 @@ public final class String
      *
      * @since 12
      */
-    public <R> R transform(Function<? super String, ? extends R> f) {
+    public <R extends @Nullable Object> R transform(Function<? super String, ? extends R> f) {
         return f.apply(this);
     }
 
@@ -4651,7 +4651,7 @@ public final class String
      * @since 15
      *
      */
-    public String formatted(Object... args) {
+    public String formatted(@Nullable Object... args) {
         return new Formatter().format(this, args).toString();
     }
 

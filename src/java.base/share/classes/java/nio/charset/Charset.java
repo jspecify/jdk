@@ -585,8 +585,8 @@ public abstract class Charset
      *
      * @since 18
      */
-    public static Charset forName(String charsetName,
-                                  Charset fallback) {
+    public static @Nullable Charset forName(String charsetName,
+                                  @Nullable Charset fallback) {
         try {
             Charset cs = lookup(charsetName);
             return cs != null ? cs : fallback;
