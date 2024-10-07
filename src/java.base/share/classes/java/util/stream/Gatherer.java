@@ -286,7 +286,7 @@ public interface Gatherer<T extends @Nullable Object, A extends @Nullable Object
      * @return the instance of the default initializer
      * @param <A> the type of the state of the returned initializer
      */
-    static <A> Supplier<A> defaultInitializer() {
+    static <A> Supplier<@Nullable A> defaultInitializer() {
         return Gatherers.Value.DEFAULT.initializer();
     }
 
@@ -301,7 +301,7 @@ public interface Gatherer<T extends @Nullable Object, A extends @Nullable Object
      * @return the instance of the default combiner
      * @param <A> the type of the state of the returned combiner
      */
-    static <A> BinaryOperator<A> defaultCombiner() {
+    static <A extends @Nullable Object> BinaryOperator<A> defaultCombiner() {
         return Gatherers.Value.DEFAULT.combiner();
     }
 
@@ -318,7 +318,7 @@ public interface Gatherer<T extends @Nullable Object, A extends @Nullable Object
      * @param <A> the type of the state of the returned finisher
      * @param <R> the type of the Downstream of the returned finisher
      */
-    static <A, R> BiConsumer<A, Downstream<? super R>> defaultFinisher() {
+    static <A extends @Nullable Object, R extends @Nullable Object> BiConsumer<A, Downstream<? super R>> defaultFinisher() {
         return Gatherers.Value.DEFAULT.finisher();
     }
 
