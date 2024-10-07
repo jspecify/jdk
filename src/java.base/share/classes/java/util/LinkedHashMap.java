@@ -393,7 +393,7 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
      *
      * @since 21
      */
-    public V putFirst(K k, V v) {
+    public @Nullable V putFirst(K k, V v) {
         try {
             putMode = PUT_FIRST;
             return this.put(k, v);
@@ -410,7 +410,7 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
      *
      * @since 21
      */
-    public V putLast(K k, V v) {
+    public @Nullable V putLast(K k, V v) {
         try {
             putMode = PUT_LAST;
             return this.put(k, v);

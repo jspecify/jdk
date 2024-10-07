@@ -1896,7 +1896,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
      * @throws UnsupportedOperationException always
      * @since 21
      */
-     public V putFirst(K k, V v) {
+     public @Nullable V putFirst(K k, V v) {
         throw new UnsupportedOperationException();
     }
 
@@ -1908,7 +1908,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
      * @throws UnsupportedOperationException always
      * @since 21
      */
-    public V putLast(K k, V v) {
+    public @Nullable V putLast(K k, V v) {
         throw new UnsupportedOperationException();
     }
 
