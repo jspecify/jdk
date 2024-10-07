@@ -3742,8 +3742,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param <U> the return type of the transformer
      * @since 1.8
      */
-    public <U extends @Nullable Object> void forEach(long parallelismThreshold,
-                            BiFunction<? super K, ? super V, ? extends U> transformer,
+    // JSpecify: We could instead use `<U extends @Nullable Object>` along with `@NonNull U`.
+    // Advantages to our current approach include:
+    // - calls out the null support in an otherwise null-hostile class
+    // - is consistent with the declarations for `search` and `reduce`
+    // - saves the user from a decision: https://github.com/jspecify/jspecify/issues/525
+    public <U> void forEach(long parallelismThreshold,
+                            BiFunction<? super K, ? super V, ? extends @Nullable U> transformer,
                             Consumer<? super U> action) {
         if (transformer == null || action == null)
             throw new NullPointerException();
@@ -3768,8 +3773,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * function on each (key, value), or null if none
      * @since 1.8
      */
-    public <U extends @Nullable Object> U search(long parallelismThreshold,
-                        BiFunction<? super K, ? super V, ? extends U> searchFunction) {
+    public <U> @Nullable U search(long parallelismThreshold,
+                        BiFunction<? super K, ? super V, ? extends @Nullable U> searchFunction) {
         if (searchFunction == null) throw new NullPointerException();
         return new SearchMappingsTask<K,V,U>
             (null, batchFor(parallelismThreshold), 0, 0, table,
@@ -3792,8 +3797,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * of all (key, value) pairs
      * @since 1.8
      */
-    public <U extends @Nullable Object> U reduce(long parallelismThreshold,
-                        BiFunction<? super K, ? super V, ? extends U> transformer,
+    public <U> @Nullable U reduce(long parallelismThreshold,
+                        BiFunction<? super K, ? super V, ? extends @Nullable U> transformer,
                         BiFunction<? super U, ? super U, ? extends U> reducer) {
         if (transformer == null || reducer == null)
             throw new NullPointerException();
@@ -3909,8 +3914,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param <U> the return type of the transformer
      * @since 1.8
      */
-    public <U extends @Nullable Object> void forEachKey(long parallelismThreshold,
-                               Function<? super K, ? extends U> transformer,
+    // JSpecify: See discussion on `forEach` above.
+    public <U> void forEachKey(long parallelismThreshold,
+                               Function<? super K, ? extends @Nullable U> transformer,
                                Consumer<? super U> action) {
         if (transformer == null || action == null)
             throw new NullPointerException();
@@ -3935,8 +3941,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * function on each key, or null if none
      * @since 1.8
      */
-    public <U extends @Nullable Object> U searchKeys(long parallelismThreshold,
-                            Function<? super K, ? extends U> searchFunction) {
+    public <U> @Nullable U searchKeys(long parallelismThreshold,
+                            Function<? super K, ? extends @Nullable U> searchFunction) {
         if (searchFunction == null) throw new NullPointerException();
         return new SearchKeysTask<K,V,U>
             (null, batchFor(parallelismThreshold), 0, 0, table,
@@ -3954,7 +3960,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * reducer to combine values, or null if none
      * @since 1.8
      */
-    public K reduceKeys(long parallelismThreshold,
+    public @Nullable K reduceKeys(long parallelismThreshold,
                         BiFunction<? super K, ? super K, ? extends K> reducer) {
         if (reducer == null) throw new NullPointerException();
         return new ReduceKeysTask<K,V>
@@ -3978,8 +3984,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * of all keys
      * @since 1.8
      */
-    public <U extends @Nullable Object> U reduceKeys(long parallelismThreshold,
-                            Function<? super K, ? extends U> transformer,
+    public <U> @Nullable U reduceKeys(long parallelismThreshold,
+                            Function<? super K, ? extends @Nullable U> transformer,
          BiFunction<? super U, ? super U, ? extends U> reducer) {
         if (transformer == null || reducer == null)
             throw new NullPointerException();
@@ -4096,8 +4102,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param <U> the return type of the transformer
      * @since 1.8
      */
-    public <U extends @Nullable Object> void forEachValue(long parallelismThreshold,
-                                 Function<? super V, ? extends U> transformer,
+    // JSpecify: See discussion on `forEach` above.
+    public <U> void forEachValue(long parallelismThreshold,
+                                 Function<? super V, ? extends @Nullable U> transformer,
                                  Consumer<? super U> action) {
         if (transformer == null || action == null)
             throw new NullPointerException();
@@ -4122,8 +4129,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * function on each value, or null if none
      * @since 1.8
      */
-    public <U extends @Nullable Object> U searchValues(long parallelismThreshold,
-                              Function<? super V, ? extends U> searchFunction) {
+    public <U> @Nullable U searchValues(long parallelismThreshold,
+                              Function<? super V, ? extends @Nullable U> searchFunction) {
         if (searchFunction == null) throw new NullPointerException();
         return new SearchValuesTask<K,V,U>
             (null, batchFor(parallelismThreshold), 0, 0, table,
@@ -4140,7 +4147,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @return the result of accumulating all values
      * @since 1.8
      */
-    public V reduceValues(long parallelismThreshold,
+    public @Nullable V reduceValues(long parallelismThreshold,
                           BiFunction<? super V, ? super V, ? extends V> reducer) {
         if (reducer == null) throw new NullPointerException();
         return new ReduceValuesTask<K,V>
@@ -4164,8 +4171,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * of all values
      * @since 1.8
      */
-    public <U extends @Nullable Object> U reduceValues(long parallelismThreshold,
-                              Function<? super V, ? extends U> transformer,
+    public <U> @Nullable U reduceValues(long parallelismThreshold,
+                              Function<? super V, ? extends @Nullable U> transformer,
                               BiFunction<? super U, ? super U, ? extends U> reducer) {
         if (transformer == null || reducer == null)
             throw new NullPointerException();
@@ -4280,8 +4287,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param <U> the return type of the transformer
      * @since 1.8
      */
-    public <U extends @Nullable Object> void forEachEntry(long parallelismThreshold,
-                                 Function<Map.Entry<K,V>, ? extends U> transformer,
+    // JSpecify: See discussion on `forEach` above.
+    public <U> void forEachEntry(long parallelismThreshold,
+                                 Function<Map.Entry<K,V>, ? extends @Nullable U> transformer,
                                  Consumer<? super U> action) {
         if (transformer == null || action == null)
             throw new NullPointerException();
@@ -4306,8 +4314,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * function on each entry, or null if none
      * @since 1.8
      */
-    public <U extends @Nullable Object> U searchEntries(long parallelismThreshold,
-                               Function<Map.Entry<K,V>, ? extends U> searchFunction) {
+    public <U> @Nullable U searchEntries(long parallelismThreshold,
+                               Function<Map.Entry<K,V>, ? extends @Nullable U> searchFunction) {
         if (searchFunction == null) throw new NullPointerException();
         return new SearchEntriesTask<K,V,U>
             (null, batchFor(parallelismThreshold), 0, 0, table,
@@ -4324,7 +4332,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @return the result of accumulating all entries
      * @since 1.8
      */
-    public Map.Entry<K,V> reduceEntries(long parallelismThreshold,
+    public Map.@Nullable Entry<K,V> reduceEntries(long parallelismThreshold,
                                         BiFunction<Map.Entry<K,V>, Map.Entry<K,V>, ? extends Map.Entry<K,V>> reducer) {
         if (reducer == null) throw new NullPointerException();
         return new ReduceEntriesTask<K,V>
@@ -4348,8 +4356,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * of all entries
      * @since 1.8
      */
-    public <U extends @Nullable Object> U reduceEntries(long parallelismThreshold,
-                               Function<Map.Entry<K,V>, ? extends U> transformer,
+    public <U> @Nullable U reduceEntries(long parallelismThreshold,
+                               Function<Map.Entry<K,V>, ? extends @Nullable U> transformer,
                                BiFunction<? super U, ? super U, ? extends U> reducer) {
         if (transformer == null || reducer == null)
             throw new NullPointerException();
