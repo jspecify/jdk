@@ -271,7 +271,7 @@ public interface Gatherer<T extends @Nullable Object, A extends @Nullable Object
      * @return returns a composed Gatherer which connects the output of this
      *         Gatherer as input that Gatherer
      */
-    default <RR> Gatherer<T, ?, RR> andThen(Gatherer<? super R, ?, ? extends RR> that) {
+    default <RR extends @Nullable Object> Gatherer<T, ?, RR> andThen(Gatherer<? super R, ?, ? extends RR> that) {
         Objects.requireNonNull(that);
         return Gatherers.Composite.of(this, that);
     }
