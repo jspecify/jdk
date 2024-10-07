@@ -24,6 +24,9 @@
  */
 package java.lang;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import jdk.internal.reflect.CallerSensitive;
 
 import java.lang.invoke.MethodType;
@@ -89,6 +92,7 @@ import jdk.internal.vm.ContinuationScope;
  *
  * @since 9
  */
+@NullMarked
 public final class StackWalker {
     /**
      * A {@code StackFrame} object represents a method invocation returned by
@@ -213,7 +217,7 @@ public final class StackWalker {
          *
          * @jvms 4.7.10 The {@code SourceFile} Attribute
          */
-        public String getFileName();
+        public @Nullable String getFileName();
 
         /**
          * Returns the line number of the source line containing the execution
@@ -528,7 +532,7 @@ public final class StackWalker {
      *         {@linkplain StackFrame stack frame}.
      */
     @CallerSensitive
-    public <T> T walk(Function<? super Stream<StackFrame>, ? extends T> function) {
+    public <T extends @Nullable Object> T walk(Function<? super Stream<StackFrame>, ? extends T> function) {
         // Returning a Stream<StackFrame> would be unsafe, as the stream could
         // be used to access the stack frames in an uncontrolled manner.  For
         // example, a caller might pass a Spliterator of stack frames after one
