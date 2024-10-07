@@ -2518,7 +2518,7 @@ public final  class Class< T> implements java.io.Serializable,
      */
     
     @CallerSensitive
-    public Constructor<T> getConstructor(Class<?>... parameterTypes)
+    public Constructor<T> getConstructor(Class<?> @Nullable ... parameterTypes)
         throws NoSuchMethodException, SecurityException
     {
         @SuppressWarnings("removal")
@@ -2923,7 +2923,7 @@ public final  class Class< T> implements java.io.Serializable,
      * @since 1.1
      */
     @CallerSensitive
-    public Method getDeclaredMethod(String name, Class<?>... parameterTypes)
+    public Method getDeclaredMethod(String name, Class<?> @Nullable ... parameterTypes)
         throws NoSuchMethodException, SecurityException {
         Objects.requireNonNull(name);
         @SuppressWarnings("removal")
@@ -3020,7 +3020,7 @@ public final  class Class< T> implements java.io.Serializable,
      * @since 1.1
      */
     @CallerSensitive
-    public Constructor<T> getDeclaredConstructor(Class<?>... parameterTypes)
+    public Constructor<T> getDeclaredConstructor(Class<?> @Nullable ... parameterTypes)
         throws NoSuchMethodException, SecurityException
     {
         @SuppressWarnings("removal")
