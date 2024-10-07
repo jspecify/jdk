@@ -860,7 +860,7 @@ public final class URL implements java.io.Serializable {
      *
      * @since 20
      */
-    public static URL of(URI uri, URLStreamHandler handler)
+    public static URL of(URI uri, @Nullable URLStreamHandler handler)
         throws MalformedURLException {
         if (!uri.isAbsolute()) {
             throw new IllegalArgumentException("URI is not absolute");
