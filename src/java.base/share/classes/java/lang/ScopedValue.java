@@ -26,6 +26,8 @@
 
 package java.lang;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.lang.ref.Reference;
@@ -684,7 +686,7 @@ public final class ScopedValue<T> {
      * @param other the value to return if not bound, can be {@code null}
      * @return the value of the scoped value if bound, otherwise {@code other}
      */
-    public T orElse(T other) {
+    public @Nullable T orElse(@Nullable T other) {
         Object obj = findBinding();
         if (obj != Snapshot.NIL) {
             @SuppressWarnings("unchecked")
