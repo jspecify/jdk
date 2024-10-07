@@ -1158,7 +1158,7 @@ public class Thread implements Runnable {
      *
      * @see <a href="#inheritance">Inheritance when creating threads</a>
      */
-    public Thread(Runnable task) {
+    public Thread(@Nullable Runnable task) {
         this(null, null, 0, task, 0, null);
     }
 
@@ -1268,7 +1268,7 @@ public class Thread implements Runnable {
      *
      * @see <a href="#inheritance">Inheritance when creating threads</a>
      */
-    public Thread(Runnable task, String name) {
+    public Thread(@Nullable Runnable task, String name) {
         this(null, checkName(name), 0, task, 0, null);
     }
 
@@ -1322,7 +1322,7 @@ public class Thread implements Runnable {
      *
      * @see <a href="#inheritance">Inheritance when creating threads</a>
      */
-    public Thread(@Nullable ThreadGroup group, Runnable task, String name) {
+    public Thread(@Nullable ThreadGroup group, @Nullable Runnable task, String name) {
         this(group, checkName(name), 0, task, 0, null);
     }
 
@@ -1469,7 +1469,7 @@ public class Thread implements Runnable {
      * @since 9
      * @see <a href="#inheritance">Inheritance when creating threads</a>
      */
-    public Thread(ThreadGroup group, Runnable task, String name,
+    public Thread(@Nullable ThreadGroup group, @Nullable Runnable task, String name,
                   long stackSize, boolean inheritInheritableThreadLocals) {
         this(group, checkName(name),
                 (inheritInheritableThreadLocals ? 0 : NO_INHERIT_THREAD_LOCALS),

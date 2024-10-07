@@ -200,7 +200,7 @@ public abstract class AbstractPreferences extends Preferences {
      *          ({@code '/'}),  or {@code parent} is {@code null} and
      *          name isn't {@code ""}.
      */
-    protected AbstractPreferences(AbstractPreferences parent, String name) {
+    protected AbstractPreferences(@Nullable AbstractPreferences parent, String name) {
         if (parent==null) {
             if (!name.isEmpty())
                 throw new IllegalArgumentException("Root name '"+name+
