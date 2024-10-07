@@ -24,6 +24,9 @@
  */
 package java.lang;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * This is the common base class of all Java language record classes.
  *
@@ -87,6 +90,7 @@ package java.lang;
  * @jls 8.10 Record Classes
  * @since 16
  */
+@NullMarked
 public abstract class Record {
     /**
      * Constructor for record classes to call.
@@ -140,7 +144,7 @@ public abstract class Record {
      *          argument; {@code false} otherwise.
      */
     @Override
-    public abstract boolean equals(Object obj);
+    public abstract boolean equals(@Nullable Object obj);
 
     /**
      * Returns a hash code value for the record.
