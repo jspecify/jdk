@@ -645,7 +645,7 @@ public final  class Class< T> implements java.io.Serializable,
      */
     @SuppressWarnings("removal")
     @CallerSensitive
-    public static Class<?> forName(Module module, String name) {
+    public static @Nullable Class<?> forName(Module module, String name) {
         Class<?> caller = null;
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {

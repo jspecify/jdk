@@ -522,7 +522,7 @@ public final @UsesObjectEquals class FileSystems {
      * @since 13
      */
     public static FileSystem newFileSystem(Path path, Map<String,?> env,
-                                           ClassLoader loader)
+                                           @Nullable ClassLoader loader)
         throws IOException
     {
         if (path == null)
