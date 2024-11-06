@@ -354,7 +354,7 @@ public final  class Objects {
      */
     
     
-    public static <T>  T requireNonNull(  @Nullable T obj,  Supplier<String> messageSupplier) {
+    public static <T>  T requireNonNull(  @Nullable T obj,  @Nullable Supplier<String> messageSupplier) {
         if (obj == null)
             throw new NullPointerException(messageSupplier == null ?
                                            null : messageSupplier.get());
