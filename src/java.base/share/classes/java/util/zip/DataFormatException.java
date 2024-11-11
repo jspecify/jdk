@@ -25,12 +25,16 @@
 
 package java.util.zip;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * Signals that a data format error has occurred.
  *
  * @author      David Connelly
  * @since 1.1
  */
+@NullMarked
 public class DataFormatException extends Exception {
     @java.io.Serial
     private static final long serialVersionUID = 2219632870893641452L;
@@ -47,7 +51,7 @@ public class DataFormatException extends Exception {
      * A detail message is a String that describes this particular exception.
      * @param s the String containing a detail message
      */
-    public DataFormatException(String s) {
+    public DataFormatException(@Nullable String s) {
         super(s);
     }
 }

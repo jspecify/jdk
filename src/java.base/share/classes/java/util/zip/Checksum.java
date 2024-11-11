@@ -28,6 +28,7 @@ import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.nio.ByteBuffer;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * An interface representing a data checksum.
@@ -35,7 +36,7 @@ import java.nio.ByteBuffer;
  * @author David Connelly
  * @since 1.1
  */
-@AnnotatedFor({"index"})
+@NullMarked
 public interface Checksum {
 
     /**
@@ -69,7 +70,7 @@ public interface Checksum {
      * @param off the start offset of the data
      * @param len the number of bytes to use for the update
      */
-    public void update(byte[] b, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len);
+    public void update(byte[] b, int off, int len);
 
     /**
      * Updates the current checksum with the bytes from the specified buffer.
