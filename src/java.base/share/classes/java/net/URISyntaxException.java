@@ -25,6 +25,7 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Checked exception thrown to indicate that a string could not be parsed as a
@@ -34,7 +35,7 @@ package java.net;
  * @see URI
  * @since 1.4
  */
-
+@NullMarked
 public class URISyntaxException
     extends Exception
 {

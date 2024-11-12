@@ -25,13 +25,12 @@
 
 package java.net;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Map;
 import java.util.List;
 import java.io.IOException;
 import sun.security.util.SecurityConstants;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A CookieHandler object provides a callback mechanism to hook up a
@@ -53,8 +52,8 @@ import sun.security.util.SecurityConstants;
  * @author Yingxian Wang
  * @since 1.5
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class CookieHandler {
+@NullMarked
+public abstract class CookieHandler {
     /**
      * Constructor for subclasses to call.
      */
@@ -79,7 +78,7 @@ public abstract @UsesObjectEquals class CookieHandler {
      * {@link NetPermission}{@code ("getCookieHandler")}
      * @see #setDefault(CookieHandler)
      */
-    public static synchronized CookieHandler getDefault() {
+    public static synchronized @Nullable CookieHandler getDefault() {
         @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -100,7 +99,7 @@ public abstract @UsesObjectEquals class CookieHandler {
      * {@link NetPermission}{@code ("setCookieHandler")}
      * @see #getDefault()
      */
-    public static synchronized void setDefault(CookieHandler cHandler) {
+    public static synchronized void setDefault(@Nullable CookieHandler cHandler) {
         @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
