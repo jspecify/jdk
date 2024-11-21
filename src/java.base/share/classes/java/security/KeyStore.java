@@ -25,7 +25,9 @@
 
 package java.security;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NullUnmarked;
 import org.jspecify.annotations.Nullable;
 
 import java.io.*;
@@ -814,7 +816,8 @@ public  class KeyStore {
      * @param provider the provider.
      * @param type the keystore type.
      */
-    protected KeyStore(KeyStoreSpi keyStoreSpi, Provider provider, String type)
+    @NullUnmarked // https://github.com/jspecify/jdk/pull/29#issuecomment-1653637366
+    protected KeyStore(@NonNull KeyStoreSpi keyStoreSpi, Provider provider, @NonNull String type)
     {
         this.keyStoreSpi = keyStoreSpi;
         this.provider = provider;
