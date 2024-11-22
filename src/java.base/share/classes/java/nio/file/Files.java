@@ -81,6 +81,7 @@ import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.NullUnmarked;
 import org.jspecify.annotations.Nullable;
@@ -1996,9 +1997,9 @@ public final class Files {
      *          to read security sensitive attributes then the security manager
      *          may be invoked to check for additional permissions.
      */
-    @NullUnmarked
-    public static Object getAttribute(Path path, String attribute,
-                                      LinkOption... options)
+    @NullUnmarked // https://github.com/jspecify/jdk/pull/10#pullrequestreview-1404320091
+    public static Object getAttribute(@NonNull Path path, @NonNull String attribute,
+                                      @NonNull LinkOption @NonNull ... options)
         throws IOException
     {
         // only one attribute should be read
@@ -2101,9 +2102,9 @@ public final class Files {
      *          to read security sensitive attributes then the security manager
      *          may be invoked to check for additional permissions.
      */
-    @NullUnmarked
-    public static Map<String,Object> readAttributes(Path path, String attributes,
-                                                    LinkOption... options)
+    @NullUnmarked // https://github.com/jspecify/jdk/pull/10#pullrequestreview-1404320091
+    public static @NonNull Map<@NonNull String,Object> readAttributes(@NonNull Path path, @NonNull String attributes,
+                                                    @NonNull LinkOption @NonNull ... options)
         throws IOException
     {
         return provider(path).readAttributes(path, attributes, options);
