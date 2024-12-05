@@ -3645,7 +3645,7 @@ public final class String
      */
     
     
-    public static String join(CharSequence delimiter, CharSequence... elements) {
+    public static String join(CharSequence delimiter, @Nullable CharSequence... elements) {
         var delim = delimiter.toString();
         var elems = new String[elements.length];
         for (int i = 0; i < elements.length; i++) {
@@ -3741,7 +3741,7 @@ public final class String
     
     
     public static String join(CharSequence delimiter,
-            Iterable<? extends CharSequence> elements) {
+            Iterable<? extends @Nullable CharSequence> elements) {
         Objects.requireNonNull(delimiter);
         Objects.requireNonNull(elements);
         var delim = delimiter.toString();
