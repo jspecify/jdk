@@ -68,6 +68,8 @@ import java.util.Objects;
  * }
  * </pre>
  *
+ * @spec https://www.rfc-editor.org/info/rfc8017
+ *      RFC 8017: PKCS #1: RSA Cryptography Specifications Version 2.2
  * @see MGF1ParameterSpec
  * @see AlgorithmParameterSpec
  * @see java.security.Signature
@@ -100,6 +102,8 @@ public @UsesObjectEquals class PSSParameterSpec implements AlgorithmParameterSpe
 
     /**
      * The PSS parameter set with all default values.
+     * @spec https://www.rfc-editor.org/info/rfc8017
+     *      RFC 8017: PKCS #1: RSA Cryptography Specifications Version 2.2
      * @deprecated This field uses the default values defined in the PKCS #1
      *         standard. Some of these defaults are no longer recommended due
      *         to advances in cryptanalysis -- see the
@@ -174,6 +178,8 @@ public @UsesObjectEquals class PSSParameterSpec implements AlgorithmParameterSpe
      * @param saltLen the length of salt in bytes
      * @throws    IllegalArgumentException if {@code saltLen} is
      *         less than 0
+     * @spec https://www.rfc-editor.org/info/rfc8017
+     *      RFC 8017: PKCS #1: RSA Cryptography Specifications Version 2.2
      * @deprecated This constructor uses the default values defined in
      *         the PKCS #1 standard except for the salt length. Some of these
      *         defaults are no longer recommended due to advances in

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,6 @@ import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import com.sun.beans.util.Cache;
-
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 
 import java.beans.JavaBean;
 import java.beans.BeanProperty;
@@ -1135,7 +1132,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
-    @SuppressWarnings("serial") // Same-version serialization only
     public static class KeyBinding {
 
         /**
@@ -2130,8 +2126,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * @return {@code true}, unless printing is canceled by the user
      * @throws PrinterException if an error in the print system causes the job
      *         to be aborted
-     * @throws SecurityException if this thread is not allowed to
-     *                           initiate a print job request
      *
      * @see #print(MessageFormat, MessageFormat, boolean, PrintService, PrintRequestAttributeSet, boolean)
      *
@@ -2160,8 +2154,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * @return {@code true}, unless printing is canceled by the user
      * @throws PrinterException if an error in the print system causes the job
      *         to be aborted
-     * @throws SecurityException if this thread is not allowed to
-     *                           initiate a print job request
      *
      * @see #print(MessageFormat, MessageFormat, boolean, PrintService, PrintRequestAttributeSet, boolean)
      * @see java.text.MessageFormat
@@ -2272,8 +2264,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * @return {@code true}, unless printing is canceled by the user
      * @throws PrinterException if an error in the print system causes the job
      *         to be aborted
-     * @throws SecurityException if this thread is not allowed to
-     *                           initiate a print job request
      *
      * @see #getPrintable
      * @see java.text.MessageFormat
@@ -3966,7 +3956,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * Maps from class name to Boolean indicating if
      * <code>processInputMethodEvent</code> has been overridden.
      */
-    @SuppressWarnings("removal")
     private static Cache<Class<?>,Boolean> METHOD_OVERRIDDEN
             = new Cache<Class<?>,Boolean>(Cache.Kind.WEAK, Cache.Kind.STRONG) {
         /**
@@ -3981,17 +3970,12 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
             if (get(type.getSuperclass())) {
                 return Boolean.TRUE;
             }
-            return AccessController.doPrivileged(
-                    new PrivilegedAction<Boolean>() {
-                        public Boolean run() {
-                            try {
-                                type.getDeclaredMethod("processInputMethodEvent", InputMethodEvent.class);
-                                return Boolean.TRUE;
-                            } catch (NoSuchMethodException exception) {
-                                return Boolean.FALSE;
-                            }
-                        }
-                    });
+            try {
+                type.getDeclaredMethod("processInputMethodEvent", InputMethodEvent.class);
+                return Boolean.TRUE;
+            } catch (NoSuchMethodException exception) {
+                return Boolean.FALSE;
+            }
         }
     };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,16 +123,10 @@ public abstract @UsesObjectEquals class RMISocketFactory
     /**
      * Set the global socket factory from which RMI gets sockets (if the
      * remote object is not associated with a specific client and/or server
-     * socket factory). The RMI socket factory can only be set once. Note: The
-     * RMISocketFactory may only be set if the current security manager allows
-     * setting a socket factory; if disallowed, a SecurityException will be
-     * thrown.
+     * socket factory). The RMI socket factory can only be set once.
      * @param fac the socket factory
      * @throws IOException if the RMI socket factory is already set
-     * @throws  SecurityException  if a security manager exists and its
-     *          <code>checkSetFactory</code> method doesn't allow the operation.
      * @see #getSocketFactory
-     * @see java.lang.SecurityManager#checkSetFactory()
      * @since 1.1
      */
     public static synchronized void setSocketFactory(RMISocketFactory fac)
@@ -140,11 +134,6 @@ public abstract @UsesObjectEquals class RMISocketFactory
     {
         if (factory != null) {
             throw new SocketException("factory already defined");
-        }
-        @SuppressWarnings("removal")
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkSetFactory();
         }
         factory = fac;
     }
@@ -184,26 +173,13 @@ public abstract @UsesObjectEquals class RMISocketFactory
      * and server socket creation fails, the RMI runtime does attempt to
      * recreate the server socket.
      *
-     * <p>If there is a security manager, this method first calls
-     * the security manager's <code>checkSetFactory</code> method
-     * to ensure the operation is allowed.
-     * This could result in a <code>SecurityException</code>.
-     *
-     * @param fh the failure handler
-     * @throws  SecurityException  if a security manager exists and its
-     *          <code>checkSetFactory</code> method doesn't allow the
-     *          operation.
+     * @param fh the failure handler.
      * @see #getFailureHandler
      * @see java.rmi.server.RMIFailureHandler#failure(Exception)
      * @since 1.1
      */
     public static synchronized void setFailureHandler(RMIFailureHandler fh)
     {
-        @SuppressWarnings("removal")
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkSetFactory();
-        }
         handler = fh;
     }
 

@@ -125,7 +125,7 @@ public final @UsesObjectEquals class SplashScreen {
      * @return the {@link SplashScreen} instance, or {@code null} if there is
      *         none or it has already been closed
      */
-    @SuppressWarnings({"removal", "restricted"})
+    @SuppressWarnings("restricted")
     public static  SplashScreen getSplashScreen() {
         synchronized (SplashScreen.class) {
             if (GraphicsEnvironment.isHeadless()) {
@@ -133,13 +133,7 @@ public final @UsesObjectEquals class SplashScreen {
             }
             // SplashScreen class is now a singleton
             if (!wasClosed && theInstance == null) {
-                java.security.AccessController.doPrivileged(
-                    new java.security.PrivilegedAction<Void>() {
-                        public Void run() {
-                            System.loadLibrary("splashscreen");
-                            return null;
-                        }
-                    });
+                System.loadLibrary("splashscreen");
                 long ptr = _getInstance();
                 if (ptr != 0 && _isVisible(ptr)) {
                     theInstance = new SplashScreen(ptr);

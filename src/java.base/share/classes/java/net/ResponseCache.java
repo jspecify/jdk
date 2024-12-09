@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 import java.io.IOException;
 import java.util.Map;
 import java.util.List;
-import sun.security.util.SecurityConstants;
 
 /**
  * Represents implementations of URLConnection caches. An instance of
@@ -83,20 +82,11 @@ public abstract @UsesObjectEquals class ResponseCache {
     /**
      * Gets the system-wide response cache.
      *
-     * @throws  SecurityException
-     *          If a security manager has been installed and it denies
-     * {@link NetPermission}{@code ("getResponseCache")}
-     *
      * @see #setDefault(ResponseCache)
      * @return the system-wide {@code ResponseCache}
      * @since 1.5
      */
     public static synchronized ResponseCache getDefault() {
-        @SuppressWarnings("removal")
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(SecurityConstants.GET_RESPONSECACHE_PERMISSION);
-        }
         return theResponseCache;
     }
 
@@ -108,19 +98,10 @@ public abstract @UsesObjectEquals class ResponseCache {
      * @param responseCache The response cache, or
      *          {@code null} to unset the cache.
      *
-     * @throws  SecurityException
-     *          If a security manager has been installed and it denies
-     * {@link NetPermission}{@code ("setResponseCache")}
-     *
      * @see #getDefault()
      * @since 1.5
      */
     public static synchronized void setDefault(ResponseCache responseCache) {
-        @SuppressWarnings("removal")
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(SecurityConstants.SET_RESPONSECACHE_PERMISSION);
-        }
         theResponseCache = responseCache;
     }
 

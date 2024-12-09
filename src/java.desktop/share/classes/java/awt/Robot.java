@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,6 @@ import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.awt.peer.RobotPeer;
 
-import sun.awt.AWTPermissions;
 import sun.awt.ComponentFactory;
 import sun.awt.SunToolkit;
 import sun.awt.image.SunWritableRaster;
@@ -128,10 +127,7 @@ public @UsesObjectEquals class Robot {
      * @throws  AWTException if the platform configuration does not allow
      * low-level input control.  This exception is always thrown when
      * GraphicsEnvironment.isHeadless() returns true
-     * @throws  SecurityException if {@code createRobot} permission is not granted
      * @see     java.awt.GraphicsEnvironment#isHeadless
-     * @see     SecurityManager#checkPermission
-     * @see     AWTPermission
      */
     public Robot() throws AWTException {
         checkHeadless();
@@ -160,11 +156,8 @@ public @UsesObjectEquals class Robot {
      * GraphicsEnvironment.isHeadless() returns true.
      * @throws  IllegalArgumentException if {@code screen} is not a screen
      *          GraphicsDevice.
-     * @throws  SecurityException if {@code createRobot} permission is not granted
      * @see     java.awt.GraphicsEnvironment#isHeadless
      * @see     GraphicsDevice
-     * @see     SecurityManager#checkPermission
-     * @see     AWTPermission
      */
     public Robot(GraphicsDevice screen) throws AWTException {
         checkHeadless();
@@ -173,7 +166,6 @@ public @UsesObjectEquals class Robot {
     }
 
     private void init(GraphicsDevice screen) throws AWTException {
-        checkRobotAllowed();
         Toolkit toolkit = Toolkit.getDefaultToolkit();
         if (toolkit instanceof ComponentFactory) {
             peer = ((ComponentFactory)toolkit).createRobot(screen);
@@ -201,15 +193,6 @@ public @UsesObjectEquals class Robot {
             InputEvent.BUTTON2_DOWN_MASK|
             InputEvent.BUTTON3_DOWN_MASK;
         LEGAL_BUTTON_MASK = tmpMask;
-    }
-
-    /* determine if the security policy allows Robot's to be created */
-    private static void checkRobotAllowed() {
-        @SuppressWarnings("removal")
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkPermission(AWTPermissions.CREATE_ROBOT_PERMISSION);
-        }
     }
 
     /**
@@ -442,13 +425,11 @@ public @UsesObjectEquals class Robot {
      *
      * @param   x       X position of pixel
      * @param   y       Y position of pixel
-     * @throws  SecurityException if {@code readDisplayPixels} permission
-     *          is not granted, or access to the screen is denied
+     * @throws  SecurityException if access to the screen is denied
      *          by the desktop environment
      * @return  Color of the pixel
      */
     public synchronized Color getPixelColor(int x, int y) {
-        checkScreenCaptureAllowed();
         Point point = peer.useAbsoluteCoordinates() ? toDeviceSpaceAbs(x, y)
                                                     : toDeviceSpace(x, y);
         return new Color(peer.getRGBPixel(point.x, point.y));
@@ -471,11 +452,8 @@ public @UsesObjectEquals class Robot {
      * @return  The captured image
      * @throws  IllegalArgumentException if {@code screenRect} width and height
      *          are not greater than zero
-     * @throws  SecurityException if {@code readDisplayPixels} permission
-     *          is not granted, or access to the screen is denied
+     * @throws  SecurityException if access to the screen is denied
      *          by the desktop environment
-     * @see     SecurityManager#checkPermission
-     * @see     AWTPermission
      */
     public synchronized BufferedImage createScreenCapture(Rectangle screenRect) {
         return createCompatibleImage(screenRect, false)[0];
@@ -517,11 +495,8 @@ public @UsesObjectEquals class Robot {
      * @return  The captured image
      * @throws  IllegalArgumentException if {@code screenRect} width and height
      *          are not greater than zero
-     * @throws  SecurityException if {@code readDisplayPixels} permission
-     *          is not granted, or access to the screen is denied
+     * @throws  SecurityException if access to the screen is denied
      *          by the desktop environment
-     * @see     SecurityManager#checkPermission
-     * @see     AWTPermission
      *
      * @since 9
      */
@@ -534,8 +509,6 @@ public @UsesObjectEquals class Robot {
 
     private synchronized BufferedImage[]
             createCompatibleImage(Rectangle screenRect, boolean isHiDPI) {
-
-        checkScreenCaptureAllowed();
 
         checkValidRect(screenRect);
 
@@ -649,14 +622,6 @@ public @UsesObjectEquals class Robot {
     private static void checkValidRect(Rectangle rect) {
         if (rect.width <= 0 || rect.height <= 0) {
             throw new IllegalArgumentException("Rectangle width and height must be > 0");
-        }
-    }
-
-    private static void checkScreenCaptureAllowed() {
-        @SuppressWarnings("removal")
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkPermission(AWTPermissions.READ_DISPLAY_PIXELS_PERMISSION);
         }
     }
 
