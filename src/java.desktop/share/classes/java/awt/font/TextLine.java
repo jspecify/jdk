@@ -30,9 +30,6 @@
 
 package java.awt.font;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -67,8 +64,7 @@ import sun.font.TextLineComponent;
 
 import java.awt.geom.Line2D;
 
-@AnnotatedFor({"interning"})
-final @UsesObjectEquals class TextLine {
+final class TextLine {
 
     static final class TextLineMetrics {
         public final float ascent;

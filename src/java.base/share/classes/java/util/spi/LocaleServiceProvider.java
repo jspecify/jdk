@@ -25,9 +25,6 @@
 
 package java.util.spi;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Locale;
 
 /**
@@ -223,8 +220,7 @@ import java.util.Locale;
  *
  * @since        1.6
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class LocaleServiceProvider {
+public abstract class LocaleServiceProvider {
 
     /**
      * Initializes a new locale service provider.

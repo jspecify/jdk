@@ -25,9 +25,6 @@
 
 package java.beans;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.image.ImageProducer;
@@ -45,8 +42,7 @@ import java.net.URL;
  *
  * @since 1.1
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class SimpleBeanInfo implements BeanInfo {
+public class SimpleBeanInfo implements BeanInfo {
 
     /**
      * Constructs a {@code SimpleBeanInfo}.

@@ -25,9 +25,6 @@
 
 package java.nio.channels;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.channels.spi.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Future;
@@ -124,8 +121,7 @@ import java.nio.ByteBuffer;
  * @since 1.7
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class AsynchronousSocketChannel
+public abstract class AsynchronousSocketChannel
     implements AsynchronousByteChannel, NetworkChannel
 {
     private final AsynchronousChannelProvider provider;

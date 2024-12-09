@@ -25,9 +25,6 @@
 
 package java.rmi.server;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -62,8 +59,7 @@ import java.net.URL;
  * @see         RMIClassLoader
  * @since       1.4
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class RMIClassLoaderSpi {
+public abstract class RMIClassLoaderSpi {
 
     /**
      * Constructor for subclasses to call.

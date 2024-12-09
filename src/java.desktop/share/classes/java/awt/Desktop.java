@@ -25,10 +25,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.guieffect.qual.SafeEffect;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.desktop.AboutEvent;
 import java.awt.desktop.AboutHandler;
 import java.awt.desktop.OpenFilesHandler;
@@ -90,8 +86,7 @@ import sun.awt.SunToolkit;
  * @author Armin Chen
  * @author George Zhang
  */
-@AnnotatedFor({"guieffect", "interning"})
-public @UsesObjectEquals class Desktop {
+public class Desktop {
 
     /**
      * Represents an action type.  Each platform supports a different
@@ -290,7 +285,6 @@ public @UsesObjectEquals class Desktop {
      * @see #isDesktopSupported()
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
-    @SafeEffect
     public static synchronized Desktop getDesktop(){
         if (GraphicsEnvironment.isHeadless()) throw new HeadlessException();
         if (!Desktop.isDesktopSupported()) {
@@ -318,7 +312,6 @@ public @UsesObjectEquals class Desktop {
      *         current platform; {@code false} otherwise
      * @see #getDesktop()
      */
-    @SafeEffect
     public static boolean isDesktopSupported(){
         Toolkit defaultToolkit = Toolkit.getDefaultToolkit();
         if (defaultToolkit instanceof SunToolkit) {
@@ -343,7 +336,6 @@ public @UsesObjectEquals class Desktop {
      *         the current platform; {@code false} otherwise
      * @see Desktop.Action
      */
-    @SafeEffect
     public boolean isSupported(Action action) {
         return peer.isSupported(action);
     }
@@ -390,7 +382,6 @@ public @UsesObjectEquals class Desktop {
      * @throws IOException if the specified file has no associated
      * application or the associated application fails to be launched
      */
-    @SafeEffect
     public void open(File file) throws IOException {
         file = new File(file.getPath());
         checkActionSupport(Action.OPEN);
@@ -412,7 +403,6 @@ public @UsesObjectEquals class Desktop {
      * @throws IOException if the specified file has no associated
      * editor, or the associated application fails to be launched
      */
-    @SafeEffect
     public void edit(File file) throws IOException {
         file = new File(file.getPath());
         checkActionSupport(Action.EDIT);
@@ -438,7 +428,6 @@ public @UsesObjectEquals class Desktop {
      * @throws IOException if the specified file has no associated
      * application that can be used to print it
      */
-    @SafeEffect
     public void print(File file) throws IOException {
         file = new File(file.getPath());
         checkActionSupport(Action.PRINT);
@@ -466,7 +455,6 @@ public @UsesObjectEquals class Desktop {
      * failed to be launched
      * @see java.net.URI
      */
-    @SafeEffect
     public void browse(URI uri) throws IOException {
         checkActionSupport(Action.BROWSE);
         Objects.requireNonNull(uri);
@@ -482,7 +470,6 @@ public @UsesObjectEquals class Desktop {
      * @throws IOException if the user default mail client is not
      * found, or it fails to be launched
      */
-    @SafeEffect
     public void mail() throws IOException {
         checkActionSupport(Action.MAIL);
         URI mailtoURI = null;
@@ -519,7 +506,6 @@ public @UsesObjectEquals class Desktop {
      *      RFC 2368: The mailto URL scheme
      * @see java.net.URI
      */
-    @SafeEffect
     public  void mail(URI mailtoURI) throws IOException {
         checkActionSupport(Action.MAIL);
         if (mailtoURI == null) throw new NullPointerException();

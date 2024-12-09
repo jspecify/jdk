@@ -24,9 +24,6 @@
  */
 package java.beans;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
@@ -54,8 +51,7 @@ import sun.reflect.misc.MethodUtil;
  *
  * @author Philip Milne
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class Statement {
+public class Statement {
 
     private static Object[] emptyArray = new Object[]{};
 

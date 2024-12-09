@@ -25,9 +25,6 @@
 
 package java.nio.channels;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.channels.spi.*;
 import java.net.SocketOption;
 import java.net.SocketAddress;
@@ -99,8 +96,7 @@ import java.io.IOException;
  * @since 1.7
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class AsynchronousServerSocketChannel
+public abstract class AsynchronousServerSocketChannel
     implements AsynchronousChannel, NetworkChannel
 {
     private final AsynchronousChannelProvider provider;

@@ -25,9 +25,6 @@
 
 package java.net;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Map;
 import java.util.List;
 import java.io.IOException;
@@ -52,8 +49,7 @@ import java.io.IOException;
  * @author Yingxian Wang
  * @since 1.5
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class CookieHandler {
+public abstract class CookieHandler {
     /**
      * Constructor for subclasses to call.
      */

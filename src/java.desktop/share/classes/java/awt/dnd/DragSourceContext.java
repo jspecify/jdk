@@ -25,9 +25,6 @@
 
 package java.awt.dnd;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.AWTError;
 import java.awt.Component;
 import java.awt.Cursor;
@@ -93,8 +90,7 @@ import sun.awt.ComponentFactory;
  * @since 1.2
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class DragSourceContext
+public class DragSourceContext
     implements DragSourceListener, DragSourceMotionListener, Serializable {
 
     /**

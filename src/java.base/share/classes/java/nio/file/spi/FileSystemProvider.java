@@ -25,9 +25,6 @@
 
 package java.nio.file.spi;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
@@ -110,8 +107,7 @@ import sun.nio.ch.FileChannelImpl;
  * @since 1.7
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class FileSystemProvider {
+public abstract class FileSystemProvider {
     // lock using when loading providers
     private static final Object lock = new Object();
 

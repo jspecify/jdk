@@ -25,9 +25,6 @@
 
 package java.security.spec;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Objects;
 
 /**
@@ -80,8 +77,7 @@ import java.util.Objects;
  * @since 1.4
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class PSSParameterSpec implements AlgorithmParameterSpec {
+public class PSSParameterSpec implements AlgorithmParameterSpec {
 
     private final String mdName;
 

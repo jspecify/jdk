@@ -35,9 +35,6 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * A {@link CompletionService} that uses a supplied {@link Executor}
  * to execute tasks.  This class arranges that submitted tasks are,
@@ -105,8 +102,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @since 1.5
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class ExecutorCompletionService<V> implements CompletionService<V> {
+public class ExecutorCompletionService<V> implements CompletionService<V> {
     private final Executor executor;
     private final AbstractExecutorService aes;
     private final BlockingQueue<Future<V>> completionQueue;

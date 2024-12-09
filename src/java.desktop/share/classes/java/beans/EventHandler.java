@@ -24,9 +24,6 @@
  */
 package java.beans;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
@@ -275,8 +272,7 @@ import sun.reflect.misc.MethodUtil;
  * @author Hans Muller
  *
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class EventHandler implements InvocationHandler {
+public class EventHandler implements InvocationHandler {
     private Object target;
     private String action;
     private final String eventPropertyName;

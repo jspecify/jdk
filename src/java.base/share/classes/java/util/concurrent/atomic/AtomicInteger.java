@@ -35,9 +35,6 @@
 
 package java.util.concurrent.atomic;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.lang.invoke.VarHandle;
 import java.util.function.IntBinaryOperator;
 import java.util.function.IntUnaryOperator;
@@ -55,8 +52,7 @@ import jdk.internal.misc.Unsafe;
  * @since 1.5
  * @author Doug Lea
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class AtomicInteger extends Number implements java.io.Serializable {
+public class AtomicInteger extends Number implements java.io.Serializable {
     private static final long serialVersionUID = 6214790243416807050L;
 
     /*

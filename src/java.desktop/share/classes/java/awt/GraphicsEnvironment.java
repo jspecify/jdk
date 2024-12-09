@@ -25,9 +25,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.image.BufferedImage;
 import java.util.Locale;
 
@@ -53,8 +50,7 @@ import sun.java2d.SunGraphicsEnvironment;
  * @see GraphicsConfiguration
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class GraphicsEnvironment {
+public abstract class GraphicsEnvironment {
 
     /**
      * The headless state of the Toolkit and GraphicsEnvironment

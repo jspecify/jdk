@@ -24,9 +24,6 @@
  */
 package javax.swing.plaf.basic;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.*;
 import java.awt.*;
 import java.net.URL;
@@ -48,7 +45,6 @@ import sun.swing.SwingUtilities2;
  * @author  Timothy Prinzing
  * @since 1.3
  */
-@AnnotatedFor({"interning"})
 public class BasicHTML {
 
     /**
@@ -274,7 +270,7 @@ public class BasicHTML {
      * Key to use for the html renderer when stored as a
      * client property of a JComponent.
      */
-    public static final @Interned String propertyKey = "html";
+    public static final String propertyKey = "html";
 
     /**
      * Key stored as a client property to indicate the base that relative
@@ -286,7 +282,7 @@ public class BasicHTML {
      *                                xxx.class.getResource("resources/"));
      * </pre>
      */
-    public static final @Interned String documentBaseKey = "html.base";
+    public static final String documentBaseKey = "html.base";
 
     static BasicEditorKit getFactory() {
         if (basicHTMLFactory == null) {

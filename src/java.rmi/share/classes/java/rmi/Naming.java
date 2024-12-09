@@ -24,9 +24,6 @@
  */
 package java.rmi;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.rmi.registry.*;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -72,7 +69,6 @@ import java.net.URISyntaxException;
  * @see     java.rmi.registry.LocateRegistry
  * @see     java.rmi.registry.LocateRegistry#createRegistry(int)
  */
-@AnnotatedFor({"interning"})
 public final class Naming {
     /**
      * Disallow anyone from creating one of these

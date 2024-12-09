@@ -26,8 +26,6 @@
 
 package sun.net.www.protocol.https;
 
-import org.checkerframework.checker.signature.qual.CanonicalName;
-
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.io.PrintStream;
@@ -114,7 +112,7 @@ final class HttpsClient extends HttpClient
     private static final int    httpsPortNumber = 443;
 
     // default HostnameVerifier class canonical name
-    private static final @CanonicalName String defaultHVCanonicalName =
+    private static final String defaultHVCanonicalName =
             "javax.net.ssl.HttpsURLConnection.DefaultHostnameVerifier";
 
     /** Returns the default HTTPS port (443) */

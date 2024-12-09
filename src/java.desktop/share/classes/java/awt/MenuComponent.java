@@ -25,9 +25,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.event.ActionEvent;
 import java.awt.peer.MenuComponentPeer;
 import java.io.IOException;
@@ -58,8 +55,7 @@ import sun.awt.ComponentFactory;
  * @author      Arthur van Hoff
  * @since       1.0
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class MenuComponent implements java.io.Serializable {
+public abstract class MenuComponent implements java.io.Serializable {
 
     transient volatile MenuComponentPeer peer;
     transient volatile MenuContainer parent;

@@ -25,9 +25,6 @@
 
 package javax.security.sasl;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import javax.security.auth.callback.CallbackHandler;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -70,7 +67,6 @@ import java.util.logging.Logger;
  * @author Rosanna Lee
  * @author Rob Weltman
  */
-@AnnotatedFor({"interning"})
 public class Sasl {
 
     private static List<String> disabledMechanisms = new ArrayList<>();
@@ -114,7 +110,7 @@ public class Sasl {
      * server. If this property is absent, the default qop is {@code "auth"}.
      * The value of this constant is {@code "javax.security.sasl.qop"}.
      */
-    public static final @Interned String QOP = "javax.security.sasl.qop";
+    public static final String QOP = "javax.security.sasl.qop";
 
     /**
      * The name of a property that specifies the cipher strength to use.
@@ -136,7 +132,7 @@ public class Sasl {
      * {@code "high,medium,low"}.
      * The value of this constant is {@code "javax.security.sasl.strength"}.
      */
-    public static final @Interned String STRENGTH = "javax.security.sasl.strength";
+    public static final String STRENGTH = "javax.security.sasl.strength";
 
     /**
      * The name of a property that specifies whether the
@@ -170,7 +166,7 @@ public class Sasl {
      * is defined by the mechanism.
      * <br>The value of this constant is {@code "javax.security.sasl.maxbuffer"}.
      */
-    public static final @Interned String MAX_BUFFER = "javax.security.sasl.maxbuffer";
+    public static final String MAX_BUFFER = "javax.security.sasl.maxbuffer";
 
     /**
      * The name of a property that specifies the maximum size of the raw send
@@ -180,7 +176,7 @@ public class Sasl {
      * during the authentication exchange.
      * <br>The value of this constant is {@code "javax.security.sasl.rawsendsize"}.
      */
-    public static final @Interned String RAW_SEND_SIZE = "javax.security.sasl.rawsendsize";
+    public static final String RAW_SEND_SIZE = "javax.security.sasl.rawsendsize";
 
     /**
      * The name of a property that specifies whether to reuse previously
@@ -207,7 +203,7 @@ public class Sasl {
      * criteria for reusability. Such customizations are
      * implementation-dependent.
      */
-     public static final @Interned String REUSE = "javax.security.sasl.reuse";
+     public static final String REUSE = "javax.security.sasl.reuse";
 
     /**
      * The name of a property that specifies
@@ -303,7 +299,7 @@ public class Sasl {
      * The value of this constant is
      * {@code "javax.security.sasl.credentials"}.
      */
-    public static final @Interned String CREDENTIALS = "javax.security.sasl.credentials";
+    public static final String CREDENTIALS = "javax.security.sasl.credentials";
 
     /**
      * Creates a {@code SaslClient} using the parameters supplied.

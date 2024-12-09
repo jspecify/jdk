@@ -25,9 +25,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.datatransfer.Clipboard;
 import java.awt.dnd.DragGestureListener;
 import java.awt.dnd.DragGestureRecognizer;
@@ -134,8 +131,7 @@ import sun.awt.SunToolkit;
  * @author      Fred Ecks
  * @since       1.0
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class Toolkit {
+public abstract class Toolkit {
 
     /**
      * Constructs a {@code Toolkit}.

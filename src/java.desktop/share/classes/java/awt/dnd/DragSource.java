@@ -25,9 +25,6 @@
 
 package java.awt.dnd;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.GraphicsEnvironment;
@@ -117,8 +114,7 @@ import sun.awt.dnd.SunDragSourceContextPeer;
  * @since 1.2
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class DragSource implements Serializable {
+public class DragSource implements Serializable {
 
     /**
      * Use serialVersionUID from JDK 1.4 for interoperability.

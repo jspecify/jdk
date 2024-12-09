@@ -25,9 +25,6 @@
 
 package java.nio.channels;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -61,8 +58,7 @@ import sun.nio.cs.StreamEncoder;
  * @since 1.4
  */
 
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class Channels {
+public final class Channels {
 
     private Channels() { throw new Error("no instances"); }
 

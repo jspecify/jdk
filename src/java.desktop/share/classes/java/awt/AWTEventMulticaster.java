@@ -24,9 +24,6 @@
  */
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.event.*;
 import java.lang.reflect.Array;
 import java.util.EventListener;
@@ -106,8 +103,7 @@ import java.util.EventListener;
  * @since       1.1
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class AWTEventMulticaster implements
+public class AWTEventMulticaster implements
     ComponentListener, ContainerListener, FocusListener, KeyListener,
     MouseListener, MouseMotionListener, WindowListener, WindowFocusListener,
     WindowStateListener, ActionListener, ItemListener, AdjustmentListener,

@@ -25,9 +25,6 @@
 
 package java.lang.management;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import javax.management.openmbean.CompositeData;
 import sun.management.MemoryUsageCompositeData;
 
@@ -112,8 +109,7 @@ import sun.management.MemoryUsageCompositeData;
  * @author   Mandy Chung
  * @since   1.5
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class MemoryUsage {
+public class MemoryUsage {
     private final long init;
     private final long used;
     private final long committed;

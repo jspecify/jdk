@@ -74,8 +74,4 @@
  * @spec security/standard-names.html Java Security Standard Algorithm Names
  * @since 1.1
  */
-@DefaultQualifier(value = KeyForBottom.class, locations = TypeUseLocation.LOWER_BOUND)
 package java.security;
-import  org.checkerframework.framework.qual.DefaultQualifier;
-import  org.checkerframework.framework.qual.TypeUseLocation;
-import  org.checkerframework.checker.nullness.qual.KeyForBottom;

@@ -1,5 +1,3 @@
-import org.checkerframework.checker.signature.qual.BinaryName;
-
 /*
  * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -89,7 +87,7 @@ public class TestLoggerBundleSync {
 
 
     public static final class LoggerRB {
-        public final @BinaryName String resourceBundleName;
+        public final String resourceBundleName;
         public final ResourceBundle userBundle;
         public LoggerRB(String name, ResourceBundle bundle) {
             resourceBundleName = name;

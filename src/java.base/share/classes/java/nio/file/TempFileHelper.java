@@ -25,9 +25,6 @@
 
 package java.nio.file;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Set;
 import java.util.EnumSet;
 import java.security.SecureRandom;
@@ -43,8 +40,7 @@ import jdk.internal.util.StaticProperty;
  * initial attributes.
  */
 
-@AnnotatedFor({"interning"})
-@UsesObjectEquals class TempFileHelper {
+class TempFileHelper {
     private TempFileHelper() { }
 
     // temporary directory location

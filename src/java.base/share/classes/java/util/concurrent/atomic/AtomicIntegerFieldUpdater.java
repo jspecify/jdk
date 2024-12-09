@@ -35,9 +35,6 @@
 
 package java.util.concurrent.atomic;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.function.IntBinaryOperator;
@@ -69,8 +66,7 @@ import java.lang.invoke.VarHandle;
  * @author Doug Lea
  * @param <T> The type of the object holding the updatable field
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class AtomicIntegerFieldUpdater<T> {
+public abstract class AtomicIntegerFieldUpdater<T> {
     /**
      * Creates and returns an updater for objects with the given field.
      * The Class argument is needed to check that reflective types and

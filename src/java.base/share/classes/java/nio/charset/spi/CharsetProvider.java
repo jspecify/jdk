@@ -25,9 +25,6 @@
 
 package java.nio.charset.spi;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.charset.Charset;
 import java.util.Iterator;
 
@@ -83,8 +80,7 @@ import java.util.Iterator;
  * @see java.nio.charset.Charset
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class CharsetProvider {
+public abstract class CharsetProvider {
 
     /**
      * Initializes a new charset provider.

@@ -25,9 +25,6 @@
 
 package java.nio.channels;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.file.*;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.spi.*;
@@ -114,8 +111,7 @@ import java.util.Collections;
  * @since 1.7
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class AsynchronousFileChannel
+public abstract class AsynchronousFileChannel
     implements AsynchronousChannel
 {
     /**

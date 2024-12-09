@@ -24,9 +24,6 @@
  */
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.event.FocusEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -101,8 +98,7 @@ import sun.awt.AWTAccessor;
  * @see java.awt.event.KeyEvent
  * @since 1.4
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class KeyboardFocusManager
+public abstract class KeyboardFocusManager
     implements KeyEventDispatcher, KeyEventPostProcessor
 {
 
