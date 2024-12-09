@@ -25,8 +25,6 @@
 
 package com.sun.tools.jdi;
 
-import org.jspecify.annotations.Nullable;
-
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
@@ -302,9 +300,7 @@ class VirtualMachineImpl extends MirrorImpl
          */
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         return this == obj;
     }
 

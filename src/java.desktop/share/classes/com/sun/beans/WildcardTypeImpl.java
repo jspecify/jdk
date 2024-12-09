@@ -24,8 +24,6 @@
  */
 package com.sun.beans;
 
-import org.jspecify.annotations.Nullable;
-
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.util.Arrays;
@@ -104,9 +102,7 @@ final class WildcardTypeImpl implements WildcardType {
      * @see sun.reflect.generics.reflectiveObjects.WildcardTypeImpl#equals
      */
     @Override
-    
-    
-    public boolean equals(@Nullable Object object) {
+    public boolean equals(Object object) {
         if (object instanceof WildcardType) {
             WildcardType type = (WildcardType) object;
             return Arrays.equals(this.upperBounds, type.getUpperBounds())

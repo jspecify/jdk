@@ -25,8 +25,6 @@
 
 package javax.security.auth.kerberos;
 
-import org.jspecify.annotations.Nullable;
-
 import java.io.*;
 import java.util.Arrays;
 import javax.crypto.SecretKey;
@@ -241,9 +239,7 @@ class KeyImpl implements SecretKey, Destroyable, Serializable {
         return 37 * result + keyType;
     }
 
-    
-    
-    public boolean equals(@Nullable Object other) {
+    public boolean equals(Object other) {
 
         if (other == this)
             return true;

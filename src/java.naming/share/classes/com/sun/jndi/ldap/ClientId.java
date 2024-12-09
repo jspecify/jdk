@@ -25,8 +25,6 @@
 
 package com.sun.jndi.ldap;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.Locale;
 import java.util.Arrays; // JDK 1.2
 import java.io.OutputStream;
@@ -117,9 +115,7 @@ class ClientId {
             + (ctlHash=hashCodeControls(bindCtls));
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (!(obj instanceof ClientId)) {
             return false;
         }

@@ -25,8 +25,6 @@
 
 package java.awt.datatransfer;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -76,9 +74,7 @@ class MimeTypeParameterList implements Cloneable {
      * set of parameter names and associated values. The order of the parameters
      * is not considered.
      */
-    
-    
-    public boolean equals(@Nullable Object thatObject) {
+    public boolean equals(Object thatObject) {
         //System.out.println("MimeTypeParameterList.equals("+this+","+thatObject+")");
         if (!(thatObject instanceof MimeTypeParameterList)) {
             return false;

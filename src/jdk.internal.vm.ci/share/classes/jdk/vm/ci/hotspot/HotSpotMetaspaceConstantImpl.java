@@ -22,8 +22,6 @@
  */
 package jdk.vm.ci.hotspot;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.Objects;
 
 import jdk.vm.ci.meta.Constant;
@@ -56,9 +54,7 @@ final class HotSpotMetaspaceConstantImpl implements HotSpotMetaspaceConstant, VM
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         if (o == this) {
             return true;
         }

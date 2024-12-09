@@ -34,8 +34,6 @@
 
 package com.sun.tools.example.debug.tty;
 
-import org.jspecify.annotations.Nullable;
-
 import com.sun.jdi.*;
 import com.sun.jdi.request.*;
 
@@ -118,9 +116,7 @@ class BreakpointSpec extends EventRequestSpec {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj instanceof BreakpointSpec) {
             BreakpointSpec breakpoint = (BreakpointSpec)obj;
 
