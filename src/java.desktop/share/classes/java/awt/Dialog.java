@@ -28,6 +28,10 @@ package java.awt;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.awt.event.ComponentEvent;
+import java.awt.event.HierarchyEvent;
+import java.awt.event.InvocationEvent;
+import java.awt.event.WindowEvent;
 import java.awt.peer.DialogPeer;
 import java.io.IOException;
 import java.io.ObjectInputStream;
