@@ -47,15 +47,15 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * // All the below is null-marked code
  *
- * class MyOptional<T> { … }
+ * class MyOptional<T> { ... }
  *
  * interface MyList<E extends @Nullable Object> {
  *   // Returns the first non-null element, if such element exists.
- *   MyOptional<E> firstNonNull() { … } // problem here!
+ *   MyOptional<E> firstNonNull() { ... } // problem here!
  * }
  *
- * MyList<@Nullable String> maybeNulls = …
- * MyList<String> nonNulls = …
+ * MyList<@Nullable String> maybeNulls = ...
+ * MyList<String> nonNulls = ...
  * }</pre>
  *
  * <p>Because {@code MyOptional} accepts only non-null type arguments, we need both {@code
@@ -70,7 +70,7 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * // Returns the first non-null element, if such element exists.
- * MyOptional<@NonNull E> firstNonNull() { … } // problem fixed!
+ * MyOptional<@NonNull E> firstNonNull() { ... } // problem fixed!
  * }</pre>
  *
  * <p>Here, {@code @NonNull E} selects the non-null form of the type argument, whether it was

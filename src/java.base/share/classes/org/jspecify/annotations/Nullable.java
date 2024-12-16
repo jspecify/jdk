@@ -36,7 +36,7 @@ import java.lang.annotation.Target;
  *
  * void setField(@Nullable String value) { field = value; }
  *
- * List<@Nullable String> getList() { … }
+ * List<@Nullable String> getList() { ... }
  * }</pre>
  *
  * <p>For a comprehensive introduction to JSpecify, please see <a
