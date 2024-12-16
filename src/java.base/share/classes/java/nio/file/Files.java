@@ -25,10 +25,6 @@
 
 package java.nio.file;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.Closeable;
@@ -3173,7 +3169,7 @@ public final class Files {
      *          StandardOpenOption#CREATE_NEW CREATE_NEW} option is specified
      *          <i>(optional specific exception)</i>
      */
-    public static Path write(Path path, @PolySigned byte[] bytes, OpenOption... options)
+    public static Path write(Path path, byte[] bytes, OpenOption... options)
         throws IOException
     {
         // ensure bytes is not null before opening file

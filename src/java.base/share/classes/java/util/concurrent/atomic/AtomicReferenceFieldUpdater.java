@@ -35,8 +35,6 @@
 
 package java.util.concurrent.atomic;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -90,9 +88,8 @@ import java.lang.invoke.VarHandle;
  * @param <T> The type of the object holding the updatable field
  * @param <V> The type of the field
  */
-@AnnotatedFor({"interning"})
 @NullMarked
-public abstract @UsesObjectEquals class AtomicReferenceFieldUpdater<T,V extends @Nullable Object> {
+public abstract class AtomicReferenceFieldUpdater<T,V extends @Nullable Object> {
 
     /**
      * Creates and returns an updater for objects with the given field.
