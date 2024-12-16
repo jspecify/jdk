@@ -25,9 +25,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * Capabilities and properties of buffers.
  *
@@ -36,8 +33,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Michael Martak
  * @since 1.4
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class BufferCapabilities implements Cloneable {
+public class BufferCapabilities implements Cloneable {
 
     private ImageCapabilities frontCaps;
     private ImageCapabilities backCaps;

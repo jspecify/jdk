@@ -61,8 +61,6 @@
  */
 package java.time.chrono;
 
-import org.jspecify.annotations.Nullable;
-
 import static java.time.temporal.ChronoUnit.SECONDS;
 
 import java.io.IOException;
@@ -367,9 +365,7 @@ final class ChronoZonedDateTimeImpl<D extends ChronoLocalDate>
 
     //-------------------------------------------------------------------------
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }

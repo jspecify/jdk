@@ -60,7 +60,4 @@
  *      The Java AWT Native Interface Specification and Guide
  * @since 1.0
  */
-@UIPackage
 package java.awt;
-
-import org.checkerframework.checker.guieffect.qual.UIPackage;

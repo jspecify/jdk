@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,9 @@
 
 package java.security.cert;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.security.AccessController;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.security.PrivilegedAction;
 import java.security.Provider;
 import java.security.Security;
 import java.util.Collection;
@@ -92,8 +87,7 @@ import sun.security.jca.GetInstance.Instance;
  * @since       1.4
  * @author      Sean Mullan, Steve Hanna
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class CertStore {
+public class CertStore {
     /*
      * Constant to lookup in the Security properties file to determine
      * the default certstore type. In the Security properties file, the
@@ -430,11 +424,8 @@ public @UsesObjectEquals class CertStore {
      * {@code certstore.type} security property, or the string
      * {@literal "LDAP"} if no such property exists.
      */
-    @SuppressWarnings("removal")
     public static final String getDefaultType() {
-        String cstype;
-        cstype = AccessController.doPrivileged((PrivilegedAction<String>) () ->
-                Security.getProperty(CERTSTORE_TYPE));
+        String cstype = Security.getProperty(CERTSTORE_TYPE);
         if (cstype == null) {
             cstype = "LDAP";
         }

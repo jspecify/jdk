@@ -2181,11 +2181,6 @@ public final class Formatter implements Closeable, Flushable {
      *         zero size; otherwise, a new file will be created.  The output
      *         will be written to the file and is buffered.
      *
-     * @throws  SecurityException
-     *          If a security manager is present and {@link
-     *          SecurityManager#checkWrite checkWrite(fileName)} denies write
-     *          access to the file
-     *
      * @throws  FileNotFoundException
      *          If the given file name does not denote an existing, writable
      *          regular file and a new regular file of that name cannot be
@@ -2221,11 +2216,6 @@ public final class Formatter implements Closeable, Flushable {
      *          created, or if some other error occurs while opening or
      *          creating the file
      *
-     * @throws  SecurityException
-     *          If a security manager is present and {@link
-     *          SecurityManager#checkWrite checkWrite(fileName)} denies write
-     *          access to the file
-     *
      * @throws  UnsupportedEncodingException
      *          If the named charset is not supported
      */
@@ -2260,11 +2250,6 @@ public final class Formatter implements Closeable, Flushable {
      *          created, or if some other error occurs while opening or
      *          creating the file
      *
-     * @throws  SecurityException
-     *          If a security manager is present and {@link
-     *          SecurityManager#checkWrite checkWrite(fileName)} denies write
-     *          access to the file
-     *
      * @throws  UnsupportedEncodingException
      *          If the named charset is not supported
      */
@@ -2295,11 +2280,6 @@ public final class Formatter implements Closeable, Flushable {
      * @throws  IOException
      *          if an I/O error occurs while opening or creating the file
      *
-     * @throws  SecurityException
-     *          If a security manager is present and {@link
-     *          SecurityManager#checkWrite checkWrite(fileName)} denies write
-     *          access to the file
-     *
      * @throws NullPointerException
      *         if {@code fileName} or {@code charset} is {@code null}.
      *
@@ -2326,11 +2306,6 @@ public final class Formatter implements Closeable, Flushable {
      *         file exists then it will be truncated to zero size; otherwise,
      *         a new file will be created.  The output will be written to the
      *         file and is buffered.
-     *
-     * @throws  SecurityException
-     *          If a security manager is present and {@link
-     *          SecurityManager#checkWrite checkWrite(file.getPath())} denies
-     *          write access to the file
      *
      * @throws  FileNotFoundException
      *          If the given file object does not denote an existing, writable
@@ -2367,11 +2342,6 @@ public final class Formatter implements Closeable, Flushable {
      *          created, or if some other error occurs while opening or
      *          creating the file
      *
-     * @throws  SecurityException
-     *          If a security manager is present and {@link
-     *          SecurityManager#checkWrite checkWrite(file.getPath())} denies
-     *          write access to the file
-     *
      * @throws  UnsupportedEncodingException
      *          If the named charset is not supported
      */
@@ -2406,11 +2376,6 @@ public final class Formatter implements Closeable, Flushable {
      *          created, or if some other error occurs while opening or
      *          creating the file
      *
-     * @throws  SecurityException
-     *          If a security manager is present and {@link
-     *          SecurityManager#checkWrite checkWrite(file.getPath())} denies
-     *          write access to the file
-     *
      * @throws  UnsupportedEncodingException
      *          If the named charset is not supported
      */
@@ -2440,11 +2405,6 @@ public final class Formatter implements Closeable, Flushable {
      *
      * @throws IOException
      *         if an I/O error occurs while opening or creating the file
-     *
-     * @throws SecurityException
-     *         If a security manager is present and {@link
-     *         SecurityManager#checkWrite checkWrite(file.getPath())} denies
-     *         write access to the file
      *
      * @throws NullPointerException
      *         if {@code file} or {@code charset} is {@code null}.

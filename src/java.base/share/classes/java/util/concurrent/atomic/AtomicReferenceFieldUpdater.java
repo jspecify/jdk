@@ -43,9 +43,6 @@ import org.jspecify.annotations.Nullable;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
 import jdk.internal.misc.Unsafe;
@@ -328,7 +325,6 @@ public abstract @UsesObjectEquals class AtomicReferenceFieldUpdater<T,V extends 
          * screenings fail.
          */
 
-        @SuppressWarnings("removal")
         AtomicReferenceFieldUpdaterImpl(final Class<T> tclass,
                                         final Class<V> vclass,
                                         final String fieldName,
@@ -337,24 +333,11 @@ public abstract @UsesObjectEquals class AtomicReferenceFieldUpdater<T,V extends 
             final Class<?> fieldClass;
             final int modifiers;
             try {
-                field = AccessController.doPrivileged(
-                    new PrivilegedExceptionAction<Field>() {
-                        public Field run() throws NoSuchFieldException {
-                            return tclass.getDeclaredField(fieldName);
-                        }
-                    });
+                field = tclass.getDeclaredField(fieldName);
                 modifiers = field.getModifiers();
                 sun.reflect.misc.ReflectUtil.ensureMemberAccess(
                     caller, tclass, null, modifiers);
-                ClassLoader cl = tclass.getClassLoader();
-                ClassLoader ccl = caller.getClassLoader();
-                if ((ccl != null) && (ccl != cl) &&
-                    ((cl == null) || !isAncestor(cl, ccl))) {
-                    sun.reflect.misc.ReflectUtil.checkPackageAccess(tclass);
-                }
                 fieldClass = field.getType();
-            } catch (PrivilegedActionException pae) {
-                throw new RuntimeException(pae.getException());
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }

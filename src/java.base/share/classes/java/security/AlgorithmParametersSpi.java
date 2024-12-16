@@ -25,9 +25,6 @@
 
 package java.security;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.*;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.InvalidParameterSpecException;
@@ -51,8 +48,7 @@ import java.security.spec.InvalidParameterSpecException;
  * @since 1.2
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class AlgorithmParametersSpi {
+public abstract class AlgorithmParametersSpi {
 
     /**
      * Constructor for subclasses to call.

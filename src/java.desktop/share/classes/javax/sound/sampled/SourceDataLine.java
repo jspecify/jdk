@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,6 @@
  */
 
 package javax.sound.sampled;
-
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * A source data line is a data line to which data may be written. It acts as a
@@ -64,7 +61,6 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see TargetDataLine
  * @since 1.3
  */
-@AnnotatedFor({"signedness"})
 public interface SourceDataLine extends DataLine {
 
     /**
@@ -97,8 +93,6 @@ public interface SourceDataLine extends DataLine {
      *         integral number of sample frames, or if {@code format} is not
      *         fully specified or invalid
      * @throws IllegalStateException if the line is already open
-     * @throws SecurityException if the line cannot be opened due to security
-     *         restrictions
      * @see #open(AudioFormat)
      * @see Line#open
      * @see Line#close
@@ -133,8 +127,6 @@ public interface SourceDataLine extends DataLine {
      * @throws IllegalArgumentException if {@code format} is not fully specified
      *         or invalid
      * @throws IllegalStateException if the line is already open
-     * @throws SecurityException if the line cannot be opened due to security
-     *         restrictions
      * @see #open(AudioFormat, int)
      * @see Line#open
      * @see Line#close
@@ -184,7 +176,7 @@ public interface SourceDataLine extends DataLine {
      * @see TargetDataLine#read
      * @see DataLine#available
      */
-    int write(@PolySigned byte[] b, int off, int len);
+    int write(byte[] b, int off, int len);
 
     /**
      * Obtains the number of sample frames of audio data that can be written to
