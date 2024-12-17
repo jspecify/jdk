@@ -1515,7 +1515,7 @@ public class Properties extends Hashtable<Object,Object> {
 
     @Override
     public synchronized @Nullable Object compute(Object key,
-            BiFunction<? super Object, ? super Object, ? extends @Nullable Object> remappingFunction) {
+            BiFunction<? super Object, ? super Object, ?> remappingFunction) {
         return map.compute(key, remappingFunction);
     }
 
