@@ -38,8 +38,6 @@
 
 package java.text;
 
-import org.jspecify.annotations.Nullable;
-
 import java.lang.Character;
 
 /**
@@ -70,9 +68,7 @@ class PatternEntry {
      * Because Vector.indexOf doesn't take a comparator,
      * this method is ill-defined and ignores strength.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj == null) return false;
         PatternEntry other = (PatternEntry) obj;
         boolean result = chars.equals(other.chars);

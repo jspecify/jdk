@@ -25,9 +25,6 @@
 
 package java.awt.image;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.image.ImageConsumer;
 import java.awt.image.ImageProducer;
 import java.awt.image.ColorModel;
@@ -107,8 +104,7 @@ import java.util.Enumeration;
  * @author      Animation capabilities inspired by the
  *              MemoryAnimationSource class written by Garth Dickie
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class MemoryImageSource implements ImageProducer {
+public class MemoryImageSource implements ImageProducer {
     int width;
     int height;
     ColorModel model;

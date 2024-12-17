@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,13 @@
 
 package javax.security.auth.kerberos;
 
-import org.jspecify.annotations.Nullable;
-
 import java.io.*;
 import java.util.Arrays;
 import javax.crypto.SecretKey;
 import javax.security.auth.Destroyable;
 import javax.security.auth.DestroyFailedException;
-import sun.security.util.HexDumpEncoder;
+
+import sun.security.jgss.krb5.Krb5Util;
 import sun.security.krb5.Asn1Exception;
 import sun.security.krb5.PrincipalName;
 import sun.security.krb5.EncryptionKey;
@@ -97,7 +96,7 @@ class KeyImpl implements SecretKey, Destroyable, Serializable {
             this.keyBytes = key.getBytes();
             this.keyType = key.getEType();
         } catch (KrbException e) {
-            throw new IllegalArgumentException(e.getMessage());
+            throw new IllegalArgumentException("key creation error", e);
         }
     }
 
@@ -227,15 +226,8 @@ class KeyImpl implements SecretKey, Destroyable, Serializable {
     }
 
     public String toString() {
-        HexDumpEncoder hd = new HexDumpEncoder();
-        return "EncryptionKey: keyType=" + keyType
-                          + " keyBytes (hex dump)="
-                          + (keyBytes == null || keyBytes.length == 0 ?
-                             " Empty Key" :
-                             '\n' + hd.encodeBuffer(keyBytes)
-                          + '\n');
-
-
+        return "keyType=" + keyType
+                + ", " + Krb5Util.keyInfo(keyBytes);
     }
 
     public int hashCode() {
@@ -247,9 +239,7 @@ class KeyImpl implements SecretKey, Destroyable, Serializable {
         return 37 * result + keyType;
     }
 
-    
-    
-    public boolean equals(@Nullable Object other) {
+    public boolean equals(Object other) {
 
         if (other == this)
             return true;

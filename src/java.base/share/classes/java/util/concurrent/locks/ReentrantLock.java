@@ -35,12 +35,6 @@
 
 package java.util.concurrent.locks;
 
-import org.checkerframework.checker.lock.qual.EnsuresLockHeld;
-import org.checkerframework.checker.lock.qual.EnsuresLockHeldIf;
-import org.checkerframework.checker.lock.qual.MayReleaseLocks;
-import org.checkerframework.checker.lock.qual.ReleasesNoLocks;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import jdk.internal.vm.annotation.ReservedStackAccess;
@@ -112,7 +106,6 @@ import jdk.internal.vm.annotation.ReservedStackAccess;
  * @since 1.5
  * @author Doug Lea
  */
-@AnnotatedFor("lock")
 public class ReentrantLock implements Lock, java.io.Serializable {
     private static final long serialVersionUID = 7373984872572414699L;
     /** Synchronizer providing all implementation mechanics */
@@ -326,8 +319,6 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      * purposes and lies dormant until the lock has been acquired,
      * at which time the lock hold count is set to one.
      */
-    @EnsuresLockHeld({"this"})
-    @ReleasesNoLocks
     public void lock() {
         sync.lock();
     }
@@ -378,8 +369,6 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      *
      * @throws InterruptedException if the current thread is interrupted
      */
-    @EnsuresLockHeld({"this"})
-    @ReleasesNoLocks
     public void lockInterruptibly() throws InterruptedException {
         sync.lockInterruptibly();
     }
@@ -410,8 +399,6 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      *         current thread, or the lock was already held by the current
      *         thread; and {@code false} otherwise
      */
-    @EnsuresLockHeldIf(expression={"this"}, result=true)
-    @ReleasesNoLocks
     public boolean tryLock() {
         return sync.tryLock();
     }
@@ -488,8 +475,6 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      * @throws InterruptedException if the current thread is interrupted
      * @throws NullPointerException if the time unit is null
      */
-    @EnsuresLockHeldIf(expression={"this"}, result=true)
-    @ReleasesNoLocks
     public boolean tryLock(long timeout, TimeUnit unit)
             throws InterruptedException {
         return sync.tryLockNanos(unit.toNanos(timeout));
@@ -506,7 +491,6 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      * @throws IllegalMonitorStateException if the current thread does not
      *         hold this lock
      */
-    @MayReleaseLocks
     public void unlock() {
         sync.release(1);
     }
@@ -628,8 +612,6 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      * @return {@code true} if current thread holds this lock and
      *         {@code false} otherwise
      */
-    @EnsuresLockHeldIf(expression={"this"}, result=true)
-    @ReleasesNoLocks
     public boolean isHeldByCurrentThread() {
         return sync.isHeldExclusively();
     }

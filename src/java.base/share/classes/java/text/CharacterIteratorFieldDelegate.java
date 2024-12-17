@@ -24,9 +24,6 @@
  */
 package java.text;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.ArrayList;
 
 /**
@@ -36,8 +33,7 @@ import java.util.ArrayList;
  * the {@code getIterator} method.
  *
  */
-@AnnotatedFor({"interning"})
-@UsesObjectEquals class CharacterIteratorFieldDelegate implements Format.FieldDelegate {
+class CharacterIteratorFieldDelegate implements Format.FieldDelegate {
     /**
      * Array of AttributeStrings. Whenever {@code formatted} is invoked
      * for a region > size, a new instance of AttributedString is added to

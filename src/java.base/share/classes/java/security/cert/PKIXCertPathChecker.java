@@ -25,9 +25,6 @@
 
 package java.security.cert;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Collection;
 import java.util.Set;
 
@@ -90,8 +87,7 @@ import java.util.Set;
  * @author      Yassir Elley
  * @author      Sean Mullan
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class PKIXCertPathChecker
+public abstract class PKIXCertPathChecker
     implements CertPathChecker, Cloneable {
 
     /**

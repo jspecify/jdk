@@ -24,7 +24,6 @@
  */
 
 package java.lang.reflect;
-import org.checkerframework.common.value.qual.MinLen;
 
 /**
  * WildcardType represents a wildcard type expression, such as
@@ -59,7 +58,7 @@ public interface WildcardType extends Type {
      *     bounds refer to a parameterized type that cannot be instantiated
      *     for any reason
      */
-    Type @MinLen(1) [] getUpperBounds();
+    Type[] getUpperBounds();
 
     /**
      * Returns an array of {@code Type} objects representing the

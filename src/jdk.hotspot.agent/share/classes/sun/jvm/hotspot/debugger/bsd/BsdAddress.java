@@ -24,8 +24,6 @@
 
 package sun.jvm.hotspot.debugger.bsd;
 
-import org.jspecify.annotations.Nullable;
-
 import sun.jvm.hotspot.debugger.*;
 
 class BsdAddress implements Address {
@@ -41,9 +39,7 @@ class BsdAddress implements Address {
     // Basic Java routines
     //
 
-    
-    
-    public boolean equals(@Nullable Object arg) {
+    public boolean equals(Object arg) {
         if (arg == null) {
             return false;
         }

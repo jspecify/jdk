@@ -24,9 +24,6 @@
  */
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * A FocusTraversalPolicy defines the order in which Components with a
  * particular focus cycle root are traversed. Instances can apply the policy to
@@ -70,8 +67,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see KeyboardFocusManager#getDefaultFocusTraversalPolicy
  * @since 1.4
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class FocusTraversalPolicy {
+public abstract class FocusTraversalPolicy {
 
     /**
      * Constructs a {@code FocusTraversalPolicy}.

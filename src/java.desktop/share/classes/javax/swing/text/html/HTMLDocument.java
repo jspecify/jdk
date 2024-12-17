@@ -24,9 +24,6 @@
  */
 package javax.swing.text.html;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.font.TextAttribute;
 import java.io.IOException;
 import java.io.StringReader;
@@ -302,7 +299,6 @@ import static sun.swing.SwingUtilities2.IMPLIED_CR;
  * @author  Scott Violet
  * @author  Sunita Mani
  */
-@AnnotatedFor({"interning"})
 @SuppressWarnings("serial") // Same-version serialization only
 public class HTMLDocument extends DefaultStyledDocument {
     /**
@@ -1842,7 +1838,7 @@ public class HTMLDocument extends DefaultStyledDocument {
      * Document property key value. The value for the key will be a Vector
      * of Strings that are comments not found in the body.
      */
-    public static final @Interned String AdditionalComments = "AdditionalComments";
+    public static final String AdditionalComments = "AdditionalComments";
 
     /**
      * Document property key value. The value for the key will be a

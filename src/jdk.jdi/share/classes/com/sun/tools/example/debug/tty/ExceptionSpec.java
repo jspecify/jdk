@@ -34,8 +34,6 @@
 
 package com.sun.tools.example.debug.tty;
 
-import org.jspecify.annotations.Nullable;
-
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.request.*;
 
@@ -87,9 +85,7 @@ class ExceptionSpec extends EventRequestSpec {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj instanceof ExceptionSpec) {
             ExceptionSpec es = (ExceptionSpec)obj;
 

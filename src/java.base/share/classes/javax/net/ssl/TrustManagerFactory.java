@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ package javax.net.ssl;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.security.Security;
 import java.security.*;
 import java.util.Objects;
 
@@ -78,11 +77,8 @@ public class TrustManagerFactory {
      * {@code ssl.TrustManagerFactory.algorithm} security property, or an
      * implementation-specific default if no such property exists.
      */
-    @SuppressWarnings("removal")
     public static final String getDefaultAlgorithm() {
-        String type;
-        type = AccessController.doPrivileged((PrivilegedAction<String>) () ->
-            Security.getProperty( "ssl.TrustManagerFactory.algorithm"));
+        String type = Security.getProperty("ssl.TrustManagerFactory.algorithm");
         if (type == null) {
             type = "SunX509";
         }

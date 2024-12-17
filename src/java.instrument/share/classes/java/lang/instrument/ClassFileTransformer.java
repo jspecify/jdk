@@ -28,8 +28,6 @@ package java.lang.instrument;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 
 /*
@@ -183,7 +181,6 @@ import java.security.ProtectionDomain;
  * @see     java.lang.instrument.Instrumentation
  * @since   1.5
  */
-
 @NullMarked
 public interface ClassFileTransformer {
 

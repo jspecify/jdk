@@ -24,8 +24,6 @@
  */
 package sun.awt.X11;
 
-import org.jspecify.annotations.Nullable;
-
 import java.awt.*;
 
 class WindowDimensions {
@@ -166,9 +164,7 @@ class WindowDimensions {
         return "[" + loc + ", " + size + "(" +(isClientSizeSet?"client":"bounds") + ")+" + insets + "]";
     }
 
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         if (!(o instanceof WindowDimensions)) {
             return false;
         }

@@ -43,7 +43,7 @@ import java.util.function.Supplier;
  * @since 1.7
  */
 @NullMarked
-public final  class Objects {
+public final class Objects {
     private Objects() {
         throw new AssertionError("No java.util.Objects instances for you!");
     }
@@ -62,13 +62,22 @@ public final  class Objects {
      * @param b an object to be compared with {@code a} for equality
      * @see Object#equals(Object)
      */
-    
-    public static boolean equals( @Nullable Object a,  @Nullable Object b) {
+    public static boolean equals(@Nullable Object a, @Nullable Object b) {
         return (a == b) || (a != null && a.equals(b));
     }
 
-    // Define and annotate an overload that is unique to j2cl: b/201433789
-    public static boolean equals( @Nullable String a,  @Nullable String b);
+    /**
+     * Define and annotate an overload that is unique to j2cl: b/201433789.
+     *
+     * @param a an object
+     * @param b an object to be compared with {@code a} for equality
+     * @return {@code true} if the arguments are equal to each other and
+     * {@code false} otherwise
+     * @see Object#equals(Object)
+     */
+    public static boolean equals(@Nullable String a, @Nullable String b) {
+        return equals((Object) a, b);
+    }
 
    /**
     * {@return {@code true} if the arguments are deeply equal to each other
@@ -85,8 +94,7 @@ public final  class Objects {
     * @see Arrays#deepEquals(Object[], Object[])
     * @see Objects#equals(Object, Object)
     */
-    
-    public static boolean deepEquals( @Nullable Object a,  @Nullable Object b) {
+    public static boolean deepEquals(@Nullable Object a, @Nullable Object b) {
         if (a == b)
             return true;
         else if (a == null || b == null)
@@ -102,8 +110,7 @@ public final  class Objects {
      * @param o an object
      * @see Object#hashCode
      */
-    
-    public static int hashCode( @Nullable Object o) {
+    public static int hashCode(@Nullable Object o) {
         return o != null ? o.hashCode() : 0;
     }
 
@@ -132,8 +139,7 @@ public final  class Objects {
     * @see Arrays#hashCode(Object[])
     * @see List#hashCode
     */
-    
-    public static int hash( @Nullable Object... values) {
+    public static int hash(@Nullable Object... values) {
         return Arrays.hashCode(values);
     }
 
@@ -146,8 +152,7 @@ public final  class Objects {
      * @see Object#toString
      * @see String#valueOf(Object)
      */
-    
-    public static String toString( @Nullable Object o) {
+    public static String toString(@Nullable Object o) {
         return String.valueOf(o);
     }
 
@@ -161,8 +166,7 @@ public final  class Objects {
      *        {@code null}
      * @see Objects#toString(Object)
      */
-    
-    public static @Nullable String toString( @Nullable Object o, @Nullable String nullDefault) {
+    public static @Nullable String toString(@Nullable Object o, @Nullable String nullDefault) {
         return (o != null) ? o.toString() : nullDefault;
     }
 
@@ -208,8 +212,7 @@ public final  class Objects {
      * @see Comparable
      * @see Comparator
      */
-    
-    public static <T extends @Nullable Object> int compare( @Nullable T a,  @Nullable T b,  Comparator<? super T> c) {
+    public static <T extends @Nullable Object> int compare(@Nullable T a, @Nullable T b, Comparator<? super T> c) {
         return (a == b) ? 0 :  c.compare(a, b);
     }
 
@@ -273,9 +276,7 @@ public final  class Objects {
      * @see java.util.function.Predicate
      * @since 1.8
      */
-    
-    
-    public static boolean isNull( @Nullable Object obj) {
+    public static boolean isNull(@Nullable Object obj) {
         return obj == null;
     }
 
@@ -291,9 +292,7 @@ public final  class Objects {
      * @see java.util.function.Predicate
      * @since 1.8
      */
-    
-    
-    public static boolean nonNull( @Nullable Object obj) {
+    public static boolean nonNull(@Nullable Object obj) {
         return obj != null;
     }
 
@@ -309,7 +308,7 @@ public final  class Objects {
      *        {@code defaultObj} is {@code null}
      * @since 9
      */
-    public static <T>  T requireNonNullElse(@Nullable T obj,  @Nullable T defaultObj) {
+    public static <T> T requireNonNullElse(@Nullable T obj, @Nullable T defaultObj) {
         return (obj != null) ? obj : requireNonNull(defaultObj, "defaultObj");
     }
 
@@ -352,9 +351,7 @@ public final  class Objects {
      * @throws NullPointerException if {@code obj} is {@code null}
      * @since 1.8
      */
-    
-    
-    public static <T>  T requireNonNull(  @Nullable T obj,  @Nullable Supplier<String> messageSupplier) {
+    public static <T> T requireNonNull(@Nullable T obj, @Nullable Supplier<String> messageSupplier) {
         if (obj == null)
             throw new NullPointerException(messageSupplier == null ?
                                            null : messageSupplier.get());

@@ -38,9 +38,6 @@
 
 package java.text;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.lang.Character;
 import java.util.Vector;
 import sun.text.CollatorUtilities;
@@ -107,8 +104,7 @@ import jdk.internal.icu.text.NormalizerBase;
  * @author             Helena Shih, Laura Werner, Richard Gillam
  * @since 1.1
  */
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class CollationElementIterator
+public final class CollationElementIterator
 {
     /**
      * Null order which indicates the end of string is reached by the
