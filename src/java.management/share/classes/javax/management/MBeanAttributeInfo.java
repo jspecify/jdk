@@ -28,9 +28,7 @@ package javax.management;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.reflect.Method;
-import java.security.AccessController;
 
-import com.sun.jmx.mbeanserver.GetPropertyAction;
 import com.sun.jmx.mbeanserver.Introspector;
 import java.util.Objects;
 

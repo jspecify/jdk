@@ -40,9 +40,6 @@
 
 package java.awt.font;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.Font;
 
 import java.text.AttributedCharacterIterator;
@@ -98,8 +95,7 @@ import sun.font.FontResolver;
  * @since 1.3
  */
 
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class TextMeasurer implements Cloneable {
+public final class TextMeasurer implements Cloneable {
 
     // Number of lines to format to.
     private static float EST_LINES = (float) 2.1;

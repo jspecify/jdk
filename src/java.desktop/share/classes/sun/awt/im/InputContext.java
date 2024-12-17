@@ -25,9 +25,6 @@
 
 package sun.awt.im;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.AWTEvent;
 import java.awt.AWTKeyStroke;
 import java.awt.Component;
@@ -47,8 +44,6 @@ import java.awt.event.WindowListener;
 import java.awt.im.InputMethodRequests;
 import java.awt.im.spi.InputMethod;
 import java.lang.Character.Subset;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.HashMap;
@@ -68,8 +63,7 @@ import sun.awt.SunToolkit;
  * @author JavaSoft Asia/Pacific
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class InputContext extends java.awt.im.InputContext
+public class InputContext extends java.awt.im.InputContext
                           implements ComponentListener, WindowListener {
     private static final PlatformLogger log = PlatformLogger.getLogger("sun.awt.im.InputContext");
     // The current input method is represented by two objects:
@@ -1040,22 +1034,16 @@ public @UsesObjectEquals class InputContext extends java.awt.im.InputContext
     /**
      * Initializes the input method selection key definition in preference trees
      */
-    @SuppressWarnings("removal")
     private void initializeInputMethodSelectionKey() {
-        AccessController.doPrivileged(new PrivilegedAction<Object>() {
-            public Object run() {
-                // Look in user's tree
-                Preferences root = Preferences.userRoot();
-                inputMethodSelectionKey = getInputMethodSelectionKeyStroke(root);
+        // Look in user's tree
+        Preferences root = Preferences.userRoot();
+        inputMethodSelectionKey = getInputMethodSelectionKeyStroke(root);
 
-                if (inputMethodSelectionKey == null) {
-                    // Look in system's tree
-                    root = Preferences.systemRoot();
-                    inputMethodSelectionKey = getInputMethodSelectionKeyStroke(root);
-                }
-                return null;
-            }
-        });
+        if (inputMethodSelectionKey == null) {
+            // Look in system's tree
+            root = Preferences.systemRoot();
+            inputMethodSelectionKey = getInputMethodSelectionKeyStroke(root);
+        }
     }
 
     private AWTKeyStroke getInputMethodSelectionKeyStroke(Preferences root) {

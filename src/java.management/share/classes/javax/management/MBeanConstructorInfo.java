@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,10 +77,10 @@ public class MBeanConstructorInfo extends MBeanFeatureInfo implements Cloneable 
      * Constructs an {@code MBeanConstructorInfo} object.
      *
      * @param name The name of the constructor.
+     * @param description A human readable description of the constructor.
      * @param signature {@code MBeanParameterInfo} objects
      * describing the parameters(arguments) of the constructor.  This
      * may be null with the same effect as a zero-length array.
-     * @param description A human readable description of the constructor.
      */
     public MBeanConstructorInfo(String name,
                                 String description,
@@ -92,10 +92,10 @@ public class MBeanConstructorInfo extends MBeanFeatureInfo implements Cloneable 
      * Constructs an {@code MBeanConstructorInfo} object.
      *
      * @param name The name of the constructor.
+     * @param description A human readable description of the constructor.
      * @param signature {@code MBeanParameterInfo} objects
      * describing the parameters(arguments) of the constructor.  This
      * may be null with the same effect as a zero-length array.
-     * @param description A human readable description of the constructor.
      * @param descriptor The descriptor for the constructor.  This may be null
      * which is equivalent to an empty descriptor.
      *

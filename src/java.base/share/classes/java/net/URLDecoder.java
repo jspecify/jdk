@@ -25,9 +25,6 @@
 
 package java.net;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
@@ -84,8 +81,7 @@ import java.util.Objects;
  * @since   1.2
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class URLDecoder {
+public class URLDecoder {
 
     /**
      * Do not call.

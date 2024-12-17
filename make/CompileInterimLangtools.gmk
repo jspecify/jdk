@@ -89,6 +89,9 @@ TARGETS += $(COPY_PREVIEW_FEATURES)
 # would require the source files to be copied into directories named after the
 # actual interim modules.
 
+## DON'T PUT COMMAS within this macro definition, as in
+#          --add-exports java.base/org.checkerframework.checker.builder.qual=java.compiler.interim,jdk.compiler.interim \
+
 # Param 1 - Name of module to compile
 define SetupInterimModule
   $$(eval $$(call SetupJavaCompilation, BUILD_$1.interim, \
@@ -112,6 +115,8 @@ define SetupInterimModule
       DISABLED_WARNINGS := module options, \
       JAVAC_FLAGS := \
           --module-path $(BUILDTOOLS_OUTPUTDIR)/interim_langtools_modules \
+          -cp $(TOPDIR)/src/java.base/share/classes/ \
+          --add-reads $1.interim=ALL-UNNAMED \
           $$(INTERIM_LANGTOOLS_ADD_EXPORTS) \
           --patch-module java.base=$(BUILDTOOLS_OUTPUTDIR)/gensrc/java.base.interim \
           --add-exports java.base/jdk.internal.javac=java.compiler.interim \

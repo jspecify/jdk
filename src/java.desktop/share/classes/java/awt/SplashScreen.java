@@ -24,9 +24,6 @@
  */
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.IOException;
 import java.awt.image.*;
 import java.net.URL;
@@ -107,8 +104,7 @@ import sun.awt.image.SunWritableRaster;
  * @author Oleg Semenov
  * @since 1.6
  */
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class SplashScreen {
+public final class SplashScreen {
 
     SplashScreen(long ptr) { // non-public constructor
         splashPtr = ptr;
@@ -125,7 +121,7 @@ public final @UsesObjectEquals class SplashScreen {
      * @return the {@link SplashScreen} instance, or {@code null} if there is
      *         none or it has already been closed
      */
-    @SuppressWarnings({"removal", "restricted"})
+    @SuppressWarnings("restricted")
     public static  SplashScreen getSplashScreen() {
         synchronized (SplashScreen.class) {
             if (GraphicsEnvironment.isHeadless()) {
@@ -133,13 +129,7 @@ public final @UsesObjectEquals class SplashScreen {
             }
             // SplashScreen class is now a singleton
             if (!wasClosed && theInstance == null) {
-                java.security.AccessController.doPrivileged(
-                    new java.security.PrivilegedAction<Void>() {
-                        public Void run() {
-                            System.loadLibrary("splashscreen");
-                            return null;
-                        }
-                    });
+                System.loadLibrary("splashscreen");
                 long ptr = _getInstance();
                 if (ptr != 0 && _isVisible(ptr)) {
                     theInstance = new SplashScreen(ptr);

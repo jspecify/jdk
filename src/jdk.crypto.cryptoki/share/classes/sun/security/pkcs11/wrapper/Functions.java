@@ -47,9 +47,6 @@
 
 package sun.security.pkcs11.wrapper;
 
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.checker.signedness.qual.UnknownSignedness;
-
 import java.math.BigInteger;
 
 import java.util.*;
@@ -170,7 +167,7 @@ public class Functions {
      * @param value the long value to be converted
      * @return the hexadecimal string representation of the long value
      */
-    public static String toHexString(@UnknownSignedness long value) {
+    public static String toHexString(long value) {
         return Long.toHexString(value);
     }
 
@@ -182,7 +179,7 @@ public class Functions {
      * @param value the byte array to be converted
      * @return the hexadecimal string representation of the byte array
      */
-    public static String toHexString(@PolySigned byte[] value) {
+    public static String toHexString(byte[] value) {
         if (value == null) {
             return null;
         }

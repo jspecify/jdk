@@ -25,9 +25,6 @@
 
 package java.security;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.security.spec.KeySpec;
 import java.security.spec.InvalidKeySpecException;
 
@@ -70,8 +67,7 @@ import java.security.spec.InvalidKeySpecException;
  * @since 1.2
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class KeyFactorySpi {
+public abstract class KeyFactorySpi {
 
     /**
      * Constructor for subclasses to call.

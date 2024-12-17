@@ -24,9 +24,6 @@
  */
 package javax.swing;
 
-import org.checkerframework.checker.fenum.qual.*;
-import org.checkerframework.framework.qual.AnnotatedFor;
-import org.checkerframework.framework.qual.CFComment;
 
 /**
  * A collection of constants generally used for positioning and orienting
@@ -36,7 +33,6 @@ import org.checkerframework.framework.qual.CFComment;
  * @author Ralph Kar (orientation support)
  * @since 1.2
  */
-@AnnotatedFor("fenum")
 public interface SwingConstants {
 
         /**
@@ -44,9 +40,6 @@ public interface SwingConstants {
          * both compass-direction constants (NORTH, etc.)
          * and box-orientation constants (TOP, etc.).
          */
-        @SwingCompassDirection
-        @SwingHorizontalOrientation
-        @SwingVerticalOrientation
         public static final int CENTER  = 0;
 
         //
@@ -55,22 +48,18 @@ public interface SwingConstants {
         /**
          * Box-orientation constant used to specify the top of a box.
          */
-        @SwingVerticalOrientation
         public static final int TOP     = 1;
         /**
          * Box-orientation constant used to specify the left side of a box.
          */
-        @SwingHorizontalOrientation
         public static final int LEFT    = 2;
         /**
          * Box-orientation constant used to specify the bottom of a box.
          */
-        @SwingVerticalOrientation
         public static final int BOTTOM  = 3;
         /**
          * Box-orientation constant used to specify the right side of a box.
          */
-        @SwingHorizontalOrientation
         public static final int RIGHT   = 4;
 
         //
@@ -79,42 +68,34 @@ public interface SwingConstants {
         /**
          * Compass-direction North (up).
          */
-        @SwingCompassDirection
         public static final int NORTH      = 1;
         /**
          * Compass-direction north-east (upper right).
          */
-        @SwingCompassDirection
         public static final int NORTH_EAST = 2;
         /**
          * Compass-direction east (right).
          */
-        @SwingCompassDirection
         public static final int EAST       = 3;
         /**
          * Compass-direction south-east (lower right).
          */
-        @SwingCompassDirection
         public static final int SOUTH_EAST = 4;
         /**
          * Compass-direction south (down).
          */
-        @SwingCompassDirection
         public static final int SOUTH      = 5;
         /**
          * Compass-direction south-west (lower left).
          */
-        @SwingCompassDirection
         public static final int SOUTH_WEST = 6;
         /**
          * Compass-direction west (left).
          */
-        @SwingCompassDirection
         public static final int WEST       = 7;
         /**
          * Compass-direction north west (upper left).
          */
-        @SwingCompassDirection
         public static final int NORTH_WEST = 8;
 
         //
@@ -123,10 +104,8 @@ public interface SwingConstants {
         // used by scrollbars and sliders.
         //
         /** Horizontal orientation. Used for scrollbars and sliders. */
-        @SwingElementOrientation
         public static final int HORIZONTAL = 0;
         /** Vertical orientation. Used for scrollbars and sliders. */
-        @SwingElementOrientation
         public static final int VERTICAL   = 1;
 
         //
@@ -138,22 +117,17 @@ public interface SwingConstants {
          * Identifies the leading edge of text for use with left-to-right
          * and right-to-left languages. Used by buttons and labels.
          */
-        @SwingHorizontalOrientation
-        @SwingTextOrientation
         public static final int LEADING  = 10;
         /**
          * Identifies the trailing edge of text for use with left-to-right
          * and right-to-left languages. Used by buttons and labels.
          */
-        @SwingHorizontalOrientation
-        @SwingTextOrientation
         public static final int TRAILING = 11;
         /**
          * Identifies the next direction in a sequence.
          *
          * @since 1.4
          */
-        @SwingTextOrientation
         public static final int NEXT = 12;
 
         /**
@@ -161,6 +135,5 @@ public interface SwingConstants {
          *
          * @since 1.4
          */
-        @SwingTextOrientation
         public static final int PREVIOUS = 13;
 }
