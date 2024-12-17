@@ -69,7 +69,7 @@ public final  class Objects {
 
     // Define and annotate an overload that is unique to j2cl: b/201433789
     public static boolean equals( @Nullable String a,  @Nullable String b) {
-        return equals(a, b);
+        return equals((Object) a, b);
     }
 
    /**
