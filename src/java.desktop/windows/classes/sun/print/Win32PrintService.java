@@ -860,11 +860,6 @@ public class Win32PrintService implements PrintService, AttributeUpdater,
     }
 
     public DocPrintJob createPrintJob() {
-      @SuppressWarnings("removal")
-      SecurityManager security = System.getSecurityManager();
-      if (security != null) {
-        security.checkPrintJobAccess();
-      }
         return new Win32PrintJob(this);
     }
 
@@ -1176,15 +1171,7 @@ public class Win32PrintService implements PrintService, AttributeUpdater,
         } else if (category == SunAlternateMedia.class) {
             return null;
         } else if (category == Destination.class) {
-            try {
-                return new Destination((new File("out.prn")).toURI());
-            } catch (SecurityException se) {
-                try {
-                    return new Destination(new URI("file:out.prn"));
-                } catch (URISyntaxException e) {
-                    return null;
-                }
-            }
+            return new Destination((new File("out.prn")).toURI());
         } else if (category == Sides.class) {
             switch(defSides) {
             case DMDUP_VERTICAL :
@@ -1225,11 +1212,7 @@ public class Win32PrintService implements PrintService, AttributeUpdater,
                 }
             }
         } else if (category == RequestingUserName.class) {
-            String userName = "";
-            try {
-              userName = System.getProperty("user.name", "");
-            } catch (SecurityException se) {
-            }
+            String userName = System.getProperty("user.name", "");
             return new RequestingUserName(userName, null);
         } else if (category == SheetCollate.class) {
             if (defCollate == DMCOLLATE_TRUE) {
@@ -1304,11 +1287,7 @@ public class Win32PrintService implements PrintService, AttributeUpdater,
         if (category == JobName.class) {
             return new JobName("Java Printing", null);
         } else if (category == RequestingUserName.class) {
-          String userName = "";
-          try {
-            userName = System.getProperty("user.name", "");
-          } catch (SecurityException se) {
-          }
+            String userName = System.getProperty("user.name", "");
             return new RequestingUserName(userName, null);
         } else if (category == ColorSupported.class) {
             int caps = getPrinterCapabilities();
@@ -1345,15 +1324,7 @@ public class Win32PrintService implements PrintService, AttributeUpdater,
                 return null;
             }
         } else if (category == Destination.class) {
-            try {
-                return new Destination((new File("out.prn")).toURI());
-            } catch (SecurityException se) {
-                try {
-                    return new Destination(new URI("file:out.prn"));
-                } catch (URISyntaxException e) {
-                    return null;
-                }
-            }
+            return new Destination((new File("out.prn")).toURI());
         } else if (category == OrientationRequested.class) {
             if (flavor == null ||
                 flavor.equals(DocFlavor.SERVICE_FORMATTED.PAGEABLE) ||

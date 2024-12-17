@@ -24,9 +24,6 @@
  */
 package java.beans;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EventListener;
@@ -47,8 +44,7 @@ import java.util.Set;
  *
  * @author Sergey A. Malenkov
  */
-@AnnotatedFor({"interning"})
-abstract @UsesObjectEquals class ChangeListenerMap<L extends EventListener> {
+abstract class ChangeListenerMap<L extends EventListener> {
     private Map<String, L[]> map;
 
     /**

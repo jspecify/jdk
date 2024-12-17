@@ -35,9 +35,6 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -141,8 +138,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Doug Lea
  * @since 1.5
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class CyclicBarrier {
+public class CyclicBarrier {
     /**
      * Each use of the barrier is represented as a generation instance.
      * The generation changes whenever the barrier is tripped, or

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -558,6 +558,10 @@ public final
      */
     static InetAddress parseAddressString(String addressLiteral, boolean removeSqBrackets)
             throws UnknownHostException {
+        // Empty strings are not parseable
+        if (addressLiteral.isEmpty()) {
+            return null;
+        }
         // Remove trailing and leading square brackets if requested
         if (removeSqBrackets && addressLiteral.charAt(0) == '[' &&
                 addressLiteral.length() > 2 &&

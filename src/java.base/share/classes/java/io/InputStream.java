@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,9 @@
 
 package java.io;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.LTLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import jdk.internal.util.ArraysSupport;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,7 +51,6 @@ import java.util.Objects;
  * @see     java.io.PushbackInputStream
  * @since   1.0
  */
-@AnnotatedFor({"index"})
 @NullMarked
 public abstract class InputStream implements Closeable {
 
@@ -188,7 +182,7 @@ public abstract class InputStream implements Closeable {
      *             stream is reached.
      * @throws     IOException  if an I/O error occurs.
      */
-    public abstract @GTENegativeOne int read() throws IOException;
+    public abstract int read() throws IOException;
 
     /**
      * Reads some number of bytes from the input stream and stores them into
@@ -316,12 +310,9 @@ public abstract class InputStream implements Closeable {
     }
 
     /**
-     * The maximum size of array to allocate.
-     * Some VMs reserve some header words in an array.
-     * Attempts to allocate larger arrays may result in
-     * OutOfMemoryError: Requested array size exceeds VM limit
+     * The maximum size of array to allocate
      */
-    private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
+    private static final int MAX_BUFFER_SIZE = ArraysSupport.SOFT_MAX_ARRAY_LENGTH;
 
     /**
      * Reads all remaining bytes from the input stream. This method blocks until
@@ -659,7 +650,7 @@ public abstract class InputStream implements Closeable {
      *             {@code 0} when it reaches the end of the input stream.
      * @throws     IOException if an I/O error occurs.
      */
-    public @NonNegative int available() throws IOException {
+    public int available() throws IOException {
         return 0;
     }
 

@@ -25,9 +25,6 @@
 
 package java.sql;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * <p>Driver properties for making a connection. The
  * {@code DriverPropertyInfo} class is of interest only to advanced programmers
@@ -38,8 +35,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since 1.1
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class DriverPropertyInfo {
+public class DriverPropertyInfo {
 
     /**
      * Constructs a {@code DriverPropertyInfo} object with a  given

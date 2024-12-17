@@ -25,9 +25,6 @@
 
 package java.awt.dnd;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * An abstract adapter class for receiving drag source events. The methods in
  * this class are empty. This class exists only as a convenience for creating
@@ -57,8 +54,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author David Mendenhall
  * @since 1.4
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class DragSourceAdapter
+public abstract class DragSourceAdapter
     implements DragSourceListener, DragSourceMotionListener {
 
     /**

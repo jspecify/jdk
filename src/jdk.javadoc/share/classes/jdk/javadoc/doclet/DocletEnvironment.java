@@ -25,7 +25,6 @@
 
 package jdk.javadoc.doclet;
 
-import org.checkerframework.dataflow.qual.Pure;
 import java.util.Set;
 
 import javax.lang.model.SourceVersion;
@@ -100,7 +99,6 @@ public interface DocletEnvironment {
      * @param e the element
      * @return true if included, false otherwise
      */
-    @Pure
     boolean isIncluded(Element e);
 
     /**
@@ -109,7 +107,6 @@ public interface DocletEnvironment {
      * @param e the element
      * @return true if selected, false otherwise
      */
-    @Pure
     boolean isSelected(Element e);
 
     /**

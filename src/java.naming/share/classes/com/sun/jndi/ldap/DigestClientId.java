@@ -25,8 +25,6 @@
 
 package com.sun.jndi.ldap;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.Arrays; // JDK 1.2
 import java.util.Hashtable;
 
@@ -84,9 +82,7 @@ class DigestClientId extends SimpleClientId {
         myHash = super.hashCode() ^ Arrays.hashCode(propvals);
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (!(obj instanceof DigestClientId)) {
             return false;
         }

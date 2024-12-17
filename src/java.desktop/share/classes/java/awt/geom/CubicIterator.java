@@ -25,9 +25,6 @@
 
 package java.awt.geom;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.*;
 
 /**
@@ -36,8 +33,7 @@ import java.util.*;
  *
  * @author      Jim Graham
  */
-@AnnotatedFor({"interning"})
-@UsesObjectEquals class CubicIterator implements PathIterator {
+class CubicIterator implements PathIterator {
     CubicCurve2D cubic;
     AffineTransform affine;
     int index;

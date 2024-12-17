@@ -24,9 +24,6 @@
  */
 package java.util.zip;
 
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.ByteBuffer;
 import org.jspecify.annotations.NullMarked;
 

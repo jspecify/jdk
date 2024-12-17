@@ -25,8 +25,6 @@
 
 package com.sun.tools.jdi;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -106,9 +104,7 @@ class EventRequestManagerImpl extends MirrorImpl
     /*
      * Override superclass back to default equality
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         return this == obj;
     }
 

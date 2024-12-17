@@ -61,8 +61,6 @@
  */
 package java.time.chrono;
 
-import org.jspecify.annotations.Nullable;
-
 import static java.time.temporal.ChronoField.EPOCH_DAY;
 
 import java.io.IOException;
@@ -435,9 +433,7 @@ final class ChronoLocalDateTimeImpl<D extends ChronoLocalDate>
 
     //-----------------------------------------------------------------------
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }

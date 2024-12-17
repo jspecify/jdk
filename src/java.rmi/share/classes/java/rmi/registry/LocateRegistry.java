@@ -25,9 +25,6 @@
 
 package java.rmi.registry;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.rmi.RemoteException;
 import java.rmi.server.ObjID;
 import java.rmi.server.RMIClientSocketFactory;
@@ -57,8 +54,7 @@ import sun.rmi.transport.tcp.TCPEndpoint;
  * @since   1.1
  * @see     java.rmi.registry.Registry
  */
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class LocateRegistry {
+public final class LocateRegistry {
 
     /**
      * Private constructor to disable public construction.

@@ -25,9 +25,6 @@
 
 package java.lang.instrument;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /*
  * Copyright 2003 Wily Technology, Inc.
  */
@@ -39,8 +36,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     java.lang.instrument.Instrumentation#redefineClasses
  * @since   1.5
  */
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class ClassDefinition {
+public final class ClassDefinition {
     /**
      *  The class to redefine
      */

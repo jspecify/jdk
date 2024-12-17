@@ -34,8 +34,6 @@
 
 package com.sun.tools.example.debug.tty;
 
-import org.jspecify.annotations.Nullable;
-
 import com.sun.jdi.*;
 import com.sun.jdi.request.ClassPrepareRequest;
 import java.util.StringTokenizer;
@@ -92,9 +90,7 @@ class PatternReferenceTypeSpec implements ReferenceTypeSpec {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj instanceof PatternReferenceTypeSpec) {
             PatternReferenceTypeSpec spec = (PatternReferenceTypeSpec)obj;
 
