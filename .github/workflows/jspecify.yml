@@ -7,7 +7,7 @@ on:
 
 jobs:
   build_jdk:
-    name: Build the JDK
+    name: Build the JSpecify JDK
     runs-on: ubuntu-latest
     permissions:
       contents: read
