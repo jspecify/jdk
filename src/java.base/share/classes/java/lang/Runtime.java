@@ -124,7 +124,7 @@ import jdk.internal.reflect.Reflection;
  */
 
 @NullMarked
-public  class Runtime {
+public class Runtime {
     private static final Runtime currentRuntime = new Runtime();
 
     private static Version version;
@@ -177,7 +177,6 @@ public  class Runtime {
      * @see #removeShutdownHook
      * @see #halt(int)
      */
-    
     public void exit(int status) {
         Shutdown.exit(status);
     }
@@ -368,6 +367,7 @@ public  class Runtime {
      * @see     #exec(String[], String[], File)
      * @see     ProcessBuilder
      */
+    @Deprecated(since="18")
     public Process exec(String command, String @Nullable [] envp) throws IOException {
         return exec(command, envp, null);
     }

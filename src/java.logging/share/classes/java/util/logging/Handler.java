@@ -26,9 +26,6 @@
 
 package java.util.logging;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Objects;
 import java.io.UnsupportedEncodingException;
 import org.jspecify.annotations.NullMarked;
@@ -52,9 +49,8 @@ import org.jspecify.annotations.Nullable;
  * @since 1.4
  */
 
-@AnnotatedFor({"interning"})
 @NullMarked
-public abstract @UsesObjectEquals class Handler {
+public abstract class Handler {
     private static final int offValue = Level.OFF.intValue();
 
     // ensure log manager is initialized
