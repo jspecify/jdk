@@ -25,9 +25,6 @@
 
 package java.nio.file;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.file.attribute.*;
 import java.io.IOException;
 
@@ -46,8 +43,7 @@ import java.io.IOException;
  * @since 1.7
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class FileStore {
+public abstract class FileStore {
 
     /**
      * Initializes a new instance of this class.

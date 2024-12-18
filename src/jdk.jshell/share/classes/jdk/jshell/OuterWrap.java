@@ -25,8 +25,6 @@
 
 package jdk.jshell;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.Locale;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
@@ -107,9 +105,7 @@ class OuterWrap implements GeneralWrap {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         return (o instanceof OuterWrap)
                 ? className().equals(((OuterWrap) o).className())
                 : false;

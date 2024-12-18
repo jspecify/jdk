@@ -24,9 +24,6 @@
  */
 package javax.swing;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.*;
 import java.awt.event.*;
 import java.beans.*;
@@ -205,7 +202,6 @@ import java.beans.*;
  * @see AbstractAction
  * @since 1.2
  */
-@AnnotatedFor({"interning"})
 public interface Action extends ActionListener {
     /**
      * Useful constants that can be used as the storage-retrieval key
@@ -215,22 +211,22 @@ public interface Action extends ActionListener {
     /**
      * Not currently used.
      */
-    public static final @Interned String DEFAULT = "Default";
+    public static final String DEFAULT = "Default";
     /**
      * The key used for storing the <code>String</code> name
      * for the action, used for a menu or button.
      */
-    public static final @Interned String NAME = "Name";
+    public static final String NAME = "Name";
     /**
      * The key used for storing a short <code>String</code>
      * description for the action, used for tooltip text.
      */
-    public static final @Interned String SHORT_DESCRIPTION = "ShortDescription";
+    public static final String SHORT_DESCRIPTION = "ShortDescription";
     /**
      * The key used for storing a longer <code>String</code>
      * description for the action, could be used for context-sensitive help.
      */
-    public static final @Interned String LONG_DESCRIPTION = "LongDescription";
+    public static final String LONG_DESCRIPTION = "LongDescription";
     /**
      * The key used for storing a small <code>Icon</code>, such
      * as <code>ImageIcon</code>.  This is typically used with
@@ -242,7 +238,7 @@ public interface Action extends ActionListener {
      * <code>SMALL_ICON</code> and the button will use the
      * <code>LARGE_ICON_KEY</code>.
      */
-    public static final @Interned String SMALL_ICON = "SmallIcon";
+    public static final String SMALL_ICON = "SmallIcon";
 
     /**
      * The key used to determine the command <code>String</code> for the
@@ -251,7 +247,7 @@ public interface Action extends ActionListener {
      * residing in a <code>Keymap</code> associated with a
      * <code>JComponent</code>.
      */
-    public static final @Interned String ACTION_COMMAND_KEY = "ActionCommandKey";
+    public static final String ACTION_COMMAND_KEY = "ActionCommandKey";
 
     /**
      * The key used for storing a <code>KeyStroke</code> to be used as the
@@ -259,7 +255,7 @@ public interface Action extends ActionListener {
      *
      * @since 1.3
      */
-    public static final @Interned String ACCELERATOR_KEY="AcceleratorKey";
+    public static final String ACCELERATOR_KEY="AcceleratorKey";
 
     /**
      * The key used for storing an <code>Integer</code> that corresponds to
@@ -272,7 +268,7 @@ public interface Action extends ActionListener {
      *
      * @since 1.3
      */
-    public static final @Interned String MNEMONIC_KEY="MnemonicKey";
+    public static final String MNEMONIC_KEY="MnemonicKey";
 
     /**
      * The key used for storing a <code>Boolean</code> that corresponds
@@ -294,7 +290,7 @@ public interface Action extends ActionListener {
      *
      * @since 1.6
      */
-    public static final @Interned String SELECTED_KEY = "SwingSelectedKey";
+    public static final String SELECTED_KEY = "SwingSelectedKey";
 
     /**
      * The key used for storing an <code>Integer</code> that corresponds
@@ -327,7 +323,7 @@ public interface Action extends ActionListener {
      *
      * @since 1.6
      */
-    public static final @Interned String LARGE_ICON_KEY = "SwingLargeIconKey";
+    public static final String LARGE_ICON_KEY = "SwingLargeIconKey";
 
     /**
      * Gets one of this object's properties

@@ -25,7 +25,6 @@
 
 package jdk.javadoc.internal.html;
 
-import org.checkerframework.dataflow.qual.Pure;
 import java.io.IOException;
 import java.io.Writer;
 
@@ -202,7 +201,6 @@ public class Script  {
         }
 
         @Override
-        @Pure
         public boolean isEmpty() {
             return false;
         }

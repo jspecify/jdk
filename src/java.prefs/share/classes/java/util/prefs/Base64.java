@@ -25,9 +25,6 @@
 
 package java.util.prefs;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * Static methods for translating Base64 encoded strings to byte arrays
  * and vice-versa.
@@ -36,8 +33,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @see     Preferences
  * @since   1.4
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class Base64 {
+class Base64 {
     /**
      * Translates the specified byte array into a Base64 string as per
      * Preferences.put(byte[]).

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,12 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Thrown by the security manager to indicate a security violation.
+ * Thrown to indicate a security violation.
  *
- * @see     java.lang.SecurityManager
+ * <p> This exception was originally specified for use with a SecurityManager when
+ * an operation was denied. This feature no longer exists. This exception may be
+ * deprecated in a future release.
+ *
  * @since   1.0
  */
 @NullMarked

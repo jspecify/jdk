@@ -25,9 +25,6 @@
 
 package java.io;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * Context during upcalls from object stream to class-defined
  * readObject/writeObject methods.
@@ -39,8 +36,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * readObject/writeObject method has returned.
  * If not set to the current thread, the getObj method throws NotActiveException.
  */
-@AnnotatedFor({"interning"})
-final @UsesObjectEquals class SerialCallbackContext {
+final class SerialCallbackContext {
     private final Object obj;
     private final ObjectStreamClass desc;
     /**

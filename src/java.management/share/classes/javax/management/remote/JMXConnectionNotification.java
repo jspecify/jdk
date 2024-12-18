@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,6 @@
 
 
 package javax.management.remote;
-
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import javax.management.Notification;
 import javax.management.ObjectName;
@@ -83,7 +80,6 @@ import javax.management.ObjectName;
  *
  * @since 1.5
  */
-@AnnotatedFor({"interning"})
 public class JMXConnectionNotification extends Notification {
 
     private static final long serialVersionUID = -2331308725952627538L;
@@ -91,17 +87,17 @@ public class JMXConnectionNotification extends Notification {
     /**
      * <p>Notification type string for a connection-opened notification.
      */
-    public static final @Interned String OPENED = "jmx.remote.connection.opened";
+    public static final String OPENED = "jmx.remote.connection.opened";
 
     /**
      * <p>Notification type string for a connection-closed notification.
      */
-    public static final @Interned String CLOSED = "jmx.remote.connection.closed";
+    public static final String CLOSED = "jmx.remote.connection.closed";
 
     /**
      * <p>Notification type string for a connection-failed notification.
      */
-    public static final @Interned String FAILED = "jmx.remote.connection.failed";
+    public static final String FAILED = "jmx.remote.connection.failed";
 
     /**
      * <p>Notification type string for a connection that has possibly
@@ -163,12 +159,7 @@ public class JMXConnectionNotification extends Notification {
                                      long sequenceNumber,
                                      String message,
                                      Object userData) {
-        /* We don't know whether the parent class (Notification) will
-           throw an exception if the type or source is null, because
-           JMX 1.2 doesn't specify that.  So we make sure it is not
-           null, in case it would throw the wrong exception
-           (e.g. IllegalArgumentException instead of
-           NullPointerException).  Likewise for the sequence number.  */
+        // Do not pass null source to super, as EventObject will throw IllegalArgumentException.
         super((String) nonNull(type),
               nonNull(source),
               Math.max(0, sequenceNumber),

@@ -24,8 +24,6 @@
  */
 package com.sun.beans.finder;
 
-import org.jspecify.annotations.Nullable;
-
 /**
  * This class is designed to be a key of a cache
  * of constructors or methods.
@@ -85,9 +83,7 @@ final class Signature {
      * @see #hashCode()
      */
     @Override
-    
-    
-    public boolean equals(@Nullable Object object) {
+    public boolean equals(Object object) {
         if (this == object) {
             return true;
         }

@@ -25,11 +25,7 @@
 
 package sun.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-@AnnotatedFor({"interning"})
-@UsesObjectEquals class NativeLibLoader {
+class NativeLibLoader {
 
     /**
      * This is copied from java.awt.Toolkit since we need the library
@@ -56,14 +52,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
      * For now, we know it's done by the implementation, and we assume
      * that the name of the library is "awt".  -br.
      */
-    @SuppressWarnings({"removal", "restricted"})
+    @SuppressWarnings("restricted")
     static void loadLibraries() {
-        java.security.AccessController.doPrivileged(
-            new java.security.PrivilegedAction<Void>() {
-                public Void run() {
-                    System.loadLibrary("awt");
-                    return null;
-                }
-            });
+        System.loadLibrary("awt");
     }
 }

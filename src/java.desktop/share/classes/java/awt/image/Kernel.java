@@ -25,9 +25,6 @@
 
 package java.awt.image;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 
 /**
  * The {@code Kernel} class defines a matrix that describes how a
@@ -39,8 +36,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @see ConvolveOp
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class Kernel implements Cloneable {
+public class Kernel implements Cloneable {
     private int  width;
     private int  height;
     private int  xOrigin;

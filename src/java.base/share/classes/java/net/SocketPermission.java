@@ -32,10 +32,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.security.AccessController;
 import java.security.Permission;
 import java.security.PermissionCollection;
-import java.security.PrivilegedAction;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Locale;
@@ -46,7 +44,6 @@ import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import sun.net.util.IPAddressUtil;
 import sun.net.PortConfig;
-import sun.security.action.GetBooleanAction;
 import sun.security.util.RegisteredDomain;
 import sun.security.util.SecurityConstants;
 import sun.security.util.Debug;
@@ -113,30 +110,10 @@ import sun.security.util.Debug;
  * The action "resolve" refers to host/ip name service lookups.
  * <P>
  * The actions string is converted to lowercase before processing.
- * <p>As an example of the creation and meaning of SocketPermissions,
- * note that if the following permission:
  *
- * <pre>
- *   p1 = new SocketPermission("foo.example.com:7777", "connect,accept");
- * </pre>
- *
- * is granted to some code, it allows that code to connect to port 7777 on
- * {@code foo.example.com}, and to accept connections on that port.
- *
- * <p>Similarly, if the following permission:
- *
- * <pre>
- *   p2 = new SocketPermission("localhost:1024-", "accept,connect,listen");
- * </pre>
- *
- * is granted to some code, it allows that code to
- * accept connections on, connect to, or listen on any port between
- * 1024 and 65535 on the local host.
- *
- * <p>Note: Granting code permission to accept or make connections to remote
- * hosts may be dangerous because malevolent code can then more easily
- * transfer and share confidential data among parties who may not
- * otherwise have access to the data.
+ * @apiNote
+ * This permission cannot be used for controlling access to resources
+ * as the Security Manager is no longer supported.
  *
  * @spec https://www.rfc-editor.org/info/rfc2732
  *      RFC 2732: Format for Literal IPv6 Addresses in URL's
@@ -235,7 +212,8 @@ public final class SocketPermission extends Permission
     private transient boolean trusted;
 
     // true if the sun.net.trustNameService system property is set
-    private static final boolean trustNameService = GetBooleanAction.privilegedGetProperty("sun.net.trustNameService");
+    private static final boolean trustNameService =
+            Boolean.getBoolean("sun.net.trustNameService");
 
     private static Debug debug = null;
     private static boolean debugInit = false;
@@ -660,10 +638,10 @@ public final class SocketPermission extends Permission
             // we have to do this check, otherwise we might not
             // get the fully qualified domain name
             if (init_with_ip) {
-                cname = addresses[0].getHostName(false).toLowerCase(Locale.ROOT);
+                cname = addresses[0].getHostName().toLowerCase(Locale.ROOT);
             } else {
              cname = InetAddress.getByName(addresses[0].getHostAddress()).
-                                              getHostName(false).toLowerCase(Locale.ROOT);
+                                              getHostName().toLowerCase(Locale.ROOT);
             }
         } catch (UnknownHostException uhe) {
             invalid = true;
@@ -727,7 +705,7 @@ public final class SocketPermission extends Permission
             // Following check seems unnecessary
             // auth = InetAddress.getAllByName0(authHost, false)[0];
             authHost = hostname + '.' + authHost;
-            auth = InetAddress.getAllByName0(authHost, false)[0];
+            auth = InetAddress.getAllByName0(authHost)[0];
             if (auth.equals(InetAddress.getByAddress(addr))) {
                 return true;
             }
@@ -758,9 +736,8 @@ public final class SocketPermission extends Permission
                 sb.append('.');
             }
             authHost = "auth." + sb.toString() + "IP6.ARPA";
-            //auth = InetAddress.getAllByName0(authHost, false)[0];
             authHost = hostname + '.' + authHost;
-            auth = InetAddress.getAllByName0(authHost, false)[0];
+            auth = InetAddress.getAllByName0(authHost)[0];
             if (auth.equals(InetAddress.getByAddress(addr)))
                 return true;
             Debug debug = getDebug();
@@ -802,7 +779,7 @@ public final class SocketPermission extends Permission
             }
 
             addresses =
-                new InetAddress[] {InetAddress.getAllByName0(host, false)[0]};
+                new InetAddress[] {InetAddress.getAllByName0(host)[0]};
 
         } catch (UnknownHostException uhe) {
             invalid = true;
@@ -1215,23 +1192,15 @@ public final class SocketPermission extends Permission
      * Check the system/security property for the ephemeral port range
      * for this system. The suffix is either "high" or "low"
      */
-    @SuppressWarnings("removal")
     private static int initEphemeralPorts(String suffix) {
-        return AccessController.doPrivileged(
-            new PrivilegedAction<>(){
-                public Integer run() {
-                    int val = Integer.getInteger(
-                            "jdk.net.ephemeralPortRange."+suffix, -1
-                    );
-                    if (val != -1) {
-                        return val;
-                    } else {
-                        return suffix.equals("low") ?
-                            PortConfig.getLower() : PortConfig.getUpper();
-                    }
-                }
-            }
-        );
+        int val = Integer.getInteger(
+                "jdk.net.ephemeralPortRange." + suffix, -1);
+        if (val != -1) {
+            return val;
+        } else {
+            return suffix.equals("low") ?
+                    PortConfig.getLower() : PortConfig.getUpper();
+        }
     }
 
     /**

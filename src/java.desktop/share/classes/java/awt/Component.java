@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,8 +72,6 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Serial;
 import java.io.Serializable;
-import java.security.AccessControlContext;
-import java.security.AccessController;
 import java.util.Collections;
 import java.util.EventListener;
 import java.util.HashSet;
@@ -111,7 +109,6 @@ import sun.java2d.SunGraphics2D;
 import sun.java2d.SunGraphicsEnvironment;
 import sun.java2d.pipe.Region;
 import sun.java2d.pipe.hw.ExtendedBufferCapabilities;
-import sun.security.action.GetPropertyAction;
 import sun.swing.SwingAccessor;
 import sun.util.logging.PlatformLogger;
 
@@ -506,13 +503,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
     static final Object LOCK = new AWTTreeLock();
     static class AWTTreeLock {}
 
-    /*
-     * The component's AccessControlContext.
-     */
-    @SuppressWarnings("removal")
-    private transient volatile AccessControlContext acc =
-        AccessController.getContext();
-
     /**
      * Minimum size.
      * (This field perhaps should have been transient).
@@ -631,14 +621,10 @@ public abstract   class Component implements ImageObserver, MenuContainer,
             initIDs();
         }
 
-        @SuppressWarnings("removal")
-        String s = java.security.AccessController.doPrivileged(
-                                                               new GetPropertyAction("awt.image.incrementaldraw"));
+        String s = System.getProperty("awt.image.incrementaldraw");
         isInc = (s == null || s.equals("true"));
 
-        @SuppressWarnings("removal")
-        String s2 = java.security.AccessController.doPrivileged(
-                                                        new GetPropertyAction("awt.image.redrawrate"));
+        String s2 = System.getProperty("awt.image.redrawrate");
         incRate = (s2 != null) ? Integer.parseInt(s2) : 100;
     }
 
@@ -713,17 +699,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
     private transient Object objectLock = new Object();
     Object getObjectLock() {
         return objectLock;
-    }
-
-    /*
-     * Returns the acc this component was constructed with.
-     */
-    @SuppressWarnings("removal")
-    final AccessControlContext getAccessControlContext() {
-        if (acc == null) {
-            throw new SecurityException("Component is missing AccessControlContext");
-        }
-        return acc;
     }
 
     /**
@@ -979,11 +954,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
             }
             public void processEvent(Component comp, AWTEvent e) {
                 comp.processEvent(e);
-            }
-
-            @SuppressWarnings("removal")
-            public AccessControlContext getAccessControlContext(Component comp) {
-                return comp.getAccessControlContext();
             }
 
             public void revalidateSynchronously(Component comp) {
@@ -1435,15 +1405,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
             throw new HeadlessException();
         }
 
-        @SuppressWarnings("removal")
-        PointerInfo pi = java.security.AccessController.doPrivileged(
-                                                                     new java.security.PrivilegedAction<PointerInfo>() {
-                                                                         public PointerInfo run() {
-                                                                             return MouseInfo.getPointerInfo();
-                                                                         }
-                                                                     }
-                                                                     );
-
+        PointerInfo pi = MouseInfo.getPointerInfo();
         synchronized (getTreeLock()) {
             Component inTheSameWindow = findUnderMouseInWindow(pi);
             if (!isSameOrAncestorOf(inTheSameWindow, true)) {
@@ -6261,14 +6223,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
              }
 
              // Need to check non-bootstraps.
-             @SuppressWarnings("removal")
-             Boolean enabled = java.security.AccessController.doPrivileged(
-                 new java.security.PrivilegedAction<Boolean>() {
-                     public Boolean run() {
-                         return isCoalesceEventsOverriden(clazz);
-                     }
-                 }
-                 );
+             Boolean enabled = isCoalesceEventsOverriden(clazz);
              coalesceMap.put(clazz, enabled);
              return enabled;
          }
@@ -7442,7 +7397,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
     }
     final Set<AWTKeyStroke> getFocusTraversalKeys_NoIDCheck(int id) {
         // Okay to return Set directly because it is an unmodifiable view
-        @SuppressWarnings("unchecked")
         Set<AWTKeyStroke> keystrokes = (focusTraversalKeys != null)
             ? focusTraversalKeys[id]
             : null;
@@ -8389,7 +8343,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see       #add(PopupMenu)
      * @since     1.1
      */
-    @SuppressWarnings("unchecked")
     public void remove(MenuComponent popup) {
         synchronized (getTreeLock()) {
             if (popups == null) {
@@ -8997,14 +8950,11 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @throws IOException if an I/O error occurs
      * @see #writeObject(ObjectOutputStream)
      */
-    @SuppressWarnings("removal")
     @Serial
     private void readObject(ObjectInputStream s)
       throws ClassNotFoundException, IOException
     {
         objectLock = new Object();
-
-        acc = AccessController.getContext();
 
         s.defaultReadObject();
 

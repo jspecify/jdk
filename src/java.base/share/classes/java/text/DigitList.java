@@ -38,8 +38,6 @@
 
 package java.text;
 
-import org.jspecify.annotations.Nullable;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
@@ -690,9 +688,7 @@ final class DigitList implements Cloneable {
     /**
      * equality test between two digit lists.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (this == obj)                      // quick check
             return true;
         if (!(obj instanceof DigitList other))         // (1) same object?

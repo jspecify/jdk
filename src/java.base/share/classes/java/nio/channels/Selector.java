@@ -25,9 +25,6 @@
 
 package java.nio.channels;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.channels.spi.SelectorProvider;
@@ -274,8 +271,7 @@ import java.util.function.Consumer;
  * @see SelectionKey
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class Selector implements Closeable {
+public abstract class Selector implements Closeable {
 
     /**
      * Initializes a new instance of this class.

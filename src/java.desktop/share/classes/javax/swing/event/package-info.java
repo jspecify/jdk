@@ -49,7 +49,4 @@
  * @since 1.2
  * @serial exclude
  */
-@UIPackage
 package javax.swing.event;
-
-import org.checkerframework.checker.guieffect.qual.UIPackage;

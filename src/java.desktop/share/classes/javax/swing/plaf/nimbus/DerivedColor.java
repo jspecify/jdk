@@ -24,8 +24,6 @@
  */
 package javax.swing.plaf.nimbus;
 
-import org.jspecify.annotations.Nullable;
-
 import javax.swing.UIManager;
 import java.awt.Color;
 import java.beans.PropertyChangeSupport;
@@ -115,9 +113,7 @@ class DerivedColor extends Color {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof DerivedColor)) return false;
         DerivedColor that = (DerivedColor) o;

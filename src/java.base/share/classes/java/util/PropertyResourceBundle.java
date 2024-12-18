@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,8 +39,6 @@
 
 package java.util;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -48,7 +46,6 @@ import java.io.IOException;
 import java.nio.charset.MalformedInputException;
 import java.nio.charset.UnmappableCharacterException;
 import sun.nio.cs.ISO_8859_1;
-import sun.security.action.GetPropertyAction;
 import sun.util.PropertyResourceBundleCharset;
 import sun.util.ResourceBundleEnumeration;
 
@@ -130,14 +127,13 @@ import sun.util.ResourceBundleEnumeration;
  * @see Properties
  * @since 1.1
  */
-@AnnotatedFor({"lock"})
 public class PropertyResourceBundle extends ResourceBundle {
 
     // Check whether the strict encoding is specified.
     // The possible encoding is either "ISO-8859-1" or "UTF-8".
-    private static final String encoding = GetPropertyAction
-        .privilegedGetProperty("java.util.PropertyResourceBundle.encoding", "")
-        .toUpperCase(Locale.ROOT);
+    private static final String encoding =
+            System.getProperty("java.util.PropertyResourceBundle.encoding", "")
+                    .toUpperCase(Locale.ROOT);
 
     /**
      * Creates a property resource bundle from an {@link java.io.InputStream

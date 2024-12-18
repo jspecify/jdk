@@ -21,8 +21,6 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler;
 
-import org.jspecify.annotations.Nullable;
-
 import com.sun.org.apache.xalan.internal.xsltc.compiler.util.Type;
 import com.sun.org.apache.xalan.internal.xsltc.compiler.util.TypeCheckError;
 import java.util.Objects;
@@ -99,9 +97,7 @@ class VariableRefBase extends Expression {
      * same variable.
      */
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         return obj == this || (obj instanceof VariableRefBase)
             && (_variable == ((VariableRefBase) obj)._variable);
     }

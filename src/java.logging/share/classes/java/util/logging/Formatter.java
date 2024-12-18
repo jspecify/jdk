@@ -26,9 +26,6 @@
 
 package java.util.logging;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * A Formatter provides support for formatting LogRecords.
  * <p>
@@ -43,8 +40,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since 1.4
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class Formatter {
+public abstract class Formatter {
 
     /**
      * Construct a new formatter.

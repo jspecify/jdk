@@ -25,8 +25,6 @@
 
 package sun.awt.im;
 
-import org.jspecify.annotations.Nullable;
-
 import java.awt.AWTException;
 import java.awt.im.spi.InputMethodDescriptor;
 import java.util.Locale;
@@ -56,9 +54,7 @@ final class InputMethodLocator {
         this.locale = locale;
     }
 
-    
-    
-    public boolean equals(@Nullable Object other) {
+    public boolean equals(Object other) {
         if (other == this) {
             return true;
         }

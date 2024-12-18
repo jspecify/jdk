@@ -39,9 +39,6 @@
 
 package java.awt.font;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * The {@code GlyphJustificationInfo} class represents information
  * about the justification properties of a glyph.  A glyph is the visual
@@ -77,8 +74,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * the glyphs are to be moved together to fit a smaller width.
  */
 
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class GlyphJustificationInfo {
+public final class GlyphJustificationInfo {
 
     /**
      * Constructs information about the justification properties of a
