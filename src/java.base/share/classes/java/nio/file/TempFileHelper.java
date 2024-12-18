@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,6 @@
 
 package java.nio.file;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Set;
 import java.util.EnumSet;
 import java.security.SecureRandom;
@@ -43,8 +40,7 @@ import jdk.internal.util.StaticProperty;
  * initial attributes.
  */
 
-@AnnotatedFor({"interning"})
-@UsesObjectEquals class TempFileHelper {
+class TempFileHelper {
     private TempFileHelper() { }
 
     // temporary directory location
@@ -121,16 +117,12 @@ import jdk.internal.util.StaticProperty;
         }
 
         // loop generating random names until file or directory can be created
-        @SuppressWarnings("removal")
-        SecurityManager sm = System.getSecurityManager();
         for (;;) {
             Path f;
             try {
                 f = generatePath(prefix, suffix, dir);
             } catch (InvalidPathException e) {
                 // don't reveal temporary directory location
-                if (sm != null)
-                    throw new IllegalArgumentException("Invalid prefix or suffix");
                 throw e;
             }
             try {
@@ -139,11 +131,6 @@ import jdk.internal.util.StaticProperty;
                 } else {
                     return Files.createFile(f, attrs);
                 }
-            } catch (SecurityException e) {
-                // don't reveal temporary directory location
-                if (dir == tmpdir && sm != null)
-                    throw new SecurityException("Unable to create temporary file or directory");
-                throw e;
             } catch (FileAlreadyExistsException e) {
                 // ignore
             }

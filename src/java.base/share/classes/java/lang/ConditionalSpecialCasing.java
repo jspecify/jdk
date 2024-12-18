@@ -25,9 +25,6 @@
 
 package java.lang;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.text.BreakIterator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,8 +44,7 @@ import sun.text.Normalizer;
  * Note that the unconditional case mappings (including 1:M mappings)
  * are handled in {@code Character.toLower/UpperCase()}.
  */
-@AnnotatedFor({"interning"})
-final @UsesObjectEquals class ConditionalSpecialCasing {
+final class ConditionalSpecialCasing {
 
     // context conditions.
     static final int FINAL_CASED =              1;

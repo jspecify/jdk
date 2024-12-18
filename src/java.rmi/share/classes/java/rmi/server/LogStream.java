@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,6 @@
  */
 package java.rmi.server;
 
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.*;
 import java.util.*;
 
@@ -38,7 +35,6 @@ import java.util.*;
  * @since   1.1
  * @deprecated no replacement
  */
-@AnnotatedFor({"signedness"})
 @Deprecated
 public class LogStream extends PrintStream {
 
@@ -124,14 +120,6 @@ public class LogStream extends PrintStream {
      */
     @Deprecated
     public static synchronized void setDefaultStream(PrintStream newDefault) {
-        @SuppressWarnings("removal")
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(
-                new java.util.logging.LoggingPermission("control", null));
-        }
-
         defaultStream = newDefault;
     }
 
@@ -217,7 +205,7 @@ public class LogStream extends PrintStream {
      * @deprecated no replacement
      */
     @Deprecated
-    public void write(@PolySigned byte b[], int off, int len)
+    public void write(byte b[], int off, int len)
     {
         if (len < 0)
             throw new ArrayIndexOutOfBoundsException(len);

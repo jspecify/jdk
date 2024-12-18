@@ -25,9 +25,6 @@
 
 package java.security.spec;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.math.BigInteger;
 
 /**
@@ -45,8 +42,7 @@ import java.math.BigInteger;
  * @see RSAPrivateCrtKeySpec
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class RSAPublicKeySpec implements KeySpec {
+public class RSAPublicKeySpec implements KeySpec {
 
     private final BigInteger modulus;
     private final BigInteger publicExponent;

@@ -25,9 +25,6 @@
 
 package java.net;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * Defines the <em>standard</em> socket options.
  *
@@ -41,8 +38,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @since 1.7
  */
 
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class StandardSocketOptions {
+public final class StandardSocketOptions {
     private StandardSocketOptions() { }
 
     // -- SOL_SOCKET --

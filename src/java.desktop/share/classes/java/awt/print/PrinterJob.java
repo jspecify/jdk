@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,6 @@
 
 package java.awt.print;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.AWTError;
 import java.awt.HeadlessException;
 
@@ -49,8 +46,7 @@ import javax.print.attribute.standard.OrientationRequested;
  * optionally to invoke a print dialog with the user, and then to print
  * the pages of the job.
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class PrinterJob {
+public abstract class PrinterJob {
 
  /* Public Class Methods */
 
@@ -66,17 +62,8 @@ public abstract @UsesObjectEquals class PrinterJob {
      * should ensure that the array returned from
      * {@link #lookupPrintServices() lookupPrintServices} is not empty.
      * @return a new {@code PrinterJob}.
-     *
-     * @throws  SecurityException if a security manager exists and its
-     *          {@link java.lang.SecurityManager#checkPrintJobAccess}
-     *          method disallows this thread from creating a print job request
      */
     public static PrinterJob getPrinterJob() {
-        @SuppressWarnings("removal")
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkPrintJobAccess();
-        }
         return sun.print.PlatformPrinterJobProxy.getPrinterJob();
     }
 
@@ -566,8 +553,6 @@ public abstract @UsesObjectEquals class PrinterJob {
     /**
      * Gets the name of the printing user.
      * @return the name of the printing user
-     * @throws SecurityException if a security manager exists and
-     *         PropertyPermission - user.name is not given in the policy file
      */
     public abstract String getUserName();
 

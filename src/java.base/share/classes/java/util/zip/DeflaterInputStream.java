@@ -25,13 +25,6 @@
 
 package java.util.zip;
 
-import org.checkerframework.checker.index.qual.GTENegativeOne;
-import org.checkerframework.checker.index.qual.IndexOrHigh;
-import org.checkerframework.checker.index.qual.LTEqLengthOf;
-import org.checkerframework.checker.index.qual.NonNegative;
-import org.checkerframework.checker.index.qual.Positive;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.FilterInputStream;
 import java.io.InputStream;
 import java.io.IOException;
@@ -49,7 +42,6 @@ import java.util.Objects;
  * @see InflaterInputStream
  */
 
-@AnnotatedFor({"index"})
 public class DeflaterInputStream extends FilterInputStream {
     /** Compressor for this stream. */
     protected final Deflater def;
@@ -109,7 +101,7 @@ public class DeflaterInputStream extends FilterInputStream {
      * @throws IllegalArgumentException if {@code bufLen <= 0}
      * @throws NullPointerException if {@code in} or {@code defl} is null
      */
-    public DeflaterInputStream(InputStream in, Deflater defl, @Positive int bufLen) {
+    public DeflaterInputStream(InputStream in, Deflater defl, int bufLen) {
         super(in);
 
         // Sanity checks
@@ -177,7 +169,7 @@ public class DeflaterInputStream extends FilterInputStream {
      * @throws IOException if an I/O error occurs or if this input stream is
      * already closed
      */
-    public @GTENegativeOne @LTEqLengthOf({"#1"}) int read(byte[] b, @IndexOrHigh({"#1"}) int off, @IndexOrHigh({"#1"}) int len) throws IOException {
+    public int read(byte[] b, int off, int len) throws IOException {
         // Sanity checks
         ensureOpen();
         if (b == null) {
@@ -290,7 +282,7 @@ public class DeflaterInputStream extends FilterInputStream {
      *
      * @param limit maximum bytes that can be read before invalidating the position marker
      */
-    public void mark(@NonNegative int limit) {
+    public void mark(int limit) {
         // Operation not supported
     }
 

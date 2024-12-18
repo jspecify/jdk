@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,6 @@
 
 package java.security.spec;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.math.BigInteger;
 
 /**
@@ -45,6 +42,8 @@ import java.math.BigInteger;
  *
  * </pre>
  *
+ * @spec https://www.rfc-editor.org/info/rfc8017
+ *      RFC 8017: PKCS #1: RSA Cryptography Specifications Version 2.2
  * @author Valerie Peng
  *
  *
@@ -54,8 +53,7 @@ import java.math.BigInteger;
  * @since 1.4
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class RSAOtherPrimeInfo {
+public class RSAOtherPrimeInfo {
 
     private final BigInteger prime;
     private final BigInteger primeExponent;

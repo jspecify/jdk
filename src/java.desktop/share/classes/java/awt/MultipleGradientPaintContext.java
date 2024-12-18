@@ -25,9 +25,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.MultipleGradientPaint.CycleMethod;
 import java.awt.MultipleGradientPaint.ColorSpaceType;
 import java.awt.color.ColorSpace;
@@ -53,8 +50,7 @@ import java.util.Arrays;
  *
  * @author Nicholas Talian, Vincent Hardy, Jim Graham, Jerry Evans
  */
-@AnnotatedFor({"interning"})
-abstract @UsesObjectEquals class MultipleGradientPaintContext implements PaintContext {
+abstract class MultipleGradientPaintContext implements PaintContext {
 
     /**
      * The PaintContext's ColorModel.  This is ARGB if colors are not all

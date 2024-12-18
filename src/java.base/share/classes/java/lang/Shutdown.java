@@ -25,8 +25,6 @@
 
 package java.lang;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.VM;
 
@@ -42,8 +40,7 @@ import jdk.internal.misc.VM;
  * @see java.io.DeleteOnExitHook
  */
 
-@NullMarked
- class Shutdown {
+class Shutdown {
 
     // The system shutdown hooks are registered with a predefined slot.
     // The list of shutdown hooks is as follows:
@@ -52,7 +49,7 @@ import jdk.internal.misc.VM;
     //     shutdown hooks and waits until they finish
     // (2) DeleteOnExit hook
     private static final int MAX_SYSTEM_HOOKS = 10;
-    private static final @Nullable Runnable[] hooks = new Runnable[MAX_SYSTEM_HOOKS];
+    private static final Runnable[] hooks = new Runnable[MAX_SYSTEM_HOOKS];
 
     // the index of the currently running shutdown hook to the hooks array
     private static int currentRunningHook = -1;

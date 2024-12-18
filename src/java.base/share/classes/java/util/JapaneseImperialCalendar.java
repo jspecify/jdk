@@ -25,8 +25,6 @@
 
 package java.util;
 
-import org.jspecify.annotations.Nullable;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import sun.util.locale.provider.CalendarDataUtility;
@@ -383,9 +381,7 @@ class JapaneseImperialCalendar extends Calendar {
      * @see Calendar#compareTo(Calendar)
      */
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         return obj instanceof JapaneseImperialCalendar &&
             super.equals(obj);
     }

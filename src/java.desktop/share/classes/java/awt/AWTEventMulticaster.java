@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,6 @@
  * questions.
  */
 package java.awt;
-
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.awt.event.*;
 import java.lang.reflect.Array;
@@ -106,8 +103,7 @@ import java.util.EventListener;
  * @since       1.1
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class AWTEventMulticaster implements
+public class AWTEventMulticaster implements
     ComponentListener, ContainerListener, FocusListener, KeyListener,
     MouseListener, MouseMotionListener, WindowListener, WindowFocusListener,
     WindowStateListener, ActionListener, ItemListener, AdjustmentListener,
@@ -629,7 +625,6 @@ public @UsesObjectEquals class AWTEventMulticaster implements
      * @return the resulting listener
      * @since 1.4
      */
-    @SuppressWarnings("overloads")
     public static WindowStateListener add(WindowStateListener a,
                                           WindowStateListener b) {
         return (WindowStateListener)addInternal(a, b);
@@ -832,7 +827,6 @@ public @UsesObjectEquals class AWTEventMulticaster implements
      * @return the resulting listener
      * @since 1.4
      */
-    @SuppressWarnings("overloads")
     public static WindowStateListener remove(WindowStateListener l,
                                              WindowStateListener oldl) {
         return (WindowStateListener) removeInternal(l, oldl);

@@ -25,9 +25,6 @@
 
 package java.awt.geom;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.*;
 
 /**
@@ -36,8 +33,7 @@ import java.util.*;
  *
  * @author      Jim Graham
  */
-@AnnotatedFor({"interning"})
-@UsesObjectEquals class LineIterator implements PathIterator {
+class LineIterator implements PathIterator {
     Line2D line;
     AffineTransform affine;
     int index;

@@ -25,7 +25,6 @@
 
 package com.sun.jndi.ldap;
 
-import org.checkerframework.checker.interning.qual.Interned;
 import java.io.IOException;
 import javax.naming.*;
 import javax.naming.directory.*;
@@ -61,7 +60,7 @@ public final class EntryChangeResponseControl extends BasicControl {
      * The entry-change response control's assigned object identifier
      * is 2.16.840.1.113730.3.4.7.
      */
-    public static final @Interned String OID = "2.16.840.1.113730.3.4.7";
+    public static final String OID = "2.16.840.1.113730.3.4.7";
 
     /**
      * Indicates an entry which has been added.

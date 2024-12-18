@@ -40,9 +40,6 @@
 
 package java.awt.font;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.text.BreakIterator;
 import java.text.CharacterIterator;
 import java.text.AttributedCharacterIterator;
@@ -249,8 +246,7 @@ import java.awt.font.FontRenderContext;
  * @see TextLayout
  */
 
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class LineBreakMeasurer {
+public final class LineBreakMeasurer {
 
     private BreakIterator breakIter;
     private int start;

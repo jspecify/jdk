@@ -35,7 +35,6 @@
 
 package java.util.concurrent.locks;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -52,7 +51,7 @@ import org.jspecify.annotations.Nullable;
  * @author Doug Lea
  */
 @NullMarked
-public abstract @UsesObjectEquals class AbstractOwnableSynchronizer
+public abstract class AbstractOwnableSynchronizer
     implements java.io.Serializable {
 
     /** Use serial ID even though all fields transient. */

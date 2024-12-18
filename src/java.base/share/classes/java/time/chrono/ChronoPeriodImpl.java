@@ -56,8 +56,6 @@
  */
 package java.time.chrono;
 
-import org.jspecify.annotations.Nullable;
-
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.MONTHS;
@@ -317,9 +315,7 @@ final class ChronoPeriodImpl
 
     //-----------------------------------------------------------------------
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }

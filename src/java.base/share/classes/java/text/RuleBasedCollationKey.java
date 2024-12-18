@@ -38,8 +38,6 @@
 
 package java.text;
 
-import org.jspecify.annotations.Nullable;
-
 /**
  * A RuleBasedCollationKey is a concrete implementation of CollationKey class.
  * The RuleBasedCollationKey class is used by the RuleBasedCollator class.
@@ -74,9 +72,7 @@ final class RuleBasedCollationKey extends CollationKey {
      * @param target the RuleBasedCollationKey to compare to.
      * @return Returns true if two objects are equal, false otherwise.
      */
-    
-    
-    public boolean equals(@Nullable Object target) {
+    public boolean equals(Object target) {
         if (this == target) return true;
         if (target == null || !getClass().equals(target.getClass())) {
             return false;

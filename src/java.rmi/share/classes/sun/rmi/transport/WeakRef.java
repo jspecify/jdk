@@ -24,8 +24,6 @@
  */
 package sun.rmi.transport;
 
-import org.jspecify.annotations.Nullable;
-
 import java.lang.ref.*;
 import sun.rmi.runtime.Log;
 
@@ -127,9 +125,7 @@ class WeakRef extends WeakReference<Object> {
      * contained reference has not been cleared, if "obj" is another WeakRef
      * object with the identical non-null referent.  Otherwise, return false.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj instanceof WeakRef) {
             if (obj == this)
                 return true;

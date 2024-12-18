@@ -24,9 +24,6 @@
  */
 package javax.swing.text.rtf;
 
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.*;
 import java.lang.*;
 
@@ -49,7 +46,6 @@ import java.lang.*;
  *
  * @see OutputStream
  */
-@AnnotatedFor("signedness")
 abstract class AbstractFilter extends OutputStream
 {
     /** A table mapping bytes to characters */
@@ -150,7 +146,7 @@ abstract class AbstractFilter extends OutputStream
      * call <code>write(byte[], int, int)</code> or is it the other way
      * around?
      */
-    public void write(@PolySigned byte[] buf, int off, int len)
+    public void write(byte[] buf, int off, int len)
       throws IOException
     {
       StringBuilder accumulator = null;

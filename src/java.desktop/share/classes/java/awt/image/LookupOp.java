@@ -27,9 +27,6 @@
 
 package java.awt.image;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.color.ColorSpace;
 import java.awt.geom.Rectangle2D;
 import java.awt.Rectangle;
@@ -78,8 +75,7 @@ import sun.awt.image.ImagingLib;
  * @see java.awt.RenderingHints#KEY_DITHERING
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class LookupOp implements BufferedImageOp, RasterOp {
+public class LookupOp implements BufferedImageOp, RasterOp {
     private LookupTable ltable;
     private int numComponents;
     RenderingHints hints;

@@ -38,16 +38,12 @@
 
 package java.text;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * This is used for building contracting character tables.  entryName
  * is the contracting character name and value is its collation
  * order.
  */
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class EntryPair
+final class EntryPair
 {
     public String entryName;
     public int value;

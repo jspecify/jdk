@@ -25,9 +25,6 @@
 
 package java.security.cert;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.security.PublicKey;
 
 /**
@@ -58,8 +55,7 @@ import java.security.PublicKey;
  * @author      Yassir Elley
  * @author      Sean Mullan
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class PKIXCertPathValidatorResult implements CertPathValidatorResult {
+public class PKIXCertPathValidatorResult implements CertPathValidatorResult {
 
     private final TrustAnchor trustAnchor;
     private final PolicyNode policyTree;
