@@ -24,9 +24,6 @@
  */
 package java.security.spec;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * This immutable class specifies an elliptic curve public key with
  * its associated parameters.
@@ -39,8 +36,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @since 1.5
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class ECPublicKeySpec implements KeySpec {
+public class ECPublicKeySpec implements KeySpec {
 
     private final ECPoint w;
     private final ECParameterSpec params;

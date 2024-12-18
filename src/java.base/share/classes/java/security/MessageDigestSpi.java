@@ -25,10 +25,6 @@
 
 package java.security;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.checker.signedness.qual.PolySigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.ByteBuffer;
 
 import sun.security.jca.JCAUtil;
@@ -53,8 +49,7 @@ import sun.security.jca.JCAUtil;
  * @see MessageDigest
  */
 
-@AnnotatedFor({"interning", "signedness"})
-public abstract @UsesObjectEquals class MessageDigestSpi {
+public abstract class MessageDigestSpi {
 
     // for re-use in engineUpdate(ByteBuffer input)
     private byte[] tempArray;
@@ -101,7 +96,7 @@ public abstract @UsesObjectEquals class MessageDigestSpi {
      * @param len the number of bytes to use, starting at
      * {@code offset}.
      */
-    protected abstract void engineUpdate(@PolySigned byte[] input, int offset, int len);
+    protected abstract void engineUpdate(byte[] input, int offset, int len);
 
     /**
      * Update the digest using the specified ByteBuffer. The digest is
@@ -149,7 +144,7 @@ public abstract @UsesObjectEquals class MessageDigestSpi {
      *
      * @return the array of bytes for the resulting hash value.
      */
-    protected abstract @PolySigned byte[] engineDigest();
+    protected abstract byte[] engineDigest();
 
     /**
      * Completes the hash computation by performing final
@@ -182,7 +177,7 @@ public abstract @UsesObjectEquals class MessageDigestSpi {
      *
      * @since 1.2
      */
-    protected int engineDigest(@PolySigned byte[] buf, int offset, int len)
+    protected int engineDigest(byte[] buf, int offset, int len)
                                                 throws DigestException {
 
         byte[] digest = engineDigest();

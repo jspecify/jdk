@@ -1831,6 +1831,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
     @Override
     public void sort(@Nullable Comparator<? super E> c) {
         sortRange(c, 0, size);
+        modCount++;
     }
 
     @SuppressWarnings("unchecked")
@@ -1839,7 +1840,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
         Arrays.sort((E[]) elementData, fromIndex, toIndex, c);
         if (modCount != expectedModCount)
             throw new ConcurrentModificationException();
-        modCount++;
     }
 
     void checkInvariants() {

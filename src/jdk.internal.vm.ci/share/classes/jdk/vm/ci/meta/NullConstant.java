@@ -22,8 +22,6 @@
  */
 package jdk.vm.ci.meta;
 
-import org.jspecify.annotations.Nullable;
-
 /**
  * The implementation type of the {@link JavaConstant#NULL_POINTER null constant}.
  */
@@ -93,9 +91,7 @@ final class NullConstant implements JavaConstant {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         return o instanceof NullConstant;
     }
 }

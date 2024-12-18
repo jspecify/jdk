@@ -25,17 +25,13 @@
 
 package java.nio.file;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * Defines the <em>standard</em> event kinds.
  *
  * @since 1.7
  */
 
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class StandardWatchEventKinds {
+public final class StandardWatchEventKinds {
     private StandardWatchEventKinds() { }
 
     /**

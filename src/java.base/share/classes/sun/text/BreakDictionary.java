@@ -39,9 +39,6 @@
  */
 package sun.text;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.MissingResourceException;
@@ -59,8 +56,7 @@ import sun.text.SupplementaryCharacterData;
  * transitions.  Indexes are used to compress this array, taking
  * advantage of the fact that this array will always be very sparse.
  */
-@AnnotatedFor({"interning"})
-@UsesObjectEquals class BreakDictionary {
+class BreakDictionary {
 
     //=========================================================================
     // data members

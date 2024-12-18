@@ -25,9 +25,6 @@
 
 package java.awt.datatransfer;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.IOException;
 import java.io.StringReader;
 
@@ -44,8 +41,7 @@ import java.io.StringReader;
  * @see DataFlavor#plainTextFlavor
  * @since 1.1
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class StringSelection implements Transferable, ClipboardOwner {
+public class StringSelection implements Transferable, ClipboardOwner {
 
     private static final int STRING = 0;
     private static final int PLAIN_TEXT = 1;

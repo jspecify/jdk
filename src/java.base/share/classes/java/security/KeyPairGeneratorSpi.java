@@ -25,9 +25,6 @@
 
 package java.security;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.security.spec.AlgorithmParameterSpec;
 
 /**
@@ -59,8 +56,7 @@ import java.security.spec.AlgorithmParameterSpec;
  * @see java.security.spec.AlgorithmParameterSpec
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class KeyPairGeneratorSpi {
+public abstract class KeyPairGeneratorSpi {
 
     /**
      * Constructor for subclasses to call.

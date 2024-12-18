@@ -25,9 +25,6 @@
 
 package java.awt.image;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.Image;
 import java.awt.image.ImageFilter;
 import java.awt.image.ImageConsumer;
@@ -55,8 +52,7 @@ import java.awt.image.ColorModel;
  *
  * @author      Jim Graham
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class FilteredImageSource implements ImageProducer {
+public class FilteredImageSource implements ImageProducer {
     ImageProducer src;
     ImageFilter filter;
 

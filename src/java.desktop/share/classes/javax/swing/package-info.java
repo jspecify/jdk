@@ -152,7 +152,4 @@
  *
  * @since 1.2
  */
-@UIPackage
 package javax.swing;
-
-import org.checkerframework.checker.guieffect.qual.UIPackage;

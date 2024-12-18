@@ -38,9 +38,6 @@
 
 package java.text;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Vector;
 import sun.text.UCompactIntArray;
 import sun.text.IntHashtable;
@@ -62,8 +59,7 @@ import jdk.internal.icu.impl.NormalizerImpl;
  * of its large size.  For source-code readability, it seemed better for the
  * builder to have its own source file.
  */
-@AnnotatedFor({"interning"})
-final @UsesObjectEquals class RBTableBuilder {
+final class RBTableBuilder {
 
     public RBTableBuilder(RBCollationTables.BuildAPI tables) {
         this.tables = tables;

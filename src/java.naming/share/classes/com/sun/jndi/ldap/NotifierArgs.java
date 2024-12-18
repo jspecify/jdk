@@ -25,8 +25,6 @@
 
 package com.sun.jndi.ldap;
 
-import org.jspecify.annotations.Nullable;
-
 import javax.naming.directory.SearchControls;
 import javax.naming.event.*;
 
@@ -80,9 +78,7 @@ final class NotifierArgs {
     }
 
     // checks name, filter, controls
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj instanceof NotifierArgs) {
             NotifierArgs target = (NotifierArgs)obj;
             return mask == target.mask &&

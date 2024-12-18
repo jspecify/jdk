@@ -25,9 +25,6 @@
 
 package java.awt.image;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Rectangle2D;
@@ -66,8 +63,7 @@ import sun.awt.image.ImagingLib;
  * @see java.awt.RenderingHints#KEY_COLOR_RENDERING
  * @see java.awt.RenderingHints#KEY_DITHERING
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class AffineTransformOp implements BufferedImageOp, RasterOp {
+public class AffineTransformOp implements BufferedImageOp, RasterOp {
     private AffineTransform xform;
     RenderingHints hints;
 

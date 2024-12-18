@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,6 @@
  * questions.
  */
 package javax.swing;
-
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.awt.Component;
 import java.awt.Container;
@@ -187,8 +184,6 @@ import java.util.*;
  * @author      Joe Winchester
  * @since       1.4
  */
-@AnnotatedFor({"interning"})
-@SuppressWarnings("serial") // Same-version serialization only
 public class SpringLayout implements LayoutManager2 {
     private Map<Component, Constraints> componentConstraints = new HashMap<Component, Constraints>();
 
@@ -200,57 +195,57 @@ public class SpringLayout implements LayoutManager2 {
     /**
      * Specifies the top edge of a component's bounding rectangle.
      */
-    public static final @Interned String NORTH  = "North";
+    public static final String NORTH  = "North";
 
     /**
      * Specifies the bottom edge of a component's bounding rectangle.
      */
-    public static final @Interned String SOUTH  = "South";
+    public static final String SOUTH  = "South";
 
     /**
      * Specifies the right edge of a component's bounding rectangle.
      */
-    public static final @Interned String EAST   = "East";
+    public static final String EAST   = "East";
 
     /**
      * Specifies the left edge of a component's bounding rectangle.
      */
-    public static final @Interned String WEST   = "West";
+    public static final String WEST   = "West";
 
     /**
      * Specifies the horizontal center of a component's bounding rectangle.
      *
      * @since 1.6
      */
-    public static final @Interned String HORIZONTAL_CENTER   = "HorizontalCenter";
+    public static final String HORIZONTAL_CENTER   = "HorizontalCenter";
 
     /**
      * Specifies the vertical center of a component's bounding rectangle.
      *
      * @since 1.6
      */
-    public static final @Interned String VERTICAL_CENTER   = "VerticalCenter";
+    public static final String VERTICAL_CENTER   = "VerticalCenter";
 
     /**
      * Specifies the baseline of a component.
      *
      * @since 1.6
      */
-    public static final @Interned String BASELINE   = "Baseline";
+    public static final String BASELINE   = "Baseline";
 
     /**
      * Specifies the width of a component's bounding rectangle.
      *
      * @since 1.6
      */
-    public static final @Interned String WIDTH = "Width";
+    public static final String WIDTH = "Width";
 
     /**
      * Specifies the height of a component's bounding rectangle.
      *
      * @since 1.6
      */
-    public static final @Interned String HEIGHT = "Height";
+    public static final String HEIGHT = "Height";
 
     private static String[] ALL_HORIZONTAL = {WEST, WIDTH, EAST, HORIZONTAL_CENTER};
 
