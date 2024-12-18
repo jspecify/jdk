@@ -24,9 +24,6 @@
  */
 package javax.swing.text;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Vector;
 
 /**
@@ -59,7 +56,6 @@ import java.util.Vector;
  * @see     Document
  * @see     AbstractDocument
  */
-@AnnotatedFor({"interning"})
 @SuppressWarnings("serial") // Same-version serialization only
 public class PlainDocument extends AbstractDocument {
 
@@ -68,14 +64,14 @@ public class PlainDocument extends AbstractDocument {
      * size for tabs contained in the content.  The
      * type for the value is Integer.
      */
-    public static final @Interned String tabSizeAttribute = "tabSize";
+    public static final String tabSizeAttribute = "tabSize";
 
     /**
      * Name of the attribute that specifies the maximum
      * length of a line, if there is a maximum length.
      * The type for the value is Integer.
      */
-    public static final @Interned String lineLimitAttribute = "lineLimit";
+    public static final String lineLimitAttribute = "lineLimit";
 
     /**
      * Constructs a plain text document.  A default model using

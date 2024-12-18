@@ -25,7 +25,6 @@
 
 package jdk.javadoc.internal.tool;
 
-import org.checkerframework.dataflow.qual.Pure;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol.*;
@@ -103,7 +102,6 @@ public class JavadocMemberEnter extends MemberEnter {
         }
     }
 
-    @Pure
     private static boolean isParameter(VarSymbol var) {
         return (var.flags() & Flags.PARAMETER) != 0;
     }

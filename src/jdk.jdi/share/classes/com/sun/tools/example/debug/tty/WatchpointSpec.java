@@ -34,8 +34,6 @@
 
 package com.sun.tools.example.debug.tty;
 
-import org.jspecify.annotations.Nullable;
-
 abstract class WatchpointSpec extends EventRequestSpec {
     final String fieldId;
 
@@ -55,9 +53,7 @@ abstract class WatchpointSpec extends EventRequestSpec {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj instanceof WatchpointSpec) {
             WatchpointSpec watchpoint = (WatchpointSpec)obj;
 

@@ -24,9 +24,6 @@
  */
 package java.beans;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * The PersistenceDelegate class takes the responsibility
  * for expressing the state of an instance of a given class
@@ -88,8 +85,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Philip Milne
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class PersistenceDelegate {
+public abstract class PersistenceDelegate {
 
     /**
      * Constructs a {@code PersistenceDelegate}.

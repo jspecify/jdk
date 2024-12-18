@@ -25,9 +25,6 @@
 
 package java.net;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Objects;
@@ -49,8 +46,7 @@ import sun.net.util.IPAddressUtil;
  * @see     java.net.URL#URL(java.lang.String, java.lang.String, int, java.lang.String)
  * @since   1.0
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class URLStreamHandler {
+public abstract class URLStreamHandler {
     /**
      * Constructor for subclasses to call.
      */

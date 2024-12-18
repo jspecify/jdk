@@ -25,9 +25,6 @@
 
 package java.lang;
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
-
 /**
  * A collection of assertion status directives (such as "enable assertions
  * in package p" or "disable assertions in class c").  This class is used by
@@ -38,7 +35,6 @@ import org.jspecify.annotations.Nullable;
  * @since  1.4
  * @author Josh Bloch
  */
-@NullMarked
 class AssertionStatusDirectives {
     /**
      * The classes for which assertions are to be enabled or disabled.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,6 @@
  */
 
 package java.awt.font;
-
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -67,8 +64,7 @@ import sun.font.TextLineComponent;
 
 import java.awt.geom.Line2D;
 
-@AnnotatedFor({"interning"})
-final @UsesObjectEquals class TextLine {
+final class TextLine {
 
     static final class TextLineMetrics {
         public final float ascent;
@@ -868,19 +864,15 @@ final @UsesObjectEquals class TextLine {
         return new Rectangle2D.Float(left, top, right-left, bottom-top);
     }
 
-    public Shape getOutline(AffineTransform tx) {
+    public Shape getOutline() {
 
         GeneralPath dstShape = new GeneralPath(GeneralPath.WIND_NON_ZERO);
 
         for (int i=0, n = 0; i < fComponents.length; i++, n += 2) {
             TextLineComponent tlc = fComponents[getComponentLogicalIndex(i)];
-
             dstShape.append(tlc.getOutline(locs[n], locs[n+1]), false);
         }
 
-        if (tx != null) {
-            dstShape.transform(tx);
-        }
         return dstShape;
     }
 
@@ -1029,7 +1021,7 @@ final @UsesObjectEquals class TextLine {
                     factory.createExtended(font, cm, decorator, startPos, startPos + lmCount);
 
                 ++numComponents;
-                if (numComponents >= components.length) {
+                if (numComponents > components.length) {
                     components = expandArray(components);
                 }
 
@@ -1084,7 +1076,7 @@ final @UsesObjectEquals class TextLine {
                     pos = chunkLimit;
 
                     ++numComponents;
-                    if (numComponents >= tempComponents.length) {
+                    if (numComponents > tempComponents.length) {
                         tempComponents = expandArray(tempComponents);
                     }
 

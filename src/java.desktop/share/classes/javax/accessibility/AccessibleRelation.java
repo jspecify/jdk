@@ -25,9 +25,6 @@
 
 package javax.accessibility;
 
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * Class {@code AccessibleRelation} describes a relation between the object that
  * implements the {@code AccessibleRelation} and one or more other objects. The
@@ -47,7 +44,6 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Lynn Monsanto
  * @since 1.3
  */
-@AnnotatedFor({"interning"})
 public class AccessibleRelation extends AccessibleBundle {
 
     /**
@@ -71,7 +67,7 @@ public class AccessibleRelation extends AccessibleBundle {
      * @see #LABELED_BY
      * @see #MEMBER_OF
      */
-    public static final @Interned String LABEL_FOR = new String("labelFor");
+    public static final String LABEL_FOR = new String("labelFor");
 
     /**
      * Indicates an object is labeled by one or more target objects.
@@ -82,7 +78,7 @@ public class AccessibleRelation extends AccessibleBundle {
      * @see #LABEL_FOR
      * @see #MEMBER_OF
      */
-    public static final @Interned String LABELED_BY = new String("labeledBy");
+    public static final String LABELED_BY = new String("labeledBy");
 
     /**
      * Indicates an object is a member of a group of one or more target objects.
@@ -93,7 +89,7 @@ public class AccessibleRelation extends AccessibleBundle {
      * @see #LABEL_FOR
      * @see #LABELED_BY
      */
-    public static final @Interned String MEMBER_OF = new String("memberOf");
+    public static final String MEMBER_OF = new String("memberOf");
 
     /**
      * Indicates an object is a controller for one or more target objects.
@@ -104,7 +100,7 @@ public class AccessibleRelation extends AccessibleBundle {
      * @see #LABELED_BY
      * @see #MEMBER_OF
      */
-    public static final @Interned String CONTROLLER_FOR = new String("controllerFor");
+    public static final String CONTROLLER_FOR = new String("controllerFor");
 
     /**
      * Indicates an object is controlled by one or more target objects.
@@ -115,7 +111,7 @@ public class AccessibleRelation extends AccessibleBundle {
      * @see #LABELED_BY
      * @see #MEMBER_OF
      */
-    public static final @Interned String CONTROLLED_BY = new String("controlledBy");
+    public static final String CONTROLLED_BY = new String("controlledBy");
 
     /**
      * Indicates an object is logically contiguous with a second object where
@@ -128,7 +124,7 @@ public class AccessibleRelation extends AccessibleBundle {
      *
      * @since 1.5
      */
-    public static final @Interned String FLOWS_TO = "flowsTo";
+    public static final String FLOWS_TO = "flowsTo";
 
     /**
      * Indicates an object is logically contiguous with a second object where
@@ -141,75 +137,75 @@ public class AccessibleRelation extends AccessibleBundle {
      *
      * @since 1.5
      */
-    public static final @Interned String FLOWS_FROM = "flowsFrom";
+    public static final String FLOWS_FROM = "flowsFrom";
 
     /**
      * Indicates that an object is a subwindow of one or more objects.
      *
      * @since 1.5
      */
-    public static final @Interned String SUBWINDOW_OF = "subwindowOf";
+    public static final String SUBWINDOW_OF = "subwindowOf";
 
     /**
      * Indicates that an object is a parent window of one or more objects.
      *
      * @since 1.5
      */
-    public static final @Interned String PARENT_WINDOW_OF = "parentWindowOf";
+    public static final String PARENT_WINDOW_OF = "parentWindowOf";
 
     /**
      * Indicates that an object has one or more objects embedded in it.
      *
      * @since 1.5
      */
-    public static final @Interned String EMBEDS = "embeds";
+    public static final String EMBEDS = "embeds";
 
     /**
      * Indicates that an object is embedded in one or more objects.
      *
      * @since 1.5
      */
-    public static final @Interned String EMBEDDED_BY = "embeddedBy";
+    public static final String EMBEDDED_BY = "embeddedBy";
 
     /**
      * Indicates that an object is a child node of one or more objects.
      *
      * @since 1.5
      */
-    public static final @Interned String CHILD_NODE_OF = "childNodeOf";
+    public static final String CHILD_NODE_OF = "childNodeOf";
 
     /**
      * Identifies that the target group for a label has changed.
      */
-    public static final @Interned String LABEL_FOR_PROPERTY = "labelForProperty";
+    public static final String LABEL_FOR_PROPERTY = "labelForProperty";
 
     /**
      * Identifies that the objects that are doing the labeling have changed.
      */
-    public static final @Interned String LABELED_BY_PROPERTY = "labeledByProperty";
+    public static final String LABELED_BY_PROPERTY = "labeledByProperty";
 
     /**
      * Identifies that group membership has changed.
      */
-    public static final @Interned String MEMBER_OF_PROPERTY = "memberOfProperty";
+    public static final String MEMBER_OF_PROPERTY = "memberOfProperty";
 
     /**
      * Identifies that the controller for the target object has changed.
      */
-    public static final @Interned String CONTROLLER_FOR_PROPERTY = "controllerForProperty";
+    public static final String CONTROLLER_FOR_PROPERTY = "controllerForProperty";
 
     /**
      * Identifies that the target object that is doing the controlling has
      * changed.
      */
-    public static final @Interned String CONTROLLED_BY_PROPERTY = "controlledByProperty";
+    public static final String CONTROLLED_BY_PROPERTY = "controlledByProperty";
 
     /**
      * Indicates the {@code FLOWS_TO} relation between two objects has changed.
      *
      * @since 1.5
      */
-    public static final @Interned String FLOWS_TO_PROPERTY = "flowsToProperty";
+    public static final String FLOWS_TO_PROPERTY = "flowsToProperty";
 
     /**
      * Indicates the {@code FLOWS_FROM} relation between two objects has
@@ -217,7 +213,7 @@ public class AccessibleRelation extends AccessibleBundle {
      *
      * @since 1.5
      */
-    public static final @Interned String FLOWS_FROM_PROPERTY = "flowsFromProperty";
+    public static final String FLOWS_FROM_PROPERTY = "flowsFromProperty";
 
     /**
      * Indicates the {@code SUBWINDOW_OF} relation between two or more objects
@@ -225,7 +221,7 @@ public class AccessibleRelation extends AccessibleBundle {
      *
      * @since 1.5
      */
-    public static final @Interned String SUBWINDOW_OF_PROPERTY = "subwindowOfProperty";
+    public static final String SUBWINDOW_OF_PROPERTY = "subwindowOfProperty";
 
     /**
      * Indicates the {@code PARENT_WINDOW_OF} relation between two or more
@@ -233,7 +229,7 @@ public class AccessibleRelation extends AccessibleBundle {
      *
      * @since 1.5
      */
-    public static final @Interned String PARENT_WINDOW_OF_PROPERTY = "parentWindowOfProperty";
+    public static final String PARENT_WINDOW_OF_PROPERTY = "parentWindowOfProperty";
 
     /**
      * Indicates the {@code EMBEDS} relation between two or more objects has
@@ -241,7 +237,7 @@ public class AccessibleRelation extends AccessibleBundle {
      *
      * @since 1.5
      */
-    public static final @Interned String EMBEDS_PROPERTY = "embedsProperty";
+    public static final String EMBEDS_PROPERTY = "embedsProperty";
 
     /**
      * Indicates the {@code EMBEDDED_BY} relation between two or more objects
@@ -249,7 +245,7 @@ public class AccessibleRelation extends AccessibleBundle {
      *
      * @since 1.5
      */
-    public static final @Interned String EMBEDDED_BY_PROPERTY = "embeddedByProperty";
+    public static final String EMBEDDED_BY_PROPERTY = "embeddedByProperty";
 
     /**
      * Indicates the {@code CHILD_NODE_OF} relation between two or more objects
@@ -257,7 +253,7 @@ public class AccessibleRelation extends AccessibleBundle {
      *
      * @since 1.5
      */
-    public static final @Interned String CHILD_NODE_OF_PROPERTY = "childNodeOfProperty";
+    public static final String CHILD_NODE_OF_PROPERTY = "childNodeOfProperty";
 
     /**
      * Create a new {@code AccessibleRelation} using the given locale

@@ -25,8 +25,6 @@
 
 package com.sun.jndi.dns;
 
-import org.jspecify.annotations.Nullable;
-
 
 import javax.naming.*;
 
@@ -47,9 +45,7 @@ class DnsNameParser implements NameParser {
 
     // Every DnsNameParser is created equal.
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         return (obj instanceof DnsNameParser);
     }
 
