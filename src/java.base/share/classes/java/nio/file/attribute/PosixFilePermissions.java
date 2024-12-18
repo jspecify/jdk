@@ -25,9 +25,6 @@
 
 package java.nio.file.attribute;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import static java.nio.file.attribute.PosixFilePermission.*;
 import java.util.*;
 
@@ -38,8 +35,7 @@ import java.util.*;
  * @since 1.7
  */
 
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class PosixFilePermissions {
+public final class PosixFilePermissions {
     private PosixFilePermissions() { }
 
     // Write string representation of permission bits to {@code sb}.

@@ -24,8 +24,6 @@
  */
 package sun.rmi.transport;
 
-import org.jspecify.annotations.Nullable;
-
 import java.rmi.server.ObjID;
 
 /**
@@ -67,9 +65,7 @@ class ObjectEndpoint {
      * ObjectEndpoint instance with the same object identifier and
      * transport as this object.
      **/
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj instanceof ObjectEndpoint) {
             ObjectEndpoint oe = (ObjectEndpoint) obj;
             return id.equals(oe.id) && transport == oe.transport;

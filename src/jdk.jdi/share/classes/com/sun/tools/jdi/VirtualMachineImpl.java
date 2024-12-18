@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package com.sun.tools.jdi;
-
-import org.jspecify.annotations.Nullable;
 
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
@@ -302,9 +300,7 @@ class VirtualMachineImpl extends MirrorImpl
          */
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         return this == obj;
     }
 
@@ -380,7 +376,6 @@ class VirtualMachineImpl extends MirrorImpl
         }
         Iterator<?> it = classToBytes.entrySet().iterator();
         for (int i = 0; it.hasNext(); i++) {
-            @SuppressWarnings("rawtypes")
             Map.Entry<?, ?> entry = (Map.Entry)it.next();
             ReferenceTypeImpl refType = (ReferenceTypeImpl)entry.getKey();
             validateMirror(refType);

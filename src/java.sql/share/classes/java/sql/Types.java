@@ -25,9 +25,6 @@
 
 package java.sql;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * <P>The class that defines the constants that are used to identify generic
  * SQL types, called JDBC types.
@@ -36,8 +33,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @since 1.1
  */
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class Types {
+public class Types {
 
 /**
  * <P>The constant in the Java programming language, sometimes referred

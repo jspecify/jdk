@@ -305,7 +305,7 @@ public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object
      * @throws UnsupportedOperationException always
      * @since 21
      */
-     default V putFirst(K k, V v) {
+     default @Nullable V putFirst(K k, V v) {
         throw new UnsupportedOperationException();
     }
 
@@ -320,7 +320,7 @@ public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object
      * @throws UnsupportedOperationException always
      * @since 21
      */
-    default V putLast(K k, V v) {
+    default @Nullable V putLast(K k, V v) {
         throw new UnsupportedOperationException();
     }
 

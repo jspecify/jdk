@@ -25,9 +25,6 @@
 
 package java.awt.print;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Vector;
 
 /**
@@ -39,8 +36,7 @@ import java.util.Vector;
  * @see PrinterJob
 */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class Book implements Pageable {
+public class Book implements Pageable {
 
  /* Class Constants */
 

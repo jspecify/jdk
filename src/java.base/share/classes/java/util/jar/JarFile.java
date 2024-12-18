@@ -31,7 +31,6 @@ import org.jspecify.annotations.Nullable;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.JavaUtilZipFileAccess;
 import jdk.internal.misc.ThreadTracker;
-import sun.security.action.GetPropertyAction;
 import sun.security.util.ManifestEntryVerifier;
 import sun.security.util.SignatureFileVerifier;
 
@@ -43,6 +42,7 @@ import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.security.CodeSigner;
 import java.security.cert.Certificate;
+import java.util.BitSet;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Objects;
@@ -174,7 +174,7 @@ public class JarFile extends ZipFile {
         // multi-release jar file versions >= 9
         BASE_VERSION = Runtime.Version.parse(Integer.toString(8));
         BASE_VERSION_FEATURE = BASE_VERSION.feature();
-        String jarVersion = GetPropertyAction.privilegedGetProperty("jdk.util.jar.version");
+        String jarVersion = System.getProperty("jdk.util.jar.version");
         int runtimeVersion = Runtime.version().feature();
         if (jarVersion != null) {
             int jarVer = Integer.parseInt(jarVersion);
@@ -183,8 +183,8 @@ public class JarFile extends ZipFile {
                     : Math.max(jarVer, BASE_VERSION_FEATURE);
         }
         RUNTIME_VERSION = Runtime.Version.parse(Integer.toString(runtimeVersion));
-        String enableMultiRelease = GetPropertyAction
-                .privilegedGetProperty("jdk.util.jar.enableMultiRelease", "true");
+        String enableMultiRelease = System.
+                getProperty("jdk.util.jar.enableMultiRelease", "true");
         switch (enableMultiRelease) {
             case "false" -> {
                 MULTI_RELEASE_ENABLED = false;
@@ -252,8 +252,6 @@ public class JarFile extends ZipFile {
      * it is signed.
      * @param name the name of the jar file to be opened for reading
      * @throws IOException if an I/O error has occurred
-     * @throws SecurityException if access to the file is denied
-     *         by the SecurityManager
      */
     public JarFile(String name) throws IOException {
         this(new File(name), true, ZipFile.OPEN_READ);
@@ -266,8 +264,6 @@ public class JarFile extends ZipFile {
      * @param verify whether or not to verify the jar file if
      * it is signed.
      * @throws IOException if an I/O error has occurred
-     * @throws SecurityException if access to the file is denied
-     *         by the SecurityManager
      */
     public JarFile(String name, boolean verify) throws IOException {
         this(new File(name), verify, ZipFile.OPEN_READ);
@@ -279,8 +275,6 @@ public class JarFile extends ZipFile {
      * it is signed.
      * @param file the jar file to be opened for reading
      * @throws IOException if an I/O error has occurred
-     * @throws SecurityException if access to the file is denied
-     *         by the SecurityManager
      */
     public JarFile(File file) throws IOException {
         this(file, true, ZipFile.OPEN_READ);
@@ -293,8 +287,6 @@ public class JarFile extends ZipFile {
      * @param verify whether or not to verify the jar file if
      * it is signed.
      * @throws IOException if an I/O error has occurred
-     * @throws SecurityException if access to the file is denied
-     *         by the SecurityManager.
      */
     public JarFile(File file, boolean verify) throws IOException {
         this(file, verify, ZipFile.OPEN_READ);
@@ -312,8 +304,6 @@ public class JarFile extends ZipFile {
      * @throws IOException if an I/O error has occurred
      * @throws IllegalArgumentException
      *         if the {@code mode} argument is invalid
-     * @throws SecurityException if access to the file is denied
-     *         by the SecurityManager
      * @since 1.3
      */
     public JarFile(File file, boolean verify, int mode) throws IOException {
@@ -340,8 +330,6 @@ public class JarFile extends ZipFile {
      * @throws IOException if an I/O error has occurred
      * @throws IllegalArgumentException
      *         if the {@code mode} argument is invalid
-     * @throws SecurityException if access to the file is denied
-     *         by the SecurityManager
      * @throws NullPointerException if {@code version} is {@code null}
      * @since 9
      */
@@ -601,26 +589,16 @@ public class JarFile extends ZipFile {
     }
 
     private JarEntry getVersionedEntry(String name, JarEntry defaultEntry) {
-        if (!name.startsWith(META_INF)) {
-            int[] versions = JUZFA.getMetaInfVersions(this);
-            if (BASE_VERSION_FEATURE < versionFeature && versions.length > 0) {
-                // search for versioned entry
-                for (int i = versions.length - 1; i >= 0; i--) {
-                    int version = versions[i];
-                    // skip versions above versionFeature
-                    if (version > versionFeature) {
-                        continue;
-                    }
-                    // skip versions below base version
-                    if (version < BASE_VERSION_FEATURE) {
-                        break;
-                    }
-                    JarFileEntry vje = (JarFileEntry)super.getEntry(
-                            META_INF_VERSIONS + version + "/" + name);
-                    if (vje != null) {
-                        return vje.withBasename(name);
-                    }
+        if (BASE_VERSION_FEATURE < versionFeature && !name.startsWith(META_INF)) {
+            BitSet versions = JUZFA.getMetaInfVersions(this, name);
+            int version = versions.previousSetBit(versionFeature);
+            while (version >= BASE_VERSION_FEATURE) {
+                JarFileEntry vje = (JarFileEntry)super.getEntry(
+                        META_INF_VERSIONS + version + "/" + name);
+                if (vje != null) {
+                    return vje.withBasename(name);
                 }
+                version = versions.previousSetBit(version - 1);
             }
         }
         return defaultEntry;
@@ -849,7 +827,7 @@ public class JarFile extends ZipFile {
      * @throws IllegalStateException
      *         may be thrown if the jar file has been closed
      */
-    public synchronized InputStream getInputStream(ZipEntry ze)
+    public synchronized @Nullable InputStream getInputStream(ZipEntry ze)
         throws IOException
     {
         Objects.requireNonNull(ze, "ze");

@@ -25,9 +25,6 @@
 
 package java.nio.charset;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -84,8 +81,7 @@ import java.util.Map;
  * @since 1.4
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class CoderResult {
+public class CoderResult {
 
     private static final int CR_UNDERFLOW  = 0;
     private static final int CR_OVERFLOW   = 1;

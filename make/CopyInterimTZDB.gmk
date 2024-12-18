@@ -38,6 +38,10 @@ define tzdb_copyfiles
 	$(call MakeTargetDir)
 	$(RM) '$@'
 	$(SED) -e "s/package java.time.zone/package build.tools.tzdb/" \
+	    -e "s/import org.jspecify.annotations.NullMarked;//" \
+	    -e "s/import org.jspecify.annotations.Nullable;//" \
+	    -e "s/@NullMarked//" \
+	    -e "s/@Nullable //" \
         < $(<) > $@
 endef
 

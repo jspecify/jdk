@@ -224,7 +224,7 @@ public class LinkedHashSet<E extends @Nullable Object>
      * @throws IllegalArgumentException if numElements is negative
      * @since 19
      */
-    public static <T> LinkedHashSet<T> newLinkedHashSet(int numElements) {
+    public static <T extends @Nullable Object> LinkedHashSet<T> newLinkedHashSet(int numElements) {
         if (numElements < 0) {
             throw new IllegalArgumentException("Negative number of elements: " + numElements);
         }

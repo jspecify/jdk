@@ -27,6 +27,7 @@ package java.util.zip;
 
 import java.io.OutputStream;
 import java.io.IOException;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * This class implements a stream filter for writing compressed data in
@@ -39,6 +40,7 @@ import java.io.IOException;
  * @since 1.1
  *
  */
+@NullMarked
 public class GZIPOutputStream extends DeflaterOutputStream {
     /**
      * CRC-32 of uncompressed data.

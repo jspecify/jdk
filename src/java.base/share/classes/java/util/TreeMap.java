@@ -25,6 +25,7 @@
 
 package java.util;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -328,7 +329,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * @throws UnsupportedOperationException always
      * @since 21
      */
-     public V putFirst(K k, V v) {
+     public @Nullable V putFirst(K k, V v) {
         throw new UnsupportedOperationException();
     }
 
@@ -340,7 +341,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * @throws UnsupportedOperationException always
      * @since 21
      */
-    public V putLast(K k, V v) {
+    public @Nullable V putLast(K k, V v) {
         throw new UnsupportedOperationException();
     }
 
@@ -430,10 +431,9 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     }
 
     /**
-     * Gets the entry corresponding to the specified key; if no such entry
-     * exists, returns the entry for the least key greater than the specified
-     * key; if no such entry exists (i.e., the greatest key in the Tree is less
-     * than the specified key), returns {@code null}.
+     * Returns the entry for the least key greater than or equal to the specified key;
+     * if no such entry exists (i.e. the specified key is greater than any key in the tree,
+     * or the tree is empty), returns {@code null}.
      */
     final Entry<K,V> getCeilingEntry(K key) {
         Entry<K,V> p = root;
@@ -463,10 +463,9 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     }
 
     /**
-     * Gets the entry corresponding to the specified key; if no such entry
-     * exists, returns the entry for the greatest key less than the specified
-     * key; if no such entry exists (i.e., the least key in the Tree is greater
-     * than the specified key), returns {@code null}.
+     * Returns the entry for the greatest key less than or equal to the specified key;
+     * if no such entry exists (i.e. the specified key is less than any key in the tree,
+     * or the tree is empty), returns {@code null}.
      */
     final Entry<K,V> getFloorEntry(K key) {
         Entry<K,V> p = root;
@@ -581,7 +580,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     }
 
     @Override
-    public V putIfAbsent(K key, V value) {
+    public @Nullable V putIfAbsent(K key, V value) {
         return put(key, value, false);
     }
 
@@ -666,7 +665,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * remapping function modified this map
      */
     @Override
-    public V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    public @Nullable V computeIfPresent(K key, BiFunction<? super K, ? super @NonNull V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         Entry<K,V> oldEntry = getEntry(key);
         if (oldEntry != null && oldEntry.value != null) {
@@ -687,7 +686,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * remapping function modified this map
      */
     @Override
-    public V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+    public @Nullable V compute(K key, BiFunction<? super K, ? super @Nullable V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         V newValue;
         Entry<K,V> t = root;
@@ -749,7 +748,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * remapping function modified this map
      */
     @Override
-    public V merge(K key, V value, BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+    public @Nullable V merge(K key, @NonNull V value, BiFunction<? super @NonNull V, ? super @NonNull V, ? extends @Nullable V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         Objects.requireNonNull(value);
         Entry<K,V> t = root;

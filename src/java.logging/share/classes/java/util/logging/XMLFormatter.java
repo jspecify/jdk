@@ -26,8 +26,6 @@
 
 package java.util.logging;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.charset.Charset;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -78,7 +76,6 @@ import java.util.*;
  * @since 1.4
  */
 
-@AnnotatedFor({"index"})
 public class XMLFormatter extends Formatter {
     private final LogManager manager = LogManager.getLogManager();
     private final boolean useInstant;

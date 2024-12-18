@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,14 +24,7 @@
  */
 package javax.swing.text;
 
-import org.checkerframework.checker.guieffect.qual.SafeEffect;
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import com.sun.beans.util.Cache;
-
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 
 import java.beans.JavaBean;
 import java.beans.BeanProperty;
@@ -301,7 +294,6 @@ import sun.swing.SwingAccessor;
  * @see View
  * @see ViewFactory
  */
-@AnnotatedFor({"guieffect", "interning"})
 @JavaBean(defaultProperty = "UI")
 @SwingContainer(false)
 @SuppressWarnings("serial") // Same-version serialization only
@@ -1135,7 +1127,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
-    @SuppressWarnings("serial") // Same-version serialization only
     public static class KeyBinding {
 
         /**
@@ -1568,7 +1559,7 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
     /**
      * The bound property name for the focus accelerator.
      */
-    public static final @Interned String FOCUS_ACCELERATOR_KEY = "focusAcceleratorKey";
+    public static final String FOCUS_ACCELERATOR_KEY = "focusAcceleratorKey";
 
     /**
      * Sets the key accelerator that will cause the receiving text
@@ -1721,7 +1712,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * @see #getText
      * @see DefaultCaret
      */
-    @SafeEffect
     @BeanProperty(bound = false, description
             = "the text of this component")
     public void setText(String t) {
@@ -2130,8 +2120,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * @return {@code true}, unless printing is canceled by the user
      * @throws PrinterException if an error in the print system causes the job
      *         to be aborted
-     * @throws SecurityException if this thread is not allowed to
-     *                           initiate a print job request
      *
      * @see #print(MessageFormat, MessageFormat, boolean, PrintService, PrintRequestAttributeSet, boolean)
      *
@@ -2160,8 +2148,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * @return {@code true}, unless printing is canceled by the user
      * @throws PrinterException if an error in the print system causes the job
      *         to be aborted
-     * @throws SecurityException if this thread is not allowed to
-     *                           initiate a print job request
      *
      * @see #print(MessageFormat, MessageFormat, boolean, PrintService, PrintRequestAttributeSet, boolean)
      * @see java.text.MessageFormat
@@ -2272,8 +2258,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * @return {@code true}, unless printing is canceled by the user
      * @throws PrinterException if an error in the print system causes the job
      *         to be aborted
-     * @throws SecurityException if this thread is not allowed to
-     *                           initiate a print job request
      *
      * @see #getPrintable
      * @see java.text.MessageFormat
@@ -3966,7 +3950,6 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * Maps from class name to Boolean indicating if
      * <code>processInputMethodEvent</code> has been overridden.
      */
-    @SuppressWarnings("removal")
     private static Cache<Class<?>,Boolean> METHOD_OVERRIDDEN
             = new Cache<Class<?>,Boolean>(Cache.Kind.WEAK, Cache.Kind.STRONG) {
         /**
@@ -3981,17 +3964,12 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
             if (get(type.getSuperclass())) {
                 return Boolean.TRUE;
             }
-            return AccessController.doPrivileged(
-                    new PrivilegedAction<Boolean>() {
-                        public Boolean run() {
-                            try {
-                                type.getDeclaredMethod("processInputMethodEvent", InputMethodEvent.class);
-                                return Boolean.TRUE;
-                            } catch (NoSuchMethodException exception) {
-                                return Boolean.FALSE;
-                            }
-                        }
-                    });
+            try {
+                type.getDeclaredMethod("processInputMethodEvent", InputMethodEvent.class);
+                return Boolean.TRUE;
+            } catch (NoSuchMethodException exception) {
+                return Boolean.FALSE;
+            }
         }
     };
 
@@ -4468,7 +4446,7 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * <code>JTextComponent</code> instances unless they
      * have had a different keymap set.
      */
-    public static final @Interned String DEFAULT_KEYMAP = "default";
+    public static final String DEFAULT_KEYMAP = "default";
 
     /**
      * Event to use when firing a notification of change to caret

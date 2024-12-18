@@ -382,12 +382,12 @@ public class HashSet<E extends @Nullable Object>
     }
 
     @Override
-    public Object[] toArray() {
+    public @Nullable Object[] toArray() {
         return map.keysToArray(new Object[map.size()]);
     }
 
     @Override
-    public <T> T[] toArray(T[] a) {
+    public <T extends @Nullable Object> T[] toArray(T[] a) {
         return map.keysToArray(map.prepareArray(a));
     }
 
@@ -403,7 +403,7 @@ public class HashSet<E extends @Nullable Object>
      * @throws IllegalArgumentException if numElements is negative
      * @since 19
      */
-    public static <T> HashSet<T> newHashSet(int numElements) {
+    public static <T extends @Nullable Object> HashSet<T> newHashSet(int numElements) {
         if (numElements < 0) {
             throw new IllegalArgumentException("Negative number of elements: " + numElements);
         }

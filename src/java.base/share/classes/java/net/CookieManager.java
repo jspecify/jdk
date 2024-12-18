@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Comparator;
 import java.io.IOException;
 import sun.util.logging.PlatformLogger;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * CookieManager provides a concrete implementation of {@link CookieHandler},
@@ -114,6 +116,7 @@ import sun.util.logging.PlatformLogger;
  * @author Edward Wang
  * @since 1.6
  */
+@NullMarked
 public class CookieManager extends CookieHandler
 {
     /* ---------------- Fields -------------- */
@@ -149,8 +152,8 @@ public class CookieManager extends CookieHandler
      *                          if {@code null}, ACCEPT_ORIGINAL_SERVER will
      *                          be used.
      */
-    public CookieManager(CookieStore store,
-                         CookiePolicy cookiePolicy)
+    public CookieManager(@Nullable CookieStore store,
+                         @Nullable CookiePolicy cookiePolicy)
     {
         // use default cookie policy if not specify one
         policyCallback = (cookiePolicy == null) ? CookiePolicy.ACCEPT_ORIGINAL_SERVER
@@ -177,7 +180,7 @@ public class CookieManager extends CookieHandler
      * @param cookiePolicy      the cookie policy. Can be {@code null}, which
      *                          has no effects on current cookie policy.
      */
-    public void setCookiePolicy(CookiePolicy cookiePolicy) {
+    public void setCookiePolicy(@Nullable CookiePolicy cookiePolicy) {
         if (cookiePolicy != null) policyCallback = cookiePolicy;
     }
 

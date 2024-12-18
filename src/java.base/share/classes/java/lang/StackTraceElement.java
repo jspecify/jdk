@@ -160,10 +160,10 @@ public final class StackTraceElement implements java.io.Serializable {
      *
      * @since 9
      */
-    public StackTraceElement(String classLoaderName,
-                             String moduleName, String moduleVersion,
+    public StackTraceElement(@Nullable String classLoaderName,
+                             @Nullable String moduleName, @Nullable String moduleVersion,
                              String declaringClass, String methodName,
-                             String fileName, int lineNumber) {
+                             @Nullable String fileName, int lineNumber) {
         this.classLoaderName = classLoaderName;
         this.moduleName      = moduleName;
         this.moduleVersion   = moduleVersion;
@@ -220,7 +220,7 @@ public final class StackTraceElement implements java.io.Serializable {
      * @since 9
      * @see Module#getName()
      */
-    public String getModuleName() {
+    public @Nullable String getModuleName() {
         return moduleName;
     }
 
@@ -234,7 +234,7 @@ public final class StackTraceElement implements java.io.Serializable {
      * @since 9
      * @see java.lang.module.ModuleDescriptor.Version
      */
-    public String getModuleVersion() {
+    public @Nullable String getModuleVersion() {
         return moduleVersion;
     }
 
@@ -249,7 +249,7 @@ public final class StackTraceElement implements java.io.Serializable {
      * @since 9
      * @see java.lang.ClassLoader#getName()
      */
-    public String getClassLoaderName() {
+    public @Nullable String getClassLoaderName() {
         return classLoaderName;
     }
 

@@ -25,6 +25,8 @@
 
 package java.util.random;
 
+import org.jspecify.annotations.NullMarked;
+
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.Objects;
@@ -106,6 +108,7 @@ import static java.lang.Math.*;
  * @since 17
  *
  */
+@NullMarked
 public interface RandomGenerator {
      /**
      * Returns an instance of {@link RandomGenerator} that utilizes the

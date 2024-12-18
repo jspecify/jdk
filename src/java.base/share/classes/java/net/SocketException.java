@@ -65,7 +65,7 @@ public class SocketException extends IOException {
      * @param cause the cause
      * @since 19
      */
-    public SocketException(String msg, Throwable cause) {
+    public SocketException(@Nullable String msg, @Nullable Throwable cause) {
         super(msg, cause);
     }
 
@@ -76,7 +76,7 @@ public class SocketException extends IOException {
      * @param cause the cause
      * @since 19
      */
-    public SocketException(Throwable cause) {
+    public SocketException(@Nullable Throwable cause) {
         super(cause);
     }
 }

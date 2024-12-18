@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,6 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.io.*;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 
 /**
  * This class provides a skeletal implementation of the {@link Preferences}
@@ -200,7 +198,7 @@ public abstract class AbstractPreferences extends Preferences {
      *          ({@code '/'}),  or {@code parent} is {@code null} and
      *          name isn't {@code ""}.
      */
-    protected AbstractPreferences(AbstractPreferences parent, String name) {
+    protected AbstractPreferences(@Nullable AbstractPreferences parent, String name) {
         if (parent==null) {
             if (!name.isEmpty())
                 throw new IllegalArgumentException("Root name '"+name+
@@ -1062,14 +1060,8 @@ public abstract class AbstractPreferences extends Preferences {
      *         preference tree, {@code false} if it's in the system
      *         preference tree.
      */
-    @SuppressWarnings("removal")
     public boolean isUserNode() {
-        return AccessController.doPrivileged(
-            new PrivilegedAction<Boolean>() {
-                public Boolean run() {
-                    return root == Preferences.userRoot();
-            }
-            }).booleanValue();
+        return root == Preferences.userRoot();
     }
 
     public void addPreferenceChangeListener(PreferenceChangeListener pcl) {

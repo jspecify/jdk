@@ -21,8 +21,6 @@
 
 package com.sun.org.apache.xerces.internal.util;
 
-import org.jspecify.annotations.Nullable;
-
 /**
  * <p>A structure that represents an error code, characterized by
  * a domain and a message key.</p>
@@ -69,9 +67,7 @@ final class XMLErrorCode {
      *
      * @param obj the object with which to compare.
      */
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (!(obj instanceof XMLErrorCode))
             return false;
         XMLErrorCode err = (XMLErrorCode) obj;

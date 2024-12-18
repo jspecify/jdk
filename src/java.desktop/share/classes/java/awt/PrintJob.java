@@ -25,9 +25,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * An abstract class which initiates and executes a print job.
  * It provides access to a print graphics object which renders
@@ -37,8 +34,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  *
  * @author      Amy Fowler
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class PrintJob {
+public abstract class PrintJob {
 
     /**
      * Constructor for subclasses to call.

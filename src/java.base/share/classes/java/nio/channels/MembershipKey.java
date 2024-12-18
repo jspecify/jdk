@@ -25,9 +25,6 @@
 
 package java.nio.channels;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.io.IOException;
@@ -56,8 +53,7 @@ import java.io.IOException;
  *
  * @since 1.7
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class MembershipKey {
+public abstract class MembershipKey {
 
     /**
      * Initializes a new instance of this class.

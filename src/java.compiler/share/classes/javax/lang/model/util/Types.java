@@ -25,6 +25,9 @@
 
 package javax.lang.model.util;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
@@ -50,9 +53,15 @@ import javax.lang.model.type.*;
  * <p><b>Compatibility Note:</b> Methods may be added to this interface
  * in future releases of the platform.
  *
+ * @apiNote
+ * In the reference implementation, handling {@linkplain ErrorType
+ * error types} generally does not cause an {@code
+ * IllegalArgumentException} from the methods in this interface.
+ *
  * @see javax.annotation.processing.ProcessingEnvironment#getTypeUtils
  * @since 1.6
  */
+@NullMarked
 public interface Types {
 
     /**
@@ -79,7 +88,7 @@ public interface Types {
      * @param t the type to map to an element
      * @return the element corresponding to the given type
      */
-    Element asElement(TypeMirror t);
+    @Nullable Element asElement(TypeMirror t);
 
     /**
      * Tests whether two {@code TypeMirror} objects represent the same type.
@@ -198,8 +207,11 @@ public interface Types {
      *
      * @param t  the type to be unboxed
      * @return the type of an unboxed value of type {@code t}
+     *
      * @throws IllegalArgumentException if the given type has no
-     *          unboxing conversion
+     *         unboxing conversion. Only types for the {@linkplain
+     *         java.lang##wrapperClass wrapper classes} have an
+     *         unboxing conversion.
      * @jls 5.1.8 Unboxing Conversion
      */
     PrimitiveType unboxedType(TypeMirror t);
@@ -255,7 +267,10 @@ public interface Types {
      *
      * @param componentType  the component type
      * @throws IllegalArgumentException if the component type is not valid for
-     *          an array, including executable, package, module, and wildcard types
+     *          an array. All valid types are {@linkplain ReferenceType
+     *          reference types} or {@linkplain PrimitiveType primitive types}.
+     *          Invalid types include {@linkplain NullType null}, executable, package,
+     *          module, and wildcard types.
      * @jls 10.1 Array Types
      */
     ArrayType getArrayType(TypeMirror componentType);
@@ -268,11 +283,14 @@ public interface Types {
      *
      * @param extendsBound  the extends (upper) bound, or {@code null} if none
      * @param superBound    the super (lower) bound, or {@code null} if none
-     * @throws IllegalArgumentException if bounds are not valid
+     *
+     * @throws IllegalArgumentException if bounds are not valid. Invalid bounds
+     * include all types that are not {@linkplain ReferenceType
+     * reference types}.
      * @jls 4.5.1 Type Arguments of Parameterized Types
      */
-    WildcardType getWildcardType(TypeMirror extendsBound,
-                                 TypeMirror superBound);
+    WildcardType getWildcardType(@Nullable TypeMirror extendsBound,
+                                 @Nullable TypeMirror superBound);
 
     /**
      * {@return the type corresponding to a type element and
@@ -332,7 +350,7 @@ public interface Types {
      *          type arguments are given, or if an inappropriate type
      *          argument, type element, or containing type is provided
      */
-    DeclaredType getDeclaredType(DeclaredType containing,
+    DeclaredType getDeclaredType(@Nullable DeclaredType containing,
                                  TypeElement typeElem, TypeMirror... typeArgs);
 
     /**

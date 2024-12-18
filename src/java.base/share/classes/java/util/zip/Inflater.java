@@ -33,6 +33,7 @@ import java.util.Objects;
 import jdk.internal.ref.CleanerFactory;
 import jdk.internal.util.Preconditions;
 import sun.nio.ch.DirectBuffer;
+import org.jspecify.annotations.NullMarked;
 
 import static java.util.zip.ZipUtils.NIO_ACCESS;
 
@@ -70,7 +71,7 @@ import static java.util.zip.ZipUtils.NIO_ACCESS;
  * @since 1.1
  *
  */
-
+@NullMarked
 public class Inflater {
 
     private final InflaterZStreamRef zsRef;

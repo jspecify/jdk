@@ -25,8 +25,6 @@
 
 package javax.lang.model.element;
 
-import org.checkerframework.checker.signature.qual.CanonicalNameOrEmpty;
-
 import java.util.List;
 import javax.lang.model.type.*;
 import javax.lang.model.util.*;
@@ -172,7 +170,7 @@ public interface TypeElement extends Element, Parameterizable, QualifiedNameable
      * @see Elements#getBinaryName
      * @jls 6.7 Fully Qualified Names and Canonical Names
      */
-    @CanonicalNameOrEmpty Name getQualifiedName();
+    Name getQualifiedName();
 
     /**
      * Returns the simple name of this class or interface element.

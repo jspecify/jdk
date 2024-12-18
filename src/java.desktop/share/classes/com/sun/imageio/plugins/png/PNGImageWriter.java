@@ -25,8 +25,6 @@
 
 package com.sun.imageio.plugins.png;
 
-import org.checkerframework.checker.signedness.qual.PolySigned;
-
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.awt.image.IndexColorModel;
@@ -124,7 +122,7 @@ final class ChunkStream extends ImageOutputStreamImpl {
     }
 
     @Override
-    public void write(@PolySigned byte[] b, int off, int len) throws IOException {
+    public void write(byte[] b, int off, int len) throws IOException {
         crc.update(b, off, len);
         stream.write(b, off, len);
     }
@@ -233,7 +231,7 @@ final class IDATOutputStream extends ImageOutputStreamImpl {
     }
 
     @Override
-    public void write(@PolySigned byte[] b, int off, int len) throws IOException {
+    public void write(byte[] b, int off, int len) throws IOException {
         if (len == 0) {
             return;
         }
