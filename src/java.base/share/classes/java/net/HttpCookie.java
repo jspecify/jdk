@@ -650,6 +650,13 @@ public final class HttpCookie implements Cloneable {
      *
      * @return  {@code true} if they domain-matches; {@code false} if not
      */
+    /*
+     * JSpecify: Passing null for either parameter seems likely to be at least suspicious. However,
+     * if we make the types non-null, we would change the null behavior under Kotlin from "return
+     * false" to "throw NullPointerException." And it's not clear whether any callers pass null in
+     * practice, even the one caller in the JDK, which passes cookie.getDomain() and uri.getHost(),
+     * both of which have nullable types. 
+     */
     public static boolean domainMatches(@Nullable String domain, @Nullable String host) {
         if (domain == null || host == null)
             return false;
