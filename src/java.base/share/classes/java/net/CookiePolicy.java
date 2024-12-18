@@ -25,6 +25,8 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * CookiePolicy implementations decide which cookies should be accepted
  * and which should be rejected. Three pre-defined policy implementations
@@ -35,6 +37,7 @@ package java.net;
  * @author Edward Wang
  * @since 1.6
  */
+@NullMarked
 public interface CookiePolicy {
     /**
      * One pre-defined policy which accepts all cookies.

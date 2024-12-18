@@ -29,6 +29,9 @@ import java.util.Map;
 import java.util.List;
 import java.io.IOException;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * A CookieHandler object provides a callback mechanism to hook up a
  * HTTP state management policy implementation into the HTTP protocol
@@ -49,6 +52,7 @@ import java.io.IOException;
  * @author Yingxian Wang
  * @since 1.5
  */
+@NullMarked
 public abstract class CookieHandler {
     /**
      * Constructor for subclasses to call.
@@ -71,7 +75,7 @@ public abstract class CookieHandler {
      *        there is no system-wide cookie handler currently set.
      * @see #setDefault(CookieHandler)
      */
-    public static synchronized CookieHandler getDefault() {
+    public static synchronized @Nullable CookieHandler getDefault() {
         return cookieHandler;
     }
 
@@ -84,7 +88,7 @@ public abstract class CookieHandler {
      *       {@code null} to unset.
      * @see #getDefault()
      */
-    public static synchronized void setDefault(CookieHandler cHandler) {
+    public static synchronized void setDefault(@Nullable CookieHandler cHandler) {
         cookieHandler = cHandler;
     }
 
