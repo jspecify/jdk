@@ -26,6 +26,8 @@
 package java.io;
 
 import jdk.internal.javac.PreviewFeature;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A collection of static convenience methods that provide access to
@@ -41,6 +43,7 @@ import jdk.internal.javac.PreviewFeature;
  * @since 23
  */
 @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
+@NullMarked
 public final class IO {
 
     private IO() {
@@ -59,7 +62,7 @@ public final class IO {
      * @throws IOError if {@code System.console()} returns {@code null},
      *                 or if an I/O error occurs
      */
-    public static void println(Object obj) {
+    public static void println(@Nullable Object obj) {
         con().println(obj);
     }
 
@@ -90,7 +93,7 @@ public final class IO {
      * @throws IOError if {@code System.console()} returns {@code null},
      *                 or if an I/O error occurs
      */
-    public static void print(Object obj) {
+    public static void print(@Nullable Object obj) {
         con().print(obj);
     }
 
@@ -110,7 +113,7 @@ public final class IO {
      * @throws IOError if {@code System.console()} returns {@code null},
      *                 or if an I/O error occurs
      */
-    public static String readln(String prompt) {
+    public static @Nullable String readln(@Nullable String prompt) {
         return con().readln(prompt);
     }
 
@@ -128,7 +131,7 @@ public final class IO {
      *                 or if an I/O error occurs
      * @since 24
      */
-    public static String readln() {
+    public static @Nullable String readln() {
         return con().readln();
     }
 

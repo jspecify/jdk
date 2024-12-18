@@ -224,7 +224,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
      * @since 23
      */
     @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
-    public String readln(@Nullable String prompt) {
+    public @Nullable String readln(@Nullable String prompt) {
         throw newUnsupportedOperationException();
     }
 
@@ -242,7 +242,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
      * @since 24
      */
     @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
-    public String readln() {
+    public @Nullable String readln() {
         throw newUnsupportedOperationException();
     }
 
