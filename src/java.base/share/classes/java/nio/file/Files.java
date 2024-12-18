@@ -1816,7 +1816,7 @@ public final class Files {
      *          if an I/O error occurs
      */
     @NullUnmarked // https://github.com/jspecify/jdk/pull/10#pullrequestreview-1404320091
-    public static Object getAttribute(@NonNull Path path, @NonNull String attribute,
+    public static /*@NullUnmarked*/ Object getAttribute(@NonNull Path path, @NonNull String attribute,
                                       @NonNull LinkOption @NonNull ... options)
         throws IOException
     {
@@ -1915,7 +1915,7 @@ public final class Files {
      *          if an I/O error occurs
      */
     @NullUnmarked // https://github.com/jspecify/jdk/pull/10#pullrequestreview-1404320091
-    public static @NonNull Map<@NonNull String,Object> readAttributes(@NonNull Path path, @NonNull String attributes,
+    public static @NonNull Map<@NonNull String, /*@NullUnmarked*/ Object> readAttributes(@NonNull Path path, @NonNull String attributes,
                                                     @NonNull LinkOption @NonNull ... options)
         throws IOException
     {
