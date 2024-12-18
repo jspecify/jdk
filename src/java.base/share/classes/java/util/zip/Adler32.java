@@ -30,6 +30,7 @@ import java.nio.ByteBuffer;
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.nio.ch.DirectBuffer;
+import org.jspecify.annotations.NullMarked;
 
 import static java.util.zip.ZipUtils.NIO_ACCESS;
 
@@ -44,6 +45,7 @@ import static java.util.zip.ZipUtils.NIO_ACCESS;
  * @author      David Connelly
  * @since 1.1
  */
+@NullMarked
 public class Adler32 implements Checksum {
 
     private int adler = 1;

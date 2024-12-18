@@ -25,6 +25,7 @@
 package java.util.zip;
 
 import java.nio.ByteBuffer;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * An interface representing a data checksum.
@@ -32,6 +33,7 @@ import java.nio.ByteBuffer;
  * @author David Connelly
  * @since 1.1
  */
+@NullMarked
 public interface Checksum {
 
     /**

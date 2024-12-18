@@ -29,6 +29,7 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Objects;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Implements an output stream filter for uncompressing data stored in the
@@ -41,7 +42,7 @@ import java.util.Objects;
  * @see DeflaterInputStream
  * @see DeflaterOutputStream
  */
-
+@NullMarked
 public class InflaterOutputStream extends FilterOutputStream {
     /** Decompressor for this stream. */
     protected final Inflater inf;
