@@ -2613,6 +2613,10 @@ public class CreateSymbols {
                 ((MethodDescription) feature).classParameterAnnotations =
                         parameterAnnotations2Description(cf.constant_pool, attr);
                 break;
+            case "RuntimeInvisibleTypeAnnotations":
+            case "RuntimeVisibleTypeAnnotations":
+                // TODO(wmdietl): What should happen to type annotations?
+                break;
             case Attribute.Module: {
                 assert feature instanceof ModuleHeaderDescription;
                 ModuleHeaderDescription header =

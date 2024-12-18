@@ -35,8 +35,6 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -73,9 +71,8 @@ import jdk.internal.ref.CleanerFactory;
  * @since 1.5
  * @author Doug Lea
  */
-@AnnotatedFor({"interning"})
 @NullMarked
-public @UsesObjectEquals class Executors {
+public class Executors {
 
     /**
      * Creates a thread pool that reuses a fixed number of threads

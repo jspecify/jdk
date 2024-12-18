@@ -28,6 +28,9 @@ package java.io;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.util.ByteArray;
 
 import static jdk.internal.util.ModifiedUtf.putChar;

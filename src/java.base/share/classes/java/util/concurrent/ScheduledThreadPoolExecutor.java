@@ -35,7 +35,6 @@
 
 package java.util.concurrent;
 
-import org.checkerframework.dataflow.qual.Pure;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -1053,7 +1052,6 @@ public class ScheduledThreadPoolExecutor
             }
         }
 
-        @Pure
         public int size() {
             final ReentrantLock lock = this.lock;
             lock.lock();
@@ -1064,7 +1062,6 @@ public class ScheduledThreadPoolExecutor
             }
         }
 
-        @Pure
         public boolean isEmpty() {
             return size() == 0;
         }
