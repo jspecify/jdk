@@ -638,7 +638,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * are special, and contain null keys and values (but are never
      * exported).  Otherwise, keys and vals are never null.
      */
-    static class Node<K extends @Nullable Object,V extends @Nullable Object> implements Map.Entry<K,V> {
+    static class Node<K,V> implements Map.Entry<K,V> {
         final int hash;
         final K key;
         volatile V val;
@@ -776,7 +776,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         return (Node<K,V>)U.getReferenceAcquire(tab, ((long)i << ASHIFT) + ABASE);
     }
 
-    static final <K extends @Nullable Object,V extends @Nullable Object> boolean casTabAt(Node<K,V>[] tab, int i,
+    static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,
                                         Node<K,V> c, Node<K,V> v) {
         return U.compareAndSetReference(tab, ((long)i << ASHIFT) + ABASE, c, v);
     }
@@ -1408,7 +1408,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Stripped-down version of helper class used in previous version,
      * declared for the sake of serialization compatibility.
      */
-    static class Segment<K extends @Nullable Object,V extends @Nullable Object> extends ReentrantLock implements Serializable {
+    static class Segment<K,V> extends ReentrantLock implements Serializable {
         private static final long serialVersionUID = 2249069246763182397L;
         final float loadFactor;
         Segment(float lf) { this.loadFactor = lf; }
@@ -2221,7 +2221,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @return the new set
      * @since 1.8
      */
-    public static <K extends @Nullable Object> KeySetView<K,Boolean> newKeySet() {
+    public static <K> KeySetView<K,Boolean> newKeySet() {
         return new KeySetView<K,Boolean>
             (new ConcurrentHashMap<K,Boolean>(), Boolean.TRUE);
     }
@@ -2238,7 +2238,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * elements is negative
      * @since 1.8
      */
-    public static <K extends @Nullable Object> KeySetView<K,Boolean> newKeySet(int initialCapacity) {
+    public static <K> KeySetView<K,Boolean> newKeySet(int initialCapacity) {
         return new KeySetView<K,Boolean>
             (new ConcurrentHashMap<K,Boolean>(initialCapacity), Boolean.TRUE);
     }
@@ -2265,7 +2265,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * A node inserted at head of bins during transfer operations.
      */
-    static final class ForwardingNode<K extends @Nullable Object,V extends @Nullable Object> extends Node<K,V> {
+    static final class ForwardingNode<K,V> extends Node<K,V> {
         final Node<K,V>[] nextTable;
         ForwardingNode(Node<K,V>[] tab) {
             super(MOVED, null, null);
@@ -2302,7 +2302,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * A place-holder node used in computeIfAbsent and compute.
      */
-    static final class ReservationNode<K extends @Nullable Object,V extends @Nullable Object> extends Node<K,V> {
+    static final class ReservationNode<K,V> extends Node<K,V> {
         ReservationNode() {
             super(RESERVED, null, null);
         }
@@ -2728,7 +2728,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns a list of non-TreeNodes replacing those in given list.
      */
-    static <K extends @Nullable Object,V extends @Nullable Object> Node<K,V> untreeify(Node<K,V> b) {
+    static <K,V> Node<K,V> untreeify(Node<K,V> b) {
         Node<K,V> hd = null, tl = null;
         for (Node<K,V> q = b; q != null; q = q.next) {
             Node<K,V> p = new Node<K,V>(q.hash, q.key, q.val);
@@ -2746,7 +2746,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Nodes for use in TreeBins.
      */
-    static final class TreeNode<K extends @Nullable Object,V extends @Nullable Object> extends Node<K,V> {
+    static final class TreeNode<K,V> extends Node<K,V> {
         TreeNode<K,V> parent;  // red-black tree links
         TreeNode<K,V> left;
         TreeNode<K,V> right;
@@ -2806,7 +2806,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * forcing writers (who hold bin lock) to wait for readers (who do
      * not) to complete before tree restructuring operations.
      */
-    static final class TreeBin<K extends @Nullable Object,V extends @Nullable Object> extends Node<K,V> {
+    static final class TreeBin<K,V> extends Node<K,V> {
         TreeNode<K,V> root;
         volatile TreeNode<K,V> first;
         volatile Thread waiter;
@@ -3121,7 +3121,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         /* ------------------------------------------------------------ */
         // Red-black tree methods, all adapted from CLR
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
                                               TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
             if (p != null && (r = p.right) != null) {
@@ -3139,7 +3139,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return root;
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
                                                TreeNode<K,V> p) {
             TreeNode<K,V> l, pp, lr;
             if (p != null && (l = p.left) != null) {
@@ -3157,7 +3157,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return root;
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                                                     TreeNode<K,V> x) {
             x.red = true;
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
@@ -3212,7 +3212,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             }
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                                    TreeNode<K,V> x) {
             for (TreeNode<K,V> xp, xpl, xpr;;) {
                 if (x == null || x == root)
@@ -3307,7 +3307,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         /**
          * Checks invariants recursively for the tree of Nodes rooted at t.
          */
-        static <K extends @Nullable Object,V extends @Nullable Object> boolean checkInvariants(TreeNode<K,V> t) {
+        static <K,V> boolean checkInvariants(TreeNode<K,V> t) {
             TreeNode<K,V> tp = t.parent, tl = t.left, tr = t.right,
                 tb = t.prev, tn = (TreeNode<K,V>)t.next;
             if (tb != null && tb.next != t)
@@ -3342,7 +3342,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * traverser that must process a region of a forwarded table before
      * proceeding with current table.
      */
-    static final class TableStack<K extends @Nullable Object,V extends @Nullable Object> {
+    static final class TableStack<K,V> {
         int length;
         int index;
         Node<K,V>[] tab;
@@ -3370,7 +3370,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * across threads, iteration terminates if a bounds checks fails
      * for a table read.
      */
-    static class Traverser<K extends @Nullable Object,V extends @Nullable Object> {
+    static class Traverser<K,V> {
         Node<K,V>[] tab;        // current table; updated if resized
         Node<K,V> next;         // the next entry to use
         TableStack<K,V> stack, spare; // to save/restore on ForwardingNodes
@@ -3462,7 +3462,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Base of key, value, and entry Iterators. Adds fields to
      * Traverser to support iterator.remove.
      */
-    static class BaseIterator<K extends @Nullable Object,V extends @Nullable Object> extends Traverser<K,V> {
+    static class BaseIterator<K,V> extends Traverser<K,V> {
         final ConcurrentHashMap<K,V> map;
         Node<K,V> lastReturned;
         BaseIterator(Node<K,V>[] tab, int size, int index, int limit,
@@ -3484,7 +3484,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
     }
 
-    static final class KeyIterator<K extends @Nullable Object,V extends @Nullable Object> extends BaseIterator<K,V>
+    static final class KeyIterator<K,V> extends BaseIterator<K,V>
         implements Iterator<K>, Enumeration<K> {
         KeyIterator(Node<K,V>[] tab, int size, int index, int limit,
                     ConcurrentHashMap<K,V> map) {
@@ -3504,7 +3504,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         public final K nextElement() { return next(); }
     }
 
-    static final class ValueIterator<K extends @Nullable Object,V extends @Nullable Object> extends BaseIterator<K,V>
+    static final class ValueIterator<K,V> extends BaseIterator<K,V>
         implements Iterator<V>, Enumeration<V> {
         ValueIterator(Node<K,V>[] tab, int size, int index, int limit,
                       ConcurrentHashMap<K,V> map) {
@@ -3524,7 +3524,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         public final V nextElement() { return next(); }
     }
 
-    static final class EntryIterator<K extends @Nullable Object,V extends @Nullable Object> extends BaseIterator<K,V>
+    static final class EntryIterator<K,V> extends BaseIterator<K,V>
         implements Iterator<Map.Entry<K,V>> {
         EntryIterator(Node<K,V>[] tab, int size, int index, int limit,
                       ConcurrentHashMap<K,V> map) {
@@ -3546,7 +3546,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Exported Entry for EntryIterator.
      */
-    static final class MapEntry<K extends @Nullable Object,V extends @Nullable Object> implements Map.Entry<K,V> {
+    static final class MapEntry<K,V> implements Map.Entry<K,V> {
         final K key; // non-null
         V val;       // non-null
         final ConcurrentHashMap<K,V> map;
@@ -3588,7 +3588,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
     }
 
-    static final class KeySpliterator<K extends @Nullable Object,V extends @Nullable Object> extends Traverser<K,V>
+    static final class KeySpliterator<K,V> extends Traverser<K,V>
         implements Spliterator<K> {
         long est;               // size estimate
         KeySpliterator(Node<K,V>[] tab, int size, int index, int limit,
@@ -3627,7 +3627,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
     }
 
-    static final class ValueSpliterator<K extends @Nullable Object,V extends @Nullable Object> extends Traverser<K,V>
+    static final class ValueSpliterator<K,V> extends Traverser<K,V>
         implements Spliterator<V> {
         long est;               // size estimate
         ValueSpliterator(Node<K,V>[] tab, int size, int index, int limit,
@@ -3665,7 +3665,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
     }
 
-    static final class EntrySpliterator<K extends @Nullable Object,V extends @Nullable Object> extends Traverser<K,V>
+    static final class EntrySpliterator<K,V> extends Traverser<K,V>
         implements Spliterator<Map.Entry<K,V>> {
         final ConcurrentHashMap<K,V> map; // To export MapEntry
         long est;               // size estimate
@@ -4461,7 +4461,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Base class for views.
      */
-    abstract static sealed class CollectionView<K extends @Nullable Object,V extends @Nullable Object,E extends @Nullable Object>
+    abstract static sealed class CollectionView<K,V,E>
         implements Collection<E>, java.io.Serializable permits EntrySetView, KeySetView, ValuesView {
         private static final long serialVersionUID = 7249069246763182397L;
         final ConcurrentHashMap<K,V> map;
@@ -4642,7 +4642,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @since 1.8
      */
-    public static final class KeySetView<K extends @Nullable Object,V extends @Nullable Object> extends CollectionView<K,V,K>
+    public static final class KeySetView<K,V> extends CollectionView<K,V,K>
         implements Set<K>, java.io.Serializable {
         private static final long serialVersionUID = 7249069246763182397L;
         @SuppressWarnings("serial") // Conditionally serializable
@@ -4768,7 +4768,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * values, in which additions are disabled. This class cannot be
      * directly instantiated. See {@link #values()}.
      */
-    static final class ValuesView<K extends @Nullable Object,V extends @Nullable Object> extends CollectionView<K,V,V>
+    static final class ValuesView<K,V> extends CollectionView<K,V,V>
         implements Collection<V>, java.io.Serializable {
         private static final long serialVersionUID = 2249069246763182397L;
         ValuesView(ConcurrentHashMap<K,V> map) { super(map); }
@@ -4844,7 +4844,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * entries.  This class cannot be directly instantiated. See
      * {@link #entrySet()}.
      */
-    static final class EntrySetView<K extends @Nullable Object,V extends @Nullable Object> extends CollectionView<K,V,Map.Entry<K,V>>
+    static final class EntrySetView<K,V> extends CollectionView<K,V,Map.Entry<K,V>>
         implements Set<Map.Entry<K,V>>, java.io.Serializable {
         private static final long serialVersionUID = 2249069246763182397L;
         EntrySetView(ConcurrentHashMap<K,V> map) { super(map); }
@@ -4941,7 +4941,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * class Traverser, because we need to subclass CountedCompleter.
      */
     @SuppressWarnings("serial")
-    abstract static class BulkTask<K extends @Nullable Object,V extends @Nullable Object,R extends @Nullable Object> extends CountedCompleter<R> {
+    abstract static class BulkTask<K,V,R> extends CountedCompleter<R> {
         Node<K,V>[] tab;        // same as Traverser
         Node<K,V> next;
         TableStack<K,V> stack, spare;
@@ -5036,7 +5036,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * simplest hoisted bypass to help avoid convoluted traps.
      */
     @SuppressWarnings("serial")
-    static final class ForEachKeyTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ForEachKeyTask<K,V>
         extends BulkTask<K,V,Void> {
         final Consumer<? super K> action;
         ForEachKeyTask
@@ -5063,7 +5063,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachValueTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ForEachValueTask<K,V>
         extends BulkTask<K,V,Void> {
         final Consumer<? super V> action;
         ForEachValueTask
@@ -5090,7 +5090,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachEntryTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ForEachEntryTask<K,V>
         extends BulkTask<K,V,Void> {
         final Consumer<? super Entry<K,V>> action;
         ForEachEntryTask
@@ -5117,7 +5117,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachMappingTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ForEachMappingTask<K,V>
         extends BulkTask<K,V,Void> {
         final BiConsumer<? super K, ? super V> action;
         ForEachMappingTask
@@ -5144,7 +5144,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachTransformedKeyTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class ForEachTransformedKeyTask<K,V,U>
         extends BulkTask<K,V,Void> {
         final Function<? super K, ? extends U> transformer;
         final Consumer<? super U> action;
@@ -5177,7 +5177,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachTransformedValueTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class ForEachTransformedValueTask<K,V,U>
         extends BulkTask<K,V,Void> {
         final Function<? super V, ? extends U> transformer;
         final Consumer<? super U> action;
@@ -5210,7 +5210,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachTransformedEntryTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class ForEachTransformedEntryTask<K,V,U>
         extends BulkTask<K,V,Void> {
         final Function<Map.Entry<K,V>, ? extends U> transformer;
         final Consumer<? super U> action;
@@ -5243,7 +5243,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachTransformedMappingTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class ForEachTransformedMappingTask<K,V,U>
         extends BulkTask<K,V,Void> {
         final BiFunction<? super K, ? super V, ? extends U> transformer;
         final Consumer<? super U> action;
@@ -5277,7 +5277,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class SearchKeysTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class SearchKeysTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<? super K, ? extends U> searchFunction;
         final AtomicReference<U> result;
@@ -5321,7 +5321,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class SearchValuesTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class SearchValuesTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<? super V, ? extends U> searchFunction;
         final AtomicReference<U> result;
@@ -5365,7 +5365,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class SearchEntriesTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class SearchEntriesTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<Entry<K,V>, ? extends U> searchFunction;
         final AtomicReference<U> result;
@@ -5409,7 +5409,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class SearchMappingsTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class SearchMappingsTask<K,V,U>
         extends BulkTask<K,V,U> {
         final BiFunction<? super K, ? super V, ? extends U> searchFunction;
         final AtomicReference<U> result;
@@ -5453,7 +5453,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ReduceKeysTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ReduceKeysTask<K,V>
         extends BulkTask<K,V,K> {
         final BiFunction<? super K, ? super K, ? extends K> reducer;
         K result;
@@ -5501,7 +5501,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ReduceValuesTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ReduceValuesTask<K,V>
         extends BulkTask<K,V,V> {
         final BiFunction<? super V, ? super V, ? extends V> reducer;
         V result;
@@ -5549,7 +5549,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ReduceEntriesTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ReduceEntriesTask<K,V>
         extends BulkTask<K,V,Map.Entry<K,V>> {
         final BiFunction<Map.Entry<K,V>, Map.Entry<K,V>, ? extends Map.Entry<K,V>> reducer;
         Map.Entry<K,V> result;
@@ -5595,7 +5595,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceKeysTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class MapReduceKeysTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<? super K, ? extends U> transformer;
         final BiFunction<? super U, ? super U, ? extends U> reducer;
@@ -5649,7 +5649,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceValuesTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class MapReduceValuesTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<? super V, ? extends U> transformer;
         final BiFunction<? super U, ? super U, ? extends U> reducer;
@@ -5703,7 +5703,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceEntriesTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class MapReduceEntriesTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<Map.Entry<K,V>, ? extends U> transformer;
         final BiFunction<? super U, ? super U, ? extends U> reducer;
@@ -5757,7 +5757,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceMappingsTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class MapReduceMappingsTask<K,V,U>
         extends BulkTask<K,V,U> {
         final BiFunction<? super K, ? super V, ? extends U> transformer;
         final BiFunction<? super U, ? super U, ? extends U> reducer;
@@ -5811,7 +5811,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceKeysToDoubleTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceKeysToDoubleTask<K,V>
         extends BulkTask<K,V,Double> {
         final ToDoubleFunction<? super K> transformer;
         final DoubleBinaryOperator reducer;
@@ -5861,7 +5861,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceValuesToDoubleTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceValuesToDoubleTask<K,V>
         extends BulkTask<K,V,Double> {
         final ToDoubleFunction<? super V> transformer;
         final DoubleBinaryOperator reducer;
@@ -5911,7 +5911,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceEntriesToDoubleTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceEntriesToDoubleTask<K,V>
         extends BulkTask<K,V,Double> {
         final ToDoubleFunction<Map.Entry<K,V>> transformer;
         final DoubleBinaryOperator reducer;
@@ -5961,7 +5961,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceMappingsToDoubleTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceMappingsToDoubleTask<K,V>
         extends BulkTask<K,V,Double> {
         final ToDoubleBiFunction<? super K, ? super V> transformer;
         final DoubleBinaryOperator reducer;
@@ -6011,7 +6011,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceKeysToLongTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceKeysToLongTask<K,V>
         extends BulkTask<K,V,Long> {
         final ToLongFunction<? super K> transformer;
         final LongBinaryOperator reducer;
@@ -6061,7 +6061,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceValuesToLongTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceValuesToLongTask<K,V>
         extends BulkTask<K,V,Long> {
         final ToLongFunction<? super V> transformer;
         final LongBinaryOperator reducer;
@@ -6111,7 +6111,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceEntriesToLongTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceEntriesToLongTask<K,V>
         extends BulkTask<K,V,Long> {
         final ToLongFunction<Map.Entry<K,V>> transformer;
         final LongBinaryOperator reducer;
@@ -6161,7 +6161,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceMappingsToLongTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceMappingsToLongTask<K,V>
         extends BulkTask<K,V,Long> {
         final ToLongBiFunction<? super K, ? super V> transformer;
         final LongBinaryOperator reducer;
@@ -6211,7 +6211,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceKeysToIntTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceKeysToIntTask<K,V>
         extends BulkTask<K,V,Integer> {
         final ToIntFunction<? super K> transformer;
         final IntBinaryOperator reducer;
@@ -6261,7 +6261,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceValuesToIntTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceValuesToIntTask<K,V>
         extends BulkTask<K,V,Integer> {
         final ToIntFunction<? super V> transformer;
         final IntBinaryOperator reducer;
@@ -6311,7 +6311,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceEntriesToIntTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceEntriesToIntTask<K,V>
         extends BulkTask<K,V,Integer> {
         final ToIntFunction<Map.Entry<K,V>> transformer;
         final IntBinaryOperator reducer;
@@ -6361,7 +6361,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceMappingsToIntTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceMappingsToIntTask<K,V>
         extends BulkTask<K,V,Integer> {
         final ToIntBiFunction<? super K, ? super V> transformer;
         final IntBinaryOperator reducer;
