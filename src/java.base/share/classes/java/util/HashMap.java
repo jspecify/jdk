@@ -2603,7 +2603,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * @throws IllegalArgumentException if numMappings is negative
      * @since 19
      */
-    public static <K, V> HashMap<K, V> newHashMap(int numMappings) {
+    public static <K extends @Nullable Object, V extends @Nullable Object> HashMap<K, V> newHashMap(int numMappings) {
         if (numMappings < 0) {
             throw new IllegalArgumentException("Negative number of mappings: " + numMappings);
         }

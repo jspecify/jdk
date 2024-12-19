@@ -25,9 +25,6 @@
 
 package java.lang;
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * An object that may hold resources (such as file or socket handles)
  * until it is closed. The {@link #close()} method of an {@code AutoCloseable}
@@ -51,7 +48,6 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Josh Bloch
  * @since 1.7
  */
-@AnnotatedFor({"lock"})
 public interface AutoCloseable {
     /**
      * Closes this resource, relinquishing any underlying resources.
@@ -99,5 +95,5 @@ public interface AutoCloseable {
      *
      * @throws Exception if this resource cannot be closed
      */
-    void close(@GuardSatisfied AutoCloseable this) throws Exception;
+    void close() throws Exception;
 }

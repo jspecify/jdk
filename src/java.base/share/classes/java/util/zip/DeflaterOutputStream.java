@@ -29,6 +29,7 @@ import java.io.FilterOutputStream;
 import java.io.OutputStream;
 import java.io.InputStream;
 import java.io.IOException;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * This class implements an output stream filter for compressing data in
@@ -42,6 +43,7 @@ import java.io.IOException;
  * @author      David Connelly
  * @since 1.1
  */
+@NullMarked
 public class DeflaterOutputStream extends FilterOutputStream {
     /**
      * Compressor for this stream.

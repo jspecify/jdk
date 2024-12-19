@@ -1,5 +1,3 @@
-import org.checkerframework.checker.signature.qual.BinaryName;
-
 /*
  * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -146,7 +144,7 @@ public class CustomLogManager extends LogManager {
         checkLogger(name, null);
     }
 
-    public static void checkLogger(String name, @BinaryName String resourceBundleName) {
+    public static void checkLogger(String name, String resourceBundleName) {
         Logger logger = INSTANCE.getLogger(name);
         if (logger == null) {
             throw new RuntimeException("Logger \"" + name + "\" not exist");

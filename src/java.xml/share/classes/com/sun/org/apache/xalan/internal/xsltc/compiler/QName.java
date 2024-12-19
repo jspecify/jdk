@@ -21,8 +21,6 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler;
 
-import org.jspecify.annotations.Nullable;
-
 /**
  * @author Jacek Ambroziak
  * @author Santiago Pericas-Geertsen
@@ -59,9 +57,7 @@ final class QName {
         return _stringRep;
     }
 
-    
-    
-    public boolean equals(@Nullable Object other) {
+    public boolean equals(Object other) {
         return (this == other)
                    || (other instanceof QName
                            && _stringRep.equals(((QName) other).getStringRep()));

@@ -27,7 +27,6 @@ package java.util.stream;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import jdk.internal.javac.PreviewFeature;
 import jdk.internal.vm.annotation.ForceInline;
 
 import java.util.*;
@@ -198,10 +197,9 @@ import java.util.function.Supplier;
  * @param <A> the potentially mutable state type of the gatherer operation
  *            (often hidden as an implementation detail)
  * @param <R> the type of output elements from the gatherer operation
- * @since 22
+ * @since 24
  */
 @NullMarked
-@PreviewFeature(feature = PreviewFeature.Feature.STREAM_GATHERERS)
 public interface Gatherer<T extends @Nullable Object, A extends @Nullable Object, R extends @Nullable Object> {
     /**
      * A function that produces an instance of the intermediate state used for
@@ -485,10 +483,9 @@ public interface Gatherer<T extends @Nullable Object, A extends @Nullable Object
      * A Downstream object is the next stage in a pipeline of operations,
      * to which elements can be sent.
      * @param <T> the type of elements this downstream accepts
-     * @since 22
+     * @since 24
      */
     @FunctionalInterface
-    @PreviewFeature(feature = PreviewFeature.Feature.STREAM_GATHERERS)
     interface Downstream<T extends @Nullable Object> {
 
         /**
@@ -528,10 +525,9 @@ public interface Gatherer<T extends @Nullable Object, A extends @Nullable Object
      * @param <A> the type of state used by this integrator
      * @param <T> the type of elements this integrator consumes
      * @param <R> the type of results this integrator can produce
-     * @since 22
+     * @since 24
      */
     @FunctionalInterface
-    @PreviewFeature(feature = PreviewFeature.Feature.STREAM_GATHERERS)
     interface Integrator<A extends @Nullable Object, T extends @Nullable Object, R extends @Nullable Object> {
         /**
          * Performs an action given: the current state, the next element, and
@@ -588,10 +584,9 @@ public interface Gatherer<T extends @Nullable Object, A extends @Nullable Object
          * @param <A> the type of state used by this integrator
          * @param <T> the type of elements this greedy integrator receives
          * @param <R> the type of results this greedy integrator can produce
-         * @since 22
+         * @since 24
          */
         @FunctionalInterface
-        @PreviewFeature(feature = PreviewFeature.Feature.STREAM_GATHERERS)
         interface Greedy<A extends @Nullable Object, T extends @Nullable Object, R extends @Nullable Object> extends Integrator<A, T, R> { }
     }
 }

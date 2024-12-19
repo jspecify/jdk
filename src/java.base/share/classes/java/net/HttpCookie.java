@@ -25,6 +25,8 @@
 
 package java.net;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NullUnmarked;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -60,6 +62,7 @@ import jdk.internal.access.SharedSecrets;
  * @author Edward Wang
  * @since 1.6
  */
+@NullMarked
 public final class HttpCookie implements Cloneable {
     // ---------------- Fields --------------
 
@@ -140,6 +143,7 @@ public final class HttpCookie implements Cloneable {
      * @see #setValue
      * @see #setVersion
      */
+    @NullUnmarked // TODO(cpovirk): Should `value` be @Nullable?
     public HttpCookie(String name, String value) {
         this(name, value, null /*header*/);
     }
@@ -262,7 +266,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #getComment
      */
-    public void setComment(String purpose) {
+    public void setComment(@Nullable String purpose) {
         comment = purpose;
     }
 
@@ -274,7 +278,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #setComment
      */
-    public String getComment() {
+    public @Nullable String getComment() {
         return comment;
     }
 
@@ -288,7 +292,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #getCommentURL
      */
-    public void setCommentURL(String purpose) {
+    public void setCommentURL(@Nullable String purpose) {
         commentURL = purpose;
     }
 
@@ -301,7 +305,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #setCommentURL
      */
-    public String getCommentURL() {
+    public @Nullable String getCommentURL() {
         return commentURL;
     }
 
@@ -339,7 +343,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #getPortlist
      */
-    public void setPortlist(String ports) {
+    public void setPortlist(@Nullable String ports) {
         portlist = ports;
     }
 
@@ -350,7 +354,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #setPortlist
      */
-    public String getPortlist() {
+    public @Nullable String getPortlist() {
         return portlist;
     }
 
@@ -370,7 +374,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #getDomain
      */
-    public void setDomain(String pattern) {
+    public void setDomain(@Nullable String pattern) {
         if (pattern != null)
             domain = pattern.toLowerCase(Locale.ROOT);
         else
@@ -385,7 +389,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #setDomain
      */
-    public String getDomain() {
+    public @Nullable String getDomain() {
         return domain;
     }
 
@@ -442,7 +446,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #getPath
      */
-    public void setPath(String uri) {
+    public void setPath(@Nullable String uri) {
         path = uri;
     }
 
@@ -455,7 +459,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #setPath
      */
-    public String getPath() {
+    public @Nullable String getPath() {
         return path;
     }
 
@@ -514,6 +518,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #getValue
      */
+    @NullUnmarked // TODO(cpovirk): Should `newValue` be @Nullable?
     public void setValue(String newValue) {
         value = newValue;
     }
@@ -525,6 +530,7 @@ public final class HttpCookie implements Cloneable {
      *
      * @see  #setValue
      */
+    @NullUnmarked // TODO(cpovirk): Should the return type be @Nullable?
     public String getValue() {
         return value;
     }
@@ -644,7 +650,14 @@ public final class HttpCookie implements Cloneable {
      *
      * @return  {@code true} if they domain-matches; {@code false} if not
      */
-    public static boolean domainMatches(String domain, String host) {
+    /*
+     * JSpecify: Passing null for either parameter seems likely to be at least suspicious. However,
+     * if we make the types non-null, we would change the null behavior under Kotlin from "return
+     * false" to "throw NullPointerException." And it's not clear whether any callers pass null in
+     * practice, even the one caller in the JDK, which passes cookie.getDomain() and uri.getHost(),
+     * both of which have nullable types. 
+     */
+    public static boolean domainMatches(@Nullable String domain, @Nullable String host) {
         if (domain == null || host == null)
             return false;
 

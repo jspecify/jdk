@@ -25,8 +25,6 @@
 
 package jdk.jshell;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -125,9 +123,7 @@ final class Unit {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
         return (o instanceof Unit)
                 ? si.equals(((Unit) o).si)
                 : false;

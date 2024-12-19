@@ -113,7 +113,7 @@ public class DataInputStream extends FilterInputStream implements DataInput {
      * @see        java.io.FilterInputStream#in
      * @see        java.io.InputStream#read(byte[], int, int)
      */
-    public final int read(byte @Nullable [] b) throws IOException {
+    public final int read(byte[] b) throws IOException {
         return in.read(b, 0, b.length);
     }
 

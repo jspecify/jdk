@@ -1384,7 +1384,7 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * @throws IllegalArgumentException if numMappings is negative
      * @since 19
      */
-    public static <K, V> WeakHashMap<K, V> newWeakHashMap(int numMappings) {
+    public static <K extends @Nullable Object, V extends @Nullable Object> WeakHashMap<K, V> newWeakHashMap(int numMappings) {
         if (numMappings < 0) {
             throw new IllegalArgumentException("Negative number of mappings: " + numMappings);
         }

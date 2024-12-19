@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,6 @@
 
 package java.awt;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-import sun.awt.AWTPermissions;
 import sun.awt.ComponentFactory;
 
 /**
@@ -39,8 +35,7 @@ import sun.awt.ComponentFactory;
  * @since 1.5
  */
 
-@AnnotatedFor({"interning"})
-public @UsesObjectEquals class MouseInfo {
+public class MouseInfo {
 
     /**
      * Private constructor to prevent instantiation.
@@ -60,30 +55,14 @@ public @UsesObjectEquals class MouseInfo {
      * of the {@code GraphicsDevice}. See {@link GraphicsConfiguration}
      * for more information about the virtual screen devices.
      * On systems without a mouse, returns {@code null}.
-     * <p>
-     * If there is a security manager, its {@code checkPermission} method
-     * is called with an {@code AWTPermission("watchMousePointer")}
-     * permission before creating and returning a {@code PointerInfo}
-     * object. This may result in a {@code SecurityException}.
      *
      * @throws HeadlessException if GraphicsEnvironment.isHeadless() returns true
-     * @throws SecurityException if a security manager exists and its
-     *            {@code checkPermission} method doesn't allow the operation
-     * @see       GraphicsConfiguration
-     * @see       SecurityManager#checkPermission
-     * @see       java.awt.AWTPermission
      * @return    location of the mouse pointer
      * @since     1.5
      */
     public static PointerInfo getPointerInfo() throws HeadlessException {
         if (GraphicsEnvironment.isHeadless()) {
             throw new HeadlessException();
-        }
-
-        @SuppressWarnings("removal")
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkPermission(AWTPermissions.WATCH_MOUSE_PERMISSION);
         }
 
         Toolkit toolkit = Toolkit.getDefaultToolkit();

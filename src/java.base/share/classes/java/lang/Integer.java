@@ -48,9 +48,10 @@ import static java.lang.String.LATIN1;
 import static java.lang.String.UTF16;
 
 /**
- * The {@code Integer} class wraps a value of the primitive type
- * {@code int} in an object. An object of type {@code Integer}
- * contains a single field whose type is {@code int}.
+ * The {@code Integer} class is the {@linkplain
+ * java.lang##wrapperClass wrapper class} for values of the primitive
+ * type {@code int}. An object of type {@code Integer} contains a
+ * single field whose type is {@code int}.
  *
  * <p>In addition, this class provides several methods for converting
  * an {@code int} to a {@code String} and a {@code String} to an
@@ -98,8 +99,7 @@ public final class Integer extends Number
      *
      * @since   1.1
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Integer>  TYPE = (Class<Integer>) Class.getPrimitiveClass("int");
+    public static final Class<Integer> TYPE = Class.getPrimitiveClass("int");
 
     /**
      * All possible chars for representing a number as a String
@@ -994,7 +994,17 @@ public final class Integer extends Number
             if (archivedCache == null || size > archivedCache.length) {
                 Integer[] c = new Integer[size];
                 int j = low;
-                for(int i = 0; i < c.length; i++) {
+                // If archive has Integer cache, we must use all instances from it.
+                // Otherwise, the identity checks between archived Integers and
+                // runtime-cached Integers would fail.
+                int archivedSize = (archivedCache == null) ? 0 : archivedCache.length;
+                for (int i = 0; i < archivedSize; i++) {
+                    c[i] = archivedCache[i];
+                    assert j == archivedCache[i];
+                    j++;
+                }
+                // Fill the rest of the cache.
+                for (int i = archivedSize; i < size; i++) {
                     c[i] = new Integer(j++);
                 }
                 archivedCache = c;
@@ -1195,11 +1205,9 @@ public final class Integer extends Number
      * @return  {@code true} if the objects are the same;
      *          {@code false} otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
-        if (obj instanceof Integer) {
-            return value == ((Integer)obj).intValue();
+        if (obj instanceof Integer i) {
+            return value == i.intValue();
         }
         return false;
     }
@@ -1229,8 +1237,6 @@ public final class Integer extends Number
      *
      * @param   nm   property name.
      * @return  the {@code Integer} value of the property.
-     * @throws  SecurityException for the same reasons as
-     *          {@link System#getProperty(String) System.getProperty}
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
@@ -1277,8 +1283,6 @@ public final class Integer extends Number
      * @param   nm   property name.
      * @param   val   default value.
      * @return  the {@code Integer} value of the property.
-     * @throws  SecurityException for the same reasons as
-     *          {@link System#getProperty(String) System.getProperty}
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
@@ -1321,19 +1325,11 @@ public final class Integer extends Number
      * @param   nm   property name.
      * @param   val   default value.
      * @return  the {@code Integer} value of the property.
-     * @throws  SecurityException for the same reasons as
-     *          {@link System#getProperty(String) System.getProperty}
      * @see     System#getProperty(java.lang.String)
      * @see     System#getProperty(java.lang.String, java.lang.String)
      */
-    
-    
     public static @Nullable Integer getInteger(@Nullable String nm, @Nullable Integer val) {
-        String v = null;
-        try {
-            v = System.getProperty(nm);
-        } catch (IllegalArgumentException | NullPointerException e) {
-        }
+        String v = nm != null && !nm.isEmpty() ? System.getProperty(nm) : null;
         if (v != null) {
             try {
                 return Integer.decode(v);

@@ -24,16 +24,12 @@
  */
 package java.rmi.dgc;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * A lease contains a unique VM identifier and a lease duration. A
  * Lease object is used to request and grant leases to remote object
  * references.
  */
-@AnnotatedFor({"interning"})
-public final @UsesObjectEquals class Lease implements java.io.Serializable {
+public final class Lease implements java.io.Serializable {
 
     /**
      * @serial Virtual Machine ID with which this Lease is associated.

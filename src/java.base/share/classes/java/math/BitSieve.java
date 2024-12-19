@@ -25,9 +25,6 @@
 
 package java.math;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * A simple bit sieve used for finding prime number candidates. Allows setting
  * and clearing of bits in a storage array. The size of the sieve is assumed to
@@ -47,8 +44,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author  Michael McCloskey
  * @since   1.3
  */
-@AnnotatedFor({"interning"})
-@UsesObjectEquals class BitSieve {
+class BitSieve {
     /**
      * Stores the bits in this bitSieve.
      */

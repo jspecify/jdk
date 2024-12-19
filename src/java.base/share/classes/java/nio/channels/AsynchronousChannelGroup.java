@@ -25,9 +25,6 @@
 
 package java.nio.channels;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.nio.channels.spi.AsynchronousChannelProvider;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
@@ -142,8 +139,7 @@ import java.util.concurrent.TimeUnit;
  * @see AsynchronousServerSocketChannel#open(AsynchronousChannelGroup)
  */
 
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class AsynchronousChannelGroup {
+public abstract class AsynchronousChannelGroup {
     private final AsynchronousChannelProvider provider;
 
     /**

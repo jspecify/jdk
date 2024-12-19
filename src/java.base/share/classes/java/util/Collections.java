@@ -385,7 +385,7 @@ public class Collections {
      * @see    List#reversed List.reversed
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public static void reverse( List<?> list) {
+    public static void reverse(List<?> list) {
         int size = list.size();
         if (size < REVERSE_THRESHOLD || list instanceof RandomAccess) {
             for (int i=0, mid=size>>1, j=size-1; i<mid; i++, j--)
@@ -432,7 +432,7 @@ public class Collections {
      * @throws UnsupportedOperationException if the specified list or
      *         its list-iterator does not support the {@code set} operation.
      */
-    public static void shuffle( List<?> list) {
+    public static void shuffle(List<?> list) {
         Random rnd = r;
         if (rnd == null)
             r = rnd = new Random(); // harmless race.
@@ -522,7 +522,7 @@ public class Collections {
      * @since 1.4
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public static void swap( List<?> list, int i, int j) {
+    public static void swap(List<?> list, int i, int j) {
         // instead of using a raw type here, it's possible to capture
         // the wildcard but it will require a call to a supplementary
         // private method
@@ -551,7 +551,7 @@ public class Collections {
      * @throws UnsupportedOperationException if the specified list or its
      *         list-iterator does not support the {@code set} operation.
      */
-    public static <T extends @Nullable Object> void fill( List<? super T> list, T obj) {
+    public static <T extends @Nullable Object> void fill(List<? super T> list, T obj) {
         int size = list.size();
 
         if (size < FILL_THRESHOLD || list instanceof RandomAccess) {
@@ -804,7 +804,7 @@ public class Collections {
      *         its list-iterator does not support the {@code set} operation.
      * @since 1.4
      */
-    public static void rotate( List<?> list, int distance) {
+    public static void rotate(List<?> list, int distance) {
         if (list instanceof RandomAccess || list.size() < ROTATE_THRESHOLD)
             rotate1(list, distance);
         else
@@ -929,8 +929,7 @@ public class Collections {
      *         is no such occurrence.
      * @since  1.4
      */
-    
-    public static  int indexOfSubList( List<?> source,  List<?> target) {
+    public static int indexOfSubList(List<?> source, List<?> target) {
         int sourceSize = source.size();
         int targetSize = target.size();
         int maxCandidate = sourceSize - targetSize;
@@ -983,8 +982,7 @@ public class Collections {
      *         is no such occurrence.
      * @since  1.4
      */
-    
-    public static  int lastIndexOfSubList( List<?> source,  List<?> target) {
+    public static int lastIndexOfSubList(List<?> source, List<?> target) {
         int sourceSize = source.size();
         int targetSize = target.size();
         int maxCandidate = sourceSize - targetSize;
@@ -1046,6 +1044,7 @@ public class Collections {
      *         returned.
      * @return an unmodifiable view of the specified collection.
      */
+    @SuppressWarnings("unchecked")
     public static <T extends @Nullable Object> Collection<T> unmodifiableCollection(Collection<? extends T> c) {
         if (c.getClass() == UnmodifiableCollection.class) {
             return (Collection<T>) c;
@@ -1069,19 +1068,14 @@ public class Collections {
             this.c = c;
         }
 
-        
-        public  int size()                          {return c.size();}
-        
+        public int size()                          {return c.size();}
         public boolean isEmpty()                   {return c.isEmpty();}
         public boolean contains(@Nullable Object o)          {return c.contains(o);}
-        
         public @Nullable Object[] toArray()                  {return c.toArray();}
-        
         public <T extends @Nullable Object> T[] toArray(T[] a)              {return c.toArray(a);}
         public <T extends @Nullable Object> T[] toArray(IntFunction<T[]> f) {return c.toArray(f);}
         public String toString()                   {return c.toString();}
 
-        
         public Iterator<E> iterator() {
             return new Iterator<>() {
                 private final Iterator<? extends E> i = c.iterator();
@@ -1131,7 +1125,6 @@ public class Collections {
         public boolean removeIf(Predicate<? super E> filter) {
             throw new UnsupportedOperationException();
         }
-        
         @SuppressWarnings("unchecked")
         @Override
         public Spliterator<E> spliterator() {
@@ -1173,7 +1166,7 @@ public class Collections {
      * @since 21
      */
     @SuppressWarnings("unchecked")
-    public static <T> SequencedCollection<T> unmodifiableSequencedCollection(SequencedCollection<? extends T> c) {
+    public static <T extends @Nullable Object> SequencedCollection<T> unmodifiableSequencedCollection(SequencedCollection<? extends T> c) {
         if (c.getClass() == UnmodifiableSequencedCollection.class) {
             return (SequencedCollection<T>) c;
         }
@@ -1283,7 +1276,7 @@ public class Collections {
      * @since 21
      */
     @SuppressWarnings("unchecked")
-    public static <T> SequencedSet<T> unmodifiableSequencedSet(SequencedSet<? extends T> s) {
+    public static <T extends @Nullable Object> SequencedSet<T> unmodifiableSequencedSet(SequencedSet<? extends T> s) {
         // Not checking for subclasses because of heap pollution and information leakage.
         if (s.getClass() == UnmodifiableSequencedSet.class) {
             return (SequencedSet<T>) s;
@@ -1662,18 +1655,12 @@ public class Collections {
             this.m = m;
         }
 
-        
-        public  int size()                        {return m.size();}
-        
+        public int size()                        {return m.size();}
         public boolean isEmpty()                 {return m.isEmpty();}
-        
-        
         public boolean containsKey(@Nullable Object key)   {return m.containsKey(key);}
-        
         public boolean containsValue(@Nullable Object val) {return m.containsValue(val);}
         public V get(@Nullable Object key)                 {return m.get(key);}
 
-        
         public V put(K key, V value) {
             throw new UnsupportedOperationException();
         }
@@ -1697,7 +1684,6 @@ public class Collections {
             return keySet;
         }
 
-        
         public Set<Map.Entry<K,V>> entrySet() {
             if (entrySet==null)
                 entrySet = new UnmodifiableEntrySet<>(m.entrySet());
@@ -1732,7 +1718,6 @@ public class Collections {
             throw new UnsupportedOperationException();
         }
 
-        
         @Override
         public V putIfAbsent(K key, V value) {
             throw new UnsupportedOperationException();
@@ -2004,7 +1989,7 @@ public class Collections {
      * @since 21
      */
     @SuppressWarnings("unchecked")
-    public static <K,V> SequencedMap<K,V> unmodifiableSequencedMap(SequencedMap<? extends K, ? extends V> m) {
+    public static <K extends @Nullable Object,V extends @Nullable Object> SequencedMap<K,V> unmodifiableSequencedMap(SequencedMap<? extends K, ? extends V> m) {
         // Not checking for subclasses because of heap pollution and information leakage.
         if (m.getClass() == UnmodifiableSequencedMap.class) {
             return (SequencedMap<K,V>) m;
@@ -2093,13 +2078,10 @@ public class Collections {
 
         UnmodifiableSortedMap(SortedMap<K, ? extends V> m) {super(m); sm = m; }
         public Comparator<? super K> comparator()   { return sm.comparator(); }
-        
         public SortedMap<K,V> subMap(K fromKey, K toKey)
              { return new UnmodifiableSortedMap<>(sm.subMap(fromKey, toKey)); }
-        
         public SortedMap<K,V> headMap(K toKey)
                      { return new UnmodifiableSortedMap<>(sm.headMap(toKey)); }
-        
         public SortedMap<K,V> tailMap(K fromKey)
                    { return new UnmodifiableSortedMap<>(sm.tailMap(fromKey)); }
         public K firstKey()                           { return sm.firstKey(); }
@@ -2158,7 +2140,6 @@ public class Collections {
             EmptyNavigableMap()                       { super(new TreeMap<>()); }
 
             @Override
-            
             public NavigableSet<K> navigableKeySet()
                                                 { return emptyNavigableSet(); }
 
@@ -2239,26 +2220,20 @@ public class Collections {
                                  { throw new UnsupportedOperationException(); }
         public Entry<K, V> pollLastEntry()
                                  { throw new UnsupportedOperationException(); }
-        
         public NavigableMap<K, V> descendingMap()
                        { return unmodifiableNavigableMap(nm.descendingMap()); }
-        
         public NavigableSet<K> navigableKeySet()
                      { return unmodifiableNavigableSet(nm.navigableKeySet()); }
-        
         public NavigableSet<K> descendingKeySet()
                     { return unmodifiableNavigableSet(nm.descendingKeySet()); }
 
-        
         public NavigableMap<K, V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
             return unmodifiableNavigableMap(
                 nm.subMap(fromKey, fromInclusive, toKey, toInclusive));
         }
 
-        
         public NavigableMap<K, V> headMap(K toKey, boolean inclusive)
              { return unmodifiableNavigableMap(nm.headMap(toKey, inclusive)); }
-        
         public NavigableMap<K, V> tailMap(K fromKey, boolean inclusive)
            { return unmodifiableNavigableMap(nm.tailMap(fromKey, inclusive)); }
     }
@@ -2328,22 +2303,18 @@ public class Collections {
             this.mutex = Objects.requireNonNull(mutex);
         }
 
-        
-        public  int size() {
+        public int size() {
             synchronized (mutex) {return c.size();}
         }
-        
         public boolean isEmpty() {
             synchronized (mutex) {return c.isEmpty();}
         }
         public boolean contains(@Nullable Object o) {
             synchronized (mutex) {return c.contains(o);}
         }
-        
         public @Nullable Object[] toArray() {
             synchronized (mutex) {return c.toArray();}
         }
-        
         public <T extends @Nullable Object> T[] toArray(T[] a) {
             synchronized (mutex) {return c.toArray(a);}
         }
@@ -2351,7 +2322,6 @@ public class Collections {
             synchronized (mutex) {return c.toArray(f);}
         }
 
-        
         public Iterator<E> iterator() {
             return c.iterator(); // Must be manually synched by user!
         }
@@ -2390,7 +2360,6 @@ public class Collections {
         public boolean removeIf(Predicate<? super E> filter) {
             synchronized (mutex) {return c.removeIf(filter);}
         }
-        
         @Override
         public Spliterator<E> spliterator() {
             return c.spliterator(); // Must be manually synched by user!
@@ -2913,20 +2882,15 @@ public class Collections {
             this.mutex = mutex;
         }
 
-        
-        public  int size() {
+        public int size() {
             synchronized (mutex) {return m.size();}
         }
-        
         public boolean isEmpty() {
             synchronized (mutex) {return m.isEmpty();}
         }
-        
-        
         public boolean containsKey(@Nullable Object key) {
             synchronized (mutex) {return m.containsKey(key);}
         }
-        
         public boolean containsValue(@Nullable Object value) {
             synchronized (mutex) {return m.containsValue(value);}
         }
@@ -2934,7 +2898,6 @@ public class Collections {
             synchronized (mutex) {return m.get(key);}
         }
 
-        
         public V put(K key, V value) {
             synchronized (mutex) {return m.put(key, value);}
         }
@@ -2960,7 +2923,6 @@ public class Collections {
             }
         }
 
-        
         public Set<Map.Entry<K,V>> entrySet() {
             synchronized (mutex) {
                 if (entrySet==null)
@@ -3002,7 +2964,6 @@ public class Collections {
         public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
             synchronized (mutex) {m.replaceAll(function);}
         }
-        
         @Override
         public V putIfAbsent(K key, V value) {
             synchronized (mutex) {return m.putIfAbsent(key, value);}
@@ -3121,20 +3082,17 @@ public class Collections {
             synchronized (mutex) {return sm.comparator();}
         }
 
-        
         public SortedMap<K,V> subMap(K fromKey, K toKey) {
             synchronized (mutex) {
                 return new SynchronizedSortedMap<>(
                     sm.subMap(fromKey, toKey), mutex);
             }
         }
-        
         public SortedMap<K,V> headMap(K toKey) {
             synchronized (mutex) {
                 return new SynchronizedSortedMap<>(sm.headMap(toKey), mutex);
             }
         }
-        
         public SortedMap<K,V> tailMap(K fromKey) {
             synchronized (mutex) {
                return new SynchronizedSortedMap<>(sm.tailMap(fromKey),mutex);
@@ -3249,7 +3207,6 @@ public class Collections {
         public Entry<K, V> pollLastEntry()
                         { synchronized (mutex) { return nm.pollLastEntry(); } }
 
-        
         public NavigableMap<K, V> descendingMap() {
             synchronized (mutex) {
                 return
@@ -3261,14 +3218,12 @@ public class Collections {
             return navigableKeySet();
         }
 
-        
         public NavigableSet<K> navigableKeySet() {
             synchronized (mutex) {
                 return new SynchronizedNavigableSet<>(nm.navigableKeySet(), mutex);
             }
         }
 
-        
         public NavigableSet<K> descendingKeySet() {
             synchronized (mutex) {
                 return new SynchronizedNavigableSet<>(nm.descendingKeySet(), mutex);
@@ -3276,27 +3231,23 @@ public class Collections {
         }
 
 
-        
         public SortedMap<K,V> subMap(K fromKey, K toKey) {
             synchronized (mutex) {
                 return new SynchronizedNavigableMap<>(
                     nm.subMap(fromKey, true, toKey, false), mutex);
             }
         }
-        
         public SortedMap<K,V> headMap(K toKey) {
             synchronized (mutex) {
                 return new SynchronizedNavigableMap<>(nm.headMap(toKey, false), mutex);
             }
         }
-        
         public SortedMap<K,V> tailMap(K fromKey) {
             synchronized (mutex) {
         return new SynchronizedNavigableMap<>(nm.tailMap(fromKey, true),mutex);
             }
         }
 
-        
         public NavigableMap<K, V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
             synchronized (mutex) {
                 return new SynchronizedNavigableMap<>(
@@ -3304,7 +3255,6 @@ public class Collections {
             }
         }
 
-        
         public NavigableMap<K, V> headMap(K toKey, boolean inclusive) {
             synchronized (mutex) {
                 return new SynchronizedNavigableMap<>(
@@ -3312,7 +3262,6 @@ public class Collections {
             }
         }
 
-        
         public NavigableMap<K, V> tailMap(K fromKey, boolean inclusive) {
             synchronized (mutex) {
                 return new SynchronizedNavigableMap<>(
@@ -3423,14 +3372,10 @@ public class Collections {
             this.type = Objects.requireNonNull(type, "type");
         }
 
-        
-        public  int size()                          { return c.size(); }
-        
+        public int size()                          { return c.size(); }
         public boolean isEmpty()                   { return c.isEmpty(); }
         public boolean contains(@Nullable Object o)          { return c.contains(o); }
-        
         public @Nullable Object[] toArray()                  { return c.toArray(); }
-        
         public <T extends @Nullable Object> T[] toArray(T[] a)              { return c.toArray(a); }
         public <T extends @Nullable Object> T[] toArray(IntFunction<T[]> f) { return c.toArray(f); }
         public String toString()                   { return c.toString(); }
@@ -3447,7 +3392,6 @@ public class Collections {
             return c.retainAll(coll);
         }
 
-        
         public Iterator<E> iterator() {
             // JDK-6363904 - unwrapped iterator could be typecast to
             // ListIterator with unsafe set()
@@ -3510,7 +3454,6 @@ public class Collections {
         public boolean removeIf(Predicate<? super E> filter) {
             return c.removeIf(filter);
         }
-        
         @Override
         public Spliterator<E> spliterator() {return c.spliterator();}
         @Override
@@ -4004,14 +3947,9 @@ public class Collections {
             this.valueType = Objects.requireNonNull(valueType);
         }
 
-        
-        public  int size()                      { return m.size(); }
-        
+        public int size()                      { return m.size(); }
         public boolean isEmpty()               { return m.isEmpty(); }
-        
-        
         public boolean containsKey(@Nullable Object key) { return m.containsKey(key); }
-        
         public boolean containsValue(@Nullable Object v) { return m.containsValue(v); }
         public V get(@Nullable Object key)               { return m.get(key); }
         public V remove(@Nullable Object key)            { return m.remove(key); }
@@ -4022,7 +3960,6 @@ public class Collections {
         public int hashCode()                  { return m.hashCode(); }
         public String toString()               { return m.toString(); }
 
-        
         public V put(K key, V value) {
             typeCheck(key, value);
             return m.put(key, value);
@@ -4051,7 +3988,6 @@ public class Collections {
 
         private transient Set<Map.Entry<K,V>> entrySet;
 
-        
         public Set<Map.Entry<K,V>> entrySet() {
             if (entrySet==null)
                 entrySet = new CheckedEntrySet<>(m.entrySet(), valueType);
@@ -4069,7 +4005,6 @@ public class Collections {
             m.replaceAll(typeCheck(function));
         }
 
-        
         @Override
         public V putIfAbsent(K key, V value) {
             typeCheck(key, value);
@@ -4145,9 +4080,7 @@ public class Collections {
                 this.valueType = valueType;
             }
 
-            
             public int size()        { return s.size(); }
-            
             public boolean isEmpty() { return s.isEmpty(); }
             public String toString() { return s.toString(); }
             public int hashCode()    { return s.hashCode(); }
@@ -4386,16 +4319,13 @@ public class Collections {
         public K firstKey()                       { return sm.firstKey(); }
         public K lastKey()                        { return sm.lastKey(); }
 
-        
         public SortedMap<K,V> subMap(K fromKey, K toKey) {
             return checkedSortedMap(sm.subMap(fromKey, toKey),
                                     keyType, valueType);
         }
-        
         public SortedMap<K,V> headMap(K toKey) {
             return checkedSortedMap(sm.headMap(toKey), keyType, valueType);
         }
-        
         public SortedMap<K,V> tailMap(K fromKey) {
             return checkedSortedMap(sm.tailMap(fromKey), keyType, valueType);
         }
@@ -4529,7 +4459,6 @@ public class Collections {
                 : new CheckedMap.CheckedEntrySet.CheckedEntry<>(entry, valueType);
         }
 
-        
         public NavigableMap<K, V> descendingMap() {
             return checkedNavigableMap(nm.descendingMap(), keyType, valueType);
         }
@@ -4538,46 +4467,38 @@ public class Collections {
             return navigableKeySet();
         }
 
-        
         public NavigableSet<K> navigableKeySet() {
             return checkedNavigableSet(nm.navigableKeySet(), keyType);
         }
 
-        
         public NavigableSet<K> descendingKeySet() {
             return checkedNavigableSet(nm.descendingKeySet(), keyType);
         }
 
         @Override
-        
         public NavigableMap<K,V> subMap(K fromKey, K toKey) {
             return checkedNavigableMap(nm.subMap(fromKey, true, toKey, false),
                                     keyType, valueType);
         }
 
         @Override
-        
         public NavigableMap<K,V> headMap(K toKey) {
             return checkedNavigableMap(nm.headMap(toKey, false), keyType, valueType);
         }
 
         @Override
-        
         public NavigableMap<K,V> tailMap(K fromKey) {
             return checkedNavigableMap(nm.tailMap(fromKey, true), keyType, valueType);
         }
 
-        
         public NavigableMap<K, V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
             return checkedNavigableMap(nm.subMap(fromKey, fromInclusive, toKey, toInclusive), keyType, valueType);
         }
 
-        
         public NavigableMap<K, V> headMap(K toKey, boolean inclusive) {
             return checkedNavigableMap(nm.headMap(toKey, inclusive), keyType, valueType);
         }
 
-        
         public NavigableMap<K, V> tailMap(K fromKey, boolean inclusive) {
             return checkedNavigableMap(nm.tailMap(fromKey, inclusive), keyType, valueType);
         }
@@ -4741,22 +4662,17 @@ public class Collections {
         @java.io.Serial
         private static final long serialVersionUID = 1582296315990362920L;
 
-        
         public Iterator<E> iterator() { return emptyIterator(); }
 
-        
-        public  int size() {return 0;}
-        
+        public int size() {return 0;}
         public boolean isEmpty() {return true;}
         public void clear() {}
 
         public boolean contains(@Nullable Object obj) {return false;}
         public boolean containsAll(Collection<?> c) { return c.isEmpty(); }
 
-        
         public @Nullable Object[] toArray() { return new Object[0]; }
 
-        
         public <T extends @Nullable Object> T[] toArray(T[] a) {
             if (a.length > 0)
                 a[0] = null;
@@ -4773,7 +4689,6 @@ public class Collections {
             Objects.requireNonNull(filter);
             return false;
         }
-        
         @Override
         public Spliterator<E> spliterator() { return Spliterators.emptySpliterator(); }
 
@@ -4873,7 +4788,6 @@ public class Collections {
         @java.io.Serial
         private static final long serialVersionUID = 8842843931221139166L;
 
-        
         public Iterator<E> iterator() {
             return emptyIterator();
         }
@@ -4881,19 +4795,15 @@ public class Collections {
             return emptyListIterator();
         }
 
-        
-        public  int size() {return 0;}
-        
+        public int size() {return 0;}
         public boolean isEmpty() {return true;}
         public void clear() {}
 
         public boolean contains(@Nullable Object obj) {return false;}
         public boolean containsAll(Collection<?> c) { return c.isEmpty(); }
 
-        
         public @Nullable Object[] toArray() { return new Object[0]; }
 
-        
         public <T extends @Nullable Object> T[] toArray(T[] a) {
             if (a.length > 0)
                 a[0] = null;
@@ -4929,7 +4839,6 @@ public class Collections {
             Objects.requireNonNull(action);
         }
 
-        
         @Override
         public Spliterator<E> spliterator() { return Spliterators.emptySpliterator(); }
 
@@ -5024,20 +4933,14 @@ public class Collections {
         @java.io.Serial
         private static final long serialVersionUID = 6428348081105594320L;
 
-        
-        public  int size()                          {return 0;}
-        
+        public int size()                          {return 0;}
         public boolean isEmpty()                   {return true;}
         public void clear()                        {}
-        
-        
         public boolean containsKey(@Nullable Object key)     {return false;}
-        
         public boolean containsValue(@Nullable Object value) {return false;}
         public V get(@Nullable Object key)                   {return null;}
         public Set<K> keySet()                     {return emptySet();}
         public Collection<V> values()              {return emptySet();}
-        
         public Set<Map.Entry<K,V>> entrySet()      {return emptySet();}
 
         public boolean equals(Object o) {
@@ -5062,7 +4965,6 @@ public class Collections {
             Objects.requireNonNull(function);
         }
 
-        
         @Override
         public V putIfAbsent(K key, V value) {
             throw new UnsupportedOperationException();
@@ -5216,13 +5118,11 @@ public class Collections {
 
         SingletonSet(E e) {element = e;}
 
-        
         public Iterator<E> iterator() {
             return singletonIterator(element);
         }
 
-        
-        public  int size() {return 1;}
+        public int size() {return 1;}
 
         public boolean contains(@Nullable Object o) {return eq(o, element);}
 
@@ -5231,7 +5131,6 @@ public class Collections {
         public void forEach(Consumer<? super E> action) {
             action.accept(element);
         }
-        
         @Override
         public Spliterator<E> spliterator() {
             return singletonSpliterator(element);
@@ -5262,7 +5161,7 @@ public class Collections {
     /**
      * @serial include
      */
-    private static  class SingletonList<E extends @Nullable Object>
+    private static class SingletonList<E extends @Nullable Object>
         extends AbstractList<E>
         implements RandomAccess, Serializable {
 
@@ -5272,17 +5171,13 @@ public class Collections {
         @SuppressWarnings("serial") // Conditionally serializable
         private final E element;
 
-        @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-        
         SingletonList(E obj)                {element = obj;}
 
-        
         public Iterator<E> iterator() {
             return singletonIterator(element);
         }
 
-        
-        public  int size()                   {return 1;}
+        public int size()                   {return 1;}
 
         public boolean contains(@Nullable Object obj) {return eq(obj, element);}
 
@@ -5308,7 +5203,6 @@ public class Collections {
         @Override
         public void sort(Comparator<? super E> c) {
         }
-        
         @Override
         public Spliterator<E> spliterator() {
             return singletonSpliterator(element);
@@ -5354,14 +5248,9 @@ public class Collections {
             v = value;
         }
 
-        
-        public  int size()                                           {return 1;}
-        
+        public int size()                                           {return 1;}
         public boolean isEmpty()                                {return false;}
-        
-        
         public boolean containsKey(@Nullable Object key)             {return eq(key, k);}
-        
         public boolean containsValue(@Nullable Object value)       {return eq(value, v);}
         public V get(@Nullable Object key)              {return (eq(key, k) ? v : null);}
 
@@ -5375,7 +5264,6 @@ public class Collections {
             return keySet;
         }
 
-        
         public Set<Map.Entry<K,V>> entrySet() {
             if (entrySet==null)
                 entrySet = Collections.singleton(
@@ -5405,7 +5293,6 @@ public class Collections {
             throw new UnsupportedOperationException();
         }
 
-        
         @Override
         public V putIfAbsent(K key, V value) {
             throw new UnsupportedOperationException();
@@ -5501,8 +5388,7 @@ public class Collections {
             element = e;
         }
 
-        
-        public  int size() {
+        public int size() {
             return n;
         }
 
@@ -5540,7 +5426,6 @@ public class Collections {
             return a;
         }
 
-        
         @SuppressWarnings("unchecked")
         public <T extends @Nullable Object> T[] toArray(T[] a) {
             final int n = this.n;
@@ -5625,7 +5510,6 @@ public class Collections {
             return IntStream.range(0, n).parallel().mapToObj(i -> element);
         }
 
-        
         @Override
         public Spliterator<E> spliterator() {
             return stream().spliterator();
@@ -5854,7 +5738,7 @@ public class Collections {
      * @throws NullPointerException if {@code c} is null
      * @since 1.5
      */
-    public static  int frequency(Collection<?> c, @Nullable Object o) {
+    public static int frequency(Collection<?> c, @Nullable Object o) {
         int result = 0;
         if (o == null) {
             for (Object e : c)
@@ -5985,7 +5869,7 @@ public class Collections {
      * @since 1.5
      */
     @SafeVarargs
-    public static <T extends @Nullable Object> boolean addAll( Collection<? super T> c, T... elements) {
+    public static <T extends @Nullable Object> boolean addAll(Collection<? super T> c, T... elements) {
         boolean result = false;
         for (T element : elements)
             result |= c.add(element);
@@ -6045,18 +5929,13 @@ public class Collections {
         }
 
         public void clear()               {        m.clear(); }
-        
-        public  int size()                 { return m.size(); }
-        
+        public int size()                 { return m.size(); }
         public boolean isEmpty()          { return m.isEmpty(); }
         public boolean contains(@Nullable Object o) { return m.containsKey(o); }
         public boolean remove(@Nullable Object o)   { return m.remove(o) != null; }
         public boolean add(E e) { return m.put(e, Boolean.TRUE) == null; }
-        
         public Iterator<E> iterator()     { return s.iterator(); }
-        
         public @Nullable Object[] toArray()         { return s.toArray(); }
-        
         public <T extends @Nullable Object> T[] toArray(T[] a)     { return s.toArray(a); }
         public String toString()          { return s.toString(); }
         public int hashCode()             { return s.hashCode(); }
@@ -6076,7 +5955,6 @@ public class Collections {
             return s.removeIf(filter);
         }
 
-        
         @Override
         public Spliterator<E> spliterator() {return s.spliterator();}
         @Override
@@ -6139,7 +6017,7 @@ public class Collections {
      * @throws IllegalArgumentException if {@code map} is not empty
      * @since 21
      */
-    public static <E> SequencedSet<E> newSequencedSetFromMap(SequencedMap<E, Boolean> map) {
+    public static <E extends @Nullable Object> SequencedSet<E> newSequencedSetFromMap(SequencedMap<E, Boolean> map) {
         if (! map.isEmpty()) // implicit null check
             throw new IllegalArgumentException("Map is non-empty");
         return new SequencedSetFromMap<>(map);
@@ -6225,17 +6103,12 @@ public class Collections {
         public E peek()                             { return q.peekFirst(); }
         public E element()                          { return q.getFirst(); }
         public void clear()                         {        q.clear(); }
-        
-        public  int size()                           { return q.size(); }
-        
+        public int size()                           { return q.size(); }
         public boolean isEmpty()                    { return q.isEmpty(); }
         public boolean contains(@Nullable Object o)           { return q.contains(o); }
         public boolean remove(@Nullable Object o)             { return q.remove(o); }
-        
         public Iterator<E> iterator()               { return q.iterator(); }
-        
         public @Nullable Object[] toArray()                   { return q.toArray(); }
-        
         public <T extends @Nullable Object> T[] toArray(T[] a)               { return q.toArray(a); }
         public <T extends @Nullable Object> T[] toArray(IntFunction<T[]> f)  { return q.toArray(f); }
         public String toString()                    { return q.toString(); }
@@ -6251,7 +6124,6 @@ public class Collections {
         public boolean removeIf(Predicate<? super E> filter) {
             return q.removeIf(filter);
         }
-        
         @Override
         public Spliterator<E> spliterator() {return q.spliterator();}
         @Override

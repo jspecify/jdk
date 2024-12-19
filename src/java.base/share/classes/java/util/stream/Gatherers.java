@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.javac.PreviewFeature;
 import jdk.internal.vm.annotation.ForceInline;
 
 import java.util.ArrayDeque;
@@ -51,10 +50,9 @@ import java.util.stream.Gatherer.Downstream;
  * operations, such as windowing functions, folding functions,
  * transforming elements concurrently, etc.
  *
- * @since 22
+ * @since 24
 */
 @NullMarked
-@PreviewFeature(feature = PreviewFeature.Feature.STREAM_GATHERERS)
 public final class Gatherers {
     private Gatherers() { } // This class is not intended to be instantiated
 

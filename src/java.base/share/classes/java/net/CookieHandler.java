@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,12 @@
 
 package java.net;
 
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.util.Map;
 import java.util.List;
 import java.io.IOException;
-import sun.security.util.SecurityConstants;
+
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A CookieHandler object provides a callback mechanism to hook up a
@@ -53,8 +52,8 @@ import sun.security.util.SecurityConstants;
  * @author Yingxian Wang
  * @since 1.5
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class CookieHandler {
+@NullMarked
+public abstract class CookieHandler {
     /**
      * Constructor for subclasses to call.
      */
@@ -74,17 +73,9 @@ public abstract @UsesObjectEquals class CookieHandler {
      *
      * @return the system-wide cookie handler; A null return means
      *        there is no system-wide cookie handler currently set.
-     * @throws SecurityException
-     *       If a security manager has been installed and it denies
-     * {@link NetPermission}{@code ("getCookieHandler")}
      * @see #setDefault(CookieHandler)
      */
-    public static synchronized CookieHandler getDefault() {
-        @SuppressWarnings("removal")
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(SecurityConstants.GET_COOKIEHANDLER_PERMISSION);
-        }
+    public static synchronized @Nullable CookieHandler getDefault() {
         return cookieHandler;
     }
 
@@ -95,17 +86,9 @@ public abstract @UsesObjectEquals class CookieHandler {
      *
      * @param cHandler The HTTP cookie handler, or
      *       {@code null} to unset.
-     * @throws SecurityException
-     *       If a security manager has been installed and it denies
-     * {@link NetPermission}{@code ("setCookieHandler")}
      * @see #getDefault()
      */
-    public static synchronized void setDefault(CookieHandler cHandler) {
-        @SuppressWarnings("removal")
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(SecurityConstants.SET_COOKIEHANDLER_PERMISSION);
-        }
+    public static synchronized void setDefault(@Nullable CookieHandler cHandler) {
         cookieHandler = cHandler;
     }
 

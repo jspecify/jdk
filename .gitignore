@@ -14,9 +14,7 @@ nbproject/private/
 /.project/
 .recommenders/
 /.settings/
-/.src-rev
-/src/utils/LogCompilation/target/
-test/nashorn/lib
-test/nashorn/script/external
-/.vscode/
-/webrev
+/compile_commands.json
+/.cache
+/.gdbinit
+/.lldbinit

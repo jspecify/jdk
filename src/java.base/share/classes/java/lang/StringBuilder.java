@@ -471,7 +471,7 @@ public final class StringBuilder
      * @since 21
      */
     @Override
-    public StringBuilder repeat(CharSequence cs, int count) {
+    public StringBuilder repeat(@Nullable CharSequence cs, int count) {
         super.repeat(cs, count);
         return this;
     }

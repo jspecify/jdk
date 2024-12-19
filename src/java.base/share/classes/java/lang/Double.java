@@ -38,10 +38,10 @@ import jdk.internal.math.DoubleToDecimal;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
- * The {@code Double} class wraps a value of the primitive type
- * {@code double} in an object. An object of type
- * {@code Double} contains a single field whose type is
- * {@code double}.
+ * The {@code Double} class is the {@linkplain
+ * java.lang##wrapperClass wrapper class} for values of the primitive
+ * type {@code double}. An object of type {@code Double} contains a
+ * single field whose type is {@code double}.
  *
  * <p>In addition, this class provides several methods for converting a
  * {@code double} to a {@code String} and a
@@ -378,9 +378,9 @@ public final class Double extends Number
     public static final double NEGATIVE_INFINITY = -1.0 / 0.0;
 
     /**
-     * A constant holding a Not-a-Number (NaN) value of type
-     * {@code double}. It is equivalent to the value returned by
-     * {@code Double.longBitsToDouble(0x7ff8000000000000L)}.
+     * A constant holding a Not-a-Number (NaN) value of type {@code double}.
+     * It is {@linkplain Double##equivalenceRelation equivalent} to the
+     * value returned by {@code Double.longBitsToDouble(0x7ff8000000000000L)}.
      */
     public static final double NaN = 0.0d / 0.0;
 
@@ -462,8 +462,7 @@ public final class Double extends Number
      *
      * @since 1.1
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Double>   TYPE = (Class<Double>) Class.getPrimitiveClass("double");
+    public static final Class<Double> TYPE = Class.getPrimitiveClass("double");
 
     /**
      * Returns a string representation of the {@code double}
@@ -1278,12 +1277,9 @@ public final class Double extends Number
      * @see java.lang.Double#doubleToLongBits(double)
      * @jls 15.21.1 Numerical Equality Operators == and !=
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
-        return (obj instanceof Double)
-               && (doubleToLongBits(((Double)obj).value) ==
-                      doubleToLongBits(value));
+        return (obj instanceof Double d) &&
+            (doubleToLongBits(d.value) == doubleToLongBits(value));
     }
 
     /**

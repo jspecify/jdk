@@ -25,8 +25,6 @@
 
 package java.awt.event;
 
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 /**
  * An abstract adapter class for receiving component events.
  * The methods in this class are empty. This class exists as
@@ -51,7 +49,6 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  * @author Carl Quinn
  * @since 1.1
  */
-@AnnotatedFor({"interning"})
 public abstract class ComponentAdapter implements ComponentListener {
 
     /**

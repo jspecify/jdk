@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,9 @@
 
 package java.awt;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.awt.event.ComponentEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.KeyEvent;
@@ -48,7 +51,6 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
-import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EventListener;
@@ -65,13 +67,11 @@ import javax.accessibility.AccessibleState;
 import javax.accessibility.AccessibleStateSet;
 
 import sun.awt.AWTAccessor;
-import sun.awt.AWTPermissions;
 import sun.awt.AppContext;
 import sun.awt.DebugSettings;
 import sun.awt.SunToolkit;
 import sun.awt.util.IdentityArrayList;
 import sun.java2d.pipe.Region;
-import sun.security.action.GetPropertyAction;
 import sun.util.logging.PlatformLogger;
 
 /**
@@ -164,6 +164,7 @@ import sun.util.logging.PlatformLogger;
  * @see java.awt.BorderLayout
  * @since       1.0
  */
+@NullMarked
 public class Window extends Container implements Accessible {
 
     /**
@@ -210,18 +211,6 @@ public class Window extends Container implements Accessible {
          */
         POPUP
     }
-
-    /**
-     * This represents the warning message that is
-     * to be displayed in a non secure window. ie :
-     * a window that has a security manager installed that denies
-     * {@code AWTPermission("showWindowWithoutWarningBanner")}.
-     * This message can be displayed anywhere in the window.
-     *
-     * @serial
-     * @see #getWarningString
-     */
-    String      warningString;
 
     /**
      * {@code icons} is the graphical way we can
@@ -400,13 +389,6 @@ public class Window extends Container implements Accessible {
 
     transient boolean isTrayIconWindow = false;
 
-    /**
-     * These fields are initialized in the native peer code
-     * or via AWTAccessor's WindowAccessor.
-     */
-    private transient volatile int securityWarningWidth;
-    private transient volatile int securityWarningHeight;
-
     static {
         /* ensure that the necessary native libraries are loaded */
         Toolkit.loadLibraries();
@@ -414,13 +396,9 @@ public class Window extends Container implements Accessible {
             initIDs();
         }
 
-        @SuppressWarnings("removal")
-        String s = java.security.AccessController.doPrivileged(
-            new GetPropertyAction("java.awt.syncLWRequests"));
+        String s = System.getProperty("java.awt.syncLWRequests");
         systemSyncLWRequests = "true".equals(s);
-        @SuppressWarnings("removal")
-        String s2 = java.security.AccessController.doPrivileged(
-            new GetPropertyAction("java.awt.Window.locationByPlatform"));
+        String s2 = System.getProperty("java.awt.Window.locationByPlatform");
         locationByPlatformProp = "true".equals(s2);
     }
 
@@ -434,10 +412,6 @@ public class Window extends Container implements Accessible {
      * Constructs a new, initially invisible window in default size with the
      * specified {@code GraphicsConfiguration}.
      * <p>
-     * If there is a security manager, then it is invoked to check
-     * {@code AWTPermission("showWindowWithoutWarningBanner")}
-     * to determine whether or not the window must be displayed with
-     * a warning banner.
      *
      * @param gc the {@code GraphicsConfiguration} of the target screen
      *     device. If {@code gc} is {@code null}, the system default
@@ -505,7 +479,6 @@ public class Window extends Container implements Accessible {
         weakThis = new WeakReference<Window>(this);
         addToWindowList();
 
-        setWarningString();
         this.cursor = Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR);
         this.visible = false;
 
@@ -539,10 +512,6 @@ public class Window extends Container implements Accessible {
     /**
      * Constructs a new, initially invisible window in the default size.
      * <p>
-     * If there is a security manager set, it is invoked to check
-     * {@code AWTPermission("showWindowWithoutWarningBanner")}.
-     * If that check fails with a {@code SecurityException} then a warning
-     * banner is created.
      *
      * @throws HeadlessException when
      *     {@code GraphicsEnvironment.isHeadless()} returns {@code true}
@@ -558,11 +527,6 @@ public class Window extends Container implements Accessible {
      * Constructs a new, initially invisible window with the specified
      * {@code Frame} as its owner. The window will not be focusable
      * unless its owner is showing on the screen.
-     * <p>
-     * If there is a security manager set, it is invoked to check
-     * {@code AWTPermission("showWindowWithoutWarningBanner")}.
-     * If that check fails with a {@code SecurityException} then a warning
-     * banner is created.
      *
      * @param owner the {@code Frame} to act as owner or {@code null}
      *    if this window has no owner
@@ -574,7 +538,7 @@ public class Window extends Container implements Accessible {
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see #isShowing
      */
-    public Window(Frame owner) {
+    public Window(@Nullable Frame owner) {
         this(owner == null ? (GraphicsConfiguration)null :
             owner.getGraphicsConfiguration());
         ownedInit(owner);
@@ -585,11 +549,6 @@ public class Window extends Container implements Accessible {
      * {@code Window} as its owner. This window will not be focusable
      * unless its nearest owning {@code Frame} or {@code Dialog}
      * is showing on the screen.
-     * <p>
-     * If there is a security manager set, it is invoked to check
-     * {@code AWTPermission("showWindowWithoutWarningBanner")}.
-     * If that check fails with a {@code SecurityException} then a
-     * warning banner is created.
      *
      * @param owner the {@code Window} to act as owner or
      *     {@code null} if this window has no owner
@@ -604,7 +563,7 @@ public class Window extends Container implements Accessible {
      *
      * @since     1.2
      */
-    public Window(Window owner) {
+    public Window(@Nullable Window owner) {
         this(owner == null ? (GraphicsConfiguration)null :
             owner.getGraphicsConfiguration());
         ownedInit(owner);
@@ -616,11 +575,6 @@ public class Window extends Container implements Accessible {
      * of a screen device. The Window will not be focusable unless
      * its nearest owning {@code Frame} or {@code Dialog}
      * is showing on the screen.
-     * <p>
-     * If there is a security manager set, it is invoked to check
-     * {@code AWTPermission("showWindowWithoutWarningBanner")}. If that
-     * check fails with a {@code SecurityException} then a warning banner
-     * is created.
      *
      * @param owner the window to act as owner or {@code null}
      *     if this window has no owner
@@ -638,7 +592,7 @@ public class Window extends Container implements Accessible {
      * @see       #isShowing
      * @since     1.3
      */
-    public Window(Window owner, GraphicsConfiguration gc) {
+    public Window(@Nullable Window owner, @Nullable GraphicsConfiguration gc) {
         this(gc);
         ownedInit(owner);
     }
@@ -648,10 +602,7 @@ public class Window extends Container implements Accessible {
         if (owner != null) {
             owner.addOwnedWindow(weakThis);
             if (owner.isAlwaysOnTop()) {
-                try {
-                    setAlwaysOnTop(true);
-                } catch (SecurityException ignore) {
-                }
+                setAlwaysOnTop(true);
             }
         }
 
@@ -721,7 +672,7 @@ public class Window extends Container implements Accessible {
      * @see       #setIconImage(Image)
      * @since     1.6
      */
-    public synchronized void setIconImages(java.util.List<? extends Image> icons) {
+    public synchronized void setIconImages(java.util.@Nullable List<? extends Image> icons) {
         this.icons = (icons == null) ? new ArrayList<Image>() :
             new ArrayList<Image>(icons);
         WindowPeer peer = (WindowPeer)this.peer;
@@ -759,7 +710,7 @@ public class Window extends Container implements Accessible {
      * @see       #getIconImages()
      * @since     1.6
      */
-    public void setIconImage(Image image) {
+    public void setIconImage(@Nullable Image image) {
         ArrayList<Image> imageList = new ArrayList<Image>();
         if (image != null) {
             imageList.add(image);
@@ -819,7 +770,6 @@ public class Window extends Container implements Accessible {
      * @see Component#isDisplayable
      * @see #setMinimumSize
      */
-    @SuppressWarnings("deprecation")
     public void pack() {
         Container parent = this.parent;
         if (parent != null && parent.peer == null) {
@@ -869,7 +819,7 @@ public class Window extends Container implements Accessible {
      * @see #pack
      * @since 1.6
      */
-    public void setMinimumSize(Dimension minimumSize) {
+    public void setMinimumSize(@Nullable Dimension minimumSize) {
         synchronized (getTreeLock()) {
             super.setMinimumSize(minimumSize);
             Dimension size = getSize();
@@ -1356,10 +1306,7 @@ public class Window extends Container implements Accessible {
     // to insure that it cannot be overridden by client subclasses.
     final void toBack_NoClientCode() {
         if(isAlwaysOnTop()) {
-            try {
-                setAlwaysOnTop(false);
-            }catch(SecurityException e) {
-            }
+            setAlwaysOnTop(false);
         }
         if (visible) {
             WindowPeer peer = (WindowPeer)this.peer;
@@ -1382,39 +1329,16 @@ public class Window extends Container implements Accessible {
 
     /**
      * Gets the warning string that is displayed with this window.
-     * If this window is insecure, the warning string is displayed
-     * somewhere in the visible area of the window. A window is
-     * insecure if there is a security manager and the security
-     * manager denies
-     * {@code AWTPermission("showWindowWithoutWarningBanner")}.
      * <p>
-     * If the window is secure, then {@code getWarningString}
-     * returns {@code null}. If the window is insecure, this
-     * method checks for the system property
-     * {@code awt.appletWarning}
-     * and returns the string value of that property.
-     * @return    the warning string for this window.
+     * Warning strings are no longer applicable,
+     * so this method always returns {@code null} and may be
+     * removed in a future release.
+     * @return    null
+     * @deprecated since JDK 24
      */
-    public final String getWarningString() {
-        return warningString;
-    }
-
-    @SuppressWarnings("removal")
-    private void setWarningString() {
-        warningString = null;
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            try {
-                sm.checkPermission(AWTPermissions.TOPLEVEL_WINDOW_PERMISSION);
-            } catch (SecurityException se) {
-                // make sure the privileged action is only
-                // for getting the property! We don't want the
-                // above checkPermission call to always succeed!
-                warningString = AccessController.doPrivileged(
-                      new GetPropertyAction("awt.appletWarning",
-                                            "Java Applet Window"));
-            }
-        }
+    @Deprecated(since="24", forRemoval=true)
+    public final @Nullable String getWarningString() {
+        return null;
     }
 
     /**
@@ -1462,7 +1386,7 @@ public class Window extends Container implements Accessible {
      * @see       Cursor
      * @since     1.1
      */
-    public void setCursor(Cursor cursor) {
+    public void setCursor(@Nullable Cursor cursor) {
         if (cursor == null) {
             cursor = Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR);
         }
@@ -1475,7 +1399,7 @@ public class Window extends Container implements Accessible {
      * @return the owner of this window
      * @since 1.2
      */
-    public Window getOwner() {
+    public @Nullable Window getOwner() {
         return getOwner_NoClientCode();
     }
     final Window getOwner_NoClientCode() {
@@ -1684,9 +1608,6 @@ public class Window extends Container implements Accessible {
      * @param exclusionType the modal exclusion type for this window; a {@code null}
      *     value is equivalent to {@link Dialog.ModalExclusionType#NO_EXCLUDE
      *     NO_EXCLUDE}
-     * @throws SecurityException if the calling thread does not have permission
-     *     to set the modal exclusion property to the window with the given
-     *     {@code exclusionType}
      * @see java.awt.Dialog.ModalExclusionType
      * @see java.awt.Window#getModalExclusionType
      * @see java.awt.Toolkit#isModalExclusionTypeSupported
@@ -1702,13 +1623,6 @@ public class Window extends Container implements Accessible {
         }
         if (modalExclusionType == exclusionType) {
             return;
-        }
-        if (exclusionType == Dialog.ModalExclusionType.TOOLKIT_EXCLUDE) {
-            @SuppressWarnings("removal")
-            SecurityManager sm = System.getSecurityManager();
-            if (sm != null) {
-                sm.checkPermission(AWTPermissions.TOOLKIT_MODALITY_PERMISSION);
-            }
         }
         modalExclusionType = exclusionType;
 
@@ -2232,35 +2146,19 @@ public class Window extends Container implements Accessible {
      * {@link Window#isAlwaysOnTopSupported()}.  If always-on-top mode
      * isn't supported for this window or this window's toolkit does not
      * support always-on-top windows, calling this method has no effect.
-     * <p>
-     * If a SecurityManager is installed, the calling thread must be
-     * granted the AWTPermission "setWindowAlwaysOnTop" in
-     * order to set the value of this property. If this
-     * permission is not granted, this method will throw a
-     * SecurityException, and the current value of the property will
-     * be left unchanged.
      *
      * @param alwaysOnTop true if the window should always be above other
      *        windows
-     * @throws SecurityException if the calling thread does not have
-     *         permission to set the value of always-on-top property
      *
      * @see #isAlwaysOnTop
      * @see #toFront
      * @see #toBack
-     * @see AWTPermission
      * @see #isAlwaysOnTopSupported
      * @see #getToolkit
      * @see Toolkit#isAlwaysOnTopSupported
      * @since 1.5
      */
-    public final void setAlwaysOnTop(boolean alwaysOnTop) throws SecurityException {
-        @SuppressWarnings("removal")
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkPermission(AWTPermissions.SET_WINDOW_ALWAYS_ON_TOP_PERMISSION);
-        }
-
+    public final void setAlwaysOnTop(boolean alwaysOnTop) {
         boolean oldAlwaysOnTop;
         synchronized(this) {
             oldAlwaysOnTop = this.alwaysOnTop;
@@ -2291,10 +2189,7 @@ public class Window extends Container implements Accessible {
         for (WeakReference<Window> ref : ownedWindowArray) {
             Window window = ref.get();
             if (window != null) {
-                try {
-                    window.setAlwaysOnTop(alwaysOnTop);
-                } catch (SecurityException ignore) {
-                }
+                window.setAlwaysOnTop(alwaysOnTop);
             }
         }
     }
@@ -2340,7 +2235,7 @@ public class Window extends Container implements Accessible {
      * @see #getMostRecentFocusOwner
      * @see #isFocused
      */
-    public Component getFocusOwner() {
+    public @Nullable Component getFocusOwner() {
         return (isFocused())
             ? KeyboardFocusManager.getCurrentKeyboardFocusManager().
                   getFocusOwner()
@@ -2364,7 +2259,7 @@ public class Window extends Container implements Accessible {
      * @see #isFocusableWindow
      * @since 1.4
      */
-    public Component getMostRecentFocusOwner() {
+    public @Nullable Component getMostRecentFocusOwner() {
         if (isFocused()) {
             return getFocusOwner();
         } else {
@@ -2496,7 +2391,7 @@ public class Window extends Container implements Accessible {
      * @see Container#isFocusCycleRoot()
      * @since 1.4
      */
-    public final Container getFocusCycleRootAncestor() {
+    public final @Nullable Container getFocusCycleRootAncestor() {
         return null;
     }
 
@@ -3014,7 +2909,6 @@ public class Window extends Container implements Accessible {
     // user's code.
     //
     private void initDeserializedWindow() {
-        setWarningString();
         inputContextLock = new Object();
 
         // Deserialized Windows are not yet visible.
@@ -3133,13 +3027,10 @@ public class Window extends Container implements Accessible {
          setModalExclusionType(et); // since 6.0
          boolean aot = f.get("alwaysOnTop", false);
          if(aot) {
-             setAlwaysOnTop(aot); // since 1.5; subject to permission check
+             setAlwaysOnTop(aot);
          }
          shape = (Shape)f.get("shape", null);
          opacity = (Float)f.get("opacity", 1.0f);
-
-         this.securityWarningWidth = 0;
-         this.securityWarningHeight = 0;
 
          deserializeResources(s);
     }
@@ -3290,7 +3181,7 @@ public class Window extends Container implements Accessible {
      * @see java.awt.GraphicsEnvironment#getCenterPoint
      * @since 1.4
      */
-    public void setLocationRelativeTo(Component c) {
+    public void setLocationRelativeTo(@Nullable Component c) {
         // target location
         int dx = 0, dy = 0;
         // target GC
@@ -3421,7 +3312,7 @@ public class Window extends Container implements Accessible {
      * @see #createBufferStrategy
      * @since 1.4
      */
-    public BufferStrategy getBufferStrategy() {
+    public @Nullable BufferStrategy getBufferStrategy() {
         return super.getBufferStrategy();
     }
 
@@ -3665,7 +3556,6 @@ public class Window extends Container implements Accessible {
      *
      * @since 1.7
      */
-    @SuppressWarnings("deprecation")
     public void setOpacity(float opacity) {
         synchronized (getTreeLock()) {
             if (opacity < 0.0f || opacity > 1.0f) {
@@ -3709,7 +3599,7 @@ public class Window extends Container implements Accessible {
      *
      * @since 1.7
      */
-    public Shape getShape() {
+    public @Nullable Shape getShape() {
         synchronized (getTreeLock()) {
             return shape == null ? null : new Path2D.Float(shape);
         }
@@ -3764,7 +3654,7 @@ public class Window extends Container implements Accessible {
      *
      * @since 1.7
      */
-    public void setShape(Shape shape) {
+    public void setShape(@Nullable Shape shape) {
         synchronized (getTreeLock()) {
             if (shape != null) {
                 GraphicsConfiguration gc = getGraphicsConfiguration();
@@ -3801,7 +3691,7 @@ public class Window extends Container implements Accessible {
      * @see GraphicsDevice.WindowTranslucency
      */
     @Override
-    public Color getBackground() {
+    public @Nullable Color getBackground() {
         return super.getBackground();
     }
 
@@ -3881,7 +3771,7 @@ public class Window extends Container implements Accessible {
      * @see GraphicsConfiguration#isTranslucencyCapable()
      */
     @Override
-    public void setBackground(Color bgColor) {
+    public void setBackground(@Nullable Color bgColor) {
         Color oldBg = getBackground();
         super.setBackground(bgColor);
         if (oldBg != null && oldBg.equals(bgColor)) {
@@ -4041,67 +3931,10 @@ public class Window extends Container implements Accessible {
         return value;
     }
 
-    /**
-     * Calculate the position of the security warning.
-     *
-     * This method gets the window location/size as reported by the native
-     * system since the locally cached values may represent outdated data.
-     *
-     * The method is used from the native code, or via AWTAccessor.
-     *
-     * NOTE: this method is invoked on the toolkit thread, and therefore is not
-     * supposed to become public/user-overridable.
-     */
-    private Point2D calculateSecurityWarningPosition(double x, double y,
-            double w, double h)
-    {
-         // The desired location for the security warning
-        double wx = x + w * RIGHT_ALIGNMENT + 2.0;
-        double wy = y + h * TOP_ALIGNMENT + 0.0;
-
-        // First, make sure the warning is not too far from the window bounds
-        wx = Window.limit(wx,
-                x - securityWarningWidth - 2,
-                x + w + 2);
-        wy = Window.limit(wy,
-                y - securityWarningHeight - 2,
-                y + h + 2);
-
-        // Now make sure the warning window is visible on the screen
-        GraphicsConfiguration graphicsConfig =
-            getGraphicsConfiguration_NoClientCode();
-        Rectangle screenBounds = graphicsConfig.getBounds();
-        Insets screenInsets =
-            Toolkit.getDefaultToolkit().getScreenInsets(graphicsConfig);
-
-        wx = Window.limit(wx,
-                screenBounds.x + screenInsets.left,
-                screenBounds.x + screenBounds.width - screenInsets.right
-                - securityWarningWidth);
-        wy = Window.limit(wy,
-                screenBounds.y + screenInsets.top,
-                screenBounds.y + screenBounds.height - screenInsets.bottom
-                - securityWarningHeight);
-
-        return new Point2D.Double(wx, wy);
-    }
-
     static {
         AWTAccessor.setWindowAccessor(new AWTAccessor.WindowAccessor() {
             public void updateWindow(Window window) {
                 window.updateWindow();
-            }
-
-            public void setSecurityWarningSize(Window window, int width, int height)
-            {
-                window.securityWarningWidth = width;
-                window.securityWarningHeight = height;
-            }
-
-            public Point2D calculateSecurityWarningPosition(Window window,
-                    double x, double y, double w, double h)
-            {
-                return window.calculateSecurityWarningPosition(x, y, w, h);
             }
 
             public void setLWRequestStatus(Window changed, boolean status) {

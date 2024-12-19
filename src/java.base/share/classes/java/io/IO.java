@@ -26,6 +26,8 @@
 package java.io;
 
 import jdk.internal.javac.PreviewFeature;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A collection of static convenience methods that provide access to
@@ -41,6 +43,7 @@ import jdk.internal.javac.PreviewFeature;
  * @since 23
  */
 @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
+@NullMarked
 public final class IO {
 
     private IO() {
@@ -59,8 +62,23 @@ public final class IO {
      * @throws IOError if {@code System.console()} returns {@code null},
      *                 or if an I/O error occurs
      */
-    public static void println(Object obj) {
+    public static void println(@Nullable Object obj) {
         con().println(obj);
+    }
+
+    /**
+     * Terminates the current line on the system console and then flushes
+     * that console.
+     *
+     * <p> The effect is as if {@link Console#println() println()}
+     * had been called on {@code System.console()}.
+     *
+     * @throws IOError if {@code System.console()} returns {@code null},
+     *                 or if an I/O error occurs
+     * @since 24
+     */
+    public static void println() {
+        con().println();
     }
 
     /**
@@ -75,7 +93,7 @@ public final class IO {
      * @throws IOError if {@code System.console()} returns {@code null},
      *                 or if an I/O error occurs
      */
-    public static void print(Object obj) {
+    public static void print(@Nullable Object obj) {
         con().print(obj);
     }
 
@@ -95,8 +113,26 @@ public final class IO {
      * @throws IOError if {@code System.console()} returns {@code null},
      *                 or if an I/O error occurs
      */
-    public static String readln(String prompt) {
+    public static @Nullable String readln(@Nullable String prompt) {
         return con().readln(prompt);
+    }
+
+    /**
+     * Reads a single line of text from the system console.
+     *
+     * <p> The effect is as if {@link Console#readln() readln()}
+     * had been called on {@code System.console()}.
+     *
+     * @return a string containing the line read from the system console, not
+     * including any line-termination characters. Returns {@code null} if an
+     * end of stream has been reached without having read any characters.
+     *
+     * @throws IOError if {@code System.console()} returns {@code null},
+     *                 or if an I/O error occurs
+     * @since 24
+     */
+    public static @Nullable String readln() {
+        return con().readln();
     }
 
     private static Console con() {

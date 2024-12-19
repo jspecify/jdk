@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,6 @@
  */
 
 package java.net;
-
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.io.IOException;
 
@@ -70,10 +67,6 @@ import java.io.IOException;
  * If no user-defined content handler is found, then the system
  * tries to load a specific <i>content-type</i> handler from one
  * of the built-in handlers, if one exists.
- * <p>
- * If the loading of the content handler class would be performed by
- * a classloader that is outside of the delegation chain of the caller,
- * the JVM will need the RuntimePermission "getClassLoader".
  *
  * @author  James Gosling
  * @see     java.net.ContentHandler#getContent(java.net.URLConnection)
@@ -84,8 +77,7 @@ import java.io.IOException;
  * @see     java.net.URLConnection#setContentHandlerFactory(java.net.ContentHandlerFactory)
  * @since   1.0
  */
-@AnnotatedFor({"interning"})
-public abstract @UsesObjectEquals class ContentHandler {
+public abstract class ContentHandler {
 
     /**
      * Constructor for subclasses to call.

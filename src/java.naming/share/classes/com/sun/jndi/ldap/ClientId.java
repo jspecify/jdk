@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 
 package com.sun.jndi.ldap;
-
-import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;
 import java.util.Arrays; // JDK 1.2
@@ -86,8 +84,8 @@ class ClientId {
         if ((socketFactory != null) &&
              !socketFactory.equals(LdapCtx.DEFAULT_SSL_FACTORY)) {
             try {
-                Class<?> socketFactoryClass =
-                        Obj.helper.loadClass(socketFactory);
+                Class<?> socketFactoryClass = Class.forName(socketFactory,
+                        true, Thread.currentThread().getContextClassLoader());
                 this.sockComparator = socketFactoryClass.getMethod(
                                 "compare", new Class<?>[]{Object.class, Object.class});
                 Method getDefault = socketFactoryClass.getMethod(
@@ -117,9 +115,7 @@ class ClientId {
             + (ctlHash=hashCodeControls(bindCtls));
     }
 
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (!(obj instanceof ClientId)) {
             return false;
         }

@@ -735,7 +735,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
      * @since 21
      */
     @Override
-    public synchronized StringBuffer repeat(CharSequence cs, int count) {
+    public synchronized StringBuffer repeat(@Nullable CharSequence cs, int count) {
         toStringCache = null;
         super.repeat(cs, count);
         return this;

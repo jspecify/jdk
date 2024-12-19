@@ -26,6 +26,8 @@
 package java.util.zip;
 
 import java.io.IOException;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Signals that a ZIP exception of some sort has occurred.
@@ -33,7 +35,7 @@ import java.io.IOException;
  * @see     java.io.IOException
  * @since   1.1
  */
-
+@NullMarked
 public class ZipException extends IOException {
     @java.io.Serial
     private static final long serialVersionUID = 8000196834066748623L;
@@ -53,7 +55,7 @@ public class ZipException extends IOException {
      * @param   s   the detail message.
      */
 
-    public ZipException(String s) {
+    public ZipException(@Nullable String s) {
         super(s);
     }
 }

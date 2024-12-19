@@ -25,8 +25,6 @@
 
 package sun.nio.fs;
 
-import org.jspecify.annotations.Nullable;
-
 /**
  * Container for device/inode to uniquely identify file.
  */
@@ -47,9 +45,7 @@ class UnixFileKey {
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (obj == this)
             return true;
         return obj instanceof UnixFileKey other
