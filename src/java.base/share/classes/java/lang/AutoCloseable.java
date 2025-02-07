@@ -25,6 +25,8 @@
 
 package java.lang;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * An object that may hold resources (such as file or socket handles)
  * until it is closed. The {@link #close()} method of an {@code AutoCloseable}
@@ -48,6 +50,7 @@ package java.lang;
  * @author Josh Bloch
  * @since 1.7
  */
+@NullMarked
 public interface AutoCloseable {
     /**
      * Closes this resource, relinquishing any underlying resources.
