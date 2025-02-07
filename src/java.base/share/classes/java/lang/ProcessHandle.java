@@ -30,6 +30,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * ProcessHandle identifies and provides control of native processes. Each
  * individual process can be monitored for liveness, list its children,
@@ -90,6 +93,7 @@ import java.util.stream.Stream;
  * @since 9
  */
 @jdk.internal.ValueBased
+@NullMarked
 public interface ProcessHandle extends Comparable<ProcessHandle> {
 
     /**
@@ -401,7 +405,7 @@ public interface ProcessHandle extends Comparable<ProcessHandle> {
      *         the same system process; otherwise returns {@code false}
      */
     @Override
-    boolean equals(Object other);
+    boolean equals(@Nullable Object other);
 
     /**
      * Compares this ProcessHandle with the specified ProcessHandle for order.

@@ -186,7 +186,7 @@ public final class Module implements AnnotatedElement {
      *
      * @return The module name
      */
-    public String getName() {
+    public @Nullable String getName() {
         return name;
     }
 
@@ -195,7 +195,7 @@ public final class Module implements AnnotatedElement {
      *
      * @return The class loader for this module
      */
-    public ClassLoader getClassLoader() {
+    public @Nullable ClassLoader getClassLoader() {
         return loader;
     }
 
@@ -205,7 +205,7 @@ public final class Module implements AnnotatedElement {
      *
      * @return The module descriptor for this module
      */
-    public ModuleDescriptor getDescriptor() {
+    public @Nullable ModuleDescriptor getDescriptor() {
         return descriptor;
     }
 
@@ -224,7 +224,7 @@ public final class Module implements AnnotatedElement {
      *
      * @see java.lang.reflect.Proxy
      */
-    public ModuleLayer getLayer() {
+    public @Nullable ModuleLayer getLayer() {
         if (isNamed()) {
             ModuleLayer layer = this.layer;
             if (layer != null)
@@ -1521,7 +1521,7 @@ public final class Module implements AnnotatedElement {
      * declaration annotation.
      */
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> @Nullable T getAnnotation(Class<T> annotationClass) {
         return moduleInfoClass().getDeclaredAnnotation(annotationClass);
     }
 
@@ -1689,7 +1689,7 @@ public final class Module implements AnnotatedElement {
      * @see Class#getResourceAsStream(String)
      */
     @CallerSensitive
-    public InputStream getResourceAsStream(String name) throws IOException {
+    public @Nullable InputStream getResourceAsStream(String name) throws IOException {
         if (name.startsWith("/")) {
             name = name.substring(1);
         }

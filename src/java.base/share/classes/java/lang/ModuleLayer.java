@@ -54,6 +54,9 @@ import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.Stable;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * A layer of modules in the Java virtual machine.
  *
@@ -361,7 +364,7 @@ public final class ModuleLayer {
      * @see #findLoader
      */
     public ModuleLayer defineModulesWithOneLoader(Configuration cf,
-                                                  ClassLoader parentLoader) {
+                                                  @Nullable ClassLoader parentLoader) {
         return defineModulesWithOneLoader(cf, List.of(this), parentLoader).layer();
     }
 
@@ -399,7 +402,7 @@ public final class ModuleLayer {
      * @see #findLoader
      */
     public ModuleLayer defineModulesWithManyLoaders(Configuration cf,
-                                                    ClassLoader parentLoader) {
+                                                    @Nullable ClassLoader parentLoader) {
         return defineModulesWithManyLoaders(cf, List.of(this), parentLoader).layer();
     }
 
@@ -498,7 +501,7 @@ public final class ModuleLayer {
      */
     public static Controller defineModulesWithOneLoader(Configuration cf,
                                                         List<ModuleLayer> parentLayers,
-                                                        ClassLoader parentLoader)
+                                                        @Nullable ClassLoader parentLoader)
     {
         List<ModuleLayer> parents = List.copyOf(parentLayers);
         checkConfiguration(cf, parents);
@@ -562,7 +565,7 @@ public final class ModuleLayer {
      */
     public static Controller defineModulesWithManyLoaders(Configuration cf,
                                                           List<ModuleLayer> parentLayers,
-                                                          ClassLoader parentLoader)
+                                                          @Nullable ClassLoader parentLoader)
     {
         List<ModuleLayer> parents = List.copyOf(parentLayers);
         checkConfiguration(cf, parents);
@@ -862,7 +865,7 @@ public final class ModuleLayer {
      * @throws IllegalArgumentException if a module of the given name is not
      *         defined in this layer or any parent of this layer
      */
-    public ClassLoader findLoader(String name) {
+    public @Nullable ClassLoader findLoader(String name) {
         Optional<Module> om = findModule(name);
 
         // can't use map(Module::getClassLoader) as class loader can be null
@@ -906,7 +909,7 @@ public final class ModuleLayer {
      *
      * @return The boot layer
      */
-    public static ModuleLayer boot() {
+    public static @Nullable ModuleLayer boot() {
         return System.bootLayer;
     }
 
