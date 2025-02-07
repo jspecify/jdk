@@ -24,7 +24,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install --only-upgrade apt
-        sudo apt-get install gcc-10 g++-10 libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
+        sudo apt-get install gcc-10 g++-10 libcups2-dev libasound2-dev libfontconfig1-dev \
+            libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev
     - name: Install jtreg
       run: |
         wget https://builds.shipilev.net/jtreg/jtreg-7.5%2B1.zip -O /tmp/jtreg.zip
