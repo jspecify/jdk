@@ -31,6 +31,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import jdk.internal.misc.Unsafe;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import static java.lang.ClassValue.ClassValueMap.probeHomeLocation;
 import static java.lang.ClassValue.ClassValueMap.probeBackupLocations;
 
@@ -44,7 +47,8 @@ import static java.lang.ClassValue.ClassValueMap.probeBackupLocations;
  * @author John Rose, JSR 292 EG
  * @since 1.7
  */
-public abstract class ClassValue<T> {
+@NullMarked
+public abstract class ClassValue<T extends @Nullable Object> {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically
      * implicit.)
