@@ -71,6 +71,9 @@ import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.Stable;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * Represents a run-time module, either {@link #isNamed() named} or unnamed.
  *
@@ -97,7 +100,7 @@ import jdk.internal.vm.annotation.Stable;
  * @see Class#getModule()
  * @jls 7.7 Module Declarations
  */
-
+@NullMarked
 public final class Module implements AnnotatedElement {
 
     // the layer that contains this module, can be null
