@@ -28,7 +28,7 @@ jobs:
             libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev
     - name: Install jtreg
       run: |
-        wget https://builds.shipilev.net/jtreg/jtreg-7.5%2B1.zip -O /tmp/jtreg.zip
+        wget https://builds.shipilev.net/jtreg/jtreg-7.5.1%2B1.zip -O /tmp/jtreg.zip
         unzip /tmp/jtreg.zip -d /tmp/
     - name: Configure the JDK
       run: bash ./configure --with-jtreg=/tmp/jtreg --disable-warnings-as-errors
