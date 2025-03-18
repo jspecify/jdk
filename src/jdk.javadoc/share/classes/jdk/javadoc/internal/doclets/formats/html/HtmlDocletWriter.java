@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1024,11 +1024,10 @@ public abstract class HtmlDocletWriter {
     }
 
     /**
-     * Return the main type element of the current page or null for pages that don't have one.
-     *
-     * @return the type element of the current page.
+     * {@return the type element documented by this writer if it is a {@code ClassWriter},
+     * or null for any other kind of writer}
      */
-    public TypeElement getCurrentPageElement() {
+    public TypeElement getCurrentTypeElement() {
         return null;
     }
 
@@ -1883,7 +1882,7 @@ public abstract class HtmlDocletWriter {
             String tagText = headingContent.replaceAll("\\s+", " ");
             IndexItem item = IndexItem.of(element, node, tagText,
                     getTagletWriterInstance(context).getHolderName(element),
-                    resources.getText("doclet.Section"),
+                    "",
                     new DocLink(path, id));
             configuration.indexBuilder.add(item);
         }
@@ -1912,7 +1911,7 @@ public abstract class HtmlDocletWriter {
         // Retrieve the element of this writer if it is a "primary" writer for an element.
         // Note: It would be nice to have getCurrentPageElement() return package and module elements
         // in their respective writers, but other uses of the method are only interested in TypeElements.
-        Element currentPageElement = getCurrentPageElement();
+        Element currentPageElement = getCurrentTypeElement();
         if (currentPageElement == null) {
             if (this instanceof PackageWriter packageWriter) {
                 currentPageElement = packageWriter.packageElement;
@@ -1951,7 +1950,7 @@ public abstract class HtmlDocletWriter {
      */
     private boolean inSamePackage(Element element) {
         Element currentPageElement = (this instanceof PackageWriter packageWriter)
-                ? packageWriter.packageElement : getCurrentPageElement();
+                ? packageWriter.packageElement : getCurrentTypeElement();
         return currentPageElement != null && !utils.isModule(element)
                 && Objects.equals(utils.containingPackage(currentPageElement),
                 utils.containingPackage(element));

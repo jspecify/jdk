@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,8 +123,8 @@ import static java.lang.Double.*;
  * implementation condition than required for most of the methods in
  * question that are also included in this class.
  *
- * @see <a href="https://standards.ieee.org/ieee/754/6210/">
- *      <cite>IEEE Standard for Floating-Point Arithmetic</cite></a>
+ * @spec https://standards.ieee.org/ieee/754/6210/
+ *       IEEE Standard for Floating-Point Arithmetic
  *
  * @since   1.0
  */
@@ -2045,8 +2045,8 @@ public final  class Math {
      * @param   b   another argument.
      * @return  the larger of {@code a} and {@code b}.
      */
-    
-    public static  long max( long a,  long b) {
+    @IntrinsicCandidate
+    public static long max(long a, long b) {
         return (a >= b) ? a : b;
     }
 
@@ -2141,8 +2141,8 @@ public final  class Math {
      * @param   b   another argument.
      * @return  the smaller of {@code a} and {@code b}.
      */
-    
-    public static  long min( long a,  long b) {
+    @IntrinsicCandidate
+    public static long min(long a, long b) {
         return (a <= b) ? a : b;
     }
 

@@ -103,6 +103,7 @@ public class CopyOnWriteArraySet<E extends @Nullable Object> extends AbstractSet
         implements java.io.Serializable {
     private static final long serialVersionUID = 5457747651344034263L;
 
+    /** @serial */
     private final CopyOnWriteArrayList<E> al;
 
     /**

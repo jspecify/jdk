@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2024 SAP SE. All rights reserved.
  * Copyright 2024 IBM Corporation. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -24,7 +24,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/codeBuffer.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "code/compiledIC.hpp"
@@ -1013,6 +1012,18 @@ void MacroAssembler::load_and_test_int2long(Register dst, const Address &a) {
 
 void MacroAssembler::load_and_test_long(Register dst, const Address &a) {
   z_ltg(dst, a);
+}
+
+// Test a bit in memory for 2 byte datatype.
+void MacroAssembler::testbit_ushort(const Address &a, unsigned int bit) {
+  assert(a.index() == noreg, "no index reg allowed in testbit");
+  if (bit <= 7) {
+    z_tm(a.disp() + 1, a.base(), 1 << bit);
+  } else if (bit <= 15) {
+    z_tm(a.disp() + 0, a.base(), 1 << (bit - 8));
+  } else {
+    ShouldNotReachHere();
+  }
 }
 
 // Test a bit in memory.
@@ -3426,7 +3437,7 @@ void MacroAssembler::lookup_secondary_supers_table_const(Register r_sub_klass,
   z_bru(L_done); // pass whatever result we got from a slow path
 
   bind(L_failure);
-  // TODO: use load immediate on condition and z_bru above will not be required
+
   z_lghi(r_result, 1);
 
   bind(L_done);
@@ -3920,7 +3931,7 @@ void MacroAssembler::compiler_fast_unlock_object(Register oop, Register box, Reg
 
   bind(not_recursive);
 
-  NearLabel check_succ, set_eq_unlocked;
+  NearLabel set_eq_unlocked;
 
   // Set owner to null.
   // Release to satisfy the JMM
@@ -3930,13 +3941,9 @@ void MacroAssembler::compiler_fast_unlock_object(Register oop, Register box, Reg
   // We need a full fence after clearing owner to avoid stranding.
   z_fence();
 
-  // Check if the entry lists are empty (EntryList first - by convention).
-  load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)));
-  z_brne(check_succ);
-  load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)));
+  // Check if the entry_list is empty.
+  load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(entry_list)));
   z_bre(done); // If so we are done.
-
-  bind(check_succ);
 
   // Check if there is a successor.
   load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)));
@@ -4108,7 +4115,7 @@ void MacroAssembler::encode_klass_not_null(Register dst, Register src) {
   Register current = (src != noreg) ? src : dst; // Klass is in dst if no src provided. (dst == src) also possible.
   address  base    = CompressedKlassPointers::base();
   int      shift   = CompressedKlassPointers::shift();
-  bool     need_zero_extend = base != 0;
+  bool     need_zero_extend = base != nullptr;
   assert(UseCompressedClassPointers, "only for compressed klass ptrs");
 
   BLOCK_COMMENT("cKlass encoder {");
@@ -6783,9 +6790,8 @@ void MacroAssembler::compiler_fast_unlock_lightweight_object(Register obj, Regis
 
     const ByteSize monitor_tag = in_ByteSize(UseObjectMonitorTable ? 0 : checked_cast<int>(markWord::monitor_value));
     const Address recursions_address{monitor, ObjectMonitor::recursions_offset() - monitor_tag};
-    const Address cxq_address{monitor, ObjectMonitor::cxq_offset() - monitor_tag};
     const Address succ_address{monitor, ObjectMonitor::succ_offset() - monitor_tag};
-    const Address EntryList_address{monitor, ObjectMonitor::EntryList_offset() - monitor_tag};
+    const Address entry_list_address{monitor, ObjectMonitor::entry_list_offset() - monitor_tag};
     const Address owner_address{monitor, ObjectMonitor::owner_offset() - monitor_tag};
 
     NearLabel not_recursive;
@@ -6802,7 +6808,7 @@ void MacroAssembler::compiler_fast_unlock_lightweight_object(Register obj, Regis
 
     bind(not_recursive);
 
-    NearLabel check_succ, set_eq_unlocked;
+    NearLabel set_eq_unlocked;
 
     // Set owner to null.
     // Release to satisfy the JMM
@@ -6812,13 +6818,9 @@ void MacroAssembler::compiler_fast_unlock_lightweight_object(Register obj, Regis
     // We need a full fence after clearing owner to avoid stranding.
     z_fence();
 
-    // Check if the entry lists are empty (EntryList first - by convention).
-    load_and_test_long(tmp2, EntryList_address);
-    z_brne(check_succ);
-    load_and_test_long(tmp2, cxq_address);
+    // Check if the entry_list is empty.
+    load_and_test_long(tmp2, entry_list_address);
     z_bre(unlocked); // If so we are done.
-
-    bind(check_succ);
 
     // Check if there is a successor.
     load_and_test_long(tmp2, succ_address);

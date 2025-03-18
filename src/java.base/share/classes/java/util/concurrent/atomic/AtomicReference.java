@@ -58,6 +58,7 @@ public class AtomicReference<V extends @Nullable Object> implements java.io.Seri
     private static final VarHandle VALUE = MhUtil.findVarHandle(
             MethodHandles.lookup(), "value", Object.class);
 
+    /** @serial */
     @SuppressWarnings("serial") // Conditionally serializable
     private volatile V value;
 

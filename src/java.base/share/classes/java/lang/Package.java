@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,7 +117,7 @@ import jdk.internal.reflect.Reflection;
  * @since 1.2
  */
 @NullMarked
-public  class Package extends NamedPackage implements java.lang.reflect.AnnotatedElement {
+public final class Package extends NamedPackage implements java.lang.reflect.AnnotatedElement {
     /**
      * Return the name of this package.
      *
@@ -361,8 +361,7 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
     
     @CallerSensitive
     @Deprecated(since="9")
-    @SuppressWarnings("deprecation")
-    public static @Nullable Package getPackage( String name) {
+    public static @Nullable Package getPackage(String name) {
         ClassLoader l = ClassLoader.getClassLoader(Reflection.getCallerClass());
         return l != null ? l.getPackage(name) : BootLoader.getDefinedPackage(name);
     }

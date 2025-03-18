@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@ import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.text.NumberFormat;
 import java.text.MessageFormat;
+import java.text.ParsePosition;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.spi.LocaleNameProvider;
@@ -66,7 +67,6 @@ import sun.util.locale.LocaleExtensions;
 import sun.util.locale.LocaleMatcher;
 import sun.util.locale.LocaleSyntaxException;
 import sun.util.locale.LocaleUtils;
-import sun.util.locale.ParseStatus;
 import sun.util.locale.provider.LocaleProviderAdapter;
 import sun.util.locale.provider.LocaleResources;
 import sun.util.locale.provider.LocaleServiceProviderPool;
@@ -1924,7 +1924,8 @@ public final class Locale implements Cloneable, Serializable {
      * @since 1.7
      */
     public static Locale forLanguageTag(String languageTag) {
-        LanguageTag tag = LanguageTag.parse(languageTag, null);
+        LanguageTag tag = LanguageTag.parse(
+                languageTag, new ParsePosition(0), true);
         InternalLocaleBuilder bldr = new InternalLocaleBuilder();
         bldr.setLanguageTag(tag);
         BaseLocale base = bldr.getBaseLocale();
@@ -2797,11 +2798,8 @@ public final class Locale implements Cloneable, Serializable {
          * @see Locale#forLanguageTag(String)
          */
         public Builder setLanguageTag(@Nullable String languageTag) {
-            ParseStatus sts = new ParseStatus();
-            LanguageTag tag = LanguageTag.parse(languageTag, sts);
-            if (sts.isError()) {
-                throw new IllformedLocaleException(sts.getErrorMessage(), sts.getErrorIndex());
-            }
+            LanguageTag tag = LanguageTag.parse(
+                    languageTag, new ParsePosition(0), false);
             localeBuilder.setLanguageTag(tag);
             return this;
         }
@@ -3276,9 +3274,7 @@ public final class Locale implements Cloneable, Serializable {
          * or greater than {@code MAX_WEIGHT}
          */
         public LanguageRange(String range, double weight) {
-            if (range == null) {
-                throw new NullPointerException();
-            }
+            Objects.requireNonNull(range);
             if (weight < MIN_WEIGHT || weight > MAX_WEIGHT) {
                 throw new IllegalArgumentException("weight=" + weight);
             }
@@ -3288,8 +3284,8 @@ public final class Locale implements Cloneable, Serializable {
             // Do syntax check.
             boolean isIllFormed = false;
             String[] subtags = range.split("-");
-            if (isSubtagIllFormed(subtags[0], true)
-                || range.endsWith("-")) {
+            if (range.endsWith("-") ||
+                    isSubtagIllFormed(subtags[0], true)) {
                 isIllFormed = true;
             } else {
                 for (int i = 1; i < subtags.length; i++) {

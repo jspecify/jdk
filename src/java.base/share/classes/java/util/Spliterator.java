@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -633,7 +633,6 @@ public interface Spliterator<T extends @Nullable Object> {
          * upon entry to this method, else {@code true}.
          * @throws NullPointerException if the specified action is null
          */
-        @SuppressWarnings("overloads")
         boolean tryAdvance(T_CONS action);
 
         /**
@@ -654,7 +653,6 @@ public interface Spliterator<T extends @Nullable Object> {
          * @param action The action
          * @throws NullPointerException if the specified action is null
          */
-        @SuppressWarnings("overloads")
         default void forEachRemaining(T_CONS action) {
             do { } while (tryAdvance(action));
         }

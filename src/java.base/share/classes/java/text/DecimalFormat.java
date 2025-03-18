@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@ import java.text.spi.NumberFormatProvider;
 import java.util.ArrayList;
 import java.util.Currency;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -2813,9 +2814,11 @@ public class DecimalFormat extends NumberFormat {
      * Set the positive prefix.
      * <P>Examples: +123, $123, sFr123
      *
-     * @param newValue the new positive prefix
+     * @param newValue the new positive prefix. Non-null.
+     * @throws NullPointerException if {@code newValue} is {@code null}
      */
     public void setPositivePrefix (String newValue) {
+        Objects.requireNonNull(newValue, "prefix must not be null");
         positivePrefix = newValue;
         posPrefixPattern = null;
         positivePrefixFieldPositions = null;
@@ -2855,9 +2858,11 @@ public class DecimalFormat extends NumberFormat {
      * Set the negative prefix.
      * <P>Examples: -123, ($123) (with negative suffix), sFr-123
      *
-     * @param newValue the new negative prefix
+     * @param newValue the new negative prefix. Non-null.
+     * @throws NullPointerException if {@code newValue} is {@code null}
      */
     public void setNegativePrefix (String newValue) {
+        Objects.requireNonNull(newValue, "prefix must not be null");
         negativePrefix = newValue;
         negPrefixPattern = null;
         fastPathCheckNeeded = true;
@@ -2896,9 +2901,11 @@ public class DecimalFormat extends NumberFormat {
      * Set the positive suffix.
      * <P>Example: 123%
      *
-     * @param newValue the new positive suffix
+     * @param newValue the new positive suffix. Non-null.
+     * @throws NullPointerException if {@code newValue} is {@code null}
      */
     public void setPositiveSuffix (String newValue) {
+        Objects.requireNonNull(newValue, "suffix must not be null");
         positiveSuffix = newValue;
         posSuffixPattern = null;
         fastPathCheckNeeded = true;
@@ -2937,9 +2944,11 @@ public class DecimalFormat extends NumberFormat {
      * Set the negative suffix.
      * <P>Examples: 123%
      *
-     * @param newValue the new negative suffix
+     * @param newValue the new negative suffix. Non-null.
+     * @throws NullPointerException if {@code newValue} is {@code null}
      */
     public void setNegativeSuffix (String newValue) {
+        Objects.requireNonNull(newValue, "suffix must not be null");
         negativeSuffix = newValue;
         negSuffixPattern = null;
         fastPathCheckNeeded = true;
