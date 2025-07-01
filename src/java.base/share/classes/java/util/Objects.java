@@ -139,7 +139,7 @@ public final class Objects {
     * @see Arrays#hashCode(Object[])
     * @see List#hashCode
     */
-    public static int hash(@Nullable Object... values) {
+    public static int hash(@Nullable Object @Nullable ... values) {
         return Arrays.hashCode(values);
     }
 
