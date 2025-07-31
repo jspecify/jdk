@@ -28,6 +28,7 @@ package java.lang;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
@@ -39,6 +40,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * @since   1.0
  */
 @NullMarked
+@AOTSafeClassInitializer // for hierarchy checks
 public class Object {
 
     /**

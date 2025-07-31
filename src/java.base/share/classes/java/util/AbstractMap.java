@@ -33,6 +33,8 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
+
 /**
  * This class provides a skeletal implementation of the {@code Map}
  * interface, to minimize the effort required to implement this interface.
@@ -71,9 +73,8 @@ import java.util.function.Predicate;
  * @see Collection
  * @since 1.2
  */
-
-
 @NullMarked
+@AOTSafeClassInitializer
 public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable Object> implements Map<K,V> {
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically
@@ -908,6 +909,14 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      */
     /* non-public */ abstract static class ViewCollection<E> implements Collection<E> {
         UnsupportedOperationException uoe() { return new UnsupportedOperationException(); }
+        // convert null entry return values into NSEE
+        static <T extends Map.Entry<?,?>> T nsee(T entry) {
+            if (entry == null) {
+                throw new NoSuchElementException();
+            } else {
+                return entry;
+            }
+        }
         abstract Collection<E> view();
 
         public boolean add(E t) { throw uoe(); }

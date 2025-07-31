@@ -54,7 +54,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  */
 
 @NullMarked
-public non-sealed class PhantomReference<T> extends Reference<T> {
+public non-sealed class PhantomReference<@jdk.internal.RequiresIdentity T> extends Reference<T> {
 
     /**
      * Returns this reference object's referent.  Because the referent of a
@@ -105,7 +105,7 @@ public non-sealed class PhantomReference<T> extends Reference<T> {
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
      */
-    public PhantomReference(@Nullable T referent, @Nullable ReferenceQueue<? super T> q) {
+    public PhantomReference(@jdk.internal.RequiresIdentity @Nullable T referent, @Nullable ReferenceQueue<? super T> q) {
         super(referent, q);
     }
 

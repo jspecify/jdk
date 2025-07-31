@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -198,27 +198,6 @@ public class ThreadLocal<T extends @Nullable Object> {
     }
 
     /**
-     * Returns {@code true} if there is a value in the current carrier thread's copy of
-     * this thread-local variable, even if that values is {@code null}.
-     *
-     * @return {@code true} if current carrier thread has associated value in this
-     *         thread-local variable; {@code false} if not
-     */
-    boolean isCarrierThreadLocalPresent() {
-        assert this instanceof CarrierThreadLocal<T>;
-        return isPresent(Thread.currentCarrierThread());
-    }
-
-    private boolean isPresent(Thread t) {
-        ThreadLocalMap map = getMap(t);
-        if (map != null) {
-            return map.getEntry(this) != null;
-        } else {
-            return false;
-        }
-    }
-
-    /**
      * Variant of set() to establish initialValue. Used instead
      * of set() in case user has overridden the set() method.
      *
@@ -306,7 +285,11 @@ public class ThreadLocal<T extends @Nullable Object> {
      * @return the map
      */
     ThreadLocalMap getMap(Thread t) {
-        return t.threadLocals;
+        if (this instanceof TerminatingThreadLocal<T>) {
+            return t.terminatingThreadLocals();
+        } else {
+            return t.threadLocals();
+        }
     }
 
     /**
@@ -317,7 +300,12 @@ public class ThreadLocal<T extends @Nullable Object> {
      * @param firstValue value for the initial entry of the map
      */
     void createMap(Thread t, T firstValue) {
-        t.threadLocals = new ThreadLocalMap(this, firstValue);
+        var map = new ThreadLocalMap(this, firstValue);
+        if (this instanceof TerminatingThreadLocal<T>) {
+            t.setTerminatingThreadLocals(map);
+        } else {
+            t.setThreadLocals(map);
+        }
     }
 
     /**

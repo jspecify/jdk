@@ -38,7 +38,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.invoke.VarHandle;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -60,6 +59,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.util.ArraysSupport;
 
 /**
@@ -2104,12 +2104,11 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
 
     /** Initializes the lock; for use when deserializing or cloning. */
     private void resetLock() {
-        try {
-            Field lockField = CopyOnWriteArrayList.class.getDeclaredField("lock");
-            lockField.setAccessible(true);
-            lockField.set(this, new Object());
-        } catch (IllegalAccessException | NoSuchFieldException e) {
-            throw new Error(e);
-        }
+        final Unsafe U = Unsafe.getUnsafe();
+        U.putReference(
+            this,
+            U.objectFieldOffset(CopyOnWriteArrayList.class, "lock"),
+            new Object()
+        );
     }
 }

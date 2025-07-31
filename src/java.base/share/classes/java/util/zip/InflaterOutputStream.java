@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,20 @@ import org.jspecify.annotations.NullMarked;
  * Implements an output stream filter for uncompressing data stored in the
  * "deflate" compression format.
  *
+ * <h2 id="decompressor-usage">Decompressor Usage</h2>
+ * An {@code InflaterOutputStream} created without
+ * specifying a {@linkplain Inflater decompressor} will create a decompressor
+ * at construction time, and close the decompressor when the output stream
+ * is {@linkplain #close closed}.
+ * <p>
+ * If a decompressor is specified when creating a {@code InflaterOutputStream}, it is the
+ * responsibility of the caller to {@linkplain Inflater#close close} the
+ * decompressor after closing the output stream.
+ *
+ * @apiNote
+ * The {@link #close} method should be called to release resources used by this
+ * stream, either directly, or with the {@code try}-with-resources statement.
+ *
  * @since       1.6
  * @author      David R Tribble (david@tribble.com)
  *
@@ -69,8 +83,11 @@ public class InflaterOutputStream extends FilterOutputStream {
     }
 
     /**
-     * Creates a new output stream with a default decompressor and buffer
-     * size.
+     * Creates a new output stream and decompressor with a
+     * default buffer size.
+     * <p>
+     * The decompressor will be closed when this output stream
+     * is {@linkplain #close() closed}.
      *
      * @param out output stream to write the uncompressed data to
      * @throws NullPointerException if {@code out} is null
@@ -83,6 +100,10 @@ public class InflaterOutputStream extends FilterOutputStream {
     /**
      * Creates a new output stream with the specified decompressor and a
      * default buffer size.
+     * <p>
+     * {@linkplain #close() Closing} this output stream
+     * {@linkplain ##decompressor-usage will not close} the given
+     * {@linkplain Inflater decompressor}.
      *
      * @param out output stream to write the uncompressed data to
      * @param infl decompressor ("inflater") for this stream
@@ -95,6 +116,10 @@ public class InflaterOutputStream extends FilterOutputStream {
     /**
      * Creates a new output stream with the specified decompressor and
      * buffer size.
+     * <p>
+     * {@linkplain #close() Closing} this output stream
+     * {@linkplain ##decompressor-usage will not close} the given
+     * {@linkplain Inflater decompressor}.
      *
      * @param out output stream to write the uncompressed data to
      * @param infl decompressor ("inflater") for this stream
@@ -124,6 +149,7 @@ public class InflaterOutputStream extends FilterOutputStream {
      *
      * @throws IOException if an I/O error occurs
      */
+    @Override
     public void close() throws IOException {
         if (!closed) {
             // Complete the uncompressed output
@@ -143,6 +169,7 @@ public class InflaterOutputStream extends FilterOutputStream {
      * @throws IOException if an I/O error occurs or this stream is already
      * closed
      */
+    @Override
     public void flush() throws IOException {
         ensureOpen();
 
@@ -200,6 +227,7 @@ public class InflaterOutputStream extends FilterOutputStream {
      * closed
      * @throws ZipException if a compression (ZIP) format error occurs
      */
+    @Override
     public void write(int b) throws IOException {
         // Write a single byte of data
         wbuf[0] = (byte) b;
@@ -220,6 +248,7 @@ public class InflaterOutputStream extends FilterOutputStream {
      * @throws NullPointerException if {@code b} is null
      * @throws ZipException if a compression (ZIP) format error occurs
      */
+    @Override
     public void write(byte[] b, int off, int len) throws IOException {
         // Sanity checks
         ensureOpen();

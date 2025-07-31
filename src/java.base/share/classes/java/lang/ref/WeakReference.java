@@ -50,7 +50,7 @@ import org.jspecify.annotations.Nullable;
  */
 
 @NullMarked
-public non-sealed class WeakReference<T> extends Reference<T> {
+public non-sealed class WeakReference<@jdk.internal.RequiresIdentity T> extends Reference<T> {
 
     /**
      * Creates a new weak reference that refers to the given object.  The new
@@ -58,7 +58,7 @@ public non-sealed class WeakReference<T> extends Reference<T> {
      *
      * @param referent object the new weak reference will refer to
      */
-    public WeakReference(@Nullable T referent) {
+    public WeakReference(@jdk.internal.RequiresIdentity @Nullable T referent) {
         super(referent);
     }
 
@@ -70,7 +70,7 @@ public non-sealed class WeakReference<T> extends Reference<T> {
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
      */
-    public WeakReference(@Nullable T referent, @Nullable ReferenceQueue<? super T> q) {
+    public WeakReference(@jdk.internal.RequiresIdentity @Nullable T referent, @Nullable ReferenceQueue<? super T> q) {
         super(referent, q);
     }
 

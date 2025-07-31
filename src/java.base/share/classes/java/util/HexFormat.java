@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -466,7 +466,7 @@ public final class HexFormat {
         }
         try {
             // Return a new string using the bytes without making a copy
-            return jla.newStringNoRepl(rep, StandardCharsets.ISO_8859_1);
+            return jla.uncheckedNewStringNoRepl(rep, StandardCharsets.ISO_8859_1);
         } catch (CharacterCodingException cce) {
             throw new AssertionError(cce);
         }
@@ -700,7 +700,7 @@ public final class HexFormat {
         rep[0] = (byte)toHighHexDigit(value);
         rep[1] = (byte)toLowHexDigit(value);
         try {
-            return jla.newStringNoRepl(rep, StandardCharsets.ISO_8859_1);
+            return jla.uncheckedNewStringNoRepl(rep, StandardCharsets.ISO_8859_1);
         } catch (CharacterCodingException cce) {
             throw new AssertionError(cce);
         }
@@ -736,7 +736,7 @@ public final class HexFormat {
         rep[3] = (byte)toLowHexDigit((byte)value);
 
         try {
-            return jla.newStringNoRepl(rep, StandardCharsets.ISO_8859_1);
+            return jla.uncheckedNewStringNoRepl(rep, StandardCharsets.ISO_8859_1);
         } catch (CharacterCodingException cce) {
             throw new AssertionError(cce);
         }
@@ -764,7 +764,7 @@ public final class HexFormat {
         rep[7] = (byte)toLowHexDigit((byte)value);
 
         try {
-            return jla.newStringNoRepl(rep, StandardCharsets.ISO_8859_1);
+            return jla.uncheckedNewStringNoRepl(rep, StandardCharsets.ISO_8859_1);
         } catch (CharacterCodingException cce) {
             throw new AssertionError(cce);
         }
@@ -800,7 +800,7 @@ public final class HexFormat {
         rep[15] = (byte)toLowHexDigit((byte)value);
 
         try {
-            return jla.newStringNoRepl(rep, StandardCharsets.ISO_8859_1);
+            return jla.uncheckedNewStringNoRepl(rep, StandardCharsets.ISO_8859_1);
         } catch (CharacterCodingException cce) {
             throw new AssertionError(cce);
         }
@@ -828,7 +828,7 @@ public final class HexFormat {
             value = value >>> 4;
         }
         try {
-            return jla.newStringNoRepl(rep, StandardCharsets.ISO_8859_1);
+            return jla.uncheckedNewStringNoRepl(rep, StandardCharsets.ISO_8859_1);
         } catch (CharacterCodingException cce) {
             throw new AssertionError(cce);
         }

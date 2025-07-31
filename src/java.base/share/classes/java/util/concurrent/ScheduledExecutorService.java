@@ -43,10 +43,12 @@ import org.jspecify.annotations.Nullable;
  * delay, or to execute periodically.
  *
  * <p>The {@code schedule} methods create tasks with various delays
- * and return a task object that can be used to cancel or check
- * execution. The {@code scheduleAtFixedRate} and
- * {@code scheduleWithFixedDelay} methods create and execute tasks
- * that run periodically until cancelled.
+ * and return {@link ScheduledFuture} objects that can be used to cancel or check
+ * execution. When delays elapse, tasks are enabled for execution and
+ * behave in accord with other {@link ExecutorService} tasks, except
+ * that {@code scheduleAtFixedRate} and {@code scheduleWithFixedDelay}
+ * methods create and execute tasks that run periodically until
+ * cancelled.
  *
  * <p>Commands submitted using the {@link Executor#execute(Runnable)}
  * and {@link ExecutorService} {@code submit} methods are scheduled
@@ -95,7 +97,7 @@ import org.jspecify.annotations.Nullable;
 public interface ScheduledExecutorService extends ExecutorService {
 
     /**
-     * Submits a one-shot task that becomes enabled after the given delay.
+     * Submits a one-shot task that becomes enabled for execution after the given delay.
      *
      * @param command the task to execute
      * @param delay the time from now to delay execution
@@ -111,7 +113,7 @@ public interface ScheduledExecutorService extends ExecutorService {
                                        long delay, TimeUnit unit);
 
     /**
-     * Submits a value-returning one-shot task that becomes enabled
+     * Submits a value-returning one-shot task that becomes enabled for execution
      * after the given delay.
      *
      * @param callable the function to execute
@@ -127,7 +129,7 @@ public interface ScheduledExecutorService extends ExecutorService {
                                            long delay, TimeUnit unit);
 
     /**
-     * Submits a periodic action that becomes enabled first after the
+     * Submits a periodic action that becomes enabled for execution first after the
      * given initial delay, and subsequently with the given period;
      * that is, executions will commence after
      * {@code initialDelay}, then {@code initialDelay + period}, then
@@ -171,7 +173,7 @@ public interface ScheduledExecutorService extends ExecutorService {
                                                   TimeUnit unit);
 
     /**
-     * Submits a periodic action that becomes enabled first after the
+     * Submits a periodic action that becomes enabled for execution first after the
      * given initial delay, and subsequently with the given delay
      * between the termination of one execution and the commencement of
      * the next.

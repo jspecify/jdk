@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 import jdk.internal.misc.VM;
-import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationSupport;
 
 /**
@@ -51,7 +50,7 @@ import jdk.internal.vm.ContinuationSupport;
  */
 
 @NullMarked
-public class ReferenceQueue<T> {
+public class ReferenceQueue<@jdk.internal.RequiresIdentity T> {
     private static class Null extends ReferenceQueue<Object> {
         @Override
         boolean enqueue(Reference<?> r) {
@@ -59,7 +58,7 @@ public class ReferenceQueue<T> {
         }
     }
 
-    static final ReferenceQueue<Object> NULL = new Null();
+    static final ReferenceQueue<Object> NULL_QUEUE = new Null();
     static final ReferenceQueue<Object> ENQUEUED = new Null();
 
     private volatile Reference<? extends T> head;
@@ -78,7 +77,7 @@ public class ReferenceQueue<T> {
         // Check that since getting the lock this reference hasn't already been
         // enqueued (and even then removed)
         ReferenceQueue<?> queue = r.queue;
-        if ((queue == NULL) || (queue == ENQUEUED)) {
+        if ((queue == NULL_QUEUE) || (queue == ENQUEUED)) {
             return false;
         }
         assert queue == this;
@@ -100,7 +99,7 @@ public class ReferenceQueue<T> {
     private Reference<? extends T> poll0() { // must hold lock
         Reference<? extends T> r = head;
         if (r != null) {
-            r.queue = NULL;
+            r.queue = NULL_QUEUE;
             // Update r.queue *before* removing from list, to avoid
             // race with concurrent enqueued checks and fast-path
             // poll().  Volatiles ensure ordering.
@@ -149,19 +148,6 @@ public class ReferenceQueue<T> {
         }
     }
 
-    private boolean tryDisablePreempt() {
-        if (Thread.currentThread().isVirtual() && ContinuationSupport.isSupported()) {
-            Continuation.pin();
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    private void enablePreempt() {
-        Continuation.unpin();
-    }
-
     /**
      * Polls this queue to see if a reference object is available.  If one is
      * available without further delay then it is removed from the queue and
@@ -177,13 +163,13 @@ public class ReferenceQueue<T> {
 
         // Prevent a virtual thread from being preempted as this could potentially
         // deadlock with a carrier that is polling the same reference queue.
-        boolean disabled = tryDisablePreempt();
+        ContinuationSupport.pinIfSupported();
         try {
             synchronized (lock) {
                 return poll0();
             }
         } finally {
-            if (disabled) enablePreempt();
+            ContinuationSupport.unpinIfSupported();
         }
     }
 
@@ -252,7 +238,7 @@ public class ReferenceQueue<T> {
                     // still enqueued -> we reached end of chain
                     r = null;
                 } else {
-                    // already dequeued: r.queue == NULL; ->
+                    // already dequeued: r.queue == NULL_QUEUE; ->
                     // restart from head when overtaken by queue poller(s)
                     r = head;
                 }

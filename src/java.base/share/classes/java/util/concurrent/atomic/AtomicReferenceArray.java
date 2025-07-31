@@ -38,10 +38,11 @@ package java.util.concurrent.atomic;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import jdk.internal.misc.Unsafe;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Array;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
@@ -334,14 +335,13 @@ public class AtomicReferenceArray<E extends @Nullable Object> implements java.io
             throw new java.io.InvalidObjectException("Not array type");
         if (a.getClass() != Object[].class)
             a = Arrays.copyOf((Object[])a, Array.getLength(a), Object[].class);
-        try {
 
-            Field arrayField = AtomicReferenceArray.class.getDeclaredField("array");
-            arrayField.setAccessible(true);
-            arrayField.set(this, a);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new Error(e);
-        }
+        final Unsafe U = Unsafe.getUnsafe();
+        U.putReference(
+            this,
+            U.objectFieldOffset(AtomicReferenceArray.class, "array"),
+            a
+        );
     }
 
     // jdk9
@@ -527,5 +527,4 @@ public class AtomicReferenceArray<E extends @Nullable Object> implements java.io
     public final boolean weakCompareAndSetRelease(int i, E expectedValue, E newValue) {
         return AA.weakCompareAndSetRelease(array, i, expectedValue, newValue);
     }
-
 }
