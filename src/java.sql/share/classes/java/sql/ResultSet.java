@@ -652,7 +652,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      *             or {@code getBigDecimal(String columnLabel)}
      */
     @Deprecated(since="1.2")
-    BigDecimal getBigDecimal(String columnLabel, int scale) throws SQLException;
+    @Nullable BigDecimal getBigDecimal(String columnLabel, int scale) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -795,7 +795,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * if a database access error occurs or this method is
      *            called on a closed result set
      */
-    java.io.InputStream getBinaryStream(String columnLabel)
+    java.io.@Nullable InputStream getBinaryStream(String columnLabel)
         throws SQLException;
 
 
@@ -2493,7 +2493,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.2
      */
-    Blob getBlob(int columnIndex) throws SQLException;
+    @Nullable Blob getBlob(int columnIndex) throws SQLException;
 
     /**
      * Retrieves the value of the designated column in the current row
@@ -4115,7 +4115,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.7
      */
-     public <T extends @Nullable Object> @Nullable T getObject(int columnIndex, Class<T> type) throws SQLException;
+     public <T> @Nullable T getObject(int columnIndex, Class<T> type) throws SQLException;
 
 
     /**
@@ -4146,7 +4146,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.7
      */
-     public <T extends @Nullable Object> @Nullable T getObject(String columnLabel, Class<T> type) throws SQLException;
+     public <T> @Nullable T getObject(String columnLabel, Class<T> type) throws SQLException;
 
     //------------------------- JDBC 4.2 -----------------------------------
 

@@ -644,7 +644,7 @@ public final  class Matcher implements MatchResult {
      *          or if the previous match operation failed
      */
     
-    public String group() {
+    public @Nullable String group() {
         return group(0);
     }
 

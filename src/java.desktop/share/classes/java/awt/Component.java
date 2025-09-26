@@ -991,7 +991,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * Constructs a name for this component.  Called by {@code getName}
      * when the name is {@code null}.
      */
-    @Nullable String constructComponentName() {
+    String constructComponentName() {
         return null; // For strict compliance with prior platform versions, a Component
                      // that doesn't set its name should return null from
                      // getName()
@@ -1003,7 +1003,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see    #setName
      * @since 1.1
      */
-    public String getName() {
+    public @Nullable String getName() {
         if (name == null && !nameExplicitlySet) {
             synchronized(getObjectLock()) {
                 if (name == null && !nameExplicitlySet)
