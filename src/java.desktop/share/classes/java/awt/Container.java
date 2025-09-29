@@ -2668,7 +2668,7 @@ public  class Container extends Component {
      * @see #getComponentAt
      * @since 1.2
      */
-    public Component findComponentAt(int x, int y) {
+    public @Nullable Component findComponentAt(int x, int y) {
         return findComponentAt(x, y, true);
     }
 
@@ -2763,7 +2763,7 @@ public  class Container extends Component {
      * @see #getComponentAt
      * @since 1.2
      */
-    public Component findComponentAt(Point p) {
+    public @Nullable Component findComponentAt(Point p) {
         return findComponentAt(p.x, p.y);
     }
 

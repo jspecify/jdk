@@ -961,7 +961,7 @@ public final class URL implements java.io.Serializable {
      * or <CODE>null</CODE> if one does not exist
      * @since 1.3
      */
-    public String getQuery() {
+    public @Nullable String getQuery() {
         return query;
     }
 
@@ -983,7 +983,7 @@ public final class URL implements java.io.Serializable {
      * <CODE>null</CODE> if one does not exist
      * @since 1.3
      */
-    public String getUserInfo() {
+    public @Nullable String getUserInfo() {
         return userInfo;
     }
 
@@ -993,7 +993,7 @@ public final class URL implements java.io.Serializable {
      * @return  the authority part of this {@code URL}
      * @since 1.3
      */
-    public String getAuthority() {
+    public @Nullable String getAuthority() {
         return authority;
     }
 
@@ -1062,7 +1062,7 @@ public final class URL implements java.io.Serializable {
      * @return  the anchor (also known as the "reference") of this
      *          {@code URL}, or <CODE>null</CODE> if one does not exist
      */
-    public String getRef() {
+    public @Nullable String getRef() {
         return ref;
     }
 

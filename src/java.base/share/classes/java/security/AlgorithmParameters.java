@@ -29,6 +29,7 @@ import java.io.*;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.InvalidParameterSpecException;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class is used as an opaque representation of cryptographic parameters.
@@ -420,7 +421,7 @@ public class AlgorithmParameters {
      * @return a formatted string describing the parameters, or {@code null}
      * if this parameter object has not been initialized.
      */
-    public final String toString() {
+    public final @Nullable String toString() {
         if (!this.initialized) {
             return null;
         }

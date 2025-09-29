@@ -91,7 +91,7 @@ public class BufferedInputStream extends FilterInputStream {
      * indicator that this stream is closed. (The "in" field is also
      * nulled out on close.)
      */
-    protected volatile byte[] buf;
+    protected volatile byte @Nullable [] buf;
 
     /**
      * The index one greater than the index of the last valid byte in

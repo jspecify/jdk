@@ -2091,7 +2091,7 @@ public abstract  class ClassLoader {
      *
      * @since  9
      */
-    public final Package getDefinedPackage(String name) {
+    public final @Nullable Package getDefinedPackage(String name) {
         Objects.requireNonNull(name, "name cannot be null");
 
         NamedPackage p = packages.get(name);
