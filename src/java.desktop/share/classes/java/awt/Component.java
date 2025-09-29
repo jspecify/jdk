@@ -1020,7 +1020,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see #getName
      * @since 1.1
      */
-    public void setName(String name) {
+    public void setName(@Nullable String name) {
         String oldName;
         synchronized(getObjectLock()) {
             oldName = this.name;
