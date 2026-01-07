@@ -133,7 +133,7 @@ public class ProtectionDomain {
     public ProtectionDomain(@Nullable CodeSource codesource,
                             @Nullable PermissionCollection permissions,
                             @Nullable ClassLoader classloader,
-                            Principal[] principals) {
+                            Principal @Nullable [] principals) {
         this.codesource = codesource;
         if (permissions != null) {
             this.permissions = permissions;
