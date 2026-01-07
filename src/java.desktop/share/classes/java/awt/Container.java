@@ -3134,7 +3134,7 @@ public  class Container extends Component {
      * @since 1.4
      */
     public void setFocusTraversalKeys(int id,
-                                      Set<? extends AWTKeyStroke> keystrokes)
+                                      @Nullable Set<? extends AWTKeyStroke> keystrokes)
     {
         if (id < 0 || id >= KeyboardFocusManager.TRAVERSAL_KEY_LENGTH) {
             throw new IllegalArgumentException("invalid focus traversal key identifier");

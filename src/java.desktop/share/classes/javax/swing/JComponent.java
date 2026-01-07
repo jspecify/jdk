@@ -4255,7 +4255,7 @@ public abstract class JComponent extends Container implements Serializable,
      * @since 1.5
      */
     public void
-        setFocusTraversalKeys(int id, Set<? extends AWTKeyStroke> keystrokes)
+        setFocusTraversalKeys(int id, @Nullable Set<? extends AWTKeyStroke> keystrokes)
     {
         if (id == KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS) {
             setFlag(FOCUS_TRAVERSAL_KEYS_FORWARD_SET,true);
