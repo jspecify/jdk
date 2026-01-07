@@ -3236,7 +3236,7 @@ public interface DatabaseMetaData extends Wrapper {
      * @see #getSearchStringEscape
      * @since 1.6
      */
-    ResultSet getSchemas(@Nullable String catalog, String schemaPattern) throws SQLException;
+    ResultSet getSchemas(@Nullable String catalog, @Nullable String schemaPattern) throws SQLException;
 
     /**
      * Retrieves whether this database supports invoking user-defined or vendor functions
