@@ -25,6 +25,9 @@
 
 package java.security;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * The {@code GeneralSecurityException} class is a generic
  * security exception class that provides type safety for all the
@@ -33,7 +36,7 @@ package java.security;
  * @author Jan Luehe
  * @since 1.2
  */
-
+@NullMarked
 public class GeneralSecurityException extends Exception {
 
     @java.io.Serial
@@ -54,7 +57,7 @@ public class GeneralSecurityException extends Exception {
      *
      * @param msg the detail message.
      */
-    public GeneralSecurityException(String msg) {
+    public GeneralSecurityException(@Nullable String msg) {
         super(msg);
     }
 
@@ -69,7 +72,7 @@ public class GeneralSecurityException extends Exception {
      *        and indicates that the cause is nonexistent or unknown.)
      * @since 1.5
      */
-    public GeneralSecurityException(String message, Throwable cause) {
+    public GeneralSecurityException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
 
@@ -84,7 +87,7 @@ public class GeneralSecurityException extends Exception {
      *        and indicates that the cause is nonexistent or unknown.)
      * @since 1.5
      */
-    public GeneralSecurityException(Throwable cause) {
+    public GeneralSecurityException(@Nullable Throwable cause) {
         super(cause);
     }
 }
