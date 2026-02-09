@@ -39,6 +39,8 @@ import java.util.concurrent.TimeUnit;
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.Unsafe;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Basic thread blocking primitives for creating locks and other
@@ -139,6 +141,7 @@ import jdk.internal.misc.Unsafe;
  *
  * @since 1.5
  */
+@NullMarked
 public final class LockSupport {
     private LockSupport() {} // Cannot be instantiated.
 
@@ -160,7 +163,7 @@ public final class LockSupport {
      * @param blocker the blocker object
      * @since 14
      */
-    public static void setCurrentBlocker(Object blocker) {
+    public static void setCurrentBlocker(@Nullable Object blocker) {
         U.putReferenceOpaque(Thread.currentThread(), PARKBLOCKER, blocker);
     }
 
@@ -175,7 +178,7 @@ public final class LockSupport {
      * @param thread the thread to unpark, or {@code null}, in which case
      *        this operation has no effect
      */
-    public static void unpark(Thread thread) {
+    public static void unpark(@Nullable Thread thread) {
         if (thread != null) {
             if (thread.isVirtual()) {
                 JLA.unparkVirtualThread(thread);
@@ -213,7 +216,7 @@ public final class LockSupport {
      *        thread parking
      * @since 1.6
      */
-    public static void park(Object blocker) {
+    public static void park(@Nullable Object blocker) {
         Thread t = Thread.currentThread();
         setBlocker(t, blocker);
         try {
@@ -260,7 +263,7 @@ public final class LockSupport {
      * @param nanos the maximum number of nanoseconds to wait
      * @since 1.6
      */
-    public static void parkNanos(Object blocker, long nanos) {
+    public static void parkNanos(@Nullable Object blocker, long nanos) {
         if (nanos > 0) {
             Thread t = Thread.currentThread();
             setBlocker(t, blocker);
@@ -309,7 +312,7 @@ public final class LockSupport {
      *        to wait until
      * @since 1.6
      */
-    public static void parkUntil(Object blocker, long deadline) {
+    public static void parkUntil(@Nullable Object blocker, long deadline) {
         Thread t = Thread.currentThread();
         setBlocker(t, blocker);
         try {
@@ -331,7 +334,7 @@ public final class LockSupport {
      * @throws NullPointerException if argument is null
      * @since 1.6
      */
-    public static Object getBlocker(Thread t) {
+    public static @Nullable Object getBlocker(Thread t) {
         if (t == null)
             throw new NullPointerException();
         return U.getReferenceOpaque(t, PARKBLOCKER);
