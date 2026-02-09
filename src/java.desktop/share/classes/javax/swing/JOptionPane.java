@@ -407,7 +407,7 @@ public class JOptionPane extends JComponent implements Accessible
     /** Message to display. */
     protected transient @Nullable Object                message;
     /** Options to display to the user. */
-    protected transient @Nullable Object[]              options;
+    protected transient Object @Nullable []              options;
     /** Value that should be initially selected in <code>options</code>. */
     protected transient @Nullable Object                initialValue;
     /** Message type. */
@@ -424,7 +424,7 @@ public class JOptionPane extends JComponent implements Accessible
     protected transient @Nullable Object                value;
     /** Array of values the user can choose from. Look and feel will
      * provide the UI component to choose this from. */
-    protected transient @Nullable Object[]              selectionValues;
+    protected transient Object @Nullable []              selectionValues;
     /** Value the user has input. */
     protected transient @Nullable Object                inputValue;
     /** Initial value to select in <code>selectionValues</code>. */
@@ -578,7 +578,7 @@ public class JOptionPane extends JComponent implements Accessible
     @SuppressWarnings("deprecation")
     public static Object showInputDialog(@Nullable Component parentComponent,
         @Nullable Object message, @Nullable String title, int messageType, @Nullable Icon icon,
-        @Nullable Object[] selectionValues, @Nullable Object initialSelectionValue)
+        Object @Nullable [] selectionValues, @Nullable Object initialSelectionValue)
         throws HeadlessException {
         JOptionPane    pane = new JOptionPane(message, messageType,
                                               OK_CANCEL_OPTION, icon,
@@ -868,7 +868,7 @@ public class JOptionPane extends JComponent implements Accessible
     @SuppressWarnings("deprecation")
     public static int showOptionDialog(@Nullable Component parentComponent,
     		@Nullable Object message, @Nullable String title, int optionType, int messageType,
-    		@Nullable Icon icon, @Nullable Object[] options, @Nullable Object initialValue)
+    		@Nullable Icon icon, Object @Nullable [] options, @Nullable Object initialValue)
         throws HeadlessException {
         JOptionPane             pane = new JOptionPane(message, messageType,
                                                        optionType, icon,
@@ -1302,8 +1302,8 @@ public class JOptionPane extends JComponent implements Accessible
     public static int showInternalOptionDialog(@Nullable Component parentComponent,
     								   @Nullable Object message,
     								   @Nullable String title, int optionType,
-                                       int messageType, Icon icon,
-                                       @Nullable Object[] options, @Nullable Object initialValue) {
+                                       int messageType, @Nullable Icon icon,
+                                       Object @Nullable [] options, @Nullable Object initialValue) {
         JOptionPane pane = new JOptionPane(message, messageType,
                 optionType, icon, options, initialValue);
         pane.putClientProperty(PopupFactory_FORCE_HEAVYWEIGHT_POPUP,
@@ -1440,7 +1440,7 @@ public class JOptionPane extends JComponent implements Accessible
      */
     public static Object showInternalInputDialog(@Nullable Component parentComponent,
     		@Nullable Object message, @Nullable String title, int messageType, @Nullable Icon icon,
-    		@Nullable Object[] selectionValues, @Nullable Object initialSelectionValue) {
+    		Object @Nullable [] selectionValues, @Nullable Object initialSelectionValue) {
         JOptionPane pane = new JOptionPane(message, messageType,
                 OK_CANCEL_OPTION, icon, null, null);
         pane.putClientProperty(PopupFactory_FORCE_HEAVYWEIGHT_POPUP,
@@ -1805,7 +1805,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @param options  the choices the user can select
      */
     public JOptionPane(@Nullable Object message, int messageType, int optionType,
-    				   @Nullable Icon icon, @Nullable Object[] options) {
+    				   @Nullable Icon icon, Object @Nullable [] options) {
         this(message, messageType, optionType, icon, options, null);
     }
 
@@ -1833,7 +1833,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  only meaningful if <code>options</code> is used
      */
     public JOptionPane(@Nullable Object message, int messageType, int optionType,
-    				   @Nullable Icon icon, @Nullable Object[] options, @Nullable Object initialValue) {
+    				   @Nullable Icon icon, Object @Nullable [] options, @Nullable Object initialValue) {
 
         this.message = message;
         this.options = options == null ? null : Arrays.copyOf(options, options.length);
@@ -1993,7 +1993,7 @@ public class JOptionPane extends JComponent implements Accessible
      */
     @BeanProperty(description
             = "The option pane's options objects.")
-    public void setOptions(@Nullable Object[] newOptions) {
+    public void setOptions(Object @Nullable [] newOptions) {
         Object[]           oldOptions = options;
 
         options = newOptions == null
@@ -2008,7 +2008,7 @@ public class JOptionPane extends JComponent implements Accessible
      *
      * @see #setOptions
      */
-    public @Nullable Object[] getOptions() {
+    public Object @Nullable [] getOptions() {
         return options == null ? null : Arrays.copyOf(options, options.length);
     }
 
@@ -2155,7 +2155,7 @@ public class JOptionPane extends JComponent implements Accessible
      */
     @BeanProperty(description
             = "The option pane's selection values.")
-    public void setSelectionValues(@Nullable Object[] newValues) {
+    public void setSelectionValues(Object @Nullable [] newValues) {
         Object[]           oldValues = selectionValues;
 
         selectionValues = newValues == null
@@ -2172,7 +2172,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @return the array of <code>Objects</code> the user can select
      * @see #setSelectionValues
      */
-    public @Nullable Object[] getSelectionValues() {
+    public Object @Nullable [] getSelectionValues() {
         return selectionValues == null
                 ? null
                 : Arrays.copyOf(selectionValues, selectionValues.length);
