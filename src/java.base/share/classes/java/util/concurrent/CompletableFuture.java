@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import jdk.internal.invoke.MhUtil;
 
 import java.lang.invoke.MethodHandles;
@@ -141,7 +143,9 @@ import static java.util.concurrent.DelayScheduler.ScheduledForkJoinTask;
  * and {@code get} methods
  * @since 1.8
  */
-public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
+@NullMarked
+public class CompletableFuture<T extends @Nullable Object>
+    implements Future<T>, CompletionStage<T> {
 
     /*
      * Overview:
@@ -2006,7 +2010,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletableFuture
      */
-    public static <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier) {
+    public static <U extends @Nullable Object> CompletableFuture<U> supplyAsync(Supplier<U> supplier) {
         return asyncSupplyStage(ASYNC_POOL, supplier);
     }
 
@@ -2021,8 +2025,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletableFuture
      */
-    public static <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier,
-                                                       Executor executor) {
+    public static <U extends @Nullable Object> CompletableFuture<U> supplyAsync(Supplier<U> supplier, Executor executor) {
         return asyncSupplyStage(Objects.requireNonNull(executor), supplier);
     }
 
@@ -2062,7 +2065,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @param <U> the type of the value
      * @return the completed CompletableFuture
      */
-    public static <U> CompletableFuture<U> completedFuture(U value) {
+    public static <U extends @Nullable Object> CompletableFuture<U> completedFuture(U value) {
         return new CompletableFuture<U>((value == null) ? NIL : value);
     }
 
@@ -2222,17 +2225,17 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
         return triggered;
     }
 
-    public <U> CompletableFuture<U> thenApply(
+    public <U extends @Nullable Object> CompletableFuture<U> thenApply(
         Function<? super T,? extends U> fn) {
         return uniApplyStage(null, fn);
     }
 
-    public <U> CompletableFuture<U> thenApplyAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> thenApplyAsync(
         Function<? super T,? extends U> fn) {
         return uniApplyStage(defaultExecutor(), fn);
     }
 
-    public <U> CompletableFuture<U> thenApplyAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> thenApplyAsync(
         Function<? super T,? extends U> fn, Executor executor) {
         return uniApplyStage(Objects.requireNonNull(executor), fn);
     }
@@ -2263,37 +2266,42 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
         return uniRunStage(Objects.requireNonNull(executor), action);
     }
 
-    public <U,V> CompletableFuture<V> thenCombine(
+    public <U extends @Nullable Object, V extends @Nullable Object>
+        CompletableFuture<V> thenCombine(
         CompletionStage<? extends U> other,
         BiFunction<? super T,? super U,? extends V> fn) {
         return biApplyStage(null, other, fn);
     }
 
-    public <U,V> CompletableFuture<V> thenCombineAsync(
+    public <U extends @Nullable Object, V extends @Nullable Object>
+        CompletableFuture<V> thenCombineAsync(
         CompletionStage<? extends U> other,
         BiFunction<? super T,? super U,? extends V> fn) {
         return biApplyStage(defaultExecutor(), other, fn);
     }
 
-    public <U,V> CompletableFuture<V> thenCombineAsync(
+    public <U extends @Nullable Object, V extends @Nullable Object>
+        CompletableFuture<V> thenCombineAsync(
         CompletionStage<? extends U> other,
         BiFunction<? super T,? super U,? extends V> fn, Executor executor) {
         return biApplyStage(Objects.requireNonNull(executor), other, fn);
     }
 
-    public <U> CompletableFuture<Void> thenAcceptBoth(
+    public <U extends @Nullable Object> CompletableFuture<Void> thenAcceptBoth(
         CompletionStage<? extends U> other,
         BiConsumer<? super T, ? super U> action) {
         return biAcceptStage(null, other, action);
     }
 
-    public <U> CompletableFuture<Void> thenAcceptBothAsync(
+    public <U extends @Nullable Object> CompletableFuture<Void>
+        thenAcceptBothAsync(
         CompletionStage<? extends U> other,
         BiConsumer<? super T, ? super U> action) {
         return biAcceptStage(defaultExecutor(), other, action);
     }
 
-    public <U> CompletableFuture<Void> thenAcceptBothAsync(
+    public <U extends @Nullable Object> CompletableFuture<Void>
+        thenAcceptBothAsync(
         CompletionStage<? extends U> other,
         BiConsumer<? super T, ? super U> action, Executor executor) {
         return biAcceptStage(Objects.requireNonNull(executor), other, action);
@@ -2315,17 +2323,17 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
         return biRunStage(Objects.requireNonNull(executor), other, action);
     }
 
-    public <U> CompletableFuture<U> applyToEither(
+    public <U extends @Nullable Object> CompletableFuture<U> applyToEither(
         CompletionStage<? extends T> other, Function<? super T, U> fn) {
         return orApplyStage(null, other, fn);
     }
 
-    public <U> CompletableFuture<U> applyToEitherAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> applyToEitherAsync(
         CompletionStage<? extends T> other, Function<? super T, U> fn) {
         return orApplyStage(defaultExecutor(), other, fn);
     }
 
-    public <U> CompletableFuture<U> applyToEitherAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> applyToEitherAsync(
         CompletionStage<? extends T> other, Function<? super T, U> fn,
         Executor executor) {
         return orApplyStage(Objects.requireNonNull(executor), other, fn);
@@ -2363,49 +2371,51 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
         return orRunStage(Objects.requireNonNull(executor), other, action);
     }
 
-    public <U> CompletableFuture<U> thenCompose(
+    public <U extends @Nullable Object> CompletableFuture<U> thenCompose(
         Function<? super T, ? extends CompletionStage<U>> fn) {
         return uniComposeStage(null, fn);
     }
 
-    public <U> CompletableFuture<U> thenComposeAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> thenComposeAsync(
         Function<? super T, ? extends CompletionStage<U>> fn) {
         return uniComposeStage(defaultExecutor(), fn);
     }
 
-    public <U> CompletableFuture<U> thenComposeAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> thenComposeAsync(
         Function<? super T, ? extends CompletionStage<U>> fn,
         Executor executor) {
         return uniComposeStage(Objects.requireNonNull(executor), fn);
     }
 
     public CompletableFuture<T> whenComplete(
-        BiConsumer<? super T, ? super Throwable> action) {
+        BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action) {
         return uniWhenCompleteStage(null, action);
     }
 
     public CompletableFuture<T> whenCompleteAsync(
-        BiConsumer<? super T, ? super Throwable> action) {
+        BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action) {
         return uniWhenCompleteStage(defaultExecutor(), action);
     }
 
     public CompletableFuture<T> whenCompleteAsync(
-        BiConsumer<? super T, ? super Throwable> action, Executor executor) {
+        BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action,
+        Executor executor) {
         return uniWhenCompleteStage(Objects.requireNonNull(executor), action);
     }
 
-    public <U> CompletableFuture<U> handle(
-        BiFunction<? super T, Throwable, ? extends U> fn) {
+    public <U extends @Nullable Object> CompletableFuture<U> handle(
+        BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn) {
         return uniHandleStage(null, fn);
     }
 
-    public <U> CompletableFuture<U> handleAsync(
-        BiFunction<? super T, Throwable, ? extends U> fn) {
+    public <U extends @Nullable Object> CompletableFuture<U> handleAsync(
+        BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn) {
         return uniHandleStage(defaultExecutor(), fn);
     }
 
-    public <U> CompletableFuture<U> handleAsync(
-        BiFunction<? super T, Throwable, ? extends U> fn, Executor executor) {
+    public <U extends @Nullable Object> CompletableFuture<U> handleAsync(
+        BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn,
+        Executor executor) {
         return uniHandleStage(Objects.requireNonNull(executor), fn);
     }
 
@@ -2684,7 +2694,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @return a new CompletableFuture
      * @since 9
      */
-    public <U> CompletableFuture<U> newIncompleteFuture() {
+    public <U extends @Nullable Object> CompletableFuture<U> newIncompleteFuture() {
         return new CompletableFuture<U>();
     }
 
@@ -2902,7 +2912,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @return the completed CompletionStage
      * @since 9
      */
-    public static <U> CompletionStage<U> completedStage(U value) {
+    public static <U extends @Nullable Object> CompletionStage<U> completedStage(U value) {
         return new MinimalStage<U>((value == null) ? NIL : value);
     }
 
@@ -2915,7 +2925,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @return the exceptionally completed CompletableFuture
      * @since 9
      */
-    public static <U> CompletableFuture<U> failedFuture(Throwable ex) {
+    public static <U extends @Nullable Object> CompletableFuture<U> failedFuture(Throwable ex) {
         return new CompletableFuture<U>(new AltResult(Objects.requireNonNull(ex)));
     }
 
@@ -2929,7 +2939,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @return the exceptionally completed CompletionStage
      * @since 9
      */
-    public static <U> CompletionStage<U> failedStage(Throwable ex) {
+    public static <U extends @Nullable Object> CompletionStage<U> failedStage(Throwable ex) {
         return new MinimalStage<U>(new AltResult(Objects.requireNonNull(ex)));
     }
 
