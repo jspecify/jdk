@@ -1430,7 +1430,7 @@ public  class KeyStore {
      * @throws    CertificateException if any of the certificates included in
      * the keystore data could not be stored
      */
-    public final void store(OutputStream stream, char[] password)
+    public final void store(OutputStream stream, char @Nullable [] password)
         throws KeyStoreException, IOException, NoSuchAlgorithmException,
             CertificateException
     {
