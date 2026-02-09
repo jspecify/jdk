@@ -183,7 +183,7 @@ public class JDialog extends Dialog implements WindowConstants,
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see JComponent#getDefaultLocale
      */
-    public JDialog(Frame owner) {
+    public JDialog(@Nullable Frame owner) {
         this(owner, false);
     }
 
@@ -210,7 +210,7 @@ public class JDialog extends Dialog implements WindowConstants,
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see JComponent#getDefaultLocale
      */
-    public JDialog(Frame owner, boolean modal) {
+    public JDialog(@Nullable Frame owner, boolean modal) {
         this(owner, "", modal);
     }
 
@@ -237,7 +237,7 @@ public class JDialog extends Dialog implements WindowConstants,
      * @see java.awt.GraphicsEnvironment#isHeadless
      * @see JComponent#getDefaultLocale
      */
-    public JDialog(Frame owner, @Nullable String title) {
+    public JDialog(@Nullable Frame owner, @Nullable String title) {
         this(owner, title, false);
     }
 
