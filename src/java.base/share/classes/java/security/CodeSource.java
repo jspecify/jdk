@@ -25,6 +25,7 @@
 
 package java.security;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 
@@ -51,7 +52,7 @@ import sun.security.util.IOUtils;
  * @author Roland Schemers
  * @since 1.2
  */
-
+@NullMarked
 public class CodeSource implements java.io.Serializable {
 
     @java.io.Serial
@@ -98,7 +99,7 @@ public class CodeSource implements java.io.Serializable {
      * @param certs the certificate(s). It may be {@code null}. The contents
      * of the array are copied to protect against subsequent modification.
      */
-    public CodeSource(URL url, java.security.cert.Certificate[] certs) {
+    public CodeSource(@Nullable URL url, java.security.cert.Certificate @Nullable [] certs) {
         this.location = url;
         if (url != null) {
             this.locationNoFragString = URLUtil.urlNoFragString(url);
@@ -120,7 +121,7 @@ public class CodeSource implements java.io.Serializable {
      *
      * @since 1.5
      */
-    public CodeSource(URL url, CodeSigner[] signers) {
+    public CodeSource(@Nullable URL url, CodeSigner @Nullable [] signers) {
         this.location = url;
         if (url != null) {
             this.locationNoFragString = URLUtil.urlNoFragString(url);
@@ -171,7 +172,7 @@ public class CodeSource implements java.io.Serializable {
      * @return the location (URL), or {@code null} if no URL was supplied
      * during construction.
      */
-    public final URL getLocation() {
+    public final @Nullable URL getLocation() {
         /* since URL is practically immutable, returning itself is not
            a security problem */
         return this.location;
@@ -200,7 +201,7 @@ public class CodeSource implements java.io.Serializable {
      * @return a copy of the certificate array, or {@code null} if there
      * is none.
      */
-    public final java.security.cert.Certificate[] getCertificates() {
+    public final java.security.cert.Certificate @Nullable [] getCertificates() {
         if (certs != null) {
             return certs.clone();
 
@@ -235,7 +236,7 @@ public class CodeSource implements java.io.Serializable {
      *
      * @since 1.5
      */
-    public final CodeSigner[] getCodeSigners() {
+    public final CodeSigner @Nullable [] getCodeSigners() {
         if (signers != null) {
             return signers.clone();
 
@@ -334,7 +335,7 @@ public class CodeSource implements java.io.Serializable {
      * @return {@code true} if the specified codesource is implied by this
      * codesource, {@code false} if not.
      */
-    public boolean implies(CodeSource codesource)
+    public boolean implies(@Nullable CodeSource codesource)
     {
         if (codesource == null)
             return false;
