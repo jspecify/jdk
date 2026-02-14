@@ -2518,7 +2518,7 @@ public class CompletableFuture<T extends @Nullable Object>
      * @throws NullPointerException if the array or any of its elements are
      * {@code null}
      */
-    public static CompletableFuture<Object> anyOf(CompletableFuture<?>... cfs) {
+    public static CompletableFuture<@Nullable Object> anyOf(CompletableFuture<?>... cfs) {
         int n; Object r;
         if ((n = cfs.length) <= 1)
             return (n == 0)
