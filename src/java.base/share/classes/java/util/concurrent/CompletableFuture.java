@@ -2153,7 +2153,7 @@ public class CompletableFuture<T extends @Nullable Object>
      * exceptionally or a completion computation threw an exception
      */
     @SuppressWarnings("unchecked")
-    public T getNow(T valueIfAbsent) {
+    public @Nullable T getNow(@Nullable T valueIfAbsent) {
         Object r;
         return ((r = result) == null) ? valueIfAbsent : (T) reportJoin(r, "getNow");
     }
