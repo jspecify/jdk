@@ -39,6 +39,8 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A stage of a possibly asynchronous computation, that performs an
@@ -164,7 +166,8 @@ import java.util.function.Function;
  * @author Doug Lea
  * @since 1.8
  */
-public interface CompletionStage<T> {
+@NullMarked
+public interface CompletionStage<T extends @Nullable Object> {
 
     /**
      * Returns a new CompletionStage that, when {@code this} stage completes
@@ -183,7 +186,7 @@ public interface CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> thenApply(Function<? super T,? extends U> fn);
+    public <U extends @Nullable Object> CompletionStage<U> thenApply(Function<? super T,? extends U> fn);
 
     /**
      * Returns a new CompletionStage that, when {@code this} stage completes
@@ -199,7 +202,7 @@ public interface CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> thenApplyAsync
+    public <U extends @Nullable Object> CompletionStage<U> thenApplyAsync
         (Function<? super T,? extends U> fn);
 
     /**
@@ -216,7 +219,7 @@ public interface CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> thenApplyAsync
+    public <U extends @Nullable Object> CompletionStage<U> thenApplyAsync
         (Function<? super T,? extends U> fn,
          Executor executor);
 
@@ -232,7 +235,7 @@ public interface CompletionStage<T> {
      * returned CompletionStage
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> thenAccept(Consumer<? super T> action);
+    public CompletionStage<@Nullable Void> thenAccept(Consumer<? super T> action);
 
     /**
      * Returns a new CompletionStage that, when {@code this} stage completes
@@ -247,7 +250,7 @@ public interface CompletionStage<T> {
      * returned CompletionStage
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> thenAcceptAsync(Consumer<? super T> action);
+    public CompletionStage<@Nullable Void> thenAcceptAsync(Consumer<? super T> action);
 
     /**
      * Returns a new CompletionStage that, when {@code this} stage completes
@@ -262,7 +265,7 @@ public interface CompletionStage<T> {
      * @param executor the executor to use for asynchronous execution
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> thenAcceptAsync(Consumer<? super T> action,
+    public CompletionStage<@Nullable Void> thenAcceptAsync(Consumer<? super T> action,
                                                  Executor executor);
     /**
      * Returns a new CompletionStage that, when {@code this} stage completes
@@ -275,7 +278,7 @@ public interface CompletionStage<T> {
      * returned CompletionStage
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> thenRun(Runnable action);
+    public CompletionStage<@Nullable Void> thenRun(Runnable action);
 
     /**
      * Returns a new CompletionStage that, when {@code this} stage completes
@@ -289,7 +292,7 @@ public interface CompletionStage<T> {
      * returned CompletionStage
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> thenRunAsync(Runnable action);
+    public CompletionStage<@Nullable Void> thenRunAsync(Runnable action);
 
     /**
      * Returns a new CompletionStage that, when {@code this} stage completes
@@ -303,7 +306,7 @@ public interface CompletionStage<T> {
      * @param executor the executor to use for asynchronous execution
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> thenRunAsync(Runnable action,
+    public CompletionStage<@Nullable Void> thenRunAsync(Runnable action,
                                               Executor executor);
 
     /**
@@ -321,7 +324,7 @@ public interface CompletionStage<T> {
      * @param <V> the function's return type
      * @return the new CompletionStage
      */
-    public <U,V> CompletionStage<V> thenCombine
+    public <U extends @Nullable Object, V extends @Nullable Object> CompletionStage<V> thenCombine
         (CompletionStage<? extends U> other,
          BiFunction<? super T,? super U,? extends V> fn);
 
@@ -341,7 +344,7 @@ public interface CompletionStage<T> {
      * @param <V> the function's return type
      * @return the new CompletionStage
      */
-    public <U,V> CompletionStage<V> thenCombineAsync
+    public <U extends @Nullable Object, V extends @Nullable Object> CompletionStage<V> thenCombineAsync
         (CompletionStage<? extends U> other,
          BiFunction<? super T,? super U,? extends V> fn);
 
@@ -362,7 +365,7 @@ public interface CompletionStage<T> {
      * @param <V> the function's return type
      * @return the new CompletionStage
      */
-    public <U,V> CompletionStage<V> thenCombineAsync
+    public <U extends @Nullable Object, V extends @Nullable Object> CompletionStage<V> thenCombineAsync
         (CompletionStage<? extends U> other,
          BiFunction<? super T,? super U,? extends V> fn,
          Executor executor);
@@ -381,7 +384,7 @@ public interface CompletionStage<T> {
      * @param <U> the type of the other CompletionStage's result
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<Void> thenAcceptBoth
+    public <U extends @Nullable Object> CompletionStage<@Nullable Void> thenAcceptBoth
         (CompletionStage<? extends U> other,
          BiConsumer<? super T, ? super U> action);
 
@@ -400,7 +403,7 @@ public interface CompletionStage<T> {
      * @param <U> the type of the other CompletionStage's result
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<Void> thenAcceptBothAsync
+    public <U extends @Nullable Object> CompletionStage<@Nullable Void> thenAcceptBothAsync
         (CompletionStage<? extends U> other,
          BiConsumer<? super T, ? super U> action);
 
@@ -420,7 +423,7 @@ public interface CompletionStage<T> {
      * @param <U> the type of the other CompletionStage's result
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<Void> thenAcceptBothAsync
+    public <U extends @Nullable Object> CompletionStage<@Nullable Void> thenAcceptBothAsync
         (CompletionStage<? extends U> other,
          BiConsumer<? super T, ? super U> action,
          Executor executor);
@@ -437,7 +440,7 @@ public interface CompletionStage<T> {
      * returned CompletionStage
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> runAfterBoth(CompletionStage<?> other,
+    public CompletionStage<@Nullable Void> runAfterBoth(CompletionStage<?> other,
                                               Runnable action);
     /**
      * Returns a new CompletionStage that, when {@code this} and the other
@@ -452,7 +455,7 @@ public interface CompletionStage<T> {
      * returned CompletionStage
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> runAfterBothAsync(CompletionStage<?> other,
+    public CompletionStage<@Nullable Void> runAfterBothAsync(CompletionStage<?> other,
                                                    Runnable action);
 
     /**
@@ -469,7 +472,7 @@ public interface CompletionStage<T> {
      * @param executor the executor to use for asynchronous execution
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> runAfterBothAsync(CompletionStage<?> other,
+    public CompletionStage<@Nullable Void> runAfterBothAsync(CompletionStage<?> other,
                                                    Runnable action,
                                                    Executor executor);
     /**
@@ -486,7 +489,7 @@ public interface CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> applyToEither
+    public <U extends @Nullable Object> CompletionStage<U> applyToEither
         (CompletionStage<? extends T> other,
          Function<? super T, U> fn);
 
@@ -505,7 +508,7 @@ public interface CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> applyToEitherAsync
+    public <U extends @Nullable Object> CompletionStage<U> applyToEitherAsync
         (CompletionStage<? extends T> other,
          Function<? super T, U> fn);
 
@@ -525,7 +528,7 @@ public interface CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> applyToEitherAsync
+    public <U extends @Nullable Object> CompletionStage<U> applyToEitherAsync
         (CompletionStage<? extends T> other,
          Function<? super T, U> fn,
          Executor executor);
@@ -543,7 +546,7 @@ public interface CompletionStage<T> {
      * returned CompletionStage
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> acceptEither
+    public CompletionStage<@Nullable Void> acceptEither
         (CompletionStage<? extends T> other,
          Consumer<? super T> action);
 
@@ -561,7 +564,7 @@ public interface CompletionStage<T> {
      * returned CompletionStage
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> acceptEitherAsync
+    public CompletionStage<@Nullable Void> acceptEitherAsync
         (CompletionStage<? extends T> other,
          Consumer<? super T> action);
 
@@ -580,7 +583,7 @@ public interface CompletionStage<T> {
      * @param executor the executor to use for asynchronous execution
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> acceptEitherAsync
+    public CompletionStage<@Nullable Void> acceptEitherAsync
         (CompletionStage<? extends T> other,
          Consumer<? super T> action,
          Executor executor);
@@ -597,7 +600,7 @@ public interface CompletionStage<T> {
      * returned CompletionStage
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> runAfterEither(CompletionStage<?> other,
+    public CompletionStage<@Nullable Void> runAfterEither(CompletionStage<?> other,
                                                 Runnable action);
 
     /**
@@ -613,7 +616,7 @@ public interface CompletionStage<T> {
      * returned CompletionStage
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> runAfterEitherAsync
+    public CompletionStage<@Nullable Void> runAfterEitherAsync
         (CompletionStage<?> other,
          Runnable action);
 
@@ -631,7 +634,7 @@ public interface CompletionStage<T> {
      * @param executor the executor to use for asynchronous execution
      * @return the new CompletionStage
      */
-    public CompletionStage<Void> runAfterEitherAsync
+    public CompletionStage<@Nullable Void> runAfterEitherAsync
         (CompletionStage<?> other,
          Runnable action,
          Executor executor);
@@ -660,7 +663,7 @@ public interface CompletionStage<T> {
      * @param <U> the type of the returned CompletionStage's result
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> thenCompose
+    public <U extends @Nullable Object> CompletionStage<U> thenCompose
         (Function<? super T, ? extends CompletionStage<U>> fn);
 
     /**
@@ -685,7 +688,7 @@ public interface CompletionStage<T> {
      * @param <U> the type of the returned CompletionStage's result
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> thenComposeAsync
+    public <U extends @Nullable Object> CompletionStage<U> thenComposeAsync
         (Function<? super T, ? extends CompletionStage<U>> fn);
 
     /**
@@ -710,7 +713,7 @@ public interface CompletionStage<T> {
      * @param <U> the type of the returned CompletionStage's result
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> thenComposeAsync
+    public <U extends @Nullable Object> CompletionStage<U> thenComposeAsync
         (Function<? super T, ? extends CompletionStage<U>> fn,
          Executor executor);
 
@@ -729,8 +732,8 @@ public interface CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> handle
-        (BiFunction<? super T, Throwable, ? extends U> fn);
+    public <U extends @Nullable Object> CompletionStage<U> handle
+        (BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn);
 
     /**
      * Returns a new CompletionStage that, when {@code this} stage completes
@@ -748,8 +751,8 @@ public interface CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> handleAsync
-        (BiFunction<? super T, Throwable, ? extends U> fn);
+    public <U extends @Nullable Object> CompletionStage<U> handleAsync
+        (BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn);
 
     /**
      * Returns a new CompletionStage that, when {@code this} stage completes
@@ -768,8 +771,8 @@ public interface CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletionStage
      */
-    public <U> CompletionStage<U> handleAsync
-        (BiFunction<? super T, Throwable, ? extends U> fn,
+    public <U extends @Nullable Object> CompletionStage<U> handleAsync
+        (BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn,
          Executor executor);
 
     /**
@@ -795,7 +798,7 @@ public interface CompletionStage<T> {
      * @return the new CompletionStage
      */
     public CompletionStage<T> whenComplete
-        (BiConsumer<? super T, ? super Throwable> action);
+        (BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action);
 
     /**
      * Returns a new CompletionStage with the same result or exception as
@@ -821,7 +824,7 @@ public interface CompletionStage<T> {
      * @return the new CompletionStage
      */
     public CompletionStage<T> whenCompleteAsync
-        (BiConsumer<? super T, ? super Throwable> action);
+        (BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action);
 
     /**
      * Returns a new CompletionStage with the same result or exception as
@@ -848,7 +851,7 @@ public interface CompletionStage<T> {
      * @return the new CompletionStage
      */
     public CompletionStage<T> whenCompleteAsync
-        (BiConsumer<? super T, ? super Throwable> action,
+        (BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action,
          Executor executor);
 
     /**
