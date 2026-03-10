@@ -60,7 +60,7 @@ public class PushbackInputStream extends FilterInputStream {
      * The pushback buffer.
      * @since   1.1
      */
-    protected byte[] buf;
+    protected byte @Nullable [] buf;
 
     /**
      * The position within the pushback buffer from which the next byte will
