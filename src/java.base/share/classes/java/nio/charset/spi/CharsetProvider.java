@@ -28,6 +28,8 @@ package java.nio.charset.spi;
 import java.nio.charset.Charset;
 import java.util.Iterator;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Charset service-provider class.
@@ -79,7 +81,7 @@ import java.util.Iterator;
  *
  * @see java.nio.charset.Charset
  */
-
+@NullMarked
 public abstract class CharsetProvider {
 
     /**
@@ -109,6 +111,6 @@ public abstract class CharsetProvider {
      *          or {@code null} if the named charset
      *          is not supported by this provider
      */
-    public abstract Charset charsetForName(String charsetName);
+    public abstract @Nullable Charset charsetForName(String charsetName);
 
 }
