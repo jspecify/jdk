@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.io.EOFException;
 import java.util.Objects;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * This class implements a stream filter for reading compressed data in
@@ -42,6 +43,7 @@ import java.util.Objects;
  * @since 1.1
  *
  */
+@NullMarked
 public class GZIPInputStream extends InflaterInputStream {
     /**
      * CRC-32 for uncompressed data.
