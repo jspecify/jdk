@@ -88,6 +88,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A calendar system, used to organize and identify dates.
@@ -295,7 +297,7 @@ public interface Chronology extends Comparable<Chronology> {
      * @return the calendar system type, null if the calendar is not defined by CLDR/LDML
      * @see #getId()
      */
-    String getCalendarType();
+    @Nullable String getCalendarType();
 
     //-----------------------------------------------------------------------
     /**
@@ -684,7 +686,7 @@ public interface Chronology extends Comparable<Chronology> {
      * @throws DateTimeException if the date cannot be resolved, typically
      *  because of a conflict in the input data
      */
-    ChronoLocalDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle);
+    @Nullable ChronoLocalDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle);
 
     //-----------------------------------------------------------------------
     /**
@@ -823,7 +825,7 @@ public interface Chronology extends Comparable<Chronology> {
      * @return true if this is equal to the other chronology
      */
     @Override
-    boolean equals(Object obj);
+    boolean equals(@Nullable Object obj);
 
     /**
      * A hash code for this chronology.
