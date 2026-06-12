@@ -103,6 +103,8 @@ import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import sun.util.logging.PlatformLogger;
 
@@ -125,6 +127,7 @@ import sun.util.logging.PlatformLogger;
  *
  * @since 1.8
  */
+@NullMarked
 public abstract class AbstractChronology implements Chronology {
 
     /**
@@ -417,7 +420,7 @@ public abstract class AbstractChronology implements Chronology {
      *  because of a conflict in the input data
      */
     @Override
-    public ChronoLocalDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
+    public @Nullable ChronoLocalDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
         // check epoch-day before inventing era
         if (fieldValues.containsKey(EPOCH_DAY)) {
             return dateEpochDay(fieldValues.remove(EPOCH_DAY));
@@ -678,8 +681,6 @@ public abstract class AbstractChronology implements Chronology {
      * @return true if this is equal to the other chronology
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
            return true;
