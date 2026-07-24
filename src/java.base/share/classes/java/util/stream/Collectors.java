@@ -262,7 +262,7 @@ public final class Collectors {
      * <a href="../List.html#unmodifiable">unmodifiable List</a> in encounter order
      * @since 10
      */
-    public static <T extends @Nullable Object>
+    public static <T>
     Collector<T, ?, List<T>> toUnmodifiableList() {
         return new CollectorImpl<>(ArrayList::new, List::add,
                                    (left, right) -> { left.addAll(right); return left; },
@@ -320,7 +320,7 @@ public final class Collectors {
      * @since 10
      */
     @SuppressWarnings("unchecked")
-    public static <T extends @Nullable Object>
+    public static <T>
     Collector<T, ?, Set<T>> toUnmodifiableSet() {
         return new CollectorImpl<>(HashSet::new, Set::add,
                                    (left, right) -> {
