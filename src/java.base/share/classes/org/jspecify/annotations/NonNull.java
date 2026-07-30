@@ -25,18 +25,19 @@ import java.lang.annotation.Target;
 /**
  * Indicates that the annotated <a href="https://github.com/jspecify/jspecify/wiki/type-usages">type
  * usage</a> (commonly a parameter type or return type) is considered to <i>exclude</i> {@code null}
- * as a value; rarely needed within {@linkplain NullMarked null-marked} code.
+ * as a value; rarely needed within {@linkplain NullMarked null-marked} context.
  *
  * <p>This annotation serves two primary purposes:
  *
  * <ul>
  *   <li>To mark any sporadic non-null type usages inside a scope that is not ready to be fully
- *       {@link NullMarked} yet.
+ *       null-marked yet.
  *   <li>To perform a <i>non-null projection</i> of a type variable, explained below.
  * </ul>
  *
- * <p>For a comprehensive introduction to JSpecify, please see <a
- * href="http://jspecify.org">jspecify.org</a>.
+ * <p>For important information common to all four nullness annotations, see {@link
+ * org.jspecify.annotations}. To learn more about JSpecify, see <a
+ * href="https://jspecify.dev">jspecify.dev</a>.
  *
  * <h2 id="projection">Non-null projection</h2>
  *
@@ -45,17 +46,17 @@ import java.lang.annotation.Target;
  * nullable type argument.
  *
  * <pre>{@code
- * // All the below is null-marked code
+ * // Everything below is in null-marked context:
  *
- * class MyOptional<T> { ... }
+ * class MyOptional<T> { … }
  *
  * interface MyList<E extends @Nullable Object> {
  *   // Returns the first non-null element, if such element exists.
- *   MyOptional<E> firstNonNull() { ... } // problem here!
+ *   MyOptional<E> firstNonNull() { … } // problem here!
  * }
  *
- * MyList<@Nullable String> maybeNulls = ...
- * MyList<String> nonNulls = ...
+ * MyList<@Nullable String> maybeNulls = …
+ * MyList<String> nonNulls = …
  * }</pre>
  *
  * <p>Because {@code MyOptional} accepts only non-null type arguments, we need both {@code
@@ -70,7 +71,7 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * // Returns the first non-null element, if such element exists.
- * MyOptional<@NonNull E> firstNonNull() { ... } // problem fixed!
+ * MyOptional<@NonNull E> firstNonNull() { … } // problem fixed!
  * }</pre>
  *
  * <p>Here, {@code @NonNull E} selects the non-null form of the type argument, whether it was
@@ -79,16 +80,16 @@ import java.lang.annotation.Target;
  * <p>If {@code E} has a non-null upper bound, then the apparent projection {@code @NonNull E} is
  * redundant but harmless.
  *
- * <p><a href="Nullable.html#projection">Nullable projection</a> serves the equivalent purpose in
- * the opposite direction, and is far more commonly useful.
+ * <p>{@linkplain Nullable##projection Nullable projection} serves the equivalent purpose in the
+ * opposite direction, and is far more commonly useful.
  *
  * <p>If a type variable has <i>all</i> its usages being projected in one direction or the other, it
  * should be given a non-null upper bound, and any non-null projections can then be removed.
  *
  * <h2>Where it is applicable</h2>
  *
- * <p>{@code @NonNull} is applicable in all the <a href="Nullable.html#applicability">same
- * locations</a> as {@link Nullable}.
+ * <p>This annotation is applicable in all the {@linkplain Nullable##applicability same locations}
+ * as {@code Nullable}.
  */
 @Documented
 @Target(TYPE_USE)
