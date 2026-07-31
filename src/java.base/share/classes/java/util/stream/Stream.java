@@ -1103,7 +1103,7 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * @return the new stream
      * @since 24
      */
-    default <R> Stream<R> gather(Gatherer<? super T, ?, R> gatherer) {
+    default <R extends @Nullable Object> Stream<R> gather(Gatherer<? super T, ?, R> gatherer) {
         return StreamSupport.stream(spliterator(), isParallel())
                             .gather(gatherer)
                             .onClose(this::close);
