@@ -25,6 +25,7 @@
 
 package java.nio.charset;
 
+import org.jspecify.annotations.NullMarked;
 
 /**
  * A typesafe enumeration for coding-error actions.
@@ -39,7 +40,7 @@ package java.nio.charset;
  * @author JSR-51 Expert Group
  * @since 1.4
  */
-
+@NullMarked
 public final class CodingErrorAction {
 
     private String name;

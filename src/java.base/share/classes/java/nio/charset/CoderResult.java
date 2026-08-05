@@ -29,6 +29,7 @@ import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * A description of the result state of a coder.
@@ -80,7 +81,7 @@ import java.util.Map;
  * @author JSR-51 Expert Group
  * @since 1.4
  */
-
+@NullMarked
 public final class CoderResult {
 
     private static final int CR_UNDERFLOW  = 0;
