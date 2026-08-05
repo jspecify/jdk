@@ -25,6 +25,7 @@
 
 package java.nio.charset;
 
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Checked exception thrown when an input byte sequence is not legal for given
@@ -33,7 +34,7 @@ package java.nio.charset;
  *
  * @since 1.4
  */
-
+@NullMarked
 public class MalformedInputException
     extends CharacterCodingException
 {
