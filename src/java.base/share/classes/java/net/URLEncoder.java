@@ -41,6 +41,7 @@ import java.util.HexFormat;
 import java.util.function.IntPredicate;
 
 import jdk.internal.util.ImmutableBitSetPredicate;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Utility class for HTML form encoding. This class contains static methods
@@ -84,6 +85,7 @@ import jdk.internal.util.ImmutableBitSetPredicate;
  * @author  Herb Jellinek
  * @since   1.0
  */
+@NullMarked
 public final class URLEncoder {
     private static final IntPredicate DONT_NEED_ENCODING;
 

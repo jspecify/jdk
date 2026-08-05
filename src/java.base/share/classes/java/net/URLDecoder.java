@@ -31,6 +31,7 @@ import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.HexFormat;
 import java.util.Objects;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Utility class for HTML form decoding. This class contains static methods
@@ -81,7 +82,7 @@ import java.util.Objects;
  * @author  Michael McCloskey
  * @since   1.2
  */
-
+@NullMarked
 public final class URLDecoder {
 
     /**
