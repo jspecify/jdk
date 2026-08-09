@@ -38,6 +38,8 @@ package java.util.concurrent.locks;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import jdk.internal.vm.annotation.ReservedStackAccess;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A reentrant mutual exclusion {@link Lock} with the same basic
@@ -106,6 +108,7 @@ import jdk.internal.vm.annotation.ReservedStackAccess;
  * @since 1.5
  * @author Doug Lea
  */
+@NullMarked
 public class ReentrantLock implements Lock, java.io.Serializable {
     private static final long serialVersionUID = 7373984872572414699L;
     /** @serial Synchronizer providing all implementation mechanics */
@@ -650,7 +653,7 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      *
      * @return the owner, or {@code null} if not owned
      */
-    protected Thread getOwner() {
+    protected @Nullable Thread getOwner() {
         return sync.getOwner();
     }
 
