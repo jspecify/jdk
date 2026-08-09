@@ -25,6 +25,7 @@
 
 package java.nio.charset;
 
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Checked exception thrown when an input character (or byte) sequence
@@ -33,7 +34,7 @@ package java.nio.charset;
  *
  * @since 1.4
  */
-
+@NullMarked
 public class UnmappableCharacterException
     extends CharacterCodingException
 {

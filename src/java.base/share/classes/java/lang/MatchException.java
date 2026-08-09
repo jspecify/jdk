@@ -25,6 +25,9 @@
 
 package java.lang;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * Thrown to indicate an unexpected failure in pattern matching.
  *
@@ -76,6 +79,7 @@ package java.lang;
  *
  * @since 21
  */
+@NullMarked
 public final class MatchException extends RuntimeException {
     @java.io.Serial
     private static final long serialVersionUID = 0L;
@@ -91,7 +95,7 @@ public final class MatchException extends RuntimeException {
      *         permitted, and indicates that the cause is nonexistent or
      *         unknown.)
      */
-    public MatchException(String message, Throwable cause) {
+    public MatchException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
 }
