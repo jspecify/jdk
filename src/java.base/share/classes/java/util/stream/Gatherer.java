@@ -24,6 +24,9 @@
  */
 package java.util.stream;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import jdk.internal.vm.annotation.ForceInline;
 
 import java.util.*;
@@ -196,7 +199,8 @@ import java.util.function.Supplier;
  * @param <R> the type of output elements from the gatherer operation
  * @since 24
  */
-public interface Gatherer<T, A, R> {
+@NullMarked
+public interface Gatherer<T extends @Nullable Object, A extends @Nullable Object, R extends @Nullable Object> {
     /**
      * A function that produces an instance of the intermediate state used for
      * this gathering operation.
@@ -265,7 +269,7 @@ public interface Gatherer<T, A, R> {
      * @return returns a composed Gatherer which connects the output of this
      *         Gatherer as input that Gatherer
      */
-    default <RR> Gatherer<T, ?, RR> andThen(Gatherer<? super R, ?, ? extends RR> that) {
+    default <RR extends @Nullable Object> Gatherer<T, ?, RR> andThen(Gatherer<? super R, ?, ? extends RR> that) {
         Objects.requireNonNull(that);
         return Gatherers.Composite.of(this, that);
     }
@@ -280,7 +284,7 @@ public interface Gatherer<T, A, R> {
      * @return the instance of the default initializer
      * @param <A> the type of the state of the returned initializer
      */
-    static <A> Supplier<A> defaultInitializer() {
+    static <A> Supplier<@Nullable A> defaultInitializer() {
         return Gatherers.Value.DEFAULT.initializer();
     }
 
@@ -295,7 +299,7 @@ public interface Gatherer<T, A, R> {
      * @return the instance of the default combiner
      * @param <A> the type of the state of the returned combiner
      */
-    static <A> BinaryOperator<A> defaultCombiner() {
+    static <A extends @Nullable Object> BinaryOperator<A> defaultCombiner() {
         return Gatherers.Value.DEFAULT.combiner();
     }
 
@@ -312,7 +316,7 @@ public interface Gatherer<T, A, R> {
      * @param <A> the type of the state of the returned finisher
      * @param <R> the type of the Downstream of the returned finisher
      */
-    static <A, R> BiConsumer<A, Downstream<? super R>> defaultFinisher() {
+    static <A extends @Nullable Object, R extends @Nullable Object> BiConsumer<A, Downstream<? super R>> defaultFinisher() {
         return Gatherers.Value.DEFAULT.finisher();
     }
 
@@ -326,8 +330,8 @@ public interface Gatherer<T, A, R> {
      * @throws NullPointerException if the argument is {@code null}
      * @return the new {@code Gatherer}
      */
-    static <T, R> Gatherer<T, Void, R> ofSequential(
-            Integrator<Void, T, R> integrator) {
+    static <T extends @Nullable Object, R extends @Nullable Object> Gatherer<T, @Nullable Void, R> ofSequential(
+            Integrator<@Nullable Void, T, R> integrator) {
         return of(
                 defaultInitializer(),
                 integrator,
@@ -347,9 +351,9 @@ public interface Gatherer<T, A, R> {
      * @throws NullPointerException if any argument is {@code null}
      * @return the new {@code Gatherer}
      */
-    static <T, R> Gatherer<T, Void, R> ofSequential(
-            Integrator<Void, T, R> integrator,
-            BiConsumer<Void, Downstream<? super R>> finisher) {
+    static <T extends @Nullable Object, R extends @Nullable Object> Gatherer<T, @Nullable Void, R> ofSequential(
+            Integrator<@Nullable Void, T, R> integrator,
+            BiConsumer<@Nullable Void, Downstream<? super R>> finisher) {
         return of(
                 defaultInitializer(),
                 integrator,
@@ -370,7 +374,7 @@ public interface Gatherer<T, A, R> {
      * @throws NullPointerException if any argument is {@code null}
      * @return the new {@code Gatherer}
      */
-    static <T, A, R> Gatherer<T, A, R> ofSequential(
+    static <T extends @Nullable Object, A extends @Nullable Object, R extends @Nullable Object> Gatherer<T, A, R> ofSequential(
             Supplier<A> initializer,
             Integrator<A, T, R> integrator) {
         return of(
@@ -394,7 +398,7 @@ public interface Gatherer<T, A, R> {
      * @throws NullPointerException if any argument is {@code null}
      * @return the new {@code Gatherer}
      */
-    static <T, A, R> Gatherer<T, A, R> ofSequential(
+    static <T extends @Nullable Object, A extends @Nullable Object, R extends @Nullable Object> Gatherer<T, A, R> ofSequential(
             Supplier<A> initializer,
             Integrator<A, T, R> integrator,
             BiConsumer<A, Downstream<? super R>> finisher) {
@@ -416,7 +420,7 @@ public interface Gatherer<T, A, R> {
      * @throws NullPointerException if any argument is {@code null}
      * @return the new {@code Gatherer}
      */
-    static <T, R> Gatherer<T, Void, R> of(Integrator<Void, T, R> integrator) {
+    static <T extends @Nullable Object, R extends @Nullable Object> Gatherer<T, @Nullable Void, R> of(Integrator<@Nullable Void, T, R> integrator) {
         return of(
                 defaultInitializer(),
                 integrator,
@@ -436,9 +440,9 @@ public interface Gatherer<T, A, R> {
      * @throws NullPointerException if any argument is {@code null}
      * @return the new {@code Gatherer}
      */
-    static <T, R> Gatherer<T, Void, R> of(
-            Integrator<Void, T, R> integrator,
-            BiConsumer<Void, Downstream<? super R>> finisher) {
+    static <T extends @Nullable Object, R extends @Nullable Object> Gatherer<T, @Nullable Void, R> of(
+            Integrator<@Nullable Void, T, R> integrator,
+            BiConsumer<@Nullable Void, Downstream<? super R>> finisher) {
         return of(
                 defaultInitializer(),
                 integrator,
@@ -462,7 +466,7 @@ public interface Gatherer<T, A, R> {
      * @throws NullPointerException if any argument is {@code null}
      * @return the new {@code Gatherer}
      */
-    static <T, A, R> Gatherer<T, A, R> of(
+    static <T extends @Nullable Object, A extends @Nullable Object, R extends @Nullable Object> Gatherer<T, A, R> of(
             Supplier<A> initializer,
             Integrator<A, T, R> integrator,
             BinaryOperator<A> combiner,
@@ -482,7 +486,7 @@ public interface Gatherer<T, A, R> {
      * @since 24
      */
     @FunctionalInterface
-    interface Downstream<T> {
+    interface Downstream<T extends @Nullable Object> {
 
         /**
          * Pushes, if possible, the provided element downstream -- to the next
@@ -524,7 +528,7 @@ public interface Gatherer<T, A, R> {
      * @since 24
      */
     @FunctionalInterface
-    interface Integrator<A, T, R> {
+    interface Integrator<A extends @Nullable Object, T extends @Nullable Object, R extends @Nullable Object> {
         /**
          * Performs an action given: the current state, the next element, and
          * a downstream object; potentially inspecting and/or updating
@@ -550,7 +554,7 @@ public interface Gatherer<T, A, R> {
          * @param <R> the type of results this integrator can produce
          */
         @ForceInline
-        static <A, T, R> Integrator<A, T, R> of(Integrator<A, T, R> integrator) {
+        static <A extends @Nullable Object, T extends @Nullable Object, R extends @Nullable Object> Integrator<A, T, R> of(Integrator<A, T, R> integrator) {
             return integrator;
         }
 
@@ -565,7 +569,7 @@ public interface Gatherer<T, A, R> {
          * @param <R> the type of results this integrator can produce
          */
         @ForceInline
-        static <A, T, R> Greedy<A, T, R> ofGreedy(Greedy<A, T, R> greedy) {
+        static <A extends @Nullable Object, T extends @Nullable Object, R extends @Nullable Object> Greedy<A, T, R> ofGreedy(Greedy<A, T, R> greedy) {
             return greedy;
         }
 
@@ -583,6 +587,6 @@ public interface Gatherer<T, A, R> {
          * @since 24
          */
         @FunctionalInterface
-        interface Greedy<A, T, R> extends Integrator<A, T, R> { }
+        interface Greedy<A extends @Nullable Object, T extends @Nullable Object, R extends @Nullable Object> extends Integrator<A, T, R> { }
     }
 }
