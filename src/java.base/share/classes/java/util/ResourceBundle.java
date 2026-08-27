@@ -465,7 +465,7 @@ public abstract class ResourceBundle {
      * The parent bundle is searched by {@link #getObject getObject}
      * when this bundle does not contain a particular resource.
      */
-    protected ResourceBundle parent = null;
+    protected @Nullable ResourceBundle parent = null;
 
     /**
      * The locale for this bundle.
