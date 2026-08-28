@@ -322,7 +322,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      *
      * @return the provider of this message digest object
      */
-    public final Provider getProvider() {
+    public final @Nullable Provider getProvider() {
         return this.provider;
     }
 
@@ -480,7 +480,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      *
      * @return {@code true} if the digests are equal, {@code false} otherwise.
      */
-    public static boolean isEqual(byte[] digesta, byte[] digestb) {
+    public static boolean isEqual(byte @Nullable [] digesta, byte @Nullable [] digestb) {
         if (digesta == digestb) return true;
         if (digesta == null || digestb == null) {
             return false;
