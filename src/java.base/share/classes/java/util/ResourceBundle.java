@@ -456,7 +456,7 @@ public abstract class ResourceBundle {
      *
      * @since 1.8
      */
-    public String getBaseBundleName() {
+    public @Nullable String getBaseBundleName() {
         return name;
     }
 
@@ -612,7 +612,7 @@ public abstract class ResourceBundle {
      *
      * @param parent this bundle's parent bundle.
      */
-    protected void setParent(ResourceBundle parent) {
+    protected void setParent(@Nullable ResourceBundle parent) {
         assert parent != NONEXISTENT_BUNDLE;
         this.parent = parent;
     }
@@ -2247,7 +2247,7 @@ public abstract class ResourceBundle {
      * @throws    NullPointerException if {@code key} is {@code null}
      * @return the object for the given key, or null
      */
-    protected abstract Object handleGetObject(String key);
+    protected abstract @Nullable Object handleGetObject(String key);
 
     /**
      * Returns an enumeration of the keys.
@@ -2988,7 +2988,7 @@ public abstract class ResourceBundle {
          *        if {@code baseName} or {@code locale}
          *        is {@code null}
          */
-        public Locale getFallbackLocale(String baseName, Locale locale) {
+        public @Nullable Locale getFallbackLocale(String baseName, Locale locale) {
             if (baseName == null) {
                 throw new NullPointerException();
             }
@@ -3106,7 +3106,7 @@ public abstract class ResourceBundle {
          *        any I/O operations
          * @see java.util.spi.ResourceBundleProvider#getBundle(String, Locale)
          */
-        public ResourceBundle newBundle( String baseName, Locale locale, String format,
+        public @Nullable ResourceBundle newBundle( String baseName, Locale locale, String format,
                                         ClassLoader loader, boolean reload)
                     throws IllegalAccessException, InstantiationException, IOException {
             /*

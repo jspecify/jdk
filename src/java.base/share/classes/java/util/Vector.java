@@ -644,7 +644,7 @@ public class Vector<E extends @Nullable Object>
      * @return  {@code true} if the argument was a component of this
      *          vector; {@code false} otherwise.
      */
-    public synchronized boolean removeElement(Object obj) {
+    public synchronized boolean removeElement(@Nullable Object obj) {
         modCount++;
         int i = indexOf(obj);
         if (i >= 0) {
