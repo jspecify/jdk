@@ -109,7 +109,7 @@ public class InputSource {
      * @see #setCharacterStream
      */
     
-    public InputSource (String systemId)
+    public InputSource (@Nullable String systemId)
     {
         setSystemId(systemId);
     }
@@ -131,7 +131,7 @@ public class InputSource {
      * @see #setCharacterStream
      */
     
-    public InputSource (InputStream byteStream)
+    public InputSource (@Nullable InputStream byteStream)
     {
         setByteStream(byteStream);
     }
@@ -153,7 +153,7 @@ public class InputSource {
      * @see #setCharacterStream
      */
     
-    public InputSource (Reader characterStream)
+    public InputSource (@Nullable Reader characterStream)
     {
         setCharacterStream(characterStream);
     }
