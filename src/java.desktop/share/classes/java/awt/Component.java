@@ -9233,7 +9233,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @serial
      */
     @SuppressWarnings("serial") // Not statically typed as Serializable
-    protected AccessibleContext accessibleContext = null;
+    protected @Nullable AccessibleContext accessibleContext = null;
 
     /**
      * Gets the {@code AccessibleContext} associated
