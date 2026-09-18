@@ -63,7 +63,7 @@ public class DataInputStream extends FilterInputStream implements DataInput {
      *
      * @param  in   the specified input stream
      */
-    public DataInputStream(InputStream in) {
+    public DataInputStream(@Nullable InputStream in) {
         super(in);
     }
 
