@@ -40,7 +40,7 @@ import java.util.Objects;
 @NullMarked
 public class CharArrayReader extends Reader {
     /** The character buffer. */
-    protected char[] buf;
+    protected char @Nullable [] buf;
 
     /** The current buffer position. */
     protected int pos;
