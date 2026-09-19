@@ -1058,7 +1058,7 @@ public class MessageFormat extends Format {
      *            that use it.
      * @throws    NullPointerException if {@code pattern} is {@code null}
      */
-    public static String format( String pattern, @Nullable Object ... arguments) {
+    public static String format( String pattern, @Nullable Object @Nullable ... arguments) {
         MessageFormat temp = new MessageFormat(pattern);
         return temp.format(arguments);
     }
