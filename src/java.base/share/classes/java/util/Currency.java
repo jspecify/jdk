@@ -386,7 +386,7 @@ public final  class Currency implements Serializable {
      * @throws    IllegalArgumentException if the country of the given {@code locale}
      * is not a supported ISO 3166 country code.
      */
-    public static Currency getInstance(Locale locale) {
+    public static @Nullable Currency getInstance(Locale locale) {
         // check for locale overrides
         String override = locale.getUnicodeLocaleType("cu");
         if (override != null) {
