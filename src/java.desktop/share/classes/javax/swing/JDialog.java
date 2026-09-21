@@ -1210,7 +1210,7 @@ public class JDialog extends Dialog implements WindowConstants,
     /**
      * {@code AccessibleContext} associated with this {@code JDialog}
      */
-    protected AccessibleContext accessibleContext = null;
+    protected @Nullable AccessibleContext accessibleContext = null;
 
     /**
      * Gets the AccessibleContext associated with this JDialog.

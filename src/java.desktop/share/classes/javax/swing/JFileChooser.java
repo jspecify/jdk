@@ -2023,7 +2023,7 @@ public class JFileChooser extends JComponent implements Accessible {
     /**
      * {@code AccessibleContext} associated with this {@code JFileChooser}
      */
-    protected AccessibleContext accessibleContext = null;
+    protected @Nullable AccessibleContext accessibleContext = null;
 
     /**
      * Gets the AccessibleContext associated with this JFileChooser.
