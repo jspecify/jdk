@@ -850,7 +850,7 @@ public class JFrame  extends Frame implements WindowConstants,
     /**
      * The accessible context property.
      */
-    protected AccessibleContext accessibleContext = null;
+    protected @Nullable AccessibleContext accessibleContext = null;
 
     /**
      * Gets the AccessibleContext associated with this JFrame.

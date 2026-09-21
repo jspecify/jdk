@@ -3861,7 +3861,7 @@ public  class Container extends Component {
          * @serial
          */
         @SuppressWarnings("serial") // Not statically typed as Serializable
-        protected ContainerListener accessibleContainerHandler = null;
+        protected @Nullable ContainerListener accessibleContainerHandler = null;
 
         /**
          * Fire {@code PropertyChange} listener, if one is registered,
