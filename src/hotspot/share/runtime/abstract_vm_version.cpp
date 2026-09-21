@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
 #include "compiler/compilerDefinitions.hpp"
 #include "jvm_io.h"
 #include "runtime/arguments.hpp"
+#include "runtime/os.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/ostream.hpp"
 
 const char* Abstract_VM_Version::_s_vm_release = Abstract_VM_Version::vm_release();
 const char* Abstract_VM_Version::_s_internal_vm_info_string = Abstract_VM_Version::internal_vm_info_string();
@@ -139,45 +141,28 @@ const char* Abstract_VM_Version::vm_vendor() {
 
 
 // The VM info string should be a constant, but its value cannot be finalized until after VM arguments
-// have been fully processed. And we want to avoid dynamic memory allocation which will cause ASAN
-// report error, so we enumerate all the cases by static const string value.
+// have been fully processed. The result is C-heap allocated, and should be freed by the caller.
 const char* Abstract_VM_Version::vm_info_string() {
+  stringStream ss;
   switch (Arguments::mode()) {
-    case Arguments::_int:
-      if (is_vm_statically_linked()) {
-        return CDSConfig::is_using_archive() ? "interpreted mode, static, sharing" : "interpreted mode, static";
-      } else {
-        return CDSConfig::is_using_archive() ? "interpreted mode, sharing" : "interpreted mode";
-      }
-    case Arguments::_mixed:
-      if (is_vm_statically_linked()) {
-        if (CompilationModeFlag::quick_only()) {
-          return CDSConfig::is_using_archive() ? "mixed mode, emulated-client, static, sharing" : "mixed mode, emulated-client, static";
-        } else {
-          return CDSConfig::is_using_archive() ? "mixed mode, static, sharing" : "mixed mode, static";
-         }
-      } else {
-        if (CompilationModeFlag::quick_only()) {
-          return CDSConfig::is_using_archive() ? "mixed mode, emulated-client, sharing" : "mixed mode, emulated-client";
-        } else {
-          return CDSConfig::is_using_archive() ? "mixed mode, sharing" : "mixed mode";
-        }
-      }
-    case Arguments::_comp:
-      if (is_vm_statically_linked()) {
-        if (CompilationModeFlag::quick_only()) {
-          return CDSConfig::is_using_archive() ? "compiled mode, emulated-client, static, sharing" : "compiled mode, emulated-client, static";
-        }
-        return CDSConfig::is_using_archive() ? "compiled mode, static, sharing" : "compiled mode, static";
-      } else {
-        if (CompilationModeFlag::quick_only()) {
-          return CDSConfig::is_using_archive() ? "compiled mode, emulated-client, sharing" : "compiled mode, emulated-client";
-        }
-        return CDSConfig::is_using_archive() ? "compiled mode, sharing" : "compiled mode";
-      }
+  case Arguments::_int:   ss.print("%s", "interpreted mode"); break;
+  case Arguments::_mixed: ss.print("%s", "mixed mode"); break;
+  case Arguments::_comp:  ss.print("%s", "compiled mode"); break;
+  default: ShouldNotReachHere();
   }
-  ShouldNotReachHere();
-  return "";
+
+  if (is_vm_statically_linked()) {
+    ss.print("%s", ", static");
+  }
+  if (CDSConfig::is_dumping_preimage_static_archive()) {
+    ss.print("%s", ", aot training");
+  } else if (CDSConfig::is_dumping_final_static_archive()) {
+    ss.print("%s", ", aot assembly");
+  } else if (CDSConfig::is_using_archive()) {
+    ss.print("%s", CDSConfig::new_aot_flags_used() ? ", aot production" : ", sharing");
+  }
+
+  return ss.as_string(/*c_heap=*/true);
 }
 
 // NOTE: do *not* use stringStream. this function is called by
@@ -204,7 +189,6 @@ const char* Abstract_VM_Version::vm_release() {
 #else
 #define CPU      AARCH64_ONLY("aarch64")         \
                  AMD64_ONLY("amd64")             \
-                 IA32_ONLY("x86")                \
                  S390_ONLY("s390")               \
                  RISCV64_ONLY("riscv64")
 #endif // !ZERO
@@ -271,6 +255,20 @@ const char* Abstract_VM_Version::internal_vm_info_string() {
         #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.7 (VS2022)"
       #elif _MSC_VER == 1938
         #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.8 (VS2022)"
+      #elif _MSC_VER == 1939
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.9 (VS2022)"
+      #elif _MSC_VER == 1940
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.10 (VS2022)"
+      #elif _MSC_VER == 1941
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.11 (VS2022)"
+      #elif _MSC_VER == 1942
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.12 (VS2022)"
+      #elif _MSC_VER == 1943
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.13 (VS2022)"
+      #elif _MSC_VER == 1944
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.14 (VS2022)"
+      #elif _MSC_VER == 1950
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 18.0 (VS2026)"
       #else
         #define HOTSPOT_BUILD_COMPILER "unknown MS VC++:" XSTR(_MSC_VER)
       #endif
@@ -323,19 +321,6 @@ unsigned int Abstract_VM_Version::jvm_version() {
          ((Abstract_VM_Version::vm_minor_version() & 0xFF) << 16) |
          ((Abstract_VM_Version::vm_security_version() & 0xFF) << 8) |
          (Abstract_VM_Version::vm_build_number() & 0xFF);
-}
-
-const char* Abstract_VM_Version::extract_features_string(const char* cpu_info_string,
-                                                         size_t cpu_info_string_len,
-                                                         size_t features_offset) {
-  assert(features_offset <= cpu_info_string_len, "");
-  if (features_offset < cpu_info_string_len) {
-    assert(cpu_info_string[features_offset + 0] == ',', "");
-    assert(cpu_info_string[features_offset + 1] == ' ', "");
-    return cpu_info_string + features_offset + 2; // skip initial ", "
-  } else {
-    return ""; // empty
-  }
 }
 
 bool Abstract_VM_Version::print_matching_lines_from_file(const char* filename, outputStream* st, const char* keywords_to_match[]) {

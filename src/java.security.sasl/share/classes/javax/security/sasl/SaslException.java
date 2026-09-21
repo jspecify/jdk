@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package javax.security.sasl;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
+import java.io.Serial;
 
 /**
  * This class represents an error that has occurred when using SASL.
@@ -127,5 +128,6 @@ public class SaslException extends IOException {
     }
 
     /** Use serialVersionUID from JSR 28 RI for interoperability */
+    @Serial
     private static final long serialVersionUID = 4579784287983423626L;
 }

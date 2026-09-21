@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,7 @@ public final class CStrike extends PhysicalStrike {
                                                      int fmHint);
 
     // Disposes the native strike
-    private static native void disposeNativeStrikePtr(long nativeStrikePtr);
+    static native void disposeNativeStrikePtr(long nativeStrikePtr);
 
     // Creates a StrikeMetrics from the underlying native system fonts
     private static native StrikeMetrics getFontMetrics(long nativeStrikePtr);
@@ -70,14 +70,11 @@ public final class CStrike extends PhysicalStrike {
     private AffineTransform invDevTx;
     private final GlyphInfoCache glyphInfoCache;
     private final GlyphAdvanceCache glyphAdvanceCache;
-    private long nativeStrikePtr;
+    private final long nativeStrikePtr;
 
     CStrike(final CFont font, final FontStrikeDesc inDesc) {
         nativeFont = font;
         desc = inDesc;
-        glyphInfoCache = new GlyphInfoCache(font, desc);
-        glyphAdvanceCache = new GlyphAdvanceCache();
-        disposer = glyphInfoCache;
 
         // Normally the device transform should be the identity transform
         // for screen operations.  The device transform only becomes
@@ -92,12 +89,18 @@ public final class CStrike extends PhysicalStrike {
                 // so we won't worry about it.
             }
         }
+        nativeStrikePtr = initNativeStrikePtr(); // after setting up invDevTx
+        glyphInfoCache = new GlyphInfoCache(font, desc, nativeStrikePtr);
+        glyphAdvanceCache = new GlyphAdvanceCache();
+        disposer = glyphInfoCache;
     }
 
     public long getNativeStrikePtr() {
-        if (nativeStrikePtr != 0) {
-            return nativeStrikePtr;
-        }
+        return nativeStrikePtr;
+    }
+
+    public long initNativeStrikePtr() {
+        long nativeStrikePtr = 0L;
 
         final double[] glyphTx = new double[6];
         desc.glyphTx.getMatrix(glyphTx);
@@ -137,16 +140,6 @@ public final class CStrike extends PhysicalStrike {
     }
 
     @Override
-    @SuppressWarnings("removal")
-    protected synchronized void finalize() throws Throwable {
-        if (nativeStrikePtr != 0) {
-            disposeNativeStrikePtr(nativeStrikePtr);
-        }
-        nativeStrikePtr = 0;
-    }
-
-
-    @Override
     public int getNumGlyphs() {
         return nativeFont.getNumGlyphs();
     }
@@ -181,7 +174,19 @@ public final class CStrike extends PhysicalStrike {
 
     @Override
     Point2D.Float getGlyphMetrics(final int glyphCode) {
-        return new Point2D.Float(getGlyphAdvance(glyphCode), 0.0f);
+        Point2D.Float metrics = new Point2D.Float();
+        long glyphPtr = getGlyphImagePtr(glyphCode);
+        if (glyphPtr != 0L) {
+            metrics.x = StrikeCache.getGlyphXAdvance(glyphPtr);
+            metrics.y = StrikeCache.getGlyphYAdvance(glyphPtr);
+            /* advance is currently in device space, need to convert back
+             * into user space.
+             * This must not include the translation component. */
+            if (invDevTx != null) {
+                invDevTx.deltaTransform(metrics, metrics);
+            }
+        }
+        return metrics;
     }
 
     @Override
@@ -189,8 +194,8 @@ public final class CStrike extends PhysicalStrike {
         GeneralPath gp = getGlyphOutline(glyphCode, 0f, 0f);
         Rectangle2D r2d = gp.getBounds2D();
         Rectangle2D.Float r2df;
-        if (r2d instanceof Rectangle2D.Float) {
-            r2df = (Rectangle2D.Float)r2d;
+        if (r2d instanceof Rectangle2D.Float rf) {
+            r2df = rf;
         } else {
             float x = (float)r2d.getX();
             float y = (float)r2d.getY();
@@ -227,12 +232,6 @@ public final class CStrike extends PhysicalStrike {
     @Override
     GeneralPath getGlyphOutline(int glyphCode, float x, float y) {
         return getNativeGlyphOutline(getNativeStrikePtr(), glyphCode, x, y);
-    }
-
-    // should implement, however not called though any path that is publicly exposed
-    @Override
-    GeneralPath getGlyphVectorOutline(int[] glyphs, float x, float y) {
-        throw new Error("not implemented yet");
     }
 
     // called from the Sun2D renderer
@@ -379,8 +378,8 @@ public final class CStrike extends PhysicalStrike {
         private SparseBitShiftingTwoLayerArray secondLayerCache;
         private HashMap<Integer, Long> generalCache;
 
-        GlyphInfoCache(final Font2D nativeFont, final FontStrikeDesc desc) {
-            super(nativeFont, desc);
+        GlyphInfoCache(final Font2D nativeFont, final FontStrikeDesc desc, long pScalerContext) {
+            super(nativeFont, desc, pScalerContext);
             firstLayerCache = new long[FIRST_LAYER_SIZE];
         }
 

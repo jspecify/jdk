@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * Copyright (c) 2020, 2023, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -30,11 +30,11 @@
 #include "asm/assembler.hpp"
 #include "asm/register.hpp"
 #include "code/codeCache.hpp"
+#include "cppstdlib/type_traits.hpp"
 #include "metaprogramming/enableIf.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
-#include <type_traits>
 
 #define XLEN 64
 
@@ -243,8 +243,8 @@ class Address {
   // Verify the value is trivially destructible regardless of mode, so our
   // destructor can also be trivial, and so our assignment operator doesn't
   // need to destruct the old value before copying over it.
-  static_assert(std::is_trivially_destructible<Literal>::value, "must be");
-  static_assert(std::is_trivially_destructible<Nonliteral>::value, "must be");
+  static_assert(std::is_trivially_destructible<Literal>::value);
+  static_assert(std::is_trivially_destructible<Nonliteral>::value);
 
   Address& operator=(const Address& a) {
     _mode = a._mode;
@@ -514,20 +514,138 @@ protected:
     rdy = 0b111,     // in instruction's rm field, selects dynamic rounding mode.In Rounding Mode register, Invalid.
   };
 
+  // Efficient reading and writing of unaligned data in platform-specific byte ordering
+  // RISC-V needs to check for alignment.
+
+  static inline u2 get_native_u2(address p) {
+    if ((intptr_t(p) & 1) == 0) {
+      return *(u2*)p;
+    } else {
+      return ((u2)(p[1]) << 8) |
+             ((u2)(p[0]));
+    }
+  }
+
+  static inline u4 get_native_u4(address p) {
+    switch (intptr_t(p) & 3) {
+      case 0:
+        return *(u4*)p;
+
+      case 2:
+        return ((u4)(((u2*)p)[1]) << 16) |
+               ((u4)(((u2*)p)[0]));
+
+      default:
+        return ((u4)(p[3]) << 24) |
+               ((u4)(p[2]) << 16) |
+               ((u4)(p[1]) <<  8) |
+               ((u4)(p[0]));
+    }
+  }
+
+  static inline u8 get_native_u8(address p) {
+    switch (intptr_t(p) & 7) {
+      case 0:
+        return *(u8*)p;
+
+      case 4:
+        return ((u8)(((u4*)p)[1]) << 32) |
+               ((u8)(((u4*)p)[0]));
+
+      case 2:
+      case 6:
+        return ((u8)(((u2*)p)[3]) << 48) |
+               ((u8)(((u2*)p)[2]) << 32) |
+               ((u8)(((u2*)p)[1]) << 16) |
+               ((u8)(((u2*)p)[0]));
+
+      default:
+        return ((u8)(p[7]) << 56) |
+               ((u8)(p[6]) << 48) |
+               ((u8)(p[5]) << 40) |
+               ((u8)(p[4]) << 32) |
+               ((u8)(p[3]) << 24) |
+               ((u8)(p[2]) << 16) |
+               ((u8)(p[1]) <<  8) |
+               ((u8)(p[0]));
+    }
+  }
+
+  static inline void put_native_u2(address p, u2 x) {
+    if ((intptr_t(p) & 1) == 0) {
+      *(u2*)p = x;
+    } else {
+      p[1] = x >> 8;
+      p[0] = x;
+    }
+  }
+
+  static inline void put_native_u4(address p, u4 x) {
+    switch (intptr_t(p) & 3) {
+      case 0:
+        *(u4*)p = x;
+        break;
+
+      case 2:
+        ((u2*)p)[1] = x >> 16;
+        ((u2*)p)[0] = x;
+        break;
+
+      default:
+        ((u1*)p)[3] = x >> 24;
+        ((u1*)p)[2] = x >> 16;
+        ((u1*)p)[1] = x >>  8;
+        ((u1*)p)[0] = x;
+        break;
+    }
+  }
+
+  static inline void put_native_u8(address p, u8 x) {
+    switch (intptr_t(p) & 7) {
+      case 0:
+        *(u8*)p = x;
+        break;
+
+      case 4:
+        ((u4*)p)[1] = x >> 32;
+        ((u4*)p)[0] = x;
+        break;
+
+      case 2:
+      case 6:
+        ((u2*)p)[3] = x >> 48;
+        ((u2*)p)[2] = x >> 32;
+        ((u2*)p)[1] = x >> 16;
+        ((u2*)p)[0] = x;
+        break;
+
+      default:
+        ((u1*)p)[7] = x >> 56;
+        ((u1*)p)[6] = x >> 48;
+        ((u1*)p)[5] = x >> 40;
+        ((u1*)p)[4] = x >> 32;
+        ((u1*)p)[3] = x >> 24;
+        ((u1*)p)[2] = x >> 16;
+        ((u1*)p)[1] = x >>  8;
+        ((u1*)p)[0] = x;
+        break;
+    }
+  }
+
   // handle unaligned access
   static inline uint16_t ld_c_instr(address addr) {
-    return Bytes::get_native_u2(addr);
+    return get_native_u2(addr);
   }
   static inline void sd_c_instr(address addr, uint16_t c_instr) {
-    Bytes::put_native_u2(addr, c_instr);
+    put_native_u2(addr, c_instr);
   }
 
   // handle unaligned access
   static inline uint32_t ld_instr(address addr) {
-    return Bytes::get_native_u4(addr);
+    return get_native_u4(addr);
   }
   static inline void sd_instr(address addr, uint32_t instr) {
-    Bytes::put_native_u4(addr, instr);
+    put_native_u4(addr, instr);
   }
 
   static inline uint32_t extract(uint32_t val, unsigned msb, unsigned lsb) {
@@ -910,6 +1028,43 @@ protected:
     int32_t val = offset & 0xfff;
     patch((address)&insn, 31, 20, val);
     emit(insn);
+  }
+
+ public:
+
+  static uint32_t encode_csrrw(Register Rd, const uint32_t csr, Register Rs1) {
+    guarantee(is_uimm12(csr), "csr is invalid");
+    uint32_t insn = 0;
+    patch((address)&insn, 6, 0, 0b1110011);
+    patch((address)&insn, 14, 12, 0b001);
+    patch_reg((address)&insn, 7, Rd);
+    patch_reg((address)&insn, 15, Rs1);
+    patch((address)&insn, 31, 20, csr);
+    return insn;
+  }
+
+  static uint32_t encode_jal(Register Rd, const int32_t offset) {
+    guarantee(is_simm21(offset) && ((offset % 2) == 0), "offset is invalid.");
+    uint32_t insn = 0;
+    patch((address)&insn, 6, 0, 0b1101111);
+    patch_reg((address)&insn, 7, Rd);
+    patch((address)&insn, 19, 12, (uint32_t)((offset >> 12) & 0xff));
+    patch((address)&insn, 20, (uint32_t)((offset >> 11) & 0x1));
+    patch((address)&insn, 30, 21, (uint32_t)((offset >> 1) & 0x3ff));
+    patch((address)&insn, 31, (uint32_t)((offset >> 20) & 0x1));
+    return insn;
+  }
+
+  static uint32_t encode_jalr(Register Rd, Register Rs, const int32_t offset) {
+    guarantee(is_simm12(offset), "offset is invalid.");
+    uint32_t insn = 0;
+    patch((address)&insn, 6, 0, 0b1100111);
+    patch_reg((address)&insn, 7, Rd);
+    patch((address)&insn, 14, 12, 0b000);
+    patch_reg((address)&insn, 15, Rs);
+    int32_t val = offset & 0xfff;
+    patch((address)&insn, 31, 20, val);
+    return insn;
   }
 
  protected:
@@ -1988,6 +2143,7 @@ enum VectorMask {
 
   // Vector Narrowing Integer Right Shift Instructions
   INSN(vnsra_wi, 0b1010111, 0b011, 0b101101);
+  INSN(vnsrl_wi, 0b1010111, 0b011, 0b101100);
 
 #undef INSN
 
@@ -2624,6 +2780,9 @@ enum Nf {
   INSN(vsha2ch_vv,  0b1110111, 0b010, 0b1, 0b101110);
   INSN(vsha2cl_vv,  0b1110111, 0b010, 0b1, 0b101111);
 
+  // Vector GHASH (Zvkg) Extension
+  INSN(vghsh_vv,    0b1110111, 0b010, 0b1, 0b101100);
+
 #undef INSN
 
 #define INSN(NAME, op, funct3, Vs1, funct6)                                    \
@@ -2672,6 +2831,8 @@ enum Nf {
   INSN(maxu,      0b0110011, 0b111, 0b0000101);
   INSN(min,       0b0110011, 0b100, 0b0000101);
   INSN(minu,      0b0110011, 0b101, 0b0000101);
+  INSN(clmul,     0b0110011, 0b001, 0b0000101);
+  INSN(clmulh,    0b0110011, 0b011, 0b0000101);
 
 #undef INSN
 
@@ -3666,19 +3827,15 @@ public:
 // --------------------------
 // Upper Immediate Instruction
 // --------------------------
-#define INSN(NAME)                                                                           \
-  void NAME(Register Rd, int32_t imm) {                                                      \
-    /* lui -> c.lui */                                                                       \
-    if (do_compress() && (Rd != x0 && Rd != x2 && imm != 0 && is_simm18(imm))) {             \
-      c_lui(Rd, imm);                                                                        \
-      return;                                                                                \
-    }                                                                                        \
-    _lui(Rd, imm);                                                                           \
+  void lui(Register Rd, int32_t imm) {
+    /* lui -> c.lui */
+    if (do_compress() && (Rd != x0 && Rd != x2 && imm != 0 && is_simm18(imm))) {
+      c_lui(Rd, imm);
+      return;
+    }
+    _lui(Rd, imm);
   }
 
-  INSN(lui);
-
-#undef INSN
 
 // Cache Management Operations
 // These instruction may be turned off for user space.

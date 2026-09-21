@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1ConcurrentRefine.hpp"
 #include "gc/g1/g1ConcurrentRefineThread.hpp"
-#include "gc/g1/g1DirtyCardQueue.hpp"
 #include "gc/g1/g1HeapRegion.hpp"
 #include "gc/g1/g1HeapRegionRemSet.inline.hpp"
 #include "gc/g1/g1RemSet.hpp"
@@ -37,39 +36,61 @@
 #include "runtime/javaThread.hpp"
 
 void G1RemSetSummary::update() {
-  class CollectData : public ThreadClosure {
+  G1ConcurrentRefine* refine = G1CollectedHeap::heap()->concurrent_refine();
+
+  class CollectWorkerData : public ThreadClosure {
     G1RemSetSummary* _summary;
     uint _counter;
   public:
-    CollectData(G1RemSetSummary * summary) : _summary(summary),  _counter(0) {}
+    CollectWorkerData(G1RemSetSummary* summary) : _summary(summary),  _counter(0) {}
     virtual void do_thread(Thread* t) {
       G1ConcurrentRefineThread* crt = static_cast<G1ConcurrentRefineThread*>(t);
-      _summary->set_refine_thread_cpu_time(_counter, crt->cpu_time());
+      _summary->set_worker_thread_cpu_time(_counter, crt->cpu_time());
       _counter++;
     }
   } collector(this);
 
-  G1CollectedHeap* g1h = G1CollectedHeap::heap();
-  g1h->concurrent_refine()->threads_do(&collector);
+  refine->worker_threads_do(&collector);
+
+  class CollectControlData : public ThreadClosure {
+    G1RemSetSummary* _summary;
+  public:
+    CollectControlData(G1RemSetSummary* summary) : _summary(summary) {}
+    virtual void do_thread(Thread* t) {
+      G1ConcurrentRefineThread* crt = static_cast<G1ConcurrentRefineThread*>(t);
+      _summary->set_control_thread_cpu_time(crt->cpu_time());
+    }
+  } control(this);
+
+  refine->control_thread_do(&control);
 }
 
-void G1RemSetSummary::set_refine_thread_cpu_time(uint thread, jlong value) {
-  assert(_refine_threads_cpu_times != nullptr, "just checking");
-  assert(thread < _num_refine_threads, "just checking");
-  _refine_threads_cpu_times[thread] = value;
+void G1RemSetSummary::set_worker_thread_cpu_time(uint thread, jlong value) {
+  assert(_worker_threads_cpu_times != nullptr, "just checking");
+  assert(thread < _num_worker_threads, "just checking");
+  _worker_threads_cpu_times[thread] = value;
 }
 
-jlong G1RemSetSummary::refine_thread_cpu_time(uint thread) const {
-  assert(_refine_threads_cpu_times != nullptr, "just checking");
-  assert(thread < _num_refine_threads, "just checking");
-  return _refine_threads_cpu_times[thread];
+void G1RemSetSummary::set_control_thread_cpu_time(jlong value) {
+  _control_thread_cpu_time = value;
+}
+
+jlong G1RemSetSummary::worker_thread_cpu_time(uint thread) const {
+  assert(_worker_threads_cpu_times != nullptr, "just checking");
+  assert(thread < _num_worker_threads, "just checking");
+  return _worker_threads_cpu_times[thread];
+}
+
+jlong G1RemSetSummary::control_thread_cpu_time() const {
+  return _control_thread_cpu_time;
 }
 
 G1RemSetSummary::G1RemSetSummary(bool should_update) :
-  _num_refine_threads(G1ConcRefinementThreads),
-  _refine_threads_cpu_times(NEW_C_HEAP_ARRAY(jlong, _num_refine_threads, mtGC)) {
+  _num_worker_threads(G1ConcRefinementThreads),
+  _worker_threads_cpu_times(NEW_C_HEAP_ARRAY(jlong, _num_worker_threads, mtGC)),
+  _control_thread_cpu_time(0) {
 
-  memset(_refine_threads_cpu_times, 0, sizeof(jlong) * _num_refine_threads);
+  memset(_worker_threads_cpu_times, 0, sizeof(jlong) * _num_worker_threads);
 
   if (should_update) {
     update();
@@ -77,23 +98,25 @@ G1RemSetSummary::G1RemSetSummary(bool should_update) :
 }
 
 G1RemSetSummary::~G1RemSetSummary() {
-  FREE_C_HEAP_ARRAY(jlong, _refine_threads_cpu_times);
+  FREE_C_HEAP_ARRAY(_worker_threads_cpu_times);
 }
 
 void G1RemSetSummary::set(G1RemSetSummary* other) {
   assert(other != nullptr, "just checking");
-  assert(_num_refine_threads == other->_num_refine_threads, "just checking");
+  assert(_num_worker_threads == other->_num_worker_threads, "just checking");
 
-  memcpy(_refine_threads_cpu_times, other->_refine_threads_cpu_times, sizeof(jlong) * _num_refine_threads);
+  memcpy(_worker_threads_cpu_times, other->_worker_threads_cpu_times, sizeof(jlong) * _num_worker_threads);
+  _control_thread_cpu_time = other->_control_thread_cpu_time;
 }
 
 void G1RemSetSummary::subtract_from(G1RemSetSummary* other) {
   assert(other != nullptr, "just checking");
-  assert(_num_refine_threads == other->_num_refine_threads, "just checking");
+  assert(_num_worker_threads == other->_num_worker_threads, "just checking");
 
-  for (uint i = 0; i < _num_refine_threads; i++) {
-    set_refine_thread_cpu_time(i, other->refine_thread_cpu_time(i) - refine_thread_cpu_time(i));
+  for (uint i = 0; i < _num_worker_threads; i++) {
+    set_worker_thread_cpu_time(i, other->worker_thread_cpu_time(i) - worker_thread_cpu_time(i));
   }
+  _control_thread_cpu_time = other->_control_thread_cpu_time - _control_thread_cpu_time;
 }
 
 class G1PerRegionTypeRemSetCounters {
@@ -193,8 +216,8 @@ class G1HeapRegionStatsClosure: public G1HeapRegionClosure {
   size_t _max_code_root_mem_sz;
   G1HeapRegion* _max_code_root_mem_sz_region;
 
-  size_t _max_group_cardset_mem_sz;
-  G1CSetCandidateGroup* _max_cardset_mem_sz_group;
+  size_t _max_group_card_set_mem_sz;
+  G1CardSetGroup* _max_card_set_mem_sz_group;
 
   size_t total_rs_unused_mem_sz() const     { return _all.rs_unused_mem_size(); }
   size_t total_rs_mem_sz() const            { return _all.rs_mem_size(); }
@@ -203,8 +226,8 @@ class G1HeapRegionStatsClosure: public G1HeapRegionClosure {
   size_t max_rs_mem_sz() const              { return _max_rs_mem_sz; }
   G1HeapRegion* max_rs_mem_sz_region() const  { return _max_rs_mem_sz_region; }
 
-  size_t max_group_cardset_mem_sz() const                 { return _max_group_cardset_mem_sz; }
-  G1CSetCandidateGroup* max_cardset_mem_sz_group() const  { return _max_cardset_mem_sz_group; }
+  size_t max_group_card_set_mem_sz() const                 { return _max_group_card_set_mem_sz; }
+  G1CardSetGroup* max_card_set_mem_sz_group() const  { return _max_card_set_mem_sz_group; }
 
   size_t total_code_root_mem_sz() const     { return _all.code_root_mem_size(); }
   size_t total_code_root_elems() const      { return _all.code_root_elems(); }
@@ -217,7 +240,7 @@ public:
     _free("Free"), _old("Old"), _all("All"),
     _max_rs_mem_sz(0), _max_rs_mem_sz_region(nullptr),
     _max_code_root_mem_sz(0), _max_code_root_mem_sz_region(nullptr),
-    _max_group_cardset_mem_sz(0), _max_cardset_mem_sz_group(nullptr)
+    _max_group_card_set_mem_sz(0), _max_card_set_mem_sz_group(nullptr)
   {}
 
   bool do_heap_region(G1HeapRegion* r) {
@@ -226,10 +249,10 @@ public:
     size_t rs_unused_mem_sz = 0;
     size_t occupied_cards = 0;
 
-    // Accumulate card set details for regions that are assigned to single region
-    // groups. G1HeapRegionRemSet::mem_size() includes the size of the code roots
-    if (hrrs->is_added_to_cset_group() && hrrs->cset_group()->length() == 1) {
-      G1CardSet* card_set = hrrs->cset_group()->card_set();
+    // Accumulate card set details for regions that are assigned to single-region
+    // card set groups. G1HeapRegionRemSet::mem_size() includes the size of the code roots
+    if (hrrs->has_card_set_group() && hrrs->card_set_group()->num_regions() == 1) {
+      G1CardSet* card_set = hrrs->card_set_group()->card_set();
 
       rs_mem_sz = hrrs->mem_size() + card_set->mem_size();
       rs_unused_mem_sz = card_set->unused_mem_size();
@@ -246,7 +269,7 @@ public:
       _max_code_root_mem_sz = code_root_mem_sz;
       _max_code_root_mem_sz_region = r;
     }
-    size_t code_root_elems = hrrs->code_roots_list_length();
+    size_t code_root_elems = hrrs->code_roots_length();
 
     G1PerRegionTypeRemSetCounters* current = nullptr;
     if (r->is_free()) {
@@ -268,44 +291,39 @@ public:
     return false;
   }
 
-  void do_cset_groups() {
-    G1CollectedHeap* g1h = G1CollectedHeap::heap();
-    G1CSetCandidateGroup* young_only_cset_group = g1h->young_regions_cset_group();
-
+  void accumulate_stats_for_group(G1CardSetGroup* group, G1PerRegionTypeRemSetCounters* gen_counter) {
     // If the group has only a single region, then stats were accumulated
-    // during region iteration.
-    if (young_only_cset_group->length() > 1) {
-      G1CardSet* young_only_card_set = young_only_cset_group->card_set();
-      size_t rs_mem_sz = young_only_card_set->mem_size();
-      size_t rs_unused_mem_sz = young_only_card_set->unused_mem_size();
-      size_t occupied_cards = young_only_card_set->occupied();
+    // during region iteration. Skip these.
+    if (group->num_regions() > 1) {
+      G1CardSet* card_set = group->card_set();
 
-      _max_group_cardset_mem_sz = rs_mem_sz;
-      _max_cardset_mem_sz_group = young_only_cset_group;
+      size_t rs_mem_sz = card_set->mem_size();
+      size_t rs_unused_mem_sz = card_set->unused_mem_size();
+      size_t occupied_cards = card_set->occupied();
 
-      // Only update cardset details
-      _young.add(rs_unused_mem_sz, rs_mem_sz, occupied_cards, 0, 0, false);
+      if (rs_mem_sz > _max_group_card_set_mem_sz) {
+        _max_group_card_set_mem_sz = rs_mem_sz;
+        _max_card_set_mem_sz_group = group;
+      }
+
+      gen_counter->add(rs_unused_mem_sz, rs_mem_sz, occupied_cards, 0, 0, false);
       _all.add(rs_unused_mem_sz, rs_mem_sz, occupied_cards, 0, 0, false);
     }
+  }
 
+  void do_card_set_groups() {
+    G1CollectedHeap* g1h = G1CollectedHeap::heap();
 
-    G1PerRegionTypeRemSetCounters* current = &_old;
-    for (G1CSetCandidateGroup* group : g1h->policy()->candidates()->from_marking_groups()) {
-      if (group->length() > 1) {
-        G1CardSet* group_card_set = group->card_set();
-        size_t rs_mem_sz = group_card_set->mem_size();
-        size_t rs_unused_mem_sz = group_card_set->unused_mem_size();
-        size_t occupied_cards = group_card_set->occupied();
+    accumulate_stats_for_group(g1h->young_regions_card_set_group(), &_young);
 
-        if (rs_mem_sz > _max_group_cardset_mem_sz) {
-          _max_group_cardset_mem_sz = rs_mem_sz;
-          _max_cardset_mem_sz_group = group;
-        }
-
-        // Only update cardset details
-        _old.add(rs_unused_mem_sz, rs_mem_sz, occupied_cards, 0, 0, false);
-        _all.add(rs_unused_mem_sz, rs_mem_sz, occupied_cards, 0, 0, false);
-      }
+    G1CollectionSetCandidates* candidates = g1h->policy()->candidates();
+    for (G1CardSetGroup* group : candidates->from_marking_groups()) {
+      accumulate_stats_for_group(group, &_old);
+    }
+    // Skip gathering statistics for retained regions. Just verify that they have
+    // the expected number of regions.
+    for (G1CardSetGroup* group : candidates->retained_groups()) {
+      assert(group->num_regions() == 1, "must be");
     }
   }
 
@@ -338,13 +356,13 @@ public:
                     rem_set->occupied());
     }
 
-    if (max_cardset_mem_sz_group() != nullptr) {
-      G1CSetCandidateGroup* cset_group = max_cardset_mem_sz_group();
-      out->print_cr("    Collectionset Candidate Group with largest cardset = %u:(%u regions), "
+    if (max_card_set_mem_sz_group() != nullptr) {
+      G1CardSetGroup* card_set_group = max_card_set_mem_sz_group();
+      out->print_cr("    Card Set Group with largest card set = %u:(%u regions), "
                     "size = %zu occupied = %zu",
-                    cset_group->group_id(), cset_group->length(),
-                    cset_group->card_set()->mem_size(),
-                    cset_group->card_set()->occupied());
+                    card_set_group->group_id(), card_set_group->num_regions(),
+                    card_set_group->card_set()->mem_size(),
+                    card_set_group->card_set()->occupied());
     }
 
     G1HeapRegionRemSet::print_static_mem_size(out);
@@ -374,21 +392,22 @@ public:
                   HR_FORMAT_PARAMS(max_code_root_mem_sz_region()),
                   byte_size_in_proper_unit(max_code_root_rem_set->code_roots_mem_size()),
                   proper_unit_for_byte_size(max_code_root_rem_set->code_roots_mem_size()),
-                  max_code_root_rem_set->code_roots_list_length());
+                  max_code_root_rem_set->code_roots_length());
   }
 };
 
 void G1RemSetSummary::print_on(outputStream* out, bool show_thread_times) {
   if (show_thread_times) {
     out->print_cr(" Concurrent refinement threads times (s)");
+    out->print_cr(" Control %5.2f Workers", (double)control_thread_cpu_time() / NANOSECS_PER_SEC);
     out->print("     ");
-    for (uint i = 0; i < _num_refine_threads; i++) {
-      out->print("    %5.2f", (double)refine_thread_cpu_time(i) / NANOSECS_PER_SEC);
+    for (uint i = 0; i < _num_worker_threads; i++) {
+      out->print("    %5.2f", (double)worker_thread_cpu_time(i) / NANOSECS_PER_SEC);
     }
     out->cr();
   }
   G1HeapRegionStatsClosure blk;
   G1CollectedHeap::heap()->heap_region_iterate(&blk);
-  blk.do_cset_groups();
+  blk.do_card_set_groups();
   blk.print_summary_on(out);
 }

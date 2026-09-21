@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,19 +30,19 @@
 #include "gc/shared/gcPolicyCounters.hpp"
 #include "gc/shared/gcUtil.hpp"
 #include "logging/log.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/timer.hpp"
 #include "utilities/align.hpp"
 
 #include <math.h>
 
 PSAdaptiveSizePolicy::PSAdaptiveSizePolicy(size_t space_alignment,
-                                           double gc_pause_goal_sec,
-                                           uint gc_cost_ratio) :
-     AdaptiveSizePolicy(gc_pause_goal_sec,
-                        gc_cost_ratio),
+                                           double gc_pause_goal_sec) :
+     AdaptiveSizePolicy(gc_pause_goal_sec),
      _avg_promoted(new AdaptivePaddedNoZeroDevAverage(AdaptiveSizePolicyWeight, PromotedPadding)),
      _space_alignment(space_alignment),
-     _young_gen_size_increment_supplement(YoungGenerationSizeSupplement) {}
+     _young_gen_size_increment_supplement(YoungGenerationSizeSupplement),
+     _tenuring_threshold_gc_count(0) {}
 
 void PSAdaptiveSizePolicy::major_collection_begin() {
   _major_timer.reset();
@@ -67,9 +67,20 @@ void PSAdaptiveSizePolicy::print_stats(bool is_survivor_overflowing) {
     mutator_time_percent(),
     minor_gc_time_estimate() * 1000.0,
     _gc_distance_seconds_seq.davg(), _gc_distance_seconds_seq.last(),
-    PROPERFMTARGS(promoted_bytes_estimate()), PROPERFMTARGS(_promoted_bytes.last()),
+    byte_size_in_proper_unit(promoted_bytes_estimate()), proper_unit_for_byte_size((size_t)promoted_bytes_estimate()),
+    byte_size_in_proper_unit(_promoted_bytes.last()), proper_unit_for_byte_size((size_t)_promoted_bytes.last()),
     _promotion_rate_bytes_per_sec.davg()/M, _promotion_rate_bytes_per_sec.last()/M,
     is_survivor_overflowing ? "true" : "false");
+}
+
+// The throughput goal is implemented as
+//      _throughput_goal = 1 - (1 / (1 + gc_cost_ratio))
+// gc_cost_ratio is the ratio
+//      application cost / gc cost
+// For example a gc_cost_ratio of 4 translates into a
+// throughput goal of .80
+static double calculate_throughput_goal(double gc_cost_ratio) {
+  return 1.0 - (1.0 / (1.0 + gc_cost_ratio));
 }
 
 size_t PSAdaptiveSizePolicy::compute_desired_eden_size(bool is_survivor_overflowing, size_t cur_eden) {
@@ -77,9 +88,13 @@ size_t PSAdaptiveSizePolicy::compute_desired_eden_size(bool is_survivor_overflow
   double gc_distance = MAX2(_gc_distance_seconds_seq.last(), 0.000001);
   double min_gc_distance = MinGCDistanceSecond;
 
-  if (mutator_time_percent() < _throughput_goal) {
+  // Get a local copy and use it inside gc-pause in case the global var gets updated externally.
+  const uint local_GCTimeRatio = AtomicAccess::load(&GCTimeRatio);
+  const double throughput_goal = calculate_throughput_goal(local_GCTimeRatio);
+
+  if (mutator_time_percent() < throughput_goal) {
     size_t new_eden;
-    const double expected_gc_distance = _trimmed_minor_gc_time_seconds.last() * GCTimeRatio;
+    const double expected_gc_distance = _trimmed_minor_gc_time_seconds.last() * local_GCTimeRatio;
     if (gc_distance >= expected_gc_distance) {
       // The lastest sample already satisfies throughput goal; keep the current size
       new_eden = cur_eden;
@@ -89,7 +104,7 @@ size_t PSAdaptiveSizePolicy::compute_desired_eden_size(bool is_survivor_overflow
                       (double)increase_eden(cur_eden));
     }
     log_debug(gc, ergo)("Adaptive: throughput (actual vs goal): %.3f vs %.3f ; eden delta: + %zu K",
-      mutator_time_percent(), _throughput_goal, (new_eden - cur_eden)/K);
+      mutator_time_percent(), throughput_goal, (new_eden - cur_eden)/K);
     return new_eden;
   }
 
@@ -117,7 +132,7 @@ size_t PSAdaptiveSizePolicy::compute_desired_eden_size(bool is_survivor_overflow
     // promoted_bytes_estimate() / (gc_distance + gc_time_lower_estimate) < 1M/s
     // ==> promoted_bytes_estimate() / M - gc_time_lower_estimate < gc_distance
 
-    const double gc_distance_target = MAX3(minor_gc_time_conservative_estimate() * GCTimeRatio,
+    const double gc_distance_target = MAX3(minor_gc_time_conservative_estimate() * local_GCTimeRatio,
                                            promoted_bytes_estimate() / M - gc_time_lower_estimate,
                                            min_gc_distance);
     double predicted_gc_distance = gc_distance * (1 - delta_factor) - _gc_distance_seconds_seq.dsd();
@@ -133,9 +148,7 @@ size_t PSAdaptiveSizePolicy::compute_desired_eden_size(bool is_survivor_overflow
   return cur_eden;
 }
 
-size_t PSAdaptiveSizePolicy::compute_desired_survivor_size(
-  size_t current_survivor_size,
-  size_t max_gen_size) {
+size_t PSAdaptiveSizePolicy::compute_desired_survivor_size(size_t current_survivor_size, size_t max_gen_size) {
   size_t desired_survivor_size = survived_bytes_estimate();
 
   if (desired_survivor_size >= current_survivor_size) {
@@ -209,36 +222,63 @@ size_t PSAdaptiveSizePolicy::eden_decrement_aligned_down(size_t cur_eden) {
   return align_down(eden_heap_delta, _space_alignment);
 }
 
-uint PSAdaptiveSizePolicy::compute_tenuring_threshold(bool is_survivor_overflowing,
+static const char* sizing_state_to_string(PSYoungGen::SizingState sizing_state) {
+  switch (sizing_state) {
+    case PSYoungGen::SizingState::balanced:
+      return "balanced";
+    case PSYoungGen::SizingState::constrained:
+      return "constrained";
+    case PSYoungGen::SizingState::surplus:
+      return "surplus";
+    default:
+      ShouldNotReachHere();
+      return "unknown";
+  }
+}
+
+uint PSAdaptiveSizePolicy::compute_tenuring_threshold(PSYoungGen::SizingState sizing_state,
                                                       uint tenuring_threshold) {
-  if (!young_gen_policy_is_ready()) {
+  if (AlwaysTenure || NeverTenure) {
     return tenuring_threshold;
   }
 
-  if (is_survivor_overflowing) {
-    return tenuring_threshold;
+  const uint original_threshold = tenuring_threshold;
+  constexpr uint min_tenuring_threshold = 1;
+  constexpr uint tenuring_threshold_gc_limit = 5;
+
+  switch (sizing_state) {
+    case PSYoungGen::SizingState::constrained:
+      _tenuring_threshold_gc_count = 0;
+      if (tenuring_threshold > min_tenuring_threshold) {
+        tenuring_threshold--;
+      }
+      break;
+    case PSYoungGen::SizingState::surplus:
+      if (_tenuring_threshold_gc_count < tenuring_threshold_gc_limit) {
+        _tenuring_threshold_gc_count++;
+      }
+
+      if (_tenuring_threshold_gc_count >= tenuring_threshold_gc_limit &&
+          tenuring_threshold < MaxTenuringThreshold) {
+        tenuring_threshold++;
+        _tenuring_threshold_gc_count = 0;
+      }
+      break;
+    case PSYoungGen::SizingState::balanced:
+      _tenuring_threshold_gc_count = 0;
+      break;
+    default:
+      ShouldNotReachHere();
+      break;
   }
 
-  bool incr_tenuring_threshold = false;
-
-  const double major_cost = major_gc_time_sum();
-  const double minor_cost = minor_gc_time_sum();
-
-  if (minor_cost > major_cost * _threshold_tolerance_percent) {
-    // nothing; we prefer young-gc over full-gc
-  } else if (major_cost > minor_cost * _threshold_tolerance_percent) {
-    // Major times are too long, so we want less promotion.
-    incr_tenuring_threshold = true;
-  }
-
-  // Finally, increment or decrement the tenuring threshold, as decided above.
-  // We test for decrementing first, as we might have hit the target size
-  // limit.
-  if (!(AlwaysTenure || NeverTenure)) {
-    if (incr_tenuring_threshold && tenuring_threshold < MaxTenuringThreshold) {
-      tenuring_threshold++;
-    }
-  }
+  log_debug(gc, age)("Adaptive tenuring threshold %u -> %u (max %u, young gen state: %s, increase count: %u/%u)",
+                     original_threshold,
+                     tenuring_threshold,
+                     MaxTenuringThreshold,
+                     sizing_state_to_string(sizing_state),
+                     _tenuring_threshold_gc_count,
+                     tenuring_threshold_gc_limit);
 
   return tenuring_threshold;
 }
@@ -253,9 +293,18 @@ void PSAdaptiveSizePolicy::update_averages(bool is_survivor_overflow,
     _survived_bytes.add(survived + promoted);
   }
 
-  avg_promoted()->sample(promoted);
+  sample_promoted_bytes(promoted);
   _promoted_bytes.add(promoted);
 
   double promotion_rate = promoted / (_gc_distance_seconds_seq.last() + _trimmed_minor_gc_time_seconds.last());
   _promotion_rate_bytes_per_sec.add(promotion_rate);
+}
+
+void PSAdaptiveSizePolicy::sample_promoted_bytes(size_t promoted) {
+  avg_promoted()->sample(promoted);
+}
+
+void PSAdaptiveSizePolicy::sample_promoted_bytes_permit_zero(size_t promoted) {
+  // avg_promoted() is AdaptivePaddedNoZeroDevAverage*
+  avg_promoted()->AdaptivePaddedAverage::sample(promoted);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package java.lang.reflect;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.classfile.ClassFile;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -471,7 +472,7 @@ public class Proxy implements java.io.Serializable {
              * Generate the specified proxy class.
              */
             byte[] proxyClassFile = ProxyGenerator.generateProxyClass(loader, proxyName, interfaces,
-                                                                      context.accessFlags() | Modifier.FINAL);
+                                                                      context.accessFlags() | Modifier.FINAL | ClassFile.ACC_SUPER);
             try {
                 Class<?> pc = JLA.defineClass(loader, proxyName, proxyClassFile,
                                               null, "__dynamic_proxy__");
@@ -901,7 +902,8 @@ public class Proxy implements java.io.Serializable {
      * of interfaces but in a different order will result in two distinct
      * proxy classes.
      *
-     * @param   loader the class loader to define the proxy class
+     * @param   loader the class loader to define the proxy class, may be
+     *          {@code null} to represent the bootstrap class loader
      * @param   interfaces the list of interfaces for the proxy class
      *          to implement
      * @param   h the invocation handler to dispatch method invocations to

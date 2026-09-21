@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,11 @@
  */
 
 #include "classfile/classLoaderData.hpp"
+#include "code/aotCodeCache.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
+#include "gc/shared/barrierSetRuntime.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "memory/universe.hpp"
@@ -86,22 +88,35 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
                                    Address dst, Register val, Register tmp1, Register tmp2, Register tmp3) {
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool in_native = (decorators & IN_NATIVE) != 0;
+  bool is_not_null = (decorators & IS_NOT_NULL) != 0;
+
   switch (type) {
   case T_OBJECT:
   case T_ARRAY: {
-    val = val == noreg ? zr : val;
     if (in_heap) {
-      if (UseCompressedOops) {
-        assert(!dst.uses(val), "not enough registers");
-        if (val != zr) {
-          __ encode_heap_oop(val);
+      if (val == noreg) {
+        assert(!is_not_null, "inconsistent access");
+        if (UseCompressedOops) {
+          __ strw(zr, dst);
+        } else {
+          __ str(zr, dst);
         }
-        __ strw(val, dst);
       } else {
-        __ str(val, dst);
+        if (UseCompressedOops) {
+          assert(!dst.uses(val), "not enough registers");
+          if (is_not_null) {
+            __ encode_heap_oop_not_null(val);
+          } else {
+            __ encode_heap_oop(val);
+          }
+          __ strw(val, dst);
+        } else {
+          __ str(val, dst);
+        }
       }
     } else {
       assert(in_native, "why else?");
+      assert(val != noreg, "not supported");
       __ str(val, dst);
     }
     break;
@@ -119,6 +134,19 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
   case T_FLOAT:   __ strs(v0,  dst); break;
   case T_DOUBLE:  __ strd(v0,  dst); break;
   default: Unimplemented();
+  }
+}
+
+void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
+                                          Register src, Register dst, Register value_field_layout_info) {
+  // flat_field_copy implementation is fairly complex, and there are not any
+  // "short-cuts" to be made from asm. What there is, appears to have the same
+  // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
+  // of hand-rolled instructions...
+  if (decorators & IS_DEST_UNINITIALIZED) {
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized), src, dst, value_field_layout_info);
+  } else {
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy), src, dst, value_field_layout_info);
   }
 }
 
@@ -230,7 +258,7 @@ void BarrierSetAssembler::copy_store_at(MacroAssembler* masm,
 void BarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm, Register jni_env,
                                                         Register obj, Register tmp, Label& slowpath) {
   // If mask changes we need to ensure that the inverse is still encodable as an immediate
-  STATIC_ASSERT(JNIHandles::tag_mask == 0b11);
+  static_assert(JNIHandles::tag_mask == 0b11);
   __ andr(obj, obj, ~JNIHandles::tag_mask);
   __ ldr(obj, Address(obj, 0));             // *obj
 }
@@ -275,7 +303,7 @@ address BarrierSetAssembler::patching_epoch_addr() {
 }
 
 void BarrierSetAssembler::increment_patching_epoch() {
-  Atomic::inc(&_patching_epoch);
+  AtomicAccess::inc(&_patching_epoch);
 }
 
 void BarrierSetAssembler::clear_patching_epoch() {
@@ -331,13 +359,7 @@ void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm, Label* slo
     __ ldr(rscratch2, thread_disarmed_and_epoch_addr);
     __ cmp(rscratch1, rscratch2);
   } else {
-    assert(patching_type == NMethodPatchingType::conc_data_patch, "must be");
-    // Subsequent loads of oops must occur after load of guard value.
-    // BarrierSetNMethod::disarm sets guard with release semantics.
-    __ membar(__ LoadLoad);
-    Address thread_disarmed_addr(rthread, in_bytes(bs_nm->thread_disarmed_guard_value_offset()));
-    __ ldrw(rscratch2, thread_disarmed_addr);
-    __ cmpw(rscratch1, rscratch2);
+    ShouldNotReachHere();
   }
   __ br(condition, barrier_target);
 
@@ -384,10 +406,22 @@ void BarrierSetAssembler::c2i_entry_barrier(MacroAssembler* masm) {
 }
 
 void BarrierSetAssembler::check_oop(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, Label& error) {
+  assert_different_registers(obj, tmp1, tmp2);
   // Check if the oop is in the right area of memory
-  __ mov(tmp2, (intptr_t) Universe::verify_oop_mask());
-  __ andr(tmp1, obj, tmp2);
-  __ mov(tmp2, (intptr_t) Universe::verify_oop_bits());
+#if INCLUDE_CDS
+  if (AOTCodeCache::is_on_for_dump()) {
+    __ lea(tmp2, ExternalAddress(AOTRuntimeConstants::verify_oop_mask_address()));
+    __ ldr(tmp2, Address(tmp2));
+    __ andr(tmp1, obj, tmp2);
+    __ lea(tmp2, ExternalAddress(AOTRuntimeConstants::verify_oop_bits_address()));
+    __ ldr(tmp2, Address(tmp2));
+  } else
+#endif
+  {
+    __ mov(tmp2, (intptr_t) Universe::verify_oop_mask());
+    __ andr(tmp1, obj, tmp2);
+    __ mov(tmp2, (intptr_t) Universe::verify_oop_bits());
+  }
 
   // Compare tmp1 and tmp2.  We don't use a compare
   // instruction here because the flags register is live.
@@ -395,8 +429,13 @@ void BarrierSetAssembler::check_oop(MacroAssembler* masm, Register obj, Register
   __ cbnz(tmp1, error);
 
   // make sure klass is 'reasonable', which is not zero.
-  __ load_klass(obj, obj); // get klass
-  __ cbz(obj, error);      // if klass is null it is broken
+  __ load_narrow_klass(tmp1, obj); // get klass
+  __ cbz(tmp1, error);      // if klass is null it is broken
+}
+
+void BarrierSetAssembler::try_peek_weak_handle_in_nmethod(MacroAssembler* masm, Register weak_handle, Register obj, Register tmp, Label& slow_path) {
+  // Load the oop from the weak handle without barriers.
+  __ ldr(obj, Address(weak_handle));
 }
 
 #ifdef COMPILER2
@@ -404,14 +443,18 @@ void BarrierSetAssembler::check_oop(MacroAssembler* masm, Register obj, Register
 OptoReg::Name BarrierSetAssembler::encode_float_vector_register_size(const Node* node, OptoReg::Name opto_reg) {
   switch (node->ideal_reg()) {
     case Op_RegF:
+    case Op_RegI: // RA may place scalar values (Op_RegI/N/L/P) in FP registers when UseFPUForSpilling is enabled
+    case Op_RegN:
       // No need to refine. The original encoding is already fine to distinguish.
-      assert(opto_reg % 4 == 0, "Float register should only occupy a single slot");
+      assert(opto_reg % 4 == 0, "32-bit register should only occupy a single slot");
       break;
     // Use different encoding values of the same fp/vector register to help distinguish different sizes.
     // Such as V16. The OptoReg::name and its corresponding slot value are
     // "V16": 64, "V16_H": 65, "V16_J": 66, "V16_K": 67.
     case Op_RegD:
     case Op_VecD:
+    case Op_RegL:
+    case Op_RegP:
       opto_reg &= ~3;
       opto_reg |= 1;
       break;
@@ -442,7 +485,6 @@ OptoReg::Name BarrierSetAssembler::refine_register(const Node* node, OptoReg::Na
 
   return opto_reg;
 }
-
 #undef __
 #define __ _masm->
 

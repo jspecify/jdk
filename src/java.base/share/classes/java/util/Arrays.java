@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import jdk.internal.util.ArraysSupport;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import java.io.Serializable;
@@ -3514,12 +3515,19 @@ public final class Arrays {
      */
     @IntrinsicCandidate
     public static <T,U> @Nullable T[] copyOf(@Nullable U[] original, int newLength, Class<? extends T[]> newType) {
+        Class<?> componentType = newType.getComponentType();
+        Object tmp = null;
+        if (original.getClass() == newType && ValueClass.isConcreteValueClass(componentType)) {
+            tmp = ValueClass.copyOfSpecialArray((Object[])original, newLength);
+        } else {
+            tmp = ((Object)newType == (Object)Object[].class)
+                ? new Object[newLength]
+                : Array.newInstance(componentType, newLength);
+            System.arraycopy(original, 0, tmp, 0,
+                             Math.min(original.length, newLength));
+        }
         @SuppressWarnings("unchecked")
-        T[] copy = ((Object)newType == (Object)Object[].class)
-            ? (T[]) new Object[newLength]
-            : (T[]) Array.newInstance(newType.getComponentType(), newLength);
-        System.arraycopy(original, 0, copy, 0,
-                         Math.min(original.length, newLength));
+        T[] copy = (T[])tmp;
         return copy;
     }
 
@@ -3813,12 +3821,19 @@ public final class Arrays {
         if (newLength < 0) {
             throw new IllegalArgumentException(from + " > " + to);
         }
+        Class<?> componentType = newType.getComponentType();
+        Object tmp = null;
+        if (original.getClass() == newType && ValueClass.isConcreteValueClass(componentType)) {
+            tmp = ValueClass.copyOfRangeSpecialArray((Object[])original, from, to);
+        } else {
+            tmp = ((Object)newType == (Object)Object[].class)
+                    ? new Object[newLength]
+                    : Array.newInstance(componentType, newLength);
+            System.arraycopy(original, from, tmp, 0,
+                Math.min(original.length - from, newLength));
+        }
         @SuppressWarnings("unchecked")
-        T[] copy = ((Object)newType == (Object)Object[].class)
-            ? (T[]) new Object[newLength]
-            : (T[]) Array.newInstance(newType.getComponentType(), newLength);
-        System.arraycopy(original, from, copy, 0,
-                         Math.min(original.length - from, newLength));
+        T[] copy = (T[])tmp;
         return copy;
     }
 

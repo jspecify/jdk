@@ -46,6 +46,8 @@ import java.util.function.UnaryOperator;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
+import jdk.internal.vm.annotation.TrustFinalFields;
+
 import java.lang.invoke.VarHandle;
 
 /**
@@ -317,6 +319,7 @@ public abstract class AtomicReferenceFieldUpdater<T,V extends @Nullable Object> 
         return next;
     }
 
+    @TrustFinalFields
     private static final class AtomicReferenceFieldUpdaterImpl<T,V>
         extends AtomicReferenceFieldUpdater<T,V> {
         private static final Unsafe U = Unsafe.getUnsafe();
@@ -367,6 +370,9 @@ public abstract class AtomicReferenceFieldUpdater<T,V extends @Nullable Object> 
 
             if (!Modifier.isVolatile(modifiers))
                 throw new IllegalArgumentException("Must be volatile type");
+
+            if (Modifier.isStatic(modifiers))
+                throw new IllegalArgumentException("Must not be a static field");
 
             // Access to protected field members is restricted to receivers only
             // of the accessing class, or one of its subclasses, and the
@@ -448,14 +454,14 @@ public abstract class AtomicReferenceFieldUpdater<T,V extends @Nullable Object> 
         public final boolean compareAndSet(T obj, V expect, V update) {
             accessCheck(obj);
             valueCheck(update);
-            return U.compareAndSetReference(obj, offset, expect, update);
+            return U.compareAndSetReference(obj, offset, vclass, expect, update);
         }
 
         public final boolean weakCompareAndSet(T obj, V expect, V update) {
             // same implementation as strong form for now
             accessCheck(obj);
             valueCheck(update);
-            return U.compareAndSetReference(obj, offset, expect, update);
+            return U.compareAndSetReference(obj, offset, vclass, expect, update);
         }
 
         public final void set(T obj, V newValue) {

@@ -39,6 +39,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.Stable;
 
 import sun.nio.cs.UTF_8;
@@ -63,8 +64,8 @@ import sun.util.logging.PlatformLogger;
  * @see     Manifest
  * @since   1.2
  */
-
 @NullMarked
+@AOTSafeClassInitializer
 public class Attributes implements Map<Object,Object>, Cloneable {
     /**
      * The attribute name-value mappings.
@@ -462,6 +463,7 @@ public class Attributes implements Map<Object,Object>, Cloneable {
      *
      * @spec jar/jar.html JAR File Specification
      */
+    @AOTSafeClassInitializer
     public static class Name {
         private final String name;
         private final int hashCode;
@@ -681,6 +683,7 @@ public class Attributes implements Map<Object,Object>, Cloneable {
 
         static {
 
+            // Legacy CDS archive support (to be deprecated)
             CDS.initializeFromArchive(Attributes.Name.class);
 
             if (KNOWN_NAMES == null) {

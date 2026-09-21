@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,7 +98,6 @@ class Klass;
 // If compressed klass pointers then use narrowKlass.
 typedef juint  narrowKlass;
 
-// For UseCompressedClassPointers.
 class CompressedKlassPointers : public AllStatic {
   friend class VMStructs;
   friend class ArchiveBuilder;
@@ -143,6 +142,7 @@ class CompressedKlassPointers : public AllStatic {
   static char* reserve_address_space_for_unscaled_encoding(size_t size, bool aslr);
   static char* reserve_address_space_for_zerobased_encoding(size_t size, bool aslr);
   static char* reserve_address_space_for_16bit_move(size_t size, bool aslr);
+
   static void calc_lowest_highest_narrow_klass_id();
 
 #ifdef ASSERT
@@ -160,7 +160,6 @@ public:
 
   // Initialization sequence:
   // 1) Parse arguments. The following arguments take a role:
-  //      - UseCompressedClassPointers
   //      - UseCompactObjectHeaders
   //      - Xshare on off dump
   //      - CompressedClassSpaceSize
@@ -187,10 +186,8 @@ public:
   // The maximum possible shift; the actual shift employed later can be smaller (see initialize())
   static int max_shift()                 { check_init(_max_shift); return _max_shift; }
 
-  // Returns the maximum encoding range, given the current geometry (narrow klass bit size and shift)
-  static size_t max_encoding_range_size() { return nth_bit(narrow_klass_pointer_bits() + max_shift()); }
-
-  // Returns the maximum allowed klass range size.
+  // Returns the maximum allowed klass range size. It is calculated from the length of the encoding range
+  // resulting from the current encoding settings (base, shift), capped to a certain max. value.
   static size_t max_klass_range_size();
 
   // Reserve a range of memory that is to contain Klass strucutures which are referenced by narrow Klass IDs.
@@ -201,6 +198,7 @@ public:
   // set this encoding scheme. Used by CDS at runtime to re-instate the scheme used to pre-compute klass ids for
   // archived heap objects. In this case, we don't have the freedom to choose base and shift; they are handed to
   // us from CDS.
+  // Note: CDS with +UCCP for 32-bit currently unsupported.
   static void initialize_for_given_encoding(address addr, size_t len, address requested_base, int requested_shift);
 
   // Given an address range [addr, addr+len) which the encoding is supposed to
@@ -225,7 +223,7 @@ public:
   // Returns the alignment a Klass* is guaranteed to have.
   // Note: *Not* the same as 1 << shift ! Klass are always guaranteed to be at least 64-bit aligned,
   // so this will return 8 even if shift is 0.
-  static int klass_alignment_in_bytes() { return nth_bit(MAX2(3, _shift)); }
+  static int klass_alignment_in_bytes() { return static_cast<int>(nth_bit(MAX2(3, _shift))); }
   static int klass_alignment_in_words() { return klass_alignment_in_bytes() / BytesPerWord; }
 
   // Returns the highest possible narrowKlass value given the current Klass range
@@ -272,15 +270,8 @@ public:
   // Returns true if address points into protection zone (for error reporting)
   static bool is_in_protection_zone(address addr);
 
-#if defined(AARCH64) && !defined(ZERO)
-  // Check that with the given base, shift and range, aarch64 code can encode and decode the klass pointer.
-  static bool check_klass_decode_mode(address base, int shift, const size_t range);
-  // Called after initialization.
-  static bool set_klass_decode_mode();
-#else
-  static bool check_klass_decode_mode(address base, int shift, const size_t range) { return true; }
-  static bool set_klass_decode_mode() { return true; }
-#endif
+  // platform-specific initializations (needed only on non-zero aarch64 builds)
+  static void initialize_pd() ZERO_ONLY({}) NOT_ZERO(NOT_AARCH64({}));
 };
 
 #endif // SHARE_OOPS_COMPRESSEDKLASS_HPP

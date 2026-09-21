@@ -480,6 +480,9 @@ public abstract class ClassValue<T extends @Nullable Object> {
                 if (updated != entry) {
                     put(classValue.identity, updated);
                 }
+                // Add to the cache, to enable the fast path, next time.
+                checkCacheLoad();
+                addToCache(classValue, updated);
             }
             return item;
         }

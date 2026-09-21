@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -28,6 +28,8 @@ package java.io;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+
+import java.lang.runtime.ExactConversionsSupport;
 
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
@@ -368,11 +370,12 @@ public class DataOutputStream extends FilterOutputStream implements DataOutput {
     static int writeUTF(String str, DataOutput out) throws IOException {
         final int strlen = str.length();
         int countNonZeroAscii = JLA.countNonZeroAscii(str);
-        int utflen = utfLen(str, countNonZeroAscii);
+        long utflenLong = utfLen(str, countNonZeroAscii);
 
-        if (utflen > 65535 || /* overflow */ utflen < strlen)
-            throw new UTFDataFormatException(tooLongMsg(str, utflen));
+        if (!ExactConversionsSupport.isLongToCharExact(utflenLong))
+            throw new UTFDataFormatException(tooLongMsg(str, utflenLong));
 
+        int utflen = (int)utflenLong;
         final byte[] bytearr;
         if (out instanceof DataOutputStream dos) {
             if (dos.bytearr == null || (dos.bytearr.length < (utflen + 2)))
@@ -395,14 +398,12 @@ public class DataOutputStream extends FilterOutputStream implements DataOutput {
         return utflen + 2;
     }
 
-    private static String tooLongMsg(String s, int bits32) {
+    private static String tooLongMsg(String s, long utflen) {
         int slen = s.length();
         String head = s.substring(0, 8);
         String tail = s.substring(slen - 8, slen);
-        // handle int overflow with max 3x expansion
-        long actualLength = (long)slen + Integer.toUnsignedLong(bits32 - slen);
         return "encoded string (" + head + "..." + tail + ") too long: "
-            + actualLength + " bytes";
+            + utflen + " bytes";
     }
 
     /**

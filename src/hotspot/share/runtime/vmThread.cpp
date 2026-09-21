@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,13 @@
 #include "jfr/jfrEvents.hpp"
 #include "jfr/support/jfrThreadId.hpp"
 #include "logging/log.hpp"
-#include "logging/logStream.hpp"
 #include "logging/logConfiguration.hpp"
+#include "logging/logStream.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/cpuTimeCounters.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -46,8 +46,8 @@
 #include "runtime/safepoint.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/timerTrace.hpp"
-#include "runtime/vmThread.hpp"
 #include "runtime/vmOperations.hpp"
+#include "runtime/vmThread.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
@@ -68,17 +68,17 @@ void VMOperationTimeoutTask::task() {
 }
 
 bool VMOperationTimeoutTask::is_armed() {
-  return Atomic::load_acquire(&_armed) != 0;
+  return AtomicAccess::load_acquire(&_armed) != 0;
 }
 
 void VMOperationTimeoutTask::arm(const char* vm_op_name) {
   _vm_op_name = vm_op_name;
   _arm_time = os::javaTimeNanos();
-  Atomic::release_store_fence(&_armed, 1);
+  AtomicAccess::release_store_fence(&_armed, 1);
 }
 
 void VMOperationTimeoutTask::disarm() {
-  Atomic::release_store_fence(&_armed, 0);
+  AtomicAccess::release_store_fence(&_armed, 0);
 
   // The two stores to `_armed` are counted in VM-op, but they should be
   // insignificant compared to the actual VM-op duration.
@@ -157,7 +157,7 @@ void VMThread::run() {
   // Notify_lock wait checks on is_running() to rewait in
   // case of spurious wakeup, it should wait on the last
   // value set prior to the notify
-  Atomic::store(&_is_running, true);
+  AtomicAccess::store(&_is_running, true);
 
   {
     MutexLocker ml(Notify_lock);
@@ -487,31 +487,6 @@ void VMThread::loop() {
     inner_execute(_next_vm_operation);
   }
 }
-
-// A SkipGCALot object is used to elide the usual effect of gc-a-lot
-// over a section of execution by a thread. Currently, it's used only to
-// prevent re-entrant calls to GC.
-class SkipGCALot : public StackObj {
-  private:
-   bool _saved;
-   Thread* _t;
-
-  public:
-#ifdef ASSERT
-    SkipGCALot(Thread* t) : _t(t) {
-      _saved = _t->skip_gcalot();
-      _t->set_skip_gcalot(true);
-    }
-
-    ~SkipGCALot() {
-      assert(_t->skip_gcalot(), "Save-restore protocol invariant");
-      _t->set_skip_gcalot(_saved);
-    }
-#else
-    SkipGCALot(Thread* t) { }
-    ~SkipGCALot() { }
-#endif
-};
 
 void VMThread::execute(VM_Operation* op) {
   Thread* t = Thread::current();

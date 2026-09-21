@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "utilities/macros.hpp"
 
 class JavaThread;
+class InstanceKlass;
 
 class CDSConfig : public AllStatic {
 #if INCLUDE_CDS
@@ -37,12 +38,12 @@ class CDSConfig : public AllStatic {
   static bool _is_dumping_preimage_static_archive;
   static bool _is_dumping_final_static_archive;
   static bool _is_dumping_dynamic_archive;
-  static bool _is_using_optimized_module_handling;
   static bool _is_dumping_full_module_graph;
   static bool _is_using_full_module_graph;
   static bool _has_aot_linked_classes;
   static bool _is_single_command_training;
   static bool _has_temp_aot_config_file;
+  static bool _is_at_aot_safepoint;
 
   const static char* _default_archive_path;
   const static char* _input_static_archive_path;
@@ -78,11 +79,12 @@ class CDSConfig : public AllStatic {
 
 public:
   // Used by jdk.internal.misc.CDS.getCDSConfigStatus();
-  static const int IS_DUMPING_ARCHIVE              = 1 << 0;
-  static const int IS_DUMPING_METHOD_HANDLES       = 1 << 1;
-  static const int IS_DUMPING_STATIC_ARCHIVE       = 1 << 2;
-  static const int IS_LOGGING_LAMBDA_FORM_INVOKERS = 1 << 3;
-  static const int IS_USING_ARCHIVE                = 1 << 4;
+  static const int IS_DUMPING_AOT_LINKED_CLASSES   = 1 << 0;
+  static const int IS_DUMPING_ARCHIVE              = 1 << 1;
+  static const int IS_DUMPING_METHOD_HANDLES       = 1 << 2;
+  static const int IS_DUMPING_STATIC_ARCHIVE       = 1 << 3;
+  static const int IS_LOGGING_LAMBDA_FORM_INVOKERS = 1 << 4;
+  static const int IS_USING_ARCHIVE                = 1 << 5;
 
   static int get_status() NOT_CDS_RETURN_(0);
 
@@ -98,6 +100,9 @@ public:
   static const char* type_of_archive_being_loaded();
   static const char* type_of_archive_being_written();
   static void prepare_for_dumping();
+
+  static bool is_at_aot_safepoint()                          { return CDS_ONLY(_is_at_aot_safepoint) NOT_CDS(false); }
+  static void set_is_at_aot_safepoint(bool value)            { CDS_ONLY(_is_at_aot_safepoint = value); }
 
   // --- Basic CDS features
 
@@ -150,16 +155,16 @@ public:
   // This is *Legacy* optimization for lambdas before JEP 483. May be removed in the future.
   static bool is_dumping_lambdas_in_legacy_mode()            NOT_CDS_RETURN_(false);
 
-  // optimized_module_handling -- can we skip some expensive operations related to modules?
-  static bool is_using_optimized_module_handling()           { return CDS_ONLY(_is_using_optimized_module_handling) NOT_CDS(false); }
-  static void stop_using_optimized_module_handling()         NOT_CDS_RETURN;
-
   static bool is_logging_lambda_form_invokers()              NOT_CDS_RETURN_(false);
   static bool is_dumping_regenerated_lambdaform_invokers()   NOT_CDS_RETURN_(false);
 
   static bool is_dumping_aot_linked_classes()                NOT_CDS_JAVA_HEAP_RETURN_(false);
   static bool is_using_aot_linked_classes()                  NOT_CDS_JAVA_HEAP_RETURN_(false);
   static void set_has_aot_linked_classes(bool has_aot_linked_classes) NOT_CDS_JAVA_HEAP_RETURN;
+
+  // Bytecode verification
+  static bool is_preserving_verification_constraints();
+  static bool is_old_class_for_verifier(const InstanceKlass* ik);
 
   // archive_path
 
@@ -177,14 +182,17 @@ public:
   static void disable_heap_dumping()                         { CDS_ONLY(_disable_heap_dumping = true); }
   static bool is_dumping_heap()                              NOT_CDS_JAVA_HEAP_RETURN_(false);
   static bool is_loading_heap()                              NOT_CDS_JAVA_HEAP_RETURN_(false);
-  static bool is_initing_classes_at_dump_time()              NOT_CDS_JAVA_HEAP_RETURN_(false);
+
+  static bool is_dumping_klass_subgraphs()                   NOT_CDS_JAVA_HEAP_RETURN_(false);
+  static bool is_using_klass_subgraphs()                     NOT_CDS_JAVA_HEAP_RETURN_(false);
 
   static bool is_dumping_invokedynamic()                     NOT_CDS_JAVA_HEAP_RETURN_(false);
   static bool is_dumping_method_handles()                    NOT_CDS_JAVA_HEAP_RETURN_(false);
 
-  // full_module_graph (requires optimized_module_handling)
+  // full_module_graph (jdk.internal.module.ArchivedBootLayer::archivedBootLayer)
   static bool is_dumping_full_module_graph()                 { return CDS_ONLY(_is_dumping_full_module_graph) NOT_CDS(false); }
   static bool is_using_full_module_graph()                   NOT_CDS_JAVA_HEAP_RETURN_(false);
+  static void disable_full_module_graph()                    NOT_CDS_JAVA_HEAP_RETURN;
   static void stop_dumping_full_module_graph(const char* reason = nullptr) NOT_CDS_JAVA_HEAP_RETURN;
   static void stop_using_full_module_graph(const char* reason = nullptr) NOT_CDS_JAVA_HEAP_RETURN;
 
@@ -207,6 +215,7 @@ public:
     ~DumperThreadMark();
   };
 
+  static bool current_thread_is_dumper() NOT_CDS_RETURN_(false);
   static bool current_thread_is_vm_or_dumper() NOT_CDS_RETURN_(false);
 };
 

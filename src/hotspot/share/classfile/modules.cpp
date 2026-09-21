@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,14 @@
 */
 
 #include "cds/aotLogging.hpp"
+#include "cds/aotMetaspace.hpp"
 #include "cds/archiveBuilder.hpp"
 #include "cds/cdsConfig.hpp"
-#include "cds/metaspaceShared.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderDataShared.hpp"
 #include "classfile/javaAssertions.hpp"
-#include "classfile/javaClasses.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/modules.hpp"
@@ -159,7 +158,7 @@ static const char* as_internal_package(oop package_string, char* buf, size_t buf
 }
 
 static void define_javabase_module(Handle module_handle, jstring version, jstring location,
-                                   objArrayHandle pkgs, int num_packages, TRAPS) {
+                                   refArrayHandle pkgs, int num_packages, TRAPS) {
   ResourceMark rm(THREAD);
 
   // Obtain java.base's module version
@@ -298,7 +297,7 @@ void Modules::define_module(Handle module, jboolean is_open, jstring version,
   }
 
   // Resolve packages
-  objArrayHandle packages_h(THREAD, objArrayOop(JNIHandles::resolve(packages)));
+  refArrayHandle packages_h(THREAD, refArrayOop(JNIHandles::resolve(packages)));
   int num_packages = (packages_h.is_null() ? 0 : packages_h->length());
 
   // Special handling of java.base definition
@@ -454,7 +453,7 @@ void Modules::define_module(Handle module, jboolean is_open, jstring version,
     ClassLoader::add_to_exploded_build_list(THREAD, module_symbol);
   }
 
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
   // Special handling of jdk.incubator.vector
   if (strcmp(module_name, "jdk.incubator.vector") == 0) {
     if (FLAG_IS_DEFAULT(EnableVectorSupport)) {
@@ -470,7 +469,7 @@ void Modules::define_module(Handle module, jboolean is_open, jstring version,
     log_info(compilation)("EnableVectorReboxing=%s",           (EnableVectorReboxing           ? "true" : "false"));
     log_info(compilation)("EnableVectorAggressiveReboxing=%s", (EnableVectorAggressiveReboxing ? "true" : "false"));
   }
-#endif // COMPILER2_OR_JVMCI
+#endif // COMPILER2
 }
 
 #if INCLUDE_CDS_JAVA_HEAP
@@ -506,13 +505,10 @@ void Modules::check_archived_module_oop(oop orig_module_obj) {
     ClassLoaderData* loader_data = orig_module_ent->loader_data();
     assert(loader_data->is_builtin_class_loader_data(), "must be");
 
-    if (orig_module_ent->name() != nullptr) {
-      // For each named module, we archive both the java.lang.Module oop and the ModuleEntry.
-      assert(orig_module_ent->has_been_archived(), "sanity");
-    } else {
+    precond(ArchiveBuilder::current()->has_been_archived(orig_module_ent));
+    if (orig_module_ent->name() == nullptr) {
       // We always archive unnamed module oop for boot, platform, and system loaders.
       precond(orig_module_ent->should_be_archived());
-      precond(orig_module_ent->has_been_archived());
 
       if (loader_data->is_boot_class_loader_data()) {
         assert(!_seen_boot_unnamed_module, "only once");
@@ -528,10 +524,6 @@ void Modules::check_archived_module_oop(oop orig_module_obj) {
       }
     }
   }
-}
-
-void Modules::verify_archived_modules() {
-  ModuleEntry::verify_archived_module_entries();
 }
 
 class Modules::ArchivedProperty {
@@ -595,29 +587,59 @@ Modules::ArchivedProperty& Modules::archived_prop(size_t i) {
 
 void Modules::ArchivedProperty::runtime_check() const {
   ResourceMark rm;
-  const char* runtime_value = get_flattened_value();
+  const char* old_value = _archived_value;
+  const char* new_value = get_flattened_value();
   aot_log_info(aot)("archived module property %s: %s", _prop,
-                _archived_value != nullptr ? _archived_value : "(null)");
+                old_value != nullptr ? old_value : "(null)");
 
-  bool disable = false;
-  if (runtime_value == nullptr) {
-    if (_archived_value != nullptr) {
-      MetaspaceShared::report_loading_error("Mismatched values for property %s: %s specified during dump time but not during runtime", _prop, _archived_value);
-      disable = true;
+  bool mismatch = false;
+  const char* old_label1;
+  const char* old_label2;
+  const char* new_label1;
+  const char* new_label2;
+
+  if (CDSConfig::is_dumping_final_static_archive()) {
+    old_label1 = "in AOTConfiguration";
+    old_label2 = ", AOTConfiguration =";
+    new_label1 = "for current JVM";
+    new_label2 = "current =";
+  } else if (CDSConfig::new_aot_flags_used()) {
+    old_label1 = "in AOTCache";
+    old_label2 = ", AOTCache =";
+    new_label1 = "for current JVM";
+    new_label2 = "current =";
+  } else {
+    old_label1 = "during dump time";
+    old_label2 = " dump time";
+    new_label1 = "during runtime";
+    new_label2 = "runtime";
+  }
+
+  if (new_value == nullptr) {
+    if (old_value != nullptr) {
+      AOTMetaspace::report_loading_error("Mismatched values for property %s: %s specified %s but not %s",
+                                         _prop, old_value, old_label1, new_label1);
+      mismatch = true;
     }
   } else {
-    if (_archived_value == nullptr) {
-      MetaspaceShared::report_loading_error("Mismatched values for property %s: %s specified during runtime but not during dump time", _prop, runtime_value);
-      disable = true;
-    } else if (strcmp(runtime_value, _archived_value) != 0) {
-      MetaspaceShared::report_loading_error("Mismatched values for property %s: runtime %s dump time %s", _prop, runtime_value, _archived_value);
-      disable = true;
+    if (old_value == nullptr) {
+      AOTMetaspace::report_loading_error("Mismatched values for property %s: %s specified %s but not %s",
+                                         _prop, new_value, new_label1, old_label1);
+      mismatch = true;
+    } else if (strcmp(new_value, old_value) != 0) {
+      AOTMetaspace::report_loading_error("Mismatched values for property %s: %s %s%s %s",
+                                         _prop, new_label2, new_value, old_label2, old_value);
+      mismatch = true;
     }
   }
 
-  if (disable) {
-    MetaspaceShared::report_loading_error("Disabling optimized module handling");
-    CDSConfig::stop_using_optimized_module_handling();
+  if (mismatch) {
+    AOTMetaspace::report_loading_error("Disabling full module graph");
+    CDSConfig::disable_full_module_graph();
+
+    if (CDSConfig::is_dumping_final_static_archive()) {
+      AOTMetaspace::unrecoverable_writing_error("mismatched module options");
+    }
   }
 }
 
@@ -694,13 +716,32 @@ void Modules::serialize_archived_module_info(SerializeClosure* soc) {
     archived_prop(i).serialize(soc);
   }
   if (soc->reading()) {
-    aot_log_info(aot)("optimized module handling: %s", CDSConfig::is_using_optimized_module_handling() ? "enabled" : "disabled");
     aot_log_info(aot)("full module graph: %s", CDSConfig::is_using_full_module_graph() ? "enabled" : "disabled");
   }
 }
 
 void Modules::define_archived_modules(Handle h_platform_loader, Handle h_system_loader, TRAPS) {
   assert(CDSConfig::is_using_full_module_graph(), "must be");
+  if (h_platform_loader.is_null()) {
+    THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Null platform loader object");
+  }
+
+  if (h_system_loader.is_null()) {
+    THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Null system loader object");
+  }
+
+  if (CDSConfig::is_using_aot_linked_classes()) {
+    // Already initialized
+    precond(SystemDictionary::java_platform_loader() == h_platform_loader());
+    precond(SystemDictionary::java_system_loader() == h_system_loader());
+  } else {
+    init_archived_modules(THREAD, h_platform_loader, h_system_loader);
+  }
+}
+
+void Modules::init_archived_modules(JavaThread* current, Handle h_platform_loader, Handle h_system_loader) {
+  assert(CDSConfig::is_using_full_module_graph(), "must be");
+  ExceptionMark em(current);
 
   // We don't want the classes used by the archived full module graph to be redefined by JVMTI.
   // Luckily, such classes are loaded in the JVMTI "early" phase, and CDS is disabled if a JVMTI
@@ -709,17 +750,18 @@ void Modules::define_archived_modules(Handle h_platform_loader, Handle h_system_
   assert(!(JvmtiExport::should_post_class_file_load_hook() && JvmtiExport::has_early_class_hook_env()),
          "CDS should be disabled if early class hooks are enabled");
 
-  Handle java_base_module(THREAD, ClassLoaderDataShared::restore_archived_oops_for_null_class_loader_data());
-  // Patch any previously loaded class's module field with java.base's java.lang.Module.
-  ModuleEntryTable::patch_javabase_entries(THREAD, java_base_module);
-
-  if (h_platform_loader.is_null()) {
-    THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Null platform loader object");
+  if (CDSConfig::is_using_aot_linked_classes()) {
+    ClassLoaderData* boot_loader_data = ClassLoaderData::the_null_class_loader_data();
+    ClassLoaderDataShared::archived_boot_unnamed_module()->restore_archived_oops(boot_loader_data);
   }
 
-  if (h_system_loader.is_null()) {
-    THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Null system loader object");
+  Handle java_base_module(current, ClassLoaderDataShared::restore_archived_oops_for_null_class_loader_data());
+  if (!CDSConfig::is_using_aot_linked_classes()) {
+    // Patch any previously loaded class's module field with java.base's java.lang.Module.
+    ModuleEntryTable::patch_javabase_entries(current, java_base_module);
   }
+
+  ClassLoaderDataShared::load_archived_platform_and_system_class_loaders();
 
   ClassLoaderData* platform_loader_data = SystemDictionary::register_loader(h_platform_loader);
   SystemDictionary::set_platform_loader(platform_loader_data);
@@ -778,7 +820,9 @@ void Modules::set_bootloader_unnamed_module(Handle module, TRAPS) {
 #if INCLUDE_CDS_JAVA_HEAP
   if (CDSConfig::is_using_full_module_graph()) {
     precond(unnamed_module == ClassLoaderDataShared::archived_boot_unnamed_module());
-    unnamed_module->restore_archived_oops(boot_loader_data);
+    if (!CDSConfig::is_using_aot_linked_classes()) {
+      unnamed_module->restore_archived_oops(boot_loader_data);
+    }
   } else
 #endif
   {

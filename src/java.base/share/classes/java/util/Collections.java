@@ -1647,7 +1647,7 @@ public final class Collections {
     /**
      * @serial include
      */
-    private static class UnmodifiableMap<K extends @Nullable Object,V extends @Nullable Object> implements Map<K,V>, Serializable {
+    static class UnmodifiableMap<K,V> implements Map<K,V>, Serializable {
         @java.io.Serial
         private static final long serialVersionUID = -1034234728574286014L;
 
@@ -4949,6 +4949,11 @@ public final class Collections {
         }
 
         @Override
+        public List<E> reversed() {
+            return this;
+        }
+
+        @Override
         public Spliterator<E> spliterator() { return Spliterators.emptySpliterator(); }
 
         // Preserves singleton property
@@ -5253,6 +5258,20 @@ public final class Collections {
         public int hashCode() {
             return Objects.hashCode(element);
         }
+        @Override
+        public Object[] toArray() {
+            return new Object[] {element};
+        }
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T> T[] toArray(T[] a) {
+            if (a.length < 1)
+                a = (T[])Array.newInstance(a.getClass().getComponentType(), 1);
+            a[0] = (T)element;
+            if (a.length > 1)
+                a[1] = null;
+            return a;
+        }
     }
 
     /**
@@ -5313,6 +5332,18 @@ public final class Collections {
         }
         @Override
         public void sort(Comparator<? super E> c) {
+        }
+        @Override
+        public List<E> reversed() {
+            return this;
+        }
+        @Override
+        public E getFirst() {
+            return element;
+        }
+        @Override
+        public E getLast() {
+            return element;
         }
         @Override
         public Spliterator<E> spliterator() {
@@ -5555,6 +5586,11 @@ public final class Collections {
                     a[n] = null;
             }
             return a;
+        }
+
+        @Override
+        public List<E> reversed() {
+            return this;
         }
 
         public List<E> subList(int fromIndex, int toIndex) {

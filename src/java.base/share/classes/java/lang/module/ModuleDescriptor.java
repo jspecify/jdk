@@ -56,6 +56,7 @@ import static java.util.Objects.*;
 
 import jdk.internal.module.Checks;
 import jdk.internal.module.ModuleInfo;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 
 
 /**
@@ -93,6 +94,7 @@ import jdk.internal.module.ModuleInfo;
  * @since 9
  */
 
+@AOTSafeClassInitializer
 public final class ModuleDescriptor
     implements Comparable<ModuleDescriptor>
 {
@@ -1518,11 +1520,7 @@ public final class ModuleDescriptor
     }
 
     /**
-     * Returns the set of packages in the module.
-     *
-     * <p> The set of packages includes all exported and open packages, as well
-     * as the packages of any service providers, and the package for the main
-     * class. </p>
+     * Returns the set of all packages in the module.
      *
      * @return A possibly-empty unmodifiable set of the packages in the module
      */
