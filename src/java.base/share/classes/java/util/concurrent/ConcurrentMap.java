@@ -328,8 +328,8 @@ public interface ConcurrentMap<K,V> extends Map<K,V> {
      * @since 1.8
      */
     @Override
-    default V computeIfAbsent(K key,
-            Function<? super K, ? extends V> mappingFunction) {
+    default @Nullable V computeIfAbsent(K key,
+            Function<? super K, ? extends @Nullable V> mappingFunction) {
         Objects.requireNonNull(mappingFunction);
         V oldValue, newValue;
         return ((oldValue = get(key)) == null

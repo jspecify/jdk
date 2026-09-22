@@ -595,7 +595,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * mapping function modified this map
      */
     @Override
-    public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+    public @Nullable V computeIfAbsent(K key, Function<? super K, ? extends @Nullable V> mappingFunction) {
         Objects.requireNonNull(mappingFunction);
         V newValue;
         Entry<K,V> t = root;

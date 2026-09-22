@@ -1242,8 +1242,8 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * mapping function modified this map
      */
     @Override
-    public V computeIfAbsent(K key,
-                             Function<? super K, ? extends V> mappingFunction) {
+    public @Nullable V computeIfAbsent(K key,
+                             Function<? super K, ? extends @Nullable V> mappingFunction) {
         if (mappingFunction == null)
             throw new NullPointerException();
         int hash = hash(key);

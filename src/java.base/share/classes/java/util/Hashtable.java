@@ -1047,7 +1047,7 @@ public class Hashtable<K,V>
      * mapping function modified this map
      */
     @Override
-    public synchronized V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+    public synchronized @Nullable V computeIfAbsent(K key, Function<? super K, ? extends @Nullable V> mappingFunction) {
         Objects.requireNonNull(mappingFunction);
 
         Entry<?,?> tab[] = table;
