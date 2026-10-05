@@ -25,6 +25,8 @@
 
 package java.security.cert;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.IOException;
@@ -156,7 +158,7 @@ public class CertificateRevokedException extends CertificateException {
      *
      * @return the invalidity date, or {@code null} if not specified
      */
-    public Date getInvalidityDate() {
+    public @Nullable Date getInvalidityDate() {
         Extension ext = getExtensions().get(KnownOIDs.InvalidityDate.value());
         if (ext == null) {
             return null;

@@ -26,6 +26,7 @@
 package java.net;
 
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The abstract class {@code ContentHandler} is the superclass
@@ -113,7 +114,7 @@ public abstract class ContentHandler {
      * @since 1.3
      */
     @SuppressWarnings("rawtypes")
-    public Object getContent(URLConnection urlc, Class[] classes) throws IOException {
+    public @Nullable Object getContent(URLConnection urlc, Class[] classes) throws IOException {
         Object obj = getContent(urlc);
 
         for (Class<?> c : classes) {

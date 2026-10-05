@@ -25,6 +25,8 @@
 
 package java.security.cert;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.PublicKey;
@@ -1293,7 +1295,7 @@ public class X509CertSelector implements CertSelector {
      * RFC 2253 String form of some distinguished names.
      */
     @Deprecated(since="16")
-    public String getIssuerAsString() {
+    public @Nullable String getIssuerAsString() {
         return issuer == null ? null : issuer.getName();
     }
 
@@ -1315,7 +1317,7 @@ public class X509CertSelector implements CertSelector {
      *         in ASN.1 DER format (or {@code null})
      * @throws IOException if an encoding error occurs
      */
-    public byte[] getIssuerAsBytes() throws IOException {
+    public byte @Nullable [] getIssuerAsBytes() throws IOException {
         return issuer == null ? null : issuer.getEncoded();
     }
 
@@ -1355,7 +1357,7 @@ public class X509CertSelector implements CertSelector {
      * RFC 2253 String form of some distinguished names.
      */
     @Deprecated(since="16")
-    public String getSubjectAsString() {
+    public @Nullable String getSubjectAsString() {
         return subject == null ? null : subject.getName();
     }
 
@@ -1377,7 +1379,7 @@ public class X509CertSelector implements CertSelector {
      *         in ASN.1 DER format (or {@code null})
      * @throws IOException if an encoding error occurs
      */
-    public byte[] getSubjectAsBytes() throws IOException {
+    public byte @Nullable [] getSubjectAsBytes() throws IOException {
         return subject == null ? null : subject.getEncoded();
     }
 
@@ -1393,7 +1395,7 @@ public class X509CertSelector implements CertSelector {
      * @return the key identifier (or {@code null})
      * @see #setSubjectKeyIdentifier
      */
-    public byte[] getSubjectKeyIdentifier() {
+    public byte @Nullable [] getSubjectKeyIdentifier() {
         if (subjectKeyID == null) {
             return null;
         }
@@ -1412,7 +1414,7 @@ public class X509CertSelector implements CertSelector {
      * @return the key identifier (or {@code null})
      * @see #setAuthorityKeyIdentifier
      */
-    public byte[] getAuthorityKeyIdentifier() {
+    public byte @Nullable [] getAuthorityKeyIdentifier() {
         if (authorityKeyID == null) {
           return null;
         }
@@ -1431,7 +1433,7 @@ public class X509CertSelector implements CertSelector {
      * @return the {@code Date} to check (or {@code null})
      * @see #setCertificateValid
      */
-    public Date getCertificateValid() {
+    public @Nullable Date getCertificateValid() {
         if (certificateValid == null) {
             return null;
         }
@@ -1450,7 +1452,7 @@ public class X509CertSelector implements CertSelector {
      * @return the {@code Date} to check (or {@code null})
      * @see #setPrivateKeyValid
      */
-    public Date getPrivateKeyValid() {
+    public @Nullable Date getPrivateKeyValid() {
         if (privateKeyValid == null) {
             return null;
         }
@@ -1468,7 +1470,7 @@ public class X509CertSelector implements CertSelector {
      *         nonnegative integers separated by periods.
      * @see #setSubjectPublicKeyAlgID
      */
-    public String getSubjectPublicKeyAlgID() {
+    public @Nullable String getSubjectPublicKeyAlgID() {
         if (subjectPublicKeyAlgID == null) {
             return null;
         }
@@ -1501,7 +1503,7 @@ public class X509CertSelector implements CertSelector {
      *                 Or {@code null}.
      * @see #setKeyUsage
      */
-    public boolean[] getKeyUsage() {
+    public boolean @Nullable [] getKeyUsage() {
         if (keyUsage == null) {
             return null;
         }
@@ -1577,7 +1579,7 @@ public class X509CertSelector implements CertSelector {
      * @return a {@code Collection} of names (or {@code null})
      * @see #setSubjectAlternativeNames
      */
-    public Collection<List<?>> getSubjectAlternativeNames() {
+    public @Nullable Collection<List<?>> getSubjectAlternativeNames() {
         if (subjectAlternativeNames == null) {
             return null;
         }
@@ -1686,7 +1688,7 @@ public class X509CertSelector implements CertSelector {
      *         {@code null} if no name constraints check will be performed.
      * @see #setNameConstraints
      */
-    public byte[] getNameConstraints() {
+    public byte @Nullable [] getNameConstraints() {
         if (ncBytes == null) {
             return null;
         } else {
@@ -1755,7 +1757,7 @@ public class X509CertSelector implements CertSelector {
      * @return a {@code Collection} of names (or {@code null})
      * @see #setPathToNames
      */
-    public Collection<List<?>> getPathToNames() {
+    public @Nullable Collection<List<?>> getPathToNames() {
         if (pathToNames == null) {
             return null;
         }

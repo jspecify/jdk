@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Class file format versions of the Java virtual machine.
  *
@@ -477,7 +479,7 @@ public enum ClassFileFormatVersion {
      * Class file format versions greater than or equal to {@link
      * RELEASE_6} have non-{@code null} results.
      */
-    public Runtime.Version runtimeVersion() {
+    public Runtime.@Nullable Version runtimeVersion() {
         // Starting with Java SE 6, the leading digit was the primary
         // way of identifying the platform version.
         if (this.compareTo(RELEASE_6) >= 0) {

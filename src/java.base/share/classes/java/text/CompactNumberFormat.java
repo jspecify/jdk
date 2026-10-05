@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -1637,7 +1638,7 @@ public final class CompactNumberFormat extends NumberFormat {
      *             {@code pos} is null
      */
     @Override
-    public Number parse(String text, ParsePosition pos) {
+    public @Nullable Number parse(String text, ParsePosition pos) {
 
         Objects.requireNonNull(text);
         Objects.requireNonNull(pos);

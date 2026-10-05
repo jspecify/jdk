@@ -25,6 +25,8 @@
 
 package java.security.cert;
 
+import org.jspecify.annotations.Nullable;
+
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -387,7 +389,7 @@ public class CertStore {
      * @return the parameters used to initialize this {@code CertStore}
      * (may be {@code null})
      */
-    public final CertStoreParameters getCertStoreParameters() {
+    public final @Nullable CertStoreParameters getCertStoreParameters() {
         return (params == null ? null : (CertStoreParameters) params.clone());
     }
 

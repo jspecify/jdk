@@ -156,7 +156,7 @@ public class EllipticCurve {
      * @return the seeding bytes {@code seed}. A new
      * array is returned each time this method is called.
      */
-    public byte[] getSeed() {
+    public byte @Nullable [] getSeed() {
         if (seed == null) return null;
         else return seed.clone();
     }

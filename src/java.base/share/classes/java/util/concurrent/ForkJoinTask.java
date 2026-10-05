@@ -43,6 +43,7 @@ import java.util.Objects;
 import java.util.RandomAccess;
 import java.util.concurrent.locks.LockSupport;
 import jdk.internal.misc.Unsafe;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Abstract base class for tasks that run within a {@link ForkJoinPool}.
@@ -1174,7 +1175,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      *
      * @return the pool, or {@code null} if none
      */
-    public static ForkJoinPool getPool() {
+    public static @Nullable ForkJoinPool getPool() {
         Thread t;
         return (((t = Thread.currentThread()) instanceof ForkJoinWorkerThread) ?
                 ((ForkJoinWorkerThread) t).pool : null);
@@ -1295,7 +1296,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      *
      * @return the next task, or {@code null} if none are available
      */
-    protected static ForkJoinTask<?> peekNextLocalTask() {
+    protected static @Nullable ForkJoinTask<?> peekNextLocalTask() {
         Thread t; ForkJoinPool.WorkQueue q;
         if ((t = Thread.currentThread()) instanceof ForkJoinWorkerThread)
             q = ((ForkJoinWorkerThread)t).workQueue;
@@ -1313,7 +1314,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      *
      * @return the next task, or {@code null} if none are available
      */
-    protected static ForkJoinTask<?> pollNextLocalTask() {
+    protected static @Nullable ForkJoinTask<?> pollNextLocalTask() {
         Thread t;
         return (((t = Thread.currentThread()) instanceof ForkJoinWorkerThread) ?
                 ((ForkJoinWorkerThread)t).workQueue.nextLocalTask() : null);
@@ -1332,7 +1333,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      *
      * @return a task, or {@code null} if none are available
      */
-    protected static ForkJoinTask<?> pollTask() {
+    protected static @Nullable ForkJoinTask<?> pollTask() {
         Thread t; ForkJoinWorkerThread w;
         return (((t = Thread.currentThread()) instanceof ForkJoinWorkerThread) ?
                 (w = (ForkJoinWorkerThread)t).pool.nextTaskFor(w.workQueue) :
@@ -1350,7 +1351,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      * @return a task, or {@code null} if none are available
      * @since 9
      */
-    protected static ForkJoinTask<?> pollSubmission() {
+    protected static @Nullable ForkJoinTask<?> pollSubmission() {
         Thread t;
         return (((t = Thread.currentThread()) instanceof ForkJoinWorkerThread) ?
                 ((ForkJoinWorkerThread)t).pool.pollSubmission() : null);

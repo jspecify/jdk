@@ -28,6 +28,7 @@ package java.security;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class specifies the parameters used by a DRBG (Deterministic
@@ -382,7 +383,7 @@ public final class DrbgParameters {
          * be returned in {@code getParameters} as a new copy, or {@code null}
          * if no personalization string is requested in {@code getInstance}.
          */
-        public byte[] getPersonalizationString() {
+        public byte @Nullable [] getPersonalizationString() {
             return (personalizationString == null) ?
                     null : personalizationString.clone();
         }
@@ -450,7 +451,7 @@ public final class DrbgParameters {
          * requested. A new byte array is returned each time this method
          * is called.
          */
-        public byte[] getAdditionalInput() {
+        public byte @Nullable [] getAdditionalInput() {
             return additionalInput == null? null: additionalInput.clone();
         }
 
@@ -494,7 +495,7 @@ public final class DrbgParameters {
          * not requested. A new byte array is returned each time this method
          * is called.
          */
-        public byte[] getAdditionalInput() {
+        public byte @Nullable [] getAdditionalInput() {
             return additionalInput == null ? null : additionalInput.clone();
         }
 

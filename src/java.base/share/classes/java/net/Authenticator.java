@@ -25,6 +25,8 @@
 
 package java.net;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * The class Authenticator represents an object that knows how to obtain
  * authentication for a network connection.  Usually, it will do this
@@ -139,7 +141,7 @@ class Authenticator {
      *
      * @return The username/password, or null if one can't be gotten.
      */
-    public static PasswordAuthentication requestPasswordAuthentication(
+    public static @Nullable PasswordAuthentication requestPasswordAuthentication(
                                             InetAddress addr,
                                             int port,
                                             String protocol,
@@ -181,7 +183,7 @@ class Authenticator {
      *
      * @since 1.4
      */
-    public static PasswordAuthentication requestPasswordAuthentication(
+    public static @Nullable PasswordAuthentication requestPasswordAuthentication(
                                             String host,
                                             InetAddress addr,
                                             int port,
@@ -226,7 +228,7 @@ class Authenticator {
      *
      * @since 1.5
      */
-    public static PasswordAuthentication requestPasswordAuthentication(
+    public static @Nullable PasswordAuthentication requestPasswordAuthentication(
                                     String host,
                                     InetAddress addr,
                                     int port,
@@ -278,7 +280,7 @@ class Authenticator {
      *
      * @since 9
      */
-    public static PasswordAuthentication requestPasswordAuthentication(
+    public static @Nullable PasswordAuthentication requestPasswordAuthentication(
                                     Authenticator authenticator,
                                     String host,
                                     InetAddress addr,

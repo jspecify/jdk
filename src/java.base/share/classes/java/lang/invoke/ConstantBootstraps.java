@@ -24,6 +24,8 @@
  */
 package java.lang.invoke;
 
+import org.jspecify.annotations.Nullable;
+
 import sun.invoke.util.Wrapper;
 import jdk.internal.constant.ConstantUtils;
 
@@ -84,7 +86,7 @@ public final class ConstantBootstraps {
      * @return a {@code null} value
      * @throws IllegalArgumentException if {@code type} is not a reference type
      */
-    public static Object nullConstant(MethodHandles.Lookup lookup, String name, Class<?> type) {
+    public static @Nullable Object nullConstant(MethodHandles.Lookup lookup, String name, Class<?> type) {
         if (requireNonNull(type).isPrimitive()) {
             throw new IllegalArgumentException(String.format("not reference: %s", type));
         }

@@ -24,6 +24,8 @@
  */
 package javax.crypto.spec;
 
+import org.jspecify.annotations.Nullable;
+
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -405,7 +407,7 @@ public final class HPKEParameterSpec implements AlgorithmParameterSpec {
     /**
      * {@return a copy of the key encapsulation message, {@code null} if none}
      */
-    public byte[] encapsulation() {
+    public byte @Nullable [] encapsulation() {
         return encapsulation == null ? null : encapsulation.clone();
     }
 

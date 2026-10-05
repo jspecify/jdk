@@ -25,6 +25,8 @@
 
 package javax.security.auth;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -299,7 +301,7 @@ public final class Subject implements java.io.Serializable {
      * @see #callAs(Subject, Callable)
      * @since 18
      */
-    public static Subject current() {
+    public static @Nullable Subject current() {
         return SCOPED_SUBJECT.isBound() ? SCOPED_SUBJECT.get() : null;
     }
 

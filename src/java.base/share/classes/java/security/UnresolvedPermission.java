@@ -25,6 +25,8 @@
 
 package java.security;
 
+import org.jspecify.annotations.Nullable;
+
 import sun.security.util.IOUtils;
 
 import java.io.IOException;
@@ -421,7 +423,7 @@ implements java.io.Serializable
      *
      * @since 1.5
      */
-    public java.security.cert.Certificate[] getUnresolvedCerts() {
+    public java.security.cert.Certificate @Nullable [] getUnresolvedCerts() {
         return (certs == null) ? null : certs.clone();
     }
 
