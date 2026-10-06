@@ -27,6 +27,7 @@ package javax.crypto.interfaces;
 
 import javax.crypto.spec.DHParameterSpec;
 import java.math.BigInteger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The interface to a Diffie-Hellman private key.
@@ -66,7 +67,7 @@ public interface DHPrivateKey extends DHKey, java.security.PrivateKey {
      * @return {@inheritDoc java.security.AsymmetricKey}
      */
     @Override
-    default DHParameterSpec getParams() {
+    default @Nullable DHParameterSpec getParams() {
         return null;
     }
 }

@@ -27,6 +27,7 @@ package java.security.interfaces;
 
 import java.math.BigInteger;
 import java.security.spec.AlgorithmParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The interface to an RSA public key.
@@ -67,7 +68,7 @@ public interface RSAPublicKey extends java.security.PublicKey, RSAKey
      * @since 11
      */
     @Override
-    default AlgorithmParameterSpec getParams() {
+    default @Nullable AlgorithmParameterSpec getParams() {
         return null;
     }
 }

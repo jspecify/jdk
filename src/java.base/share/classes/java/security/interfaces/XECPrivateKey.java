@@ -27,6 +27,7 @@ package java.security.interfaces;
 import java.security.PrivateKey;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An interface for an elliptic curve private key as defined by RFC 7748.
@@ -64,7 +65,7 @@ public interface XECPrivateKey extends XECKey, PrivateKey {
      * @return {@inheritDoc java.security.AsymmetricKey}
      */
     @Override
-    default AlgorithmParameterSpec getParams() {
+    default @Nullable AlgorithmParameterSpec getParams() {
         return null;
     }
 }

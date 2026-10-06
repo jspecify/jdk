@@ -30,6 +30,7 @@ import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.Security;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 import sun.security.jca.GetInstance;
 
@@ -453,7 +454,7 @@ public abstract class Configuration {
      *
      * @since 1.6
      */
-    public Provider getProvider() {
+    public @Nullable Provider getProvider() {
         return null;
     }
 
@@ -468,7 +469,7 @@ public abstract class Configuration {
      *
      * @since 1.6
      */
-    public String getType() {
+    public @Nullable String getType() {
         return null;
     }
 
@@ -483,7 +484,7 @@ public abstract class Configuration {
      *
      * @since 1.6
      */
-    public Configuration.Parameters getParameters() {
+    public Configuration. @Nullable Parameters getParameters() {
         return null;
     }
 

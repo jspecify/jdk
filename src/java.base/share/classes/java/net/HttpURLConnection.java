@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.security.Permission;
 import java.util.Date;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A URLConnection with support for HTTP-specific features. See
@@ -148,7 +149,7 @@ public abstract class HttpURLConnection extends URLConnection {
      * @return  the key for the {@code n}<sup>th</sup> header field,
      *          or {@code null} if the key does not exist.
      */
-    public String getHeaderFieldKey (int n) {
+    public @Nullable String getHeaderFieldKey (int n) {
         return null;
     }
 
@@ -302,7 +303,7 @@ public abstract class HttpURLConnection extends URLConnection {
      *          or {@code null} if the value does not exist.
      * @see     java.net.HttpURLConnection#getHeaderFieldKey(int)
      */
-    public String getHeaderField(int n) {
+    public @Nullable String getHeaderField(int n) {
         return null;
     }
 
@@ -643,7 +644,7 @@ public abstract class HttpURLConnection extends URLConnection {
     * errors, the connection is not connected or the server sent no
     * useful data.
     */
-    public InputStream getErrorStream() {
+    public @Nullable InputStream getErrorStream() {
         return null;
     }
 

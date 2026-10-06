@@ -26,6 +26,7 @@
 package java.security.interfaces;
 
 import java.math.BigInteger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The interface to a DSA public key. DSA (Digital Signature Algorithm)
@@ -71,7 +72,7 @@ public interface DSAPublicKey extends DSAKey, java.security.PublicKey {
      * @return {@inheritDoc java.security.AsymmetricKey}
      */
     @Override
-    default DSAParams getParams() {
+    default @Nullable DSAParams getParams() {
         return null;
     }
 }

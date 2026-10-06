@@ -26,6 +26,7 @@
 package java.util.spi;
 
 import java.util.Locale;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An abstract class for service providers that
@@ -78,7 +79,7 @@ public abstract class TimeZoneNameProvider extends LocaleServiceProvider {
      * @spec https://www.iana.org/time-zones Time Zone Database
      * @see java.util.TimeZone#getDisplayName(boolean, int, java.util.Locale)
      */
-    public abstract String getDisplayName(String ID, boolean daylight, int style, Locale locale);
+    public abstract @Nullable String getDisplayName(String ID, boolean daylight, int style, Locale locale);
 
     /**
      * Returns a generic name for the given time zone {@code ID} that's suitable
@@ -106,7 +107,7 @@ public abstract class TimeZoneNameProvider extends LocaleServiceProvider {
      *     is {@code null}
      * @since 1.8
      */
-    public String getGenericDisplayName(String ID, int style, Locale locale) {
+    public @Nullable String getGenericDisplayName(String ID, int style, Locale locale) {
         return null;
     }
 }

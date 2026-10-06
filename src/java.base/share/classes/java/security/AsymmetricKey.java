@@ -26,6 +26,7 @@
 package java.security;
 
 import java.security.spec.AlgorithmParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An asymmetric key, which can be either a public key or a private key.
@@ -46,7 +47,7 @@ public non-sealed interface AsymmetricKey extends Key, BinaryEncodable {
      *
      * @return the associated parameters, may be {@code null}
      */
-    default AlgorithmParameterSpec getParams() {
+    default @Nullable AlgorithmParameterSpec getParams() {
         return null;
     }
 }

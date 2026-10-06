@@ -1321,7 +1321,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     }
 
     @Override
-    public V replace(K key, V value) {
+    public @Nullable V replace(K key, V value) {
         Entry<K,V> p = getEntry(key);
         if (p!=null) {
             V oldValue = p.value;

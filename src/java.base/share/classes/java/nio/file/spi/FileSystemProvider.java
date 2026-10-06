@@ -67,6 +67,7 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import org.jspecify.annotations.Nullable;
 
 import sun.nio.ch.FileChannelImpl;
 
@@ -1090,7 +1091,7 @@ public abstract class FileSystemProvider {
      *
      * @since 20
      */
-    public <A extends BasicFileAttributes> A readAttributesIfExists(Path path,
+    public <A extends BasicFileAttributes> @Nullable A readAttributesIfExists(Path path,
                                                                     Class<A> type,
                                                                     LinkOption... options)
         throws IOException

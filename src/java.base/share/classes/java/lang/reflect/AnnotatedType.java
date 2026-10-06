@@ -26,6 +26,7 @@
 package java.lang.reflect;
 
 import java.lang.annotation.Annotation;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@code AnnotatedType} represents the potentially annotated use of a type in
@@ -76,7 +77,7 @@ public interface AnnotatedType extends AnnotatedElement {
      *
      * @since 9
      */
-    default AnnotatedType getAnnotatedOwnerType() {
+    default @Nullable AnnotatedType getAnnotatedOwnerType() {
         return null;
     }
 

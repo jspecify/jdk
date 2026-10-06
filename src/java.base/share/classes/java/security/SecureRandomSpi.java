@@ -24,6 +24,8 @@
  */
 
 package java.security;
+import org.jspecify.annotations.Nullable;
+
 
 /**
  * This class defines the <i>Service Provider Interface</i> (<b>SPI</b>)
@@ -204,7 +206,7 @@ public abstract class SecureRandomSpi implements java.io.Serializable {
      *
      * @since 9
      */
-    protected SecureRandomParameters engineGetParameters() {
+    protected @Nullable SecureRandomParameters engineGetParameters() {
         return null;
     }
 

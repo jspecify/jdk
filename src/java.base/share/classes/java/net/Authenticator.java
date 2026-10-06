@@ -25,6 +25,8 @@
 
 package java.net;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * The class Authenticator represents an object that knows how to obtain
  * authentication for a network connection.  Usually, it will do this
@@ -421,7 +423,7 @@ class Authenticator {
      * @return The PasswordAuthentication collected from the
      *          user, or null if none is provided.
      */
-    protected PasswordAuthentication getPasswordAuthentication() {
+    protected @Nullable PasswordAuthentication getPasswordAuthentication() {
         return null;
     }
 
