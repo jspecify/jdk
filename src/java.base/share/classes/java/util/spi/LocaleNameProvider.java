@@ -96,7 +96,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
      * @see java.util.Locale#getDisplayScript(java.util.Locale)
      * @since 1.7
      */
-    public String getDisplayScript(String scriptCode, Locale locale) {
+    public @Nullable String getDisplayScript(String scriptCode, Locale locale) {
         return null;
     }
 

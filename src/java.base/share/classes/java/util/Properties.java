@@ -1126,7 +1126,7 @@ public class Properties extends Hashtable<Object,Object> {
      *         Encoding in Entities</a>
      * @since 10
      */
-    public void storeToXML(OutputStream os, String comment, Charset charset)
+    public void storeToXML(OutputStream os, @Nullable String comment, Charset charset)
         throws IOException {
         Objects.requireNonNull(os, "OutputStream");
         Objects.requireNonNull(charset, "Charset");

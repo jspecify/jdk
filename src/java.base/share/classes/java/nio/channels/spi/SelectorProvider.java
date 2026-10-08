@@ -37,6 +37,7 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.ServiceConfigurationError;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Service-provider class for selectors and selectable channels.
@@ -286,7 +287,7 @@ public abstract class SelectorProvider {
      *
      * @since 1.5
      */
-    public Channel inheritedChannel() throws IOException {
+    public @Nullable Channel inheritedChannel() throws IOException {
         return null;
     }
 

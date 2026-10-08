@@ -423,7 +423,7 @@ class Authenticator {
      * @return The PasswordAuthentication collected from the
      *          user, or null if none is provided.
      */
-    protected PasswordAuthentication getPasswordAuthentication() {
+    protected @Nullable PasswordAuthentication getPasswordAuthentication() {
         return null;
     }
 

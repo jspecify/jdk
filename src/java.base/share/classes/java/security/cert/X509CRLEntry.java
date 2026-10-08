@@ -146,7 +146,7 @@ public abstract class X509CRLEntry implements X509Extension {
      *
      * @since 1.5
      */
-    public X500Principal getCertificateIssuer() {
+    public @Nullable X500Principal getCertificateIssuer() {
         return null;
     }
 

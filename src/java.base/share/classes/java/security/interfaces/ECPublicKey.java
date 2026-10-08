@@ -27,6 +27,7 @@ package java.security.interfaces;
 import java.security.PublicKey;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The interface to an elliptic curve (EC) public key.
@@ -68,7 +69,7 @@ public interface ECPublicKey extends PublicKey, ECKey {
      * @return {@inheritDoc java.security.AsymmetricKey}
      */
     @Override
-    default ECParameterSpec getParams() {
+    default @Nullable ECParameterSpec getParams() {
         return null;
     }
 }

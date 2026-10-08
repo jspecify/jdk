@@ -62,6 +62,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 import static java.lang.classfile.ClassFile.*;
 import static java.lang.invoke.LambdaForm.BasicType.V_TYPE;
@@ -329,7 +330,7 @@ public final class MethodHandles {
      * @since 16
      * @jvms 5.5 Initialization
      */
-     public static <T> T classData(Lookup caller, String name, Class<T> type) throws IllegalAccessException {
+     public static <T> @Nullable T classData(Lookup caller, String name, Class<T> type) throws IllegalAccessException {
          Objects.requireNonNull(caller);
          Objects.requireNonNull(type);
          if (!ConstantDescs.DEFAULT_NAME.equals(name)) {
@@ -423,7 +424,7 @@ public final class MethodHandles {
      * @see #classData(Lookup, String, Class)
      * @see Lookup#defineHiddenClassWithClassData(byte[], Object, boolean, Lookup.ClassOption...)
      */
-    public static <T> T classDataAt(Lookup caller, String name, Class<T> type, int index)
+    public static <T> @Nullable T classDataAt(Lookup caller, String name, Class<T> type, int index)
             throws IllegalAccessException
     {
         @SuppressWarnings("unchecked")

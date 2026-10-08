@@ -24,6 +24,8 @@
  */
 
 package java.security;
+import org.jspecify.annotations.Nullable;
+
 
 /**
  * Abstract class for representing access to a system resource.
@@ -212,7 +214,7 @@ public abstract class Permission implements Guard, java.io.Serializable {
      * {@code Permission}, or {@code null} if one is not defined.
      */
 
-    public PermissionCollection newPermissionCollection() {
+    public @Nullable PermissionCollection newPermissionCollection() {
         return null;
     }
 
