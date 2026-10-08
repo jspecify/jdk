@@ -25,6 +25,8 @@
 
 package java.security;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.*;
 import java.time.Instant;
 import java.util.*;
@@ -146,7 +148,7 @@ public abstract class KeyStoreSpi {
      *
      * @since 27
      */
-    public Instant engineGetCreationInstant(String alias) {
+    public @Nullable Instant engineGetCreationInstant(String alias) {
         final Date date = engineGetCreationDate(alias);
         return date == null ? null : date.toInstant();
     }
@@ -518,7 +520,7 @@ public abstract class KeyStoreSpi {
      *
      * @since 1.5
      */
-    public KeyStore.Entry engineGetEntry(String alias,
+    public KeyStore.@Nullable Entry engineGetEntry(String alias,
                         KeyStore.ProtectionParameter protParam)
                 throws KeyStoreException, NoSuchAlgorithmException,
                 UnrecoverableEntryException {

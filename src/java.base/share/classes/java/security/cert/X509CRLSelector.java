@@ -25,6 +25,8 @@
 
 package java.security.cert;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.*;
@@ -474,7 +476,7 @@ public class X509CRLSelector implements CRLSelector {
      * @see #setIssuers
      * @since 1.5
      */
-    public Collection<X500Principal> getIssuers() {
+    public @Nullable Collection<X500Principal> getIssuers() {
         if (issuerX500Principals == null) {
             return null;
         }
@@ -509,7 +511,7 @@ public class X509CRLSelector implements CRLSelector {
      *              UTF-8 String Representation of Distinguished Names
      * @see #setIssuerNames
      */
-    public Collection<Object> getIssuerNames() {
+    public @Nullable Collection<Object> getIssuerNames() {
         if (issuerNames == null) {
             return null;
         }
@@ -553,7 +555,7 @@ public class X509CRLSelector implements CRLSelector {
      * @return the {@code Date} to match against (or {@code null})
      * @see #setDateAndTime
      */
-    public Date getDateAndTime() {
+    public @Nullable Date getDateAndTime() {
         if (dateAndTime == null)
             return null;
         return (Date) dateAndTime.clone();

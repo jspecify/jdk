@@ -181,7 +181,7 @@ public abstract class X509CRLEntry implements X509Extension {
      *    a Reason Code extension
      * @since 1.7
      */
-    public CRLReason getRevocationReason() {
+    public @Nullable CRLReason getRevocationReason() {
         if (!hasExtensions()) {
             return null;
         }

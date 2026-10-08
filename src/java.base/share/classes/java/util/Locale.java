@@ -1451,7 +1451,7 @@ public final class Locale implements Cloneable, Serializable {
      * @throws NullPointerException if {@code key} is null
      * @since 1.7
      */
-    public String getUnicodeLocaleType(String key) {
+    public @Nullable String getUnicodeLocaleType(String key) {
         if (!isUnicodeExtensionKey(key)) {
             throw new IllegalArgumentException("Ill-formed Unicode locale key: " + key);
         }

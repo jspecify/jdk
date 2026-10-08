@@ -25,6 +25,8 @@
 
 package javax.net.ssl;
 
+import org.jspecify.annotations.Nullable;
+
 import java.net.URL;
 import java.net.HttpURLConnection;
 import java.security.Principal;
@@ -169,7 +171,7 @@ public abstract class HttpsURLConnection extends HttpURLConnection {
      *
      * @since 1.5
      */
-    public Principal getLocalPrincipal() {
+    public @Nullable Principal getLocalPrincipal() {
 
         java.security.cert.Certificate[] certs = getLocalCertificates();
         if (certs != null) {

@@ -27,6 +27,7 @@ package java.security.spec;
 
 import java.math.BigInteger;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class specifies an RSA multi-prime private key, as defined in the
@@ -225,7 +226,7 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
      * @return the otherPrimeInfo. Returns a new array each time this method
      *         is called.
      */
-    public RSAOtherPrimeInfo[] getOtherPrimeInfo() {
+    public RSAOtherPrimeInfo @Nullable [] getOtherPrimeInfo() {
         if (otherPrimeInfo == null) return null;
         return otherPrimeInfo.clone();
     }

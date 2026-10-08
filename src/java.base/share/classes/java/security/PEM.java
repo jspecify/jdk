@@ -25,6 +25,8 @@
 
 package java.security;
 
+import org.jspecify.annotations.Nullable;
+
 import jdk.internal.ref.CleanerFactory;
 import sun.security.util.KeyUtil;
 import sun.security.util.Pem;
@@ -183,7 +185,7 @@ public final class PEM implements BinaryEncodable {
      * @return a newly-allocated byte array containing leading data, or
      *        {@code null} if no leading data is present
      */
-    public byte[] leadingData() {
+    public byte @Nullable [] leadingData() {
         return (leadingData != null) ? leadingData.clone() : null;
     }
 

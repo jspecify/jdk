@@ -25,6 +25,8 @@
 
 package java.security.cert;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 
 import sun.security.util.HexDumpEncoder;
@@ -146,7 +148,7 @@ public class PolicyQualifierInfo {
      * field. Note that a copy is returned, so the data is cloned each
      * time this method is called.
      */
-    public final byte[] getPolicyQualifier() {
+    public final byte @Nullable [] getPolicyQualifier() {
         return (mData == null ? null : mData.clone());
     }
 

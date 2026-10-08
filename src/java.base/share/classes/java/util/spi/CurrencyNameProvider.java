@@ -30,6 +30,7 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle.Control;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An abstract class for service providers that
@@ -93,7 +94,7 @@ public abstract class CurrencyNameProvider extends LocaleServiceProvider {
      *     {@code locale} is {@code null}
      * @since 1.7
      */
-    public String getDisplayName(String currencyCode, Locale locale) {
+    public @Nullable String getDisplayName(String currencyCode, Locale locale) {
         if (currencyCode == null || locale == null) {
             throw new NullPointerException();
         }

@@ -27,6 +27,7 @@ package java.nio.channels;
 
 import java.io.IOException;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A token representing a lock on a region of a file.
@@ -209,7 +210,7 @@ public abstract class FileLock implements AutoCloseable {
      * @return  The file channel, or {@code null} if the file lock was not
      *          acquired by a file channel.
      */
-    public final FileChannel channel() {
+    public final @Nullable FileChannel channel() {
         return (channel instanceof FileChannel) ? (FileChannel)channel : null;
     }
 

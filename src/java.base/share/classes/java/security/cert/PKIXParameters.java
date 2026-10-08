@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Parameters used as input for the PKIX {@code CertPathValidator}
@@ -490,7 +491,7 @@ public class PKIXParameters implements CertPathParameters {
      * @return the {@code Date}, or {@code null} if not set
      * @see #setDate
      */
-    public Date getDate() {
+    public @Nullable Date getDate() {
         if (date == null)
             return null;
         else
@@ -635,7 +636,7 @@ public class PKIXParameters implements CertPathParameters {
      * on the target certificate (or {@code null})
      * @see #setTargetCertConstraints
      */
-    public CertSelector getTargetCertConstraints() {
+    public @Nullable CertSelector getTargetCertConstraints() {
         if (certSelector != null) {
             return (CertSelector) certSelector.clone();
         } else {

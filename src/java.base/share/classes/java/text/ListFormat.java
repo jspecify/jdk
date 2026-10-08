@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.IntStream;
+import org.jspecify.annotations.Nullable;
 import sun.util.locale.provider.LocaleProviderAdapter;
 
 /**
@@ -472,7 +473,7 @@ public final class ListFormat extends Format {
      *            {@code parsePos} is outside {@code source}.
      */
     @Override
-    public Object parseObject(String source, ParsePosition parsePos) {
+    public @Nullable Object parseObject(String source, ParsePosition parsePos) {
         Objects.requireNonNull(source);
         Objects.requireNonNull(parsePos);
         var startPattern = findPattern(source, parsePos.getIndex(), startBefore, startBetween);

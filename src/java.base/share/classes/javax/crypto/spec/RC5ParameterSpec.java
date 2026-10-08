@@ -27,6 +27,7 @@ package javax.crypto.spec;
 
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Arrays;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class specifies the parameters used with the
@@ -162,7 +163,7 @@ public class RC5ParameterSpec implements AlgorithmParameterSpec {
      * @return the IV or null if this parameter set does not contain an IV.
      * Returns a new array each time this method is called.
      */
-    public byte[] getIV() {
+    public byte @Nullable [] getIV() {
         return (iv == null? null:iv.clone());
     }
 

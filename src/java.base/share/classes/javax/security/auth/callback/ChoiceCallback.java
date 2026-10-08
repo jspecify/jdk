@@ -28,6 +28,7 @@ package javax.security.auth.callback;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <p> Underlying security services instantiate and pass a
@@ -196,7 +197,7 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
      *
      * @see #setSelectedIndexes
      */
-    public int[] getSelectedIndexes() {
+    public int @Nullable [] getSelectedIndexes() {
         return selections == null ? null : selections.clone();
     }
 

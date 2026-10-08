@@ -25,6 +25,8 @@
 
 package javax.crypto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -1965,7 +1967,7 @@ public class Cipher {
      * wrong state (e.g., has not been initialized, or is not
      * in {@code ENCRYPT_MODE} or {@code DECRYPT_MODE})
      */
-    public final byte[] update(byte[] input) {
+    public final byte @Nullable [] update(byte[] input) {
         checkCipherState();
 
         // Input sanity check
@@ -2005,7 +2007,7 @@ public class Cipher {
      * is in a wrong state (e.g., has not been initialized, or is not
      * in {@code ENCRYPT_MODE} or {@code DECRYPT_MODE})
      */
-    public final byte[] update(byte[] input, int inputOffset, int inputLen) {
+    public final byte @Nullable [] update(byte[] input, int inputOffset, int inputLen) {
         checkCipherState();
 
         // Input sanity check

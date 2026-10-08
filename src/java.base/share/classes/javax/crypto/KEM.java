@@ -24,6 +24,8 @@
  */
 package javax.crypto;
 
+import org.jspecify.annotations.Nullable;
+
 import sun.security.jca.GetInstance;
 
 import java.security.*;
@@ -169,7 +171,7 @@ public final class KEM {
          * @return the optional parameters in a byte array or {@code null}
          *      if not specified. A new copy of the byte array is returned.
          */
-        public byte[] params() {
+        public byte @Nullable [] params() {
             return params == null ? null : params.clone();
         }
     }
