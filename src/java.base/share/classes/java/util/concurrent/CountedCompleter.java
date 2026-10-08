@@ -36,6 +36,7 @@
 package java.util.concurrent;
 
 import jdk.internal.misc.Unsafe;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link ForkJoinTask} with a completion action performed when
@@ -669,7 +670,7 @@ public abstract class CountedCompleter<T> extends ForkJoinTask<T> {
      *
      * @return this task, if pending count was zero, else {@code null}
      */
-    public final CountedCompleter<?> firstComplete() {
+    public final @Nullable CountedCompleter<?> firstComplete() {
         for (int c;;) {
             if ((c = pending) == 0)
                 return this;
@@ -695,7 +696,7 @@ public abstract class CountedCompleter<T> extends ForkJoinTask<T> {
      *
      * @return the completer, or {@code null} if none
      */
-    public final CountedCompleter<?> nextComplete() {
+    public final @Nullable CountedCompleter<?> nextComplete() {
         CountedCompleter<?> p;
         if ((p = completer) != null)
             return p.firstComplete();

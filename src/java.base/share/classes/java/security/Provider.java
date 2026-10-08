@@ -25,6 +25,8 @@
 
 package java.security;
 
+import org.jspecify.annotations.Nullable;
+
 import jdk.internal.event.SecurityProviderServiceEvent;
 
 import javax.crypto.KDFParameters;
@@ -1140,7 +1142,7 @@ public abstract class Provider extends Properties {
      *
      * @since 1.5
      */
-    public Service getService(String type, String algorithm) {
+    public @Nullable Service getService(String type, String algorithm) {
         checkInitialized();
         // avoid allocating a new ServiceKey object if possible
         ServiceKey key = previousKey.get();

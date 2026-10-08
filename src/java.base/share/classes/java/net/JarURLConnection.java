@@ -25,6 +25,8 @@
 
 package java.net;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.util.jar.JarFile;
 import java.util.jar.JarEntry;
@@ -260,7 +262,7 @@ public abstract class JarURLConnection extends URLConnection {
      *
      * @see #getJarFile
      */
-    public Manifest getManifest() throws IOException {
+    public @Nullable Manifest getManifest() throws IOException {
         return getJarFile().getManifest();
     }
 
@@ -278,7 +280,7 @@ public abstract class JarURLConnection extends URLConnection {
      * @see #getJarFile
      * @see #getJarEntry
      */
-    public JarEntry getJarEntry() throws IOException {
+    public @Nullable JarEntry getJarEntry() throws IOException {
         return entryName == null ? null : getJarFile().getJarEntry(entryName);
     }
 
@@ -294,7 +296,7 @@ public abstract class JarURLConnection extends URLConnection {
      *
      * @see #getJarEntry
      */
-    public Attributes getAttributes() throws IOException {
+    public @Nullable Attributes getAttributes() throws IOException {
         JarEntry e = getJarEntry();
         return e != null ? e.getAttributes() : null;
     }
@@ -312,7 +314,7 @@ public abstract class JarURLConnection extends URLConnection {
      * @see #getJarFile
      * @see #getManifest
      */
-    public Attributes getMainAttributes() throws IOException {
+    public @Nullable Attributes getMainAttributes() throws IOException {
         Manifest man = getManifest();
         return man != null ? man.getMainAttributes() : null;
     }
@@ -347,7 +349,7 @@ public abstract class JarURLConnection extends URLConnection {
      *
      * @see #getJarEntry
      */
-    public java.security.cert.Certificate[] getCertificates()
+    public java.security.cert.Certificate @Nullable [] getCertificates()
          throws IOException
     {
         JarEntry e = getJarEntry();

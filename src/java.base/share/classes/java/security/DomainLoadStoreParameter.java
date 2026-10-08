@@ -25,6 +25,8 @@
 
 package java.security;
 
+import org.jspecify.annotations.Nullable;
+
 import java.net.URI;
 import java.util.*;
 import static java.security.KeyStore.*;
@@ -165,7 +167,7 @@ public final class DomainLoadStoreParameter implements LoadStoreParameter {
      * @return always returns {@code null}
      */
     @Override
-    public KeyStore.ProtectionParameter getProtectionParameter() {
+    public KeyStore.@Nullable ProtectionParameter getProtectionParameter() {
         return null;
     }
 }

@@ -1508,7 +1508,7 @@ public class SimpleDateFormat extends DateFormat {
      * @throws    NullPointerException if {@code text} or {@code pos} is null.
      */
     @Override
-    public Date parse(String text, ParsePosition pos)
+    public @Nullable Date parse(String text, ParsePosition pos)
     {
         checkNegativeNumberExpression();
 

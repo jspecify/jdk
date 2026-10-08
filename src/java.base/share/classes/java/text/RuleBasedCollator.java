@@ -38,6 +38,8 @@
 
 package java.text;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * The {@code RuleBasedCollator} class is a concrete subclass of
  * {@code Collator} that provides a simple, data-driven, table
@@ -575,7 +577,7 @@ public class RuleBasedCollator extends Collator{
      * with CollationKey.compareTo. This overrides java.text.Collator.getCollationKey.
      * It can be overridden in a subclass.
      */
-    public synchronized CollationKey getCollationKey(String source)
+    public synchronized @Nullable CollationKey getCollationKey(String source)
     {
         //
         // The basic algorithm here is to find all of the collation elements for each

@@ -27,6 +27,7 @@ package javax.crypto.spec;
 
 import java.security.spec.KeySpec;
 import java.util.Arrays;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A user-chosen password that can be used with password-based encryption
@@ -209,7 +210,7 @@ public class PBEKeySpec implements KeySpec {
      *
      * @return the salt.
      */
-    public final byte[] getSalt() {
+    public final byte @Nullable [] getSalt() {
         if (salt != null) {
             return salt.clone();
         } else {

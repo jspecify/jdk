@@ -25,6 +25,8 @@
 
 package javax.security.auth;
 
+import org.jspecify.annotations.Nullable;
+
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.util.Set;
@@ -126,7 +128,7 @@ public class SubjectDomainCombiner implements java.security.DomainCombiner {
      * @return a new array consisting of the updated ProtectionDomains,
      *          or {@code null}.
      */
-    public ProtectionDomain[] combine(ProtectionDomain[] currentDomains,
+    public ProtectionDomain @Nullable [] combine(ProtectionDomain[] currentDomains,
                                 ProtectionDomain[] assignedDomains) {
         if (debug != null) {
             if (subject == null) {

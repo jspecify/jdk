@@ -3847,7 +3847,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return an object representing the superclass
      * @since 1.8
      */
-    public AnnotatedType getAnnotatedSuperclass() {
+    public @Nullable AnnotatedType getAnnotatedSuperclass() {
         if (this == Object.class ||
                 isInterface() ||
                 isArray() ||

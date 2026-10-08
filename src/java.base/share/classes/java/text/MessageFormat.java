@@ -1178,7 +1178,7 @@ public class MessageFormat extends Format {
      * @throws    NullPointerException if {@code pos} is {@code null}
      *            for a non-null {@code source} string.
      */
-    public Object[] parse(@Nullable String source, ParsePosition pos) {
+    public Object @Nullable [] parse(@Nullable String source, ParsePosition pos) {
         if (source == null) {
             Object[] empty = {};
             return empty;

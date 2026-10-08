@@ -25,6 +25,8 @@
 
 package java.security.cert;
 
+import org.jspecify.annotations.Nullable;
+
 import sun.security.util.SignatureUtil;
 import sun.security.x509.X509CRLImpl;
 
@@ -384,7 +386,7 @@ public abstract non-sealed class X509CRL extends CRL implements X509Extension, B
      *
      * @since 1.5
      */
-    public X509CRLEntry getRevokedCertificate(X509Certificate certificate) {
+    public @Nullable X509CRLEntry getRevokedCertificate(X509Certificate certificate) {
         X500Principal certIssuer = certificate.getIssuerX500Principal();
         X500Principal crlIssuer = getIssuerX500Principal();
         if (!certIssuer.equals(crlIssuer)) {

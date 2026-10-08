@@ -61,6 +61,8 @@
  */
 package java.time.zone;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -658,7 +660,7 @@ public final class ZoneRules implements Serializable {
      *  may be ignored if the rules have a single offset for all instants
      * @return the offset transition, null if the local date-time is not in transition
      */
-    public ZoneOffsetTransition getTransition(LocalDateTime localDateTime) {
+    public @Nullable ZoneOffsetTransition getTransition(LocalDateTime localDateTime) {
         Object info = getOffsetInfo(localDateTime);
         return (info instanceof ZoneOffsetTransition ? (ZoneOffsetTransition) info : null);
     }
@@ -865,7 +867,7 @@ public final class ZoneRules implements Serializable {
      *  may be ignored if the rules have a single offset for all instants
      * @return the next transition after the specified instant, null if this is after the last transition
      */
-    public ZoneOffsetTransition nextTransition(Instant instant) {
+    public @Nullable ZoneOffsetTransition nextTransition(Instant instant) {
         if (savingsInstantTransitions.length == 0) {
             return null;
         }
@@ -912,7 +914,7 @@ public final class ZoneRules implements Serializable {
      *  may be ignored if the rules have a single offset for all instants
      * @return the previous transition before the specified instant, null if this is before the first transition
      */
-    public ZoneOffsetTransition previousTransition(Instant instant) {
+    public @Nullable ZoneOffsetTransition previousTransition(Instant instant) {
         if (savingsInstantTransitions.length == 0) {
             return null;
         }

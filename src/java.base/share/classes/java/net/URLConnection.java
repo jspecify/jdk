@@ -25,6 +25,8 @@
 
 package java.net;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -504,7 +506,7 @@ public abstract class URLConnection {
      *          or {@code null} if not known.
      * @see     java.net.URLConnection#getHeaderField(java.lang.String)
      */
-    public String getContentType() {
+    public @Nullable String getContentType() {
         return getHeaderField("content-type");
     }
 
@@ -515,7 +517,7 @@ public abstract class URLConnection {
      *          or {@code null} if not known.
      * @see     java.net.URLConnection#getHeaderField(java.lang.String)
      */
-    public String getContentEncoding() {
+    public @Nullable String getContentEncoding() {
         return getHeaderField("content-encoding");
     }
 
@@ -566,7 +568,7 @@ public abstract class URLConnection {
      * @return  the value of the named header field, or {@code null}
      *          if there is no such field in the header.
      */
-    public String getHeaderField(String name) {
+    public @Nullable String getHeaderField(String name) {
         return null;
     }
 
@@ -680,7 +682,7 @@ public abstract class URLConnection {
      *          or {@code null} if there are fewer than {@code n+1}
      *          fields when {@code n > 0}.
      */
-    public String getHeaderFieldKey(int n) {
+    public @Nullable String getHeaderFieldKey(int n) {
         return null;
     }
 
@@ -698,7 +700,7 @@ public abstract class URLConnection {
      *          or {@code null} if there are fewer than {@code n+1} fields
      * @see     java.net.URLConnection#getHeaderFieldKey(int)
      */
-    public String getHeaderField(int n) {
+    public @Nullable String getHeaderField(int n) {
         return null;
     }
 
@@ -776,7 +778,7 @@ public abstract class URLConnection {
      * @see        java.net.URLConnection#setContentHandlerFactory(java.net.ContentHandlerFactory)
      * @since 1.3
      */
-    public Object getContent(Class<?>[] classes) throws IOException {
+    public @Nullable Object getContent(Class<?>[] classes) throws IOException {
         // Must call getInputStream before GetHeaderField gets called
         // so that FileNotFoundException has a chance to be thrown up
         // from here without being caught.
@@ -828,7 +830,7 @@ public abstract class URLConnection {
      * as the Security Manager is no longer supported.
      */
     @Deprecated(since = "25", forRemoval = true)
-    public Permission getPermission() throws IOException {
+    public @Nullable Permission getPermission() throws IOException {
         return SecurityConstants.ALL_PERMISSION;
     }
 
@@ -1181,7 +1183,7 @@ public abstract class URLConnection {
      * @throws IllegalStateException if already connected
      * @see #setRequestProperty(java.lang.String, java.lang.String)
      */
-    public String getRequestProperty(String key) {
+    public @Nullable String getRequestProperty(String key) {
         checkConnected();
 
         if (requests == null)
@@ -1259,7 +1261,7 @@ public abstract class URLConnection {
      * @see #setDefaultRequestProperty(java.lang.String, java.lang.String)
      */
     @Deprecated
-    public static String getDefaultRequestProperty(String key) {
+    public static @Nullable String getDefaultRequestProperty(String key) {
         return null;
     }
 
@@ -1490,7 +1492,7 @@ public abstract class URLConnection {
      * @see        java.io.InputStream#markSupported()
      * @see        java.net.URLConnection#getContentType()
      */
-    public static String guessContentTypeFromStream(InputStream is)
+    public static @Nullable String guessContentTypeFromStream(InputStream is)
                         throws IOException {
         // If we can't read ahead safely, just give up on guessing
         if (!is.markSupported())

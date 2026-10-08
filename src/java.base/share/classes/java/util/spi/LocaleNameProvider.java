@@ -27,6 +27,7 @@ package java.util.spi;
 
 import java.util.Locale;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An abstract class for service providers that
@@ -161,7 +162,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
      *     getAvailableLocales()}.
      * @since 10
      */
-    public String getDisplayUnicodeExtensionKey(String key, Locale locale) {
+    public @Nullable String getDisplayUnicodeExtensionKey(String key, Locale locale) {
         Objects.requireNonNull(key);
         Objects.requireNonNull(locale);
         return null;
@@ -186,7 +187,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
      *     getAvailableLocales()}.
      * @since 10
      */
-    public String getDisplayUnicodeExtensionType(String type, String key, Locale locale) {
+    public @Nullable String getDisplayUnicodeExtensionType(String type, String key, Locale locale) {
         Objects.requireNonNull(type);
         Objects.requireNonNull(key);
         Objects.requireNonNull(locale);

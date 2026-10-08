@@ -25,6 +25,8 @@
 
 package java.security;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -440,7 +442,7 @@ public final class Security {
      * classes (introduced in the J2SE version 1.2 platform) instead.
      */
     @Deprecated
-    public static String getAlgorithmProperty(String algName,
+    public static @Nullable String getAlgorithmProperty(String algName,
                                               String propName) {
         ProviderProperty entry = getProviderProperty("Alg." + propName
                                                      + "." + algName);
@@ -703,7 +705,7 @@ public final class Security {
      * @see #getProviders(java.lang.String)
      * @since 1.3
      */
-    public static Provider[] getProviders(Map<String,String> filter) {
+    public static Provider @Nullable [] getProviders(Map<String,String> filter) {
         // Get all installed providers first.
         // Then only return those providers who satisfy the selection criteria.
         Provider[] allProviders = Security.getProviders();

@@ -2240,7 +2240,7 @@ public class DecimalFormat extends NumberFormat {
      *             {@code pos} is null.
      */
     @Override
-    public Number parse(String text, ParsePosition pos) {
+    public @Nullable Number parse(String text, ParsePosition pos) {
         // special case NaN
         if (text.regionMatches(pos.index, symbols.getNaN(), 0, symbols.getNaN().length())) {
             var nanEnd = pos.index + symbols.getNaN().length();

@@ -25,6 +25,8 @@
 
 package javax.security.auth;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.*;
 import java.io.IOException;
 import java.text.MessageFormat;
@@ -248,7 +250,7 @@ public final class PrivateCredentialPermission extends Permission {
      *
      * @return null in all cases.
      */
-    public PermissionCollection newPermissionCollection() {
+    public @Nullable PermissionCollection newPermissionCollection() {
         return null;
     }
 

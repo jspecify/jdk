@@ -12535,7 +12535,7 @@ public final /*value*/ class Character
      */
     
     
-    public static String getName(int codePoint) {
+    public static @Nullable String getName(int codePoint) {
         if (!isValidCodePoint(codePoint)) {
             throw new IllegalArgumentException(
                 String.format("Not a valid Unicode code point: 0x%X", codePoint));

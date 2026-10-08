@@ -61,6 +61,8 @@
  */
 package java.time.format;
 
+import org.jspecify.annotations.Nullable;
+
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;
 import static java.time.temporal.ChronoField.DAY_OF_WEEK;
 import static java.time.temporal.ChronoField.DAY_OF_YEAR;
@@ -2176,7 +2178,7 @@ public final class DateTimeFormatter {
      * @throws DateTimeException if some problem occurs during parsing
      * @throws IndexOutOfBoundsException if the position is invalid
      */
-    public TemporalAccessor parseUnresolved(CharSequence text, ParsePosition position) {
+    public @Nullable TemporalAccessor parseUnresolved(CharSequence text, ParsePosition position) {
         DateTimeParseContext context = parseUnresolved0(text, position);
         if (context == null) {
             return null;

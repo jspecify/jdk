@@ -25,6 +25,8 @@
 
 package javax.security.auth.callback;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -142,7 +144,7 @@ public class PasswordCallback implements Callback, java.io.Serializable {
      *
      * @see #setPassword
      */
-    public char[] getPassword() {
+    public char @Nullable [] getPassword() {
         return (inputPassword == null ? null : inputPassword.clone());
     }
 
