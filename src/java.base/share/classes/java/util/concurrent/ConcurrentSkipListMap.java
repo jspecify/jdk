@@ -1464,8 +1464,8 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
      *         or the mappingFunction is null
      * @since 1.8
      */
-    public V computeIfAbsent(K key,
-                             Function<? super K, ? extends V> mappingFunction) {
+    public @Nullable V computeIfAbsent(K key,
+                             Function<? super K, ? extends @Nullable V> mappingFunction) {
         if (key == null || mappingFunction == null)
             throw new NullPointerException();
         V v, p, r;

@@ -1085,8 +1085,9 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *         ({@linkplain Collection##optional-restrictions optional})
      * @since 1.8
      */
-    default V computeIfAbsent(K key,
-            Function<? super K, ? extends V> mappingFunction) {
+    // We would use an annotation like @PolyNull here if JSpecify offered one.
+    default @Nullable V computeIfAbsent(K key,
+            Function<? super K, ? extends @Nullable V> mappingFunction) {
         Objects.requireNonNull(mappingFunction);
         V v;
         if ((v = get(key)) == null) {

@@ -1502,8 +1502,8 @@ public class Properties extends Hashtable<Object,Object> {
     }
 
     @Override
-    public synchronized Object computeIfAbsent(Object key,
-            Function<? super Object, ? extends Object> mappingFunction) {
+    public synchronized @Nullable Object computeIfAbsent(Object key,
+            Function<? super Object, ? extends @Nullable Object> mappingFunction) {
         return map.computeIfAbsent(key, mappingFunction);
     }
 
