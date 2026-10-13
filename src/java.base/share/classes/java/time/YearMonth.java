@@ -383,7 +383,7 @@ public final /*value*/ class YearMonth
      * @return true if the field is supported on this year-month, false if not
      */
     @Override
-    public boolean isSupported(TemporalField field) {
+    public boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field == YEAR || field == MONTH_OF_YEAR ||
                     field == PROLEPTIC_MONTH || field == YEAR_OF_ERA || field == ERA;
@@ -419,7 +419,7 @@ public final /*value*/ class YearMonth
      * @return true if the unit can be added/subtracted, false if not
      */
     @Override
-    public boolean isSupported(TemporalUnit unit) {
+    public boolean isSupported(@Nullable TemporalUnit unit) {
         if (unit instanceof ChronoUnit) {
             return unit == MONTHS || unit == YEARS || unit == DECADES || unit == CENTURIES || unit == MILLENNIA || unit == ERAS;
         }

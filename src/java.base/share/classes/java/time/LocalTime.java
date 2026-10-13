@@ -560,7 +560,7 @@ public final /*value*/ class LocalTime
      * @return true if the field is supported on this time, false if not
      */
     @Override
-    public boolean isSupported(TemporalField field) {
+    public boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field.isTimeBased();
         }
@@ -596,7 +596,7 @@ public final /*value*/ class LocalTime
      * @return true if the unit can be added/subtracted, false if not
      */
     @Override  // override for Javadoc
-    public boolean isSupported(TemporalUnit unit) {
+    public boolean isSupported(@Nullable TemporalUnit unit) {
         if (unit instanceof ChronoUnit) {
             return unit.isTimeBased();
         }

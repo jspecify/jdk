@@ -1828,7 +1828,7 @@ public final class DateTimeFormatter {
      * @param resolverFields  the new set of resolver fields, null if no fields
      * @return a formatter based on this formatter with the requested resolver style, not null
      */
-    public DateTimeFormatter withResolverFields(TemporalField... resolverFields) {
+    public DateTimeFormatter withResolverFields(TemporalField @Nullable ... resolverFields) {
         Set<TemporalField> fields = null;
         if (resolverFields != null) {
             // Set.of cannot be used because it is hostile to nulls and duplicate elements
@@ -1879,7 +1879,7 @@ public final class DateTimeFormatter {
      * @param resolverFields  the new set of resolver fields, null if no fields
      * @return a formatter based on this formatter with the requested resolver style, not null
      */
-    public DateTimeFormatter withResolverFields(Set<TemporalField> resolverFields) {
+    public DateTimeFormatter withResolverFields(@Nullable Set<TemporalField> resolverFields) {
         if (Objects.equals(this.resolverFields, resolverFields)) {
             return this;
         }

@@ -852,7 +852,7 @@ public final class ZoneRules implements Serializable {
      * @param offset  the offset to check, null returns false
      * @return true if the offset date-time is valid for these rules
      */
-    public boolean isValidOffset(LocalDateTime localDateTime, ZoneOffset offset) {
+    public boolean isValidOffset(LocalDateTime localDateTime, @Nullable ZoneOffset offset) {
         return getValidOffsets(localDateTime).contains(offset);
     }
 
@@ -1044,7 +1044,7 @@ public final class ZoneRules implements Serializable {
      * @return true if this rules is the same as that specified
      */
     @Override
-    public boolean equals(Object otherRules) {
+    public boolean equals(@Nullable Object otherRules) {
         if (this == otherRules) {
            return true;
         }

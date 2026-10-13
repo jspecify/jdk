@@ -153,7 +153,7 @@ public interface Temporal extends TemporalAccessor {
      * @param unit  the unit to check, null returns false
      * @return true if the unit can be added/subtracted, false if not
      */
-    boolean isSupported(TemporalUnit unit);
+    boolean isSupported(@Nullable TemporalUnit unit);
 
     /**
      * Returns an adjusted object of the same type as this object with the adjustment made.
