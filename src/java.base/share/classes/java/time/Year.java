@@ -382,7 +382,7 @@ public final /*value*/ class Year
      * @return true if the field is supported on this year, false if not
      */
     @Override
-    public boolean isSupported(TemporalField field) {
+    public boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field == YEAR || field == YEAR_OF_ERA || field == ERA;
         }
@@ -416,7 +416,7 @@ public final /*value*/ class Year
      * @return true if the unit can be added/subtracted, false if not
      */
     @Override
-    public boolean isSupported(TemporalUnit unit) {
+    public boolean isSupported(@Nullable TemporalUnit unit) {
         if (unit instanceof ChronoUnit) {
             return unit == YEARS || unit == DECADES || unit == CENTURIES || unit == MILLENNIA || unit == ERAS;
         }
@@ -554,7 +554,7 @@ public final /*value*/ class Year
      * @param monthDay  the month-day to validate, null returns false
      * @return true if the month and day are valid for this year
      */
-    public boolean isValidMonthDay(MonthDay monthDay) {
+    public boolean isValidMonthDay(@Nullable MonthDay monthDay) {
         return monthDay != null && monthDay.isValidYear(year);
     }
 

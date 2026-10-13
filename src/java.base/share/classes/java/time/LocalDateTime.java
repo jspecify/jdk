@@ -587,7 +587,7 @@ public final /*value*/ class LocalDateTime
      * @return true if the field is supported on this date-time, false if not
      */
     @Override
-    public boolean isSupported(TemporalField field) {
+    public boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField chronoField) {
             return chronoField.isDateBased() || chronoField.isTimeBased();
         }
@@ -631,7 +631,7 @@ public final /*value*/ class LocalDateTime
      * @return true if the unit can be added/subtracted, false if not
      */
     @Override  // override for Javadoc
-    public boolean isSupported(TemporalUnit unit) {
+    public boolean isSupported(@Nullable TemporalUnit unit) {
         return ChronoLocalDateTime.super.isSupported(unit);
     }
 

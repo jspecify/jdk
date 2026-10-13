@@ -77,6 +77,7 @@ import java.time.temporal.TemporalQueries;
 import java.time.temporal.TemporalQuery;
 import java.time.temporal.ValueRange;
 import java.util.Locale;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An era of the time-line.
@@ -142,7 +143,7 @@ public interface Era extends TemporalAccessor, TemporalAdjuster {
      * @return true if the field is supported on this era, false if not
      */
     @Override
-    default boolean isSupported(TemporalField field) {
+    default boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field == ERA;
         }

@@ -564,7 +564,7 @@ public final class ZoneOffset
      * @return true if the field is supported on this offset, false if not
      */
     @Override
-    public boolean isSupported(TemporalField field) {
+    public boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field == OFFSET_SECONDS;
         }

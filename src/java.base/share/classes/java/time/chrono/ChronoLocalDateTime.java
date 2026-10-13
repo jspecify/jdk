@@ -238,7 +238,7 @@ public interface ChronoLocalDateTime<D extends ChronoLocalDate>
      * @return true if the field can be queried, false if not
      */
     @Override
-    boolean isSupported(TemporalField field);
+    boolean isSupported(@Nullable TemporalField field);
 
     /**
      * Checks if the specified unit is supported.
@@ -259,7 +259,7 @@ public interface ChronoLocalDateTime<D extends ChronoLocalDate>
      * @return true if the unit can be added/subtracted, false if not
      */
     @Override
-    default boolean isSupported(TemporalUnit unit) {
+    default boolean isSupported(@Nullable TemporalUnit unit) {
         if (unit instanceof ChronoUnit) {
             return unit != FOREVER;
         }

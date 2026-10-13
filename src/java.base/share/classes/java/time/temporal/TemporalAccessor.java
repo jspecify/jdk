@@ -127,7 +127,7 @@ public interface TemporalAccessor {
      * @param field  the field to check, null returns false
      * @return true if this date-time can be queried for the field, false if not
      */
-    boolean isSupported(TemporalField field);
+    boolean isSupported(@Nullable TemporalField field);
 
     /**
      * Gets the range of valid values for the specified field.
