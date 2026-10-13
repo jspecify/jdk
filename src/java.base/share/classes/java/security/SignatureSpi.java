@@ -29,6 +29,7 @@ import sun.security.jca.JCAUtil;
 
 import java.nio.ByteBuffer;
 import java.security.spec.AlgorithmParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class defines the <i>Service Provider Interface</i> (<b>SPI</b>)
@@ -57,7 +58,7 @@ public abstract class SignatureSpi {
     /**
      * Application-specified source of randomness.
      */
-    protected SecureRandom appRandom = null;
+    protected @Nullable SecureRandom appRandom = null;
 
     /**
      * Initializes this {@code Signature} object with the specified

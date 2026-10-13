@@ -31,7 +31,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
 import java.util.Set;
-
+import org.jspecify.annotations.Nullable;
 import sun.net.PlatformSocketImpl;
 import sun.nio.ch.NioSocketImpl;
 
@@ -55,12 +55,12 @@ public abstract class SocketImpl implements SocketOptions {
     /**
      * The file descriptor object for this socket.
      */
-    protected FileDescriptor fd;
+    protected @Nullable FileDescriptor fd;
 
     /**
      * The IP address of the remote end of this socket.
      */
-    protected InetAddress address;
+    protected @Nullable InetAddress address;
 
     /**
      * The port number on the remote host to which this socket is connected.

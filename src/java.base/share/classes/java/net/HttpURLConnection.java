@@ -322,7 +322,7 @@ public abstract class HttpURLConnection extends URLConnection {
     /**
      * The HTTP response message.
      */
-    protected String responseMessage = null;
+    protected @Nullable String responseMessage = null;
 
     /* static variables */
 
