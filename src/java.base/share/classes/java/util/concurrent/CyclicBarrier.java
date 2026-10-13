@@ -37,6 +37,7 @@ package java.util.concurrent;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A synchronization aid that allows a set of threads to all wait for
@@ -279,7 +280,7 @@ public class CyclicBarrier {
      *        tripped, or {@code null} if there is no action
      * @throws IllegalArgumentException if {@code parties} is less than 1
      */
-    public CyclicBarrier(int parties, Runnable barrierAction) {
+    public CyclicBarrier(int parties, @Nullable Runnable barrierAction) {
         if (parties <= 0) throw new IllegalArgumentException();
         this.parties = parties;
         this.count = parties;

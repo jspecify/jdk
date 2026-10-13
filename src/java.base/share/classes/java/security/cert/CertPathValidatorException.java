@@ -29,6 +29,7 @@ import java.io.InvalidObjectException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.security.GeneralSecurityException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An exception indicating one of a variety of problems encountered when
@@ -126,7 +127,7 @@ public class CertPathValidatorException extends GeneralSecurityException {
      * {@link #getCause getCause()} method). (A {@code null} value is
      * permitted, and indicates that the cause is nonexistent or unknown.)
      */
-    public CertPathValidatorException(String msg, Throwable cause) {
+    public CertPathValidatorException(@Nullable String msg, @Nullable Throwable cause) {
         this(msg, cause, null, -1);
     }
 
@@ -148,7 +149,7 @@ public class CertPathValidatorException extends GeneralSecurityException {
      * {@code null} and {@code index} is not -1
      */
     public CertPathValidatorException(String msg, Throwable cause,
-            CertPath certPath, int index) {
+            @Nullable CertPath certPath, int index) {
         this(msg, cause, certPath, index, BasicReason.UNSPECIFIED);
     }
 

@@ -136,7 +136,7 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
                                 BigInteger primeExponentQ,
                                 BigInteger crtCoefficient,
                                 RSAOtherPrimeInfo[] otherPrimeInfo,
-                                AlgorithmParameterSpec keyParams) {
+                                @Nullable AlgorithmParameterSpec keyParams) {
         super(modulus, privateExponent, keyParams);
         Objects.requireNonNull(modulus,
             "the modulus parameter must be non-null");

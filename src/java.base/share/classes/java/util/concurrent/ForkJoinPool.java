@@ -51,6 +51,7 @@ import jdk.internal.access.JavaUtilConcurrentFJPAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.SharedThreadContainer;
+import org.jspecify.annotations.Nullable;
 import static java.util.concurrent.DelayScheduler.ScheduledForkJoinTask;
 
 /**
@@ -3008,12 +3009,12 @@ public class ForkJoinPool extends AbstractExecutorService
      */
     public ForkJoinPool(int parallelism,
                         ForkJoinWorkerThreadFactory factory,
-                        UncaughtExceptionHandler handler,
+                        @Nullable UncaughtExceptionHandler handler,
                         boolean asyncMode,
                         int corePoolSize,
                         int maximumPoolSize,
                         int minimumRunnable,
-                        Predicate<? super ForkJoinPool> saturate,
+                        @Nullable Predicate<? super ForkJoinPool> saturate,
                         long keepAliveTime,
                         TimeUnit unit) {
         int p = parallelism;

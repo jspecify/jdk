@@ -26,6 +26,7 @@
 package java.security.spec;
 
 import java.math.BigInteger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class specifies an RSA public key.
@@ -67,7 +68,7 @@ public class RSAPublicKeySpec implements KeySpec {
      * @since 11
      */
     public RSAPublicKeySpec(BigInteger modulus, BigInteger publicExponent,
-            AlgorithmParameterSpec params) {
+            @Nullable AlgorithmParameterSpec params) {
         this.modulus = modulus;
         this.publicExponent = publicExponent;
         this.params = params;

@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.security.*;
 import java.security.spec.*;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class implements the {@code EncryptedPrivateKeyInfo} type
@@ -369,8 +370,8 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      * @since 28
      */
     public static EncryptedPrivateKeyInfo encrypt(BinaryEncodable be,
-        char[] password, String algorithm, AlgorithmParameterSpec params,
-        Provider provider) {
+        char[] password, String algorithm, @Nullable AlgorithmParameterSpec params,
+        @Nullable Provider provider) {
 
         Objects.requireNonNull(be, "a key must be specified");
         Objects.requireNonNull(password, "a password must be specified");

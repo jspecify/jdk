@@ -729,7 +729,7 @@ public final class KEM {
      * @throws InvalidKeyException if {@code publicKey} is {@code null} or invalid
      */
     public Encapsulator newEncapsulator(PublicKey publicKey,
-            AlgorithmParameterSpec spec, SecureRandom secureRandom)
+            @Nullable AlgorithmParameterSpec spec, @Nullable SecureRandom secureRandom)
             throws InvalidAlgorithmParameterException, InvalidKeyException {
         return delayed != null
                 ? delayed.newEncapsulator(publicKey, spec, secureRandom)
@@ -766,7 +766,7 @@ public final class KEM {
      *          or one is required but {@code spec} is {@code null}
      * @throws InvalidKeyException if {@code privateKey} is {@code null} or invalid
      */
-    public Decapsulator newDecapsulator(PrivateKey privateKey, AlgorithmParameterSpec spec)
+    public Decapsulator newDecapsulator(PrivateKey privateKey, @Nullable AlgorithmParameterSpec spec)
             throws InvalidAlgorithmParameterException, InvalidKeyException {
         return delayed != null
                 ? delayed.newDecapsulator(privateKey, spec)

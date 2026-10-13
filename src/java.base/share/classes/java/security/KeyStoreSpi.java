@@ -177,7 +177,7 @@ public abstract class KeyStoreSpi {
      */
     public abstract void engineSetKeyEntry(String alias, Key key,
                                            char[] password,
-                                           Certificate[] chain)
+                                           Certificate @Nullable [] chain)
         throws KeyStoreException;
 
     /**
@@ -384,7 +384,7 @@ public abstract class KeyStoreSpi {
      * @throws    CertificateException if any of the certificates in the
      * keystore could not be loaded
      */
-    public abstract void engineLoad(InputStream stream, char[] password)
+    public abstract void engineLoad(@Nullable InputStream stream, char @Nullable [] password)
         throws IOException, NoSuchAlgorithmException, CertificateException;
 
     /**

@@ -28,6 +28,7 @@ package java.nio.channels;
 import java.io.IOException;
 import java.nio.channels.spi.AbstractInterruptibleChannel;
 import java.nio.channels.spi.SelectorProvider;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -206,7 +207,7 @@ public abstract class SelectableChannel
      * @return  A key representing the registration of this channel with
      *          the given selector
      */
-    public abstract SelectionKey register(Selector sel, int ops, Object att)
+    public abstract SelectionKey register(Selector sel, int ops, @Nullable Object att)
         throws ClosedChannelException;
 
     /**

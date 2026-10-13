@@ -100,7 +100,7 @@ public class EllipticCurve {
      * or {@code b} is not null and not in {@code field}.
      */
     public EllipticCurve(ECField field, BigInteger a,
-                         BigInteger b, byte[] seed) {
+                         BigInteger b, byte @Nullable [] seed) {
         if (field == null) {
             throw new NullPointerException("field is null");
         }
