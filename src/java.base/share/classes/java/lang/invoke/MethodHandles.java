@@ -7369,7 +7369,7 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      *
      * @since 9
      */
-    public static MethodHandle iteratedLoop(MethodHandle iterator, MethodHandle init, MethodHandle body) {
+    public static MethodHandle iteratedLoop(@Nullable MethodHandle iterator, MethodHandle init, MethodHandle body) {
         Class<?> iterableType = iteratedLoopChecks(iterator, init, body);
         Class<?> returnType = body.type().returnType();
         MethodHandle hasNext = MethodHandleImpl.getConstantHandle(MethodHandleImpl.MH_iteratePred);

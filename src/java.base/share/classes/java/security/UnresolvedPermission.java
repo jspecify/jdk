@@ -112,7 +112,7 @@ implements java.io.Serializable
     public UnresolvedPermission(String type,
                                 String name,
                                 String actions,
-                                java.security.cert.Certificate[] certs)
+                                java.security.cert.Certificate @Nullable [] certs)
     {
         super(type);
 

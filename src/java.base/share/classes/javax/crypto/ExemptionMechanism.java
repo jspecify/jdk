@@ -35,6 +35,7 @@ import java.security.InvalidKeyException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 import sun.security.jca.GetInstance.Instance;
 
@@ -266,7 +267,7 @@ public class ExemptionMechanism {
      * while determining whether the result blob has been generated successfully
      * by this exemption mechanism object.
      */
-    public final boolean isCryptoAllowed(Key key)
+    public final boolean isCryptoAllowed(@Nullable Key key)
             throws ExemptionMechanismException {
         boolean ret = false;
         if (done && (key != null)) {

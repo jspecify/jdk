@@ -28,6 +28,7 @@ package javax.crypto;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@code CipherInputStream} is composed of an {@code InputStream}
@@ -274,7 +275,7 @@ public class CipherInputStream extends FilterInputStream {
      * @see        java.io.InputStream#read()
      */
     @Override
-    public int read(byte[] b, int off, int len) throws IOException {
+    public int read(byte @Nullable [] b, int off, int len) throws IOException {
         if (ostart >= ofinish) {
             // we loop for new data as the spec says we are blocking
             int i = 0;

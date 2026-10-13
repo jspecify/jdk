@@ -235,7 +235,7 @@ public abstract non-sealed class X509CRL extends CRL implements X509Extension, B
      * @throws    CRLException on encoding errors.
      * @since 1.8
      */
-    public void verify(PublicKey key, Provider sigProvider)
+    public void verify(PublicKey key, @Nullable Provider sigProvider)
         throws CRLException, NoSuchAlgorithmException,
         InvalidKeyException, SignatureException {
         String sigAlgName = getSigAlgName();

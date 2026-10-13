@@ -138,7 +138,7 @@ public final class KEM {
          * @throws NullPointerException if {@code key} or {@code encapsulation}
          *          is {@code null}
          */
-        public Encapsulated(SecretKey key, byte[] encapsulation, byte[] params) {
+        public Encapsulated(SecretKey key, byte[] encapsulation, byte @Nullable [] params) {
             Objects.requireNonNull(key);
             Objects.requireNonNull(encapsulation);
             this.key = key;
@@ -609,7 +609,7 @@ public final class KEM {
      *          that supports a KEM implementation of the specified algorithm
      * @throws NullPointerException if {@code algorithm} is {@code null}
      */
-    public static KEM getInstance(String algorithm, Provider provider)
+    public static KEM getInstance(String algorithm, @Nullable Provider provider)
             throws NoSuchAlgorithmException {
         if (provider == null) {
             return getInstance(algorithm);
@@ -643,7 +643,7 @@ public final class KEM {
      *         registered in the security provider list
      * @throws NullPointerException if {@code algorithm} is {@code null}
      */
-    public static KEM getInstance(String algorithm, String provider)
+    public static KEM getInstance(String algorithm, @Nullable String provider)
             throws NoSuchAlgorithmException, NoSuchProviderException {
         if (provider == null) {
             return getInstance(algorithm);

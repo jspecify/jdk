@@ -281,7 +281,7 @@ class Authenticator {
      * @since 9
      */
     public static @Nullable PasswordAuthentication requestPasswordAuthentication(
-                                    Authenticator authenticator,
+                                    @Nullable Authenticator authenticator,
                                     String host,
                                     InetAddress addr,
                                     int port,

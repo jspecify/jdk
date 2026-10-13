@@ -54,6 +54,7 @@ import jdk.internal.loader.ClassLoaders;
 import jdk.internal.module.Modules;
 import jdk.internal.util.ClassFileDumper;
 import jdk.internal.util.ReferencedKeySet;
+import org.jspecify.annotations.Nullable;
 
 import static java.lang.constant.ConstantDescs.*;
 import static java.lang.invoke.MethodHandleStatics.*;
@@ -454,7 +455,7 @@ public final class MethodHandleProxies {
      * @param x any reference
      * @return true if the reference is not null and points to an object produced by {@code asInterfaceInstance}
      */
-    public static boolean isWrapperInstance(Object x) {
+    public static boolean isWrapperInstance(@Nullable Object x) {
         return x != null && WRAPPER_TYPES.contains(x.getClass());
     }
 

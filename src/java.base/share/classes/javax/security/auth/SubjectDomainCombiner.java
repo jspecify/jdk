@@ -128,8 +128,8 @@ public class SubjectDomainCombiner implements java.security.DomainCombiner {
      * @return a new array consisting of the updated ProtectionDomains,
      *          or {@code null}.
      */
-    public ProtectionDomain @Nullable [] combine(ProtectionDomain[] currentDomains,
-                                ProtectionDomain[] assignedDomains) {
+    public ProtectionDomain @Nullable [] combine(ProtectionDomain @Nullable [] currentDomains,
+                                ProtectionDomain @Nullable [] assignedDomains) {
         if (debug != null) {
             if (subject == null) {
                 debug.println("null subject");

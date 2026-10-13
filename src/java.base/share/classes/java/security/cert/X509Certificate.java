@@ -34,6 +34,7 @@ import java.security.*;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <p>
@@ -701,7 +702,7 @@ public abstract non-sealed class X509Certificate extends Certificate
      * @throws    UnsupportedOperationException if the method is not supported
      * @since 1.8
      */
-    public void verify(PublicKey key, Provider sigProvider)
+    public void verify(PublicKey key, @Nullable Provider sigProvider)
         throws CertificateException, NoSuchAlgorithmException,
         InvalidKeyException, SignatureException {
         String sigName = getSigAlgName();

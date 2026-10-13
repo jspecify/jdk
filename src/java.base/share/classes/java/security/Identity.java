@@ -27,6 +27,7 @@ package java.security;
 
 import java.io.Serializable;
 import java.util.*;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <p>This class represents identities: real-world objects such as people,
@@ -117,7 +118,7 @@ public abstract class Identity implements Principal, Serializable {
      * with the same name in the scope.
      */
     @SuppressWarnings("this-escape")
-    public Identity(String name, IdentityScope scope) throws
+    public Identity(String name, @Nullable IdentityScope scope) throws
     KeyManagementException {
         this(name);
         if (scope != null) {
@@ -149,7 +150,7 @@ public abstract class Identity implements Principal, Serializable {
      *
      * @return the scope of this {@code Identity}.
      */
-    public final IdentityScope getScope() {
+    public final @Nullable IdentityScope getScope() {
         return scope;
     }
 
