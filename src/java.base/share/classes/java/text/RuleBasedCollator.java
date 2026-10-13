@@ -577,7 +577,7 @@ public class RuleBasedCollator extends Collator{
      * with CollationKey.compareTo. This overrides java.text.Collator.getCollationKey.
      * It can be overridden in a subclass.
      */
-    public synchronized @Nullable CollationKey getCollationKey(String source)
+    public synchronized @Nullable CollationKey getCollationKey(@Nullable String source)
     {
         //
         // The basic algorithm here is to find all of the collation elements for each

@@ -181,7 +181,7 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
      *
      * @see #getSelectedIndexes
      */
-    public void setSelectedIndexes(int[] selections) {
+    public void setSelectedIndexes(int @Nullable [] selections) {
         if (!multipleSelectionsAllowed) {
             throw new UnsupportedOperationException();
         }

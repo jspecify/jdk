@@ -1017,7 +1017,7 @@ public final class Security {
      *
      * @since 1.4
      */
-    public static Set<String> getAlgorithms(String serviceName) {
+    public static Set<String> getAlgorithms(@Nullable String serviceName) {
 
         if ((serviceName == null) || (serviceName.isEmpty()) ||
             (serviceName.endsWith("."))) {

@@ -38,6 +38,7 @@ import java.util.Optional;
 
 import jdk.internal.classfile.impl.SignaturesImpl;
 import jdk.internal.classfile.impl.Util;
+import org.jspecify.annotations.Nullable;
 
 import static java.util.Objects.requireNonNull;
 
@@ -245,7 +246,7 @@ public sealed interface Signature {
          * instead.
          */
         @Deprecated(since = "26", forRemoval = true)
-        public static ClassTypeSig of(ClassTypeSig outerType, ClassDesc className, TypeArg... typeArgs) {
+        public static ClassTypeSig of(@Nullable ClassTypeSig outerType, ClassDesc className, TypeArg... typeArgs) {
             requireNonNull(className);
             return of(outerType, Util.toInternalName(className), typeArgs);
         }
@@ -273,7 +274,7 @@ public sealed interface Signature {
          * @throws IllegalArgumentException if {@code className} cannot be
          *         {@linkplain Signature##identifier denoted}
          */
-        public static ClassTypeSig of(ClassTypeSig outerType, String className, TypeArg... typeArgs) {
+        public static ClassTypeSig of(@Nullable ClassTypeSig outerType, String className, TypeArg... typeArgs) {
             if (outerType != null) {
                 SignaturesImpl.validateIdentifier(className);
             } else {

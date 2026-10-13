@@ -386,8 +386,8 @@ public class LoginContext {
      *
      * @since 1.5
      */
-    public LoginContext(String name, Subject subject,
-                        CallbackHandler callbackHandler,
+    public LoginContext(String name, @Nullable Subject subject,
+                        @Nullable CallbackHandler callbackHandler,
                         Configuration config) throws LoginException {
         this.config = config;
 

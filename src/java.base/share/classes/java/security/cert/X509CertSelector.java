@@ -208,7 +208,7 @@ public class X509CertSelector implements CertSelector {
      * information in the RFC 2253 String form of some distinguished names.
      */
     @Deprecated(since="16")
-    public void setIssuer(String issuerDN) throws IOException {
+    public void setIssuer(@Nullable String issuerDN) throws IOException {
         if (issuerDN == null) {
             issuer = null;
         } else {
@@ -258,7 +258,7 @@ public class X509CertSelector implements CertSelector {
      *                 in ASN.1 DER encoded form (or {@code null})
      * @throws IOException if an encoding error occurs (incorrect form for DN)
      */
-    public void setIssuer(byte[] issuerDN) throws IOException {
+    public void setIssuer(byte @Nullable [] issuerDN) throws IOException {
         try {
             issuer = (issuerDN == null ? null : new X500Principal(issuerDN));
         } catch (IllegalArgumentException e) {
@@ -304,7 +304,7 @@ public class X509CertSelector implements CertSelector {
      * names.
      */
     @Deprecated(since="16")
-    public void setSubject(String subjectDN) throws IOException {
+    public void setSubject(@Nullable String subjectDN) throws IOException {
         if (subjectDN == null) {
             subject = null;
         } else {
@@ -326,7 +326,7 @@ public class X509CertSelector implements CertSelector {
      *                  ASN.1 DER format (or {@code null})
      * @throws IOException if an encoding error occurs (incorrect form for DN)
      */
-    public void setSubject(byte[] subjectDN) throws IOException {
+    public void setSubject(byte @Nullable [] subjectDN) throws IOException {
         try {
             subject = (subjectDN == null ? null : new X500Principal(subjectDN));
         } catch (IllegalArgumentException e) {
@@ -366,7 +366,7 @@ public class X509CertSelector implements CertSelector {
      * @param subjectKeyID the subject key identifier (or {@code null})
      * @see #getSubjectKeyIdentifier
      */
-    public void setSubjectKeyIdentifier(byte[] subjectKeyID) {
+    public void setSubjectKeyIdentifier(byte @Nullable [] subjectKeyID) {
         if (subjectKeyID == null) {
             this.subjectKeyID = null;
         } else {
@@ -427,7 +427,7 @@ public class X509CertSelector implements CertSelector {
      *        (or {@code null})
      * @see #getAuthorityKeyIdentifier
      */
-    public void setAuthorityKeyIdentifier(byte[] authorityKeyID) {
+    public void setAuthorityKeyIdentifier(byte @Nullable [] authorityKeyID) {
         if (authorityKeyID == null) {
             this.authorityKeyID = null;
         } else {
@@ -447,7 +447,7 @@ public class X509CertSelector implements CertSelector {
      * @param certValid the {@code Date} to check (or {@code null})
      * @see #getCertificateValid
      */
-    public void setCertificateValid(Date certValid) {
+    public void setCertificateValid(@Nullable Date certValid) {
         if (certValid == null) {
             certificateValid = null;
         } else {
@@ -468,7 +468,7 @@ public class X509CertSelector implements CertSelector {
      *                        {@code null})
      * @see #getPrivateKeyValid
      */
-    public void setPrivateKeyValid(Date privateKeyValid) {
+    public void setPrivateKeyValid(@Nullable Date privateKeyValid) {
         if (privateKeyValid == null) {
             this.privateKeyValid = null;
         } else {
@@ -491,7 +491,7 @@ public class X509CertSelector implements CertSelector {
      *
      * @see #getSubjectPublicKeyAlgID
      */
-    public void setSubjectPublicKeyAlgID(String oid) throws IOException {
+    public void setSubjectPublicKeyAlgID(@Nullable String oid) throws IOException {
         if (oid == null) {
             subjectPublicKeyAlgID = null;
         } else {
@@ -507,7 +507,7 @@ public class X509CertSelector implements CertSelector {
      * @param key the subject public key to check for (or {@code null})
      * @see #getSubjectPublicKey
      */
-    public void setSubjectPublicKey(PublicKey key) {
+    public void setSubjectPublicKey(@Nullable PublicKey key) {
         if (key == null) {
             subjectPublicKey = null;
             subjectPublicKeyBytes = null;
@@ -550,7 +550,7 @@ public class X509CertSelector implements CertSelector {
      * subject public key)
      * @see #getSubjectPublicKey
      */
-    public void setSubjectPublicKey(byte[] key) throws IOException {
+    public void setSubjectPublicKey(byte @Nullable [] key) throws IOException {
         if (key == null) {
             subjectPublicKey = null;
             subjectPublicKeyBytes = null;
@@ -575,7 +575,7 @@ public class X509CertSelector implements CertSelector {
      *                 Or {@code null}.
      * @see #getKeyUsage
      */
-    public void setKeyUsage(boolean[] keyUsage) {
+    public void setKeyUsage(boolean @Nullable [] keyUsage) {
         if (keyUsage == null) {
             this.keyUsage = null;
         } else {
@@ -602,7 +602,7 @@ public class X509CertSelector implements CertSelector {
      * being greater than 39.
      * @see #getExtendedKeyUsage
      */
-    public void setExtendedKeyUsage(Set<String> keyPurposeSet) throws IOException {
+    public void setExtendedKeyUsage(@Nullable Set<String> keyPurposeSet) throws IOException {
         if ((keyPurposeSet == null) || keyPurposeSet.isEmpty()) {
             this.keyPurposeSet = null;
             keyPurposeOIDSet = null;
@@ -683,7 +683,7 @@ public class X509CertSelector implements CertSelector {
      * @throws IOException if a parsing error occurs
      * @see #getSubjectAlternativeNames
      */
-    public void setSubjectAlternativeNames(Collection<List<?>> names)
+    public void setSubjectAlternativeNames(@Nullable Collection<List<?>> names)
             throws IOException {
         if (names == null) {
             subjectAlternativeNames = null;
@@ -999,7 +999,7 @@ public class X509CertSelector implements CertSelector {
      * @throws IOException if a parsing error occurs
      * @see #getNameConstraints
      */
-    public void setNameConstraints(byte[] bytes) throws IOException {
+    public void setNameConstraints(byte @Nullable [] bytes) throws IOException {
         if (bytes == null) {
             ncBytes = null;
             nc = null;
@@ -1128,7 +1128,7 @@ public class X509CertSelector implements CertSelector {
      * @throws IOException if a parsing error occurs
      * @see #getPathToNames
      */
-    public void setPathToNames(Collection<List<?>> names) throws IOException {
+    public void setPathToNames(@Nullable Collection<List<?>> names) throws IOException {
         if ((names == null) || names.isEmpty()) {
             pathToNames = null;
             pathToGeneralNames = null;

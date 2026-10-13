@@ -1812,7 +1812,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
      * @throws NullPointerException if the specified key is null
      * @return {@inheritDoc ConcurrentMap}
      */
-    public boolean remove(Object key, Object value) {
+    public boolean remove(Object key, @Nullable Object value) {
         if (key == null)
             throw new NullPointerException();
         return value != null && doRemove(key, value) != null;

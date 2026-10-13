@@ -229,7 +229,7 @@ public class OutputStreamWriter extends Writer {
     }
 
     @Override
-    public Writer append(CharSequence csq, int start, int end) throws IOException {
+    public Writer append(@Nullable CharSequence csq, int start, int end) throws IOException {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }

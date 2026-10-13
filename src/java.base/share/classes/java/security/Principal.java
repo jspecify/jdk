@@ -26,6 +26,7 @@
 package java.security;
 
 import javax.security.auth.Subject;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This interface represents the abstract notion of a {@code Principal}, which
@@ -90,7 +91,7 @@ public interface Principal {
      *              implied by this {@code Principal}, or false otherwise.
      * @since 1.8
      */
-    default boolean implies(Subject subject) {
+    default boolean implies(@Nullable Subject subject) {
         if (subject == null)
             return false;
         return subject.getPrincipals().contains(this);

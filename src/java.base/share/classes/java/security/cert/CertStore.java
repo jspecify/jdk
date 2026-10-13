@@ -115,7 +115,7 @@ public class CertStore {
      * @param params the initialization parameters (may be {@code null})
      */
     protected CertStore(CertStoreSpi storeSpi, Provider provider,
-                        String type, CertStoreParameters params) {
+                        String type, @Nullable CertStoreParameters params) {
         this.storeSpi = storeSpi;
         this.provider = provider;
         this.type = type;

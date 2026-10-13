@@ -124,7 +124,7 @@ public class X509CRLSelector implements CRLSelector {
      * @see #getIssuers
      * @since 1.5
      */
-    public void setIssuers(Collection<X500Principal> issuers) {
+    public void setIssuers(@Nullable Collection<X500Principal> issuers) {
         if ((issuers == null) || issuers.isEmpty()) {
             issuerNames = null;
             issuerX500Principals = null;
@@ -204,7 +204,7 @@ public class X509CRLSelector implements CRLSelector {
      *              UTF-8 String Representation of Distinguished Names
      * @see #getIssuerNames
      */
-    public void setIssuerNames(Collection<?> names) throws IOException {
+    public void setIssuerNames(@Nullable Collection<?> names) throws IOException {
         if (names == null || names.size() == 0) {
             issuerNames = null;
             issuerX500Principals = null;
@@ -429,7 +429,7 @@ public class X509CRLSelector implements CRLSelector {
      *                    (or {@code null})
      * @see #getDateAndTime
      */
-    public void setDateAndTime(Date dateAndTime) {
+    public void setDateAndTime(@Nullable Date dateAndTime) {
         if (dateAndTime == null)
             this.dateAndTime = null;
         else

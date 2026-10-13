@@ -40,6 +40,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import jdk.internal.classfile.impl.*;
+import org.jspecify.annotations.Nullable;
 
 import static java.util.Objects.requireNonNull;
 import static jdk.internal.classfile.impl.BytecodeHelpers.handleDescToHandleInfo;
@@ -675,7 +676,7 @@ public sealed interface CodeBuilder
      * @return this builder
      * @see ConstantInstruction
      */
-    default CodeBuilder loadConstant(ConstantDesc value) {
+    default CodeBuilder loadConstant(@Nullable ConstantDesc value) {
         //avoid switch expressions here
         if (value == null || value == ConstantDescs.NULL)
             return aconst_null();

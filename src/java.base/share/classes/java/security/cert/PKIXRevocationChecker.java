@@ -26,6 +26,7 @@ package java.security.cert;
 
 import java.net.URI;
 import java.util.*;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@code PKIXCertPathChecker} for checking the revocation status of
@@ -159,7 +160,7 @@ public abstract class PKIXRevocationChecker extends PKIXCertPathChecker {
      * @param extensions a list of extensions. The list is copied to protect
      *        against subsequent modification.
      */
-    public void setOcspExtensions(List<Extension> extensions)
+    public void setOcspExtensions(@Nullable List<Extension> extensions)
     {
         this.ocspExtensions = (extensions == null)
                               ? Collections.emptyList()
@@ -185,7 +186,7 @@ public abstract class PKIXRevocationChecker extends PKIXCertPathChecker {
      *        DER-encoded OCSP response for that certificate. A deep copy of
      *        the map is performed to protect against subsequent modification.
      */
-    public void setOcspResponses(Map<X509Certificate, byte[]> responses)
+    public void setOcspResponses(@Nullable Map<X509Certificate, byte[]> responses)
     {
         if (responses == null) {
             this.ocspResponses = Collections.emptyMap();
@@ -222,7 +223,7 @@ public abstract class PKIXRevocationChecker extends PKIXCertPathChecker {
      * @param options a set of revocation options. The set is copied to protect
      *        against subsequent modification.
      */
-    public void setOptions(Set<Option> options) {
+    public void setOptions(@Nullable Set<Option> options) {
         this.options = (options == null)
                        ? Collections.emptySet()
                        : new HashSet<>(options);
