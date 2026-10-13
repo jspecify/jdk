@@ -93,7 +93,7 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
                                 BigInteger primeExponentP,
                                 BigInteger primeExponentQ,
                                 BigInteger crtCoefficient,
-                                RSAOtherPrimeInfo[] otherPrimeInfo) {
+                                RSAOtherPrimeInfo @Nullable [] otherPrimeInfo) {
         this(modulus, publicExponent, privateExponent, primeP, primeQ,
              primeExponentP, primeExponentQ, crtCoefficient, otherPrimeInfo,
              null);
@@ -135,7 +135,7 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
                                 BigInteger primeExponentP,
                                 BigInteger primeExponentQ,
                                 BigInteger crtCoefficient,
-                                RSAOtherPrimeInfo[] otherPrimeInfo,
+                                RSAOtherPrimeInfo @Nullable [] otherPrimeInfo,
                                 @Nullable AlgorithmParameterSpec keyParams) {
         super(modulus, privateExponent, keyParams);
         Objects.requireNonNull(modulus,
