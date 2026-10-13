@@ -35,6 +35,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.util.Arrays;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class enables a programmer to create an object and protect its
@@ -126,7 +127,7 @@ public class SealedObject implements Serializable {
      *
      * @serial
      */
-    protected byte[] encodedParams = null;
+    protected byte @Nullable [] encodedParams = null;
 
     /**
      * Constructs a {@code SealedObject} from any {@code Serializable} object.
