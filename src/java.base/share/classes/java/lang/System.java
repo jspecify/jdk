@@ -1092,7 +1092,7 @@ public final  class System {
          *
          * @throws NullPointerException if {@code level} is {@code null}.
          */
-        public default void log(Level level, String msg) {
+        public default void log(Level level, @Nullable String msg) {
             log(level, (ResourceBundle) null, msg, (Object[]) null);
         }
 
@@ -1162,7 +1162,7 @@ public final  class System {
          *
          * @throws NullPointerException if {@code level} is {@code null}.
          */
-        public default void log(Level level, String msg, Throwable thrown) {
+        public default void log(Level level, @Nullable String msg, @Nullable Throwable thrown) {
             this.log(level, null, msg, thrown);
         }
 
@@ -1186,7 +1186,7 @@ public final  class System {
          *                               {@code msgSupplier} is {@code null}.
          */
         public default void log(Level level, Supplier<String> msgSupplier,
-                Throwable thrown) {
+                @Nullable Throwable thrown) {
             Objects.requireNonNull(msgSupplier);
             if (isLoggable(Objects.requireNonNull(level))) {
                 this.log(level, null, msgSupplier.get(), thrown);
@@ -1211,7 +1211,7 @@ public final  class System {
          *
          * @throws NullPointerException if {@code level} is {@code null}.
          */
-        public default void log(Level level, String format, Object... params) {
+        public default void log(Level level, @Nullable String format, @Nullable Object... params) {
             this.log(level, null, format, params);
         }
 
@@ -1232,8 +1232,8 @@ public final  class System {
          *
          * @throws NullPointerException if {@code level} is {@code null}.
          */
-        public void log(Level level, @Nullable ResourceBundle bundle, String msg,
-                Throwable thrown);
+        public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String msg,
+                @Nullable Throwable thrown);
 
         /**
          * Logs a message with resource bundle and an optional list of
@@ -1254,8 +1254,8 @@ public final  class System {
          *
          * @throws NullPointerException if {@code level} is {@code null}.
          */
-        public void log(Level level, ResourceBundle bundle, String format,
-                Object... params);
+        public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String format,
+                @Nullable Object... params);
     }
 
     /**
@@ -1402,7 +1402,7 @@ public final  class System {
          * @throws NullPointerException if {@code name} is {@code null} or
          *         {@code module} is {@code null}.
          */
-        public Logger getLocalizedLogger(String name, ResourceBundle bundle,
+        public Logger getLocalizedLogger(String name, @Nullable ResourceBundle bundle,
                                          Module module) {
             return new LocalizedLoggerWrapper<>(getLogger(name, module), bundle);
         }

@@ -458,7 +458,7 @@ public abstract class DateFormat extends Format {
      *
      * @return      A {@code Date}, or {@code null} if the input could not be parsed
      */
-    public abstract Date parse(String source, ParsePosition pos);
+    public abstract @Nullable Date parse(String source, ParsePosition pos);
 
     /**
      * Parses text from a string to produce a {@code Date}.
@@ -484,7 +484,7 @@ public abstract class DateFormat extends Format {
      *         error, returns null.
      * @throws NullPointerException if {@code source} or {@code pos} is null.
      */
-    public Object parseObject(String source, ParsePosition pos) {
+    public @Nullable Object parseObject(String source, ParsePosition pos) {
         return parse(source, pos);
     }
 
