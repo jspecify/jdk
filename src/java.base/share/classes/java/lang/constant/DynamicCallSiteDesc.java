@@ -30,6 +30,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 import static java.lang.constant.ConstantDescs.CD_String;
 import static java.util.Objects.requireNonNull;
@@ -258,7 +259,7 @@ public final class DynamicCallSiteDesc implements ConstantDescs.CallSiteBootstra
      *      is equal to this {@code DynamicCallSiteDesc}.
      */
     @Override
-    public final boolean equals(Object o) {
+    public final boolean equals(@Nullable Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         DynamicCallSiteDesc specifier = (DynamicCallSiteDesc) o;

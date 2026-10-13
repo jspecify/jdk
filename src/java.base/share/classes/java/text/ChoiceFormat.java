@@ -44,6 +44,7 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@code ChoiceFormat} is a concrete subclass of {@code NumberFormat} that
@@ -733,7 +734,7 @@ public class ChoiceFormat extends NumberFormat {
      * @see Object#equals(Object)
      */
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (this == obj)                      // quick check
             return true;
         if (obj == null || getClass() != obj.getClass())
