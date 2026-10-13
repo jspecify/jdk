@@ -30,6 +30,7 @@ import java.net.SocketOption;
 import java.net.SocketAddress;
 import java.util.concurrent.Future;
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An asynchronous channel for stream-oriented listening sockets.
@@ -142,7 +143,7 @@ public abstract class AsynchronousServerSocketChannel
      * @throws  IOException
      *          If an I/O error occurs
      */
-    public static AsynchronousServerSocketChannel open(AsynchronousChannelGroup group)
+    public static AsynchronousServerSocketChannel open(@Nullable AsynchronousChannelGroup group)
         throws IOException
     {
         AsynchronousChannelProvider provider = (group == null) ?

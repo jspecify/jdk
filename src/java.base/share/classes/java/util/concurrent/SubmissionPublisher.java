@@ -47,6 +47,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
+import org.jspecify.annotations.Nullable;
 import static java.util.concurrent.Flow.Publisher;
 import static java.util.concurrent.Flow.Subscriber;
 import static java.util.concurrent.Flow.Subscription;
@@ -258,7 +259,7 @@ public class SubmissionPublisher<T> implements Publisher<T>,
      * positive
      */
     public SubmissionPublisher(Executor executor, int maxBufferCapacity,
-                               BiConsumer<? super Subscriber<? super T>, ? super Throwable> handler) {
+                               @Nullable BiConsumer<? super Subscriber<? super T>, ? super Throwable> handler) {
         if (executor == null)
             throw new NullPointerException();
         if (maxBufferCapacity <= 0)

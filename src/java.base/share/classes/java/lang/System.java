@@ -1232,7 +1232,7 @@ public final  class System {
          *
          * @throws NullPointerException if {@code level} is {@code null}.
          */
-        public void log(Level level, ResourceBundle bundle, String msg,
+        public void log(Level level, @Nullable ResourceBundle bundle, String msg,
                 Throwable thrown);
 
         /**

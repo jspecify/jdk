@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.net.SocketOption;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An asynchronous channel for stream-oriented connecting sockets.
@@ -168,7 +169,7 @@ public abstract class AsynchronousSocketChannel
      * @throws  IOException
      *          If an I/O error occurs
      */
-    public static AsynchronousSocketChannel open(AsynchronousChannelGroup group)
+    public static AsynchronousSocketChannel open(@Nullable AsynchronousChannelGroup group)
         throws IOException
     {
         AsynchronousChannelProvider provider = (group == null) ?

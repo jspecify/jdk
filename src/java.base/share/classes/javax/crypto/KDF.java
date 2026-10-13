@@ -38,6 +38,7 @@ import java.security.Provider.Service;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Iterator;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class provides the functionality of a Key Derivation Function (KDF),
@@ -349,7 +350,7 @@ public final class KDF {
      *         Selection</a>
      */
     public static KDF getInstance(String algorithm,
-                                  KDFParameters kdfParameters)
+                                  @Nullable KDFParameters kdfParameters)
             throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
         Objects.requireNonNull(algorithm, "algorithm must not be null");
         // make sure there is at least one service from a signed provider
@@ -393,7 +394,7 @@ public final class KDF {
      *         if {@code algorithm} or {@code provider} is {@code null}
      */
     public static KDF getInstance(String algorithm,
-                                  KDFParameters kdfParameters,
+                                  @Nullable KDFParameters kdfParameters,
                                   String provider)
             throws NoSuchAlgorithmException, NoSuchProviderException,
                    InvalidAlgorithmParameterException {
@@ -444,7 +445,7 @@ public final class KDF {
      *         if {@code algorithm} or {@code provider} is {@code null}
      */
     public static KDF getInstance(String algorithm,
-                                  KDFParameters kdfParameters,
+                                  @Nullable KDFParameters kdfParameters,
                                   Provider provider)
             throws NoSuchAlgorithmException,
                    InvalidAlgorithmParameterException {
