@@ -73,7 +73,7 @@ public abstract class CurrencyNameProvider extends LocaleServiceProvider {
      *     getAvailableLocales()}.
      * @see java.util.Currency#getSymbol(java.util.Locale)
      */
-    public abstract String getSymbol(String currencyCode, Locale locale);
+    public abstract @Nullable String getSymbol(String currencyCode, Locale locale);
 
     /**
      * Returns a name for the currency that is appropriate for display to the

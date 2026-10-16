@@ -27,6 +27,8 @@ package java.security;
 
 import java.io.*;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * This class is used to represent an Identity that can also digitally
  * sign data.
@@ -98,7 +100,7 @@ public abstract class Signer extends Identity {
      * @return this signer's private key, or {@code null} if the private key has
      * not yet been set.
      */
-    public PrivateKey getPrivateKey() {
+    public @Nullable PrivateKey getPrivateKey() {
         return privateKey;
     }
 

@@ -96,7 +96,7 @@ public abstract class HttpsURLConnection extends HttpURLConnection {
      *          the connection has been established.
      * @see #getLocalPrincipal()
      */
-    public abstract java.security.cert.Certificate [] getLocalCertificates();
+    public abstract java.security.cert.Certificate @Nullable [] getLocalCertificates();
 
     /**
      * Returns the server's certificate chain which was established

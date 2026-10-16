@@ -44,6 +44,8 @@ import jdk.internal.reflect.Reflection;
 import sun.security.util.Debug;
 import sun.security.util.CryptoAlgorithmConstraints;
 
+import org.jspecify.annotations.Nullable;
+
 import sun.security.jca.*;
 import sun.security.jca.GetInstance.Instance;
 import sun.security.util.KnownOIDs;
@@ -1069,7 +1071,7 @@ public abstract class Signature extends SignatureSpi {
      * @see #setParameter(AlgorithmParameterSpec)
      * @since 1.4
      */
-    public final AlgorithmParameters getParameters() {
+    public final @Nullable AlgorithmParameters getParameters() {
         return engineGetParameters();
     }
 
@@ -1097,7 +1099,7 @@ public abstract class Signature extends SignatureSpi {
      * @deprecated
      */
     @Deprecated
-    public final Object getParameter(String param)
+    public final @Nullable Object getParameter(String param)
             throws InvalidParameterException {
         return engineGetParameter(param);
     }

@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Collections;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An asynchronous channel for reading, writing, and manipulating a file.
@@ -627,7 +628,7 @@ public abstract class AsynchronousFileChannel
      * @see     #lock(long,long,boolean,Object,CompletionHandler)
      * @see     #tryLock()
      */
-    public abstract FileLock tryLock(long position, long size, boolean shared)
+    public abstract @Nullable FileLock tryLock(long position, long size, boolean shared)
         throws IOException;
 
     /**
@@ -662,7 +663,7 @@ public abstract class AsynchronousFileChannel
      * @see     #lock(long,long,boolean,Object,CompletionHandler)
      * @see     #tryLock(long,long,boolean)
      */
-    public final FileLock tryLock() throws IOException {
+    public final @Nullable FileLock tryLock() throws IOException {
         return tryLock(0L, Long.MAX_VALUE, false);
     }
 

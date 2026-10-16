@@ -355,7 +355,7 @@ public abstract non-sealed class X509CRL extends CRL implements X509Extension, B
      * @return the {@code nextUpdate} date from the CRL, or null if
      * not present.
      */
-    public abstract Date getNextUpdate();
+    public abstract @Nullable Date getNextUpdate();
 
     /**
      * Gets the CRL entry, if any, with the given certificate serialNumber.
@@ -366,7 +366,7 @@ public abstract non-sealed class X509CRL extends CRL implements X509Extension, B
      * exists in this CRL.
      * @see X509CRLEntry
      */
-    public abstract X509CRLEntry
+    public abstract @Nullable X509CRLEntry
         getRevokedCertificate(BigInteger serialNumber);
 
     /**
@@ -402,7 +402,7 @@ public abstract non-sealed class X509CRL extends CRL implements X509Extension, B
      * @return all the entries or null if there are none present.
      * @see X509CRLEntry
      */
-    public abstract Set<? extends X509CRLEntry> getRevokedCertificates();
+    public abstract @Nullable Set<? extends X509CRLEntry> getRevokedCertificates();
 
     /**
      * Gets the DER-encoded CRL information, the
@@ -486,5 +486,5 @@ public abstract non-sealed class X509CRL extends CRL implements X509Extension, B
      * @return the DER-encoded signature algorithm parameters, or
      *         null if no parameters are present.
      */
-    public abstract byte[] getSigAlgParams();
+    public abstract byte @Nullable [] getSigAlgParams();
 }

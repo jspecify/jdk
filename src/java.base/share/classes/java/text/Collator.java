@@ -394,7 +394,7 @@ public abstract class Collator
      * @see java.text.CollationKey
      * @see java.text.Collator#compare
      */
-    public abstract CollationKey getCollationKey(String source);
+    public abstract @Nullable CollationKey getCollationKey(String source);
 
     /**
      * Convenience method for comparing the equality of two strings based on

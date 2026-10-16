@@ -25,6 +25,8 @@
 
 package java.io;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Thrown when the Serialization runtime detects one of the following
  * problems with a Class.
@@ -103,7 +105,7 @@ public class InvalidClassException extends ObjectStreamException {
      * Produce the message and include the classname, if present.
      */
     @Override
-    public String getMessage() {
+    public @Nullable String getMessage() {
         if (classname == null)
             return super.getMessage();
         else

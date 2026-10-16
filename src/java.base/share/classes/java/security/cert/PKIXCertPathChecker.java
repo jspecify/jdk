@@ -27,6 +27,7 @@ package java.security.cert;
 
 import java.util.Collection;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An abstract class that performs one or more checks on an
@@ -146,7 +147,7 @@ public abstract class PKIXCertPathChecker
      * {@code PKIXCertPathChecker}, or {@code null} if no
      * extensions are supported
      */
-    public abstract Set<String> getSupportedExtensions();
+    public abstract @Nullable Set<String> getSupportedExtensions();
 
     /**
      * Performs the check(s) on the specified certificate using its internal

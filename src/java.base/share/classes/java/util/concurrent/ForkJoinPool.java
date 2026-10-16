@@ -1176,7 +1176,7 @@ public class ForkJoinPool extends AbstractExecutorService
          *         to create a thread is rejected
          * @throws NullPointerException if the pool is null
          */
-        public ForkJoinWorkerThread newThread(ForkJoinPool pool);
+        public @Nullable ForkJoinWorkerThread newThread(ForkJoinPool pool);
     }
 
     /**
@@ -3768,7 +3768,7 @@ public class ForkJoinPool extends AbstractExecutorService
      *
      * @return the handler, or {@code null} if none
      */
-    public UncaughtExceptionHandler getUncaughtExceptionHandler() {
+    public @Nullable UncaughtExceptionHandler getUncaughtExceptionHandler() {
         return ueh;
     }
 
@@ -3964,7 +3964,7 @@ public class ForkJoinPool extends AbstractExecutorService
      *
      * @return the next submission, or {@code null} if none
      */
-    protected ForkJoinTask<?> pollSubmission() {
+    protected @Nullable ForkJoinTask<?> pollSubmission() {
         return pollScan(true);
     }
 

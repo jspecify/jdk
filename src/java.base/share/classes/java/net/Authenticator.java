@@ -123,7 +123,7 @@ class Authenticator {
      * @return The default authenticator, if set, {@code null} otherwise.
      * @since 9
      */
-    public static Authenticator getDefault() {
+    public static @Nullable Authenticator getDefault() {
         return theAuthenticator;
     }
 
@@ -325,7 +325,7 @@ class Authenticator {
      *
      * @since 9
      */
-    public PasswordAuthentication
+    public @Nullable PasswordAuthentication
     requestPasswordAuthenticationInstance(String host,
                                           InetAddress addr,
                                           int port,
@@ -357,7 +357,7 @@ class Authenticator {
      *          if it's not available.
      * @since 1.4
      */
-    protected final String getRequestingHost() {
+    protected final @Nullable String getRequestingHost() {
         return requestingHost;
     }
 
@@ -369,7 +369,7 @@ class Authenticator {
      * @return the InetAddress of the site requesting authorization, or null
      *          if it's not available.
      */
-    protected final InetAddress getRequestingSite() {
+    protected final @Nullable InetAddress getRequestingSite() {
         return requestingSite;
     }
 
@@ -436,7 +436,7 @@ class Authenticator {
      * @return the requesting URL, or null if not available.
      *
      */
-    protected URL getRequestingURL () {
+    protected @Nullable URL getRequestingURL () {
         return requestingURL;
     }
 

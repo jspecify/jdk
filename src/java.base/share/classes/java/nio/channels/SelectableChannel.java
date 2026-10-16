@@ -142,7 +142,7 @@ public abstract class SelectableChannel
      *          given selector, or {@code null} if this channel is not
      *          currently registered with that selector
      */
-    public abstract SelectionKey keyFor(Selector sel);
+    public abstract @Nullable SelectionKey keyFor(Selector sel);
 
     /**
      * Registers this channel with the given selector, returning a selection

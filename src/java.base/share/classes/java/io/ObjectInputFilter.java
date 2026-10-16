@@ -907,7 +907,7 @@ public interface ObjectInputFilter {
          * <li>   if the package is missing for ".*" and ".**"
          * </ul>
          */
-        public static ObjectInputFilter createFilter(String pattern) {
+        public static @Nullable ObjectInputFilter createFilter(String pattern) {
             Objects.requireNonNull(pattern, "pattern");
             return Global.createFilter(pattern, true);
         }

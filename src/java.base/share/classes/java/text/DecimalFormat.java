@@ -4168,7 +4168,7 @@ public class DecimalFormat extends NumberFormat {
      * @since 1.4
      */
     @Override
-    public Currency getCurrency() {
+    public @Nullable Currency getCurrency() {
         return symbols.getCurrency();
     }
 

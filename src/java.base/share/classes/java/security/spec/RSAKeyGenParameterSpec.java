@@ -107,7 +107,7 @@ public class RSAKeyGenParameterSpec implements AlgorithmParameterSpec {
      *         not present
      * @since 11
      */
-    public AlgorithmParameterSpec getKeyParams() {
+    public @Nullable AlgorithmParameterSpec getKeyParams() {
         return keyParams;
     }
 }

@@ -27,6 +27,7 @@ package javax.net.ssl;
 
 import java.security.Principal;
 import java.nio.ByteBuffer;
+import org.jspecify.annotations.Nullable;
 
 /**
  * In SSL, sessions are used to describe an ongoing relationship between
@@ -82,7 +83,7 @@ public interface SSLSession {
      * @return the session context used for this session, or null
      * if the context is unavailable.
      */
-    SSLSessionContext getSessionContext();
+    @Nullable SSLSessionContext getSessionContext();
 
 
     /**
@@ -166,7 +167,7 @@ public interface SSLSession {
      *          not exist.
      * @throws IllegalArgumentException if the argument is null.
      */
-    Object getValue(String name);
+    @Nullable Object getValue(String name);
 
 
     /**
@@ -232,7 +233,7 @@ public interface SSLSession {
      *
      * @see #getLocalPrincipal()
      */
-    java.security.cert.Certificate [] getLocalCertificates();
+    java.security.cert.Certificate @Nullable [] getLocalCertificates();
 
     /**
      * Returns the identity of the peer which was identified as part
@@ -308,7 +309,7 @@ public interface SSLSession {
      *
      * @since 1.5
      */
-    Principal getLocalPrincipal();
+    @Nullable Principal getLocalPrincipal();
 
     /**
      * Returns the name of the SSL cipher suite which is used for all
@@ -351,7 +352,7 @@ public interface SSLSession {
      * @return  the host name of the peer host, or null if no information
      *          is available.
      */
-    String getPeerHost();
+    @Nullable String getPeerHost();
 
     /**
      * Returns the port number of the peer in this session.

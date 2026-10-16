@@ -27,6 +27,7 @@ package java.nio.file;
 
 import java.nio.file.attribute.*;
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Storage for files. A {@code FileStore} represents a storage pool, device,
@@ -211,7 +212,7 @@ public abstract class FileStore {
      * @return  a file store attribute view of the specified type or
      *          {@code null} if the attribute view is not available
      */
-    public abstract <V extends FileStoreAttributeView> V
+    public abstract <V extends FileStoreAttributeView> @Nullable V
         getFileStoreAttributeView(Class<V> type);
 
     /**
@@ -247,5 +248,5 @@ public abstract class FileStore {
      * @throws  IOException
      *          if an I/O error occurs
      */
-    public abstract Object getAttribute(String attribute) throws IOException;
+    public abstract @Nullable Object getAttribute(String attribute) throws IOException;
 }

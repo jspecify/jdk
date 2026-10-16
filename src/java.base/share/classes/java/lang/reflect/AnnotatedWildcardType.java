@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * {@code AnnotatedWildcardType} represents the potentially annotated use of a
  * wildcard type argument, whose upper or lower bounds may themselves represent
@@ -77,5 +79,5 @@ public interface AnnotatedWildcardType extends AnnotatedType {
      * @since 9
      */
     @Override
-    AnnotatedType getAnnotatedOwnerType();
+    @Nullable AnnotatedType getAnnotatedOwnerType();
 }

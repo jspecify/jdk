@@ -25,6 +25,8 @@
 
 package java.nio.file;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * An event or a repeated event for an object that is registered with a {@link
  * WatchService}.
@@ -115,5 +117,5 @@ public interface WatchEvent<T> {
      *
      * @return  the event context; may be {@code null}
      */
-    T context();
+    @Nullable T context();
 }

@@ -27,6 +27,7 @@
 package javax.net.ssl;
 
 import java.util.Enumeration;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -69,7 +70,7 @@ public interface SSLSessionContext {
      *
      * @throws NullPointerException if {@code sessionId} is null.
      */
-    SSLSession getSession(byte[] sessionId);
+    @Nullable SSLSession getSession(byte[] sessionId);
 
     /**
      * Returns an Enumeration of all known session id's grouped under this

@@ -25,6 +25,8 @@
 
 package javax.security.auth.callback;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * <p> Underlying security services instantiate and pass a
  * {@code NameCallback} to the {@code handle}
@@ -107,7 +109,7 @@ public class NameCallback implements Callback, java.io.Serializable {
      * @return the default name, or null if this {@code NameCallback}
      *          was not instantiated with a {@code defaultName}.
      */
-    public String getDefaultName() {
+    public @Nullable String getDefaultName() {
         return defaultName;
     }
 
@@ -129,7 +131,7 @@ public class NameCallback implements Callback, java.io.Serializable {
      *
      * @see #setName
      */
-    public String getName() {
+    public @Nullable String getName() {
         return inputName;
     }
 }

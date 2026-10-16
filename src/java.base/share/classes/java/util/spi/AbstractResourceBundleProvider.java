@@ -35,6 +35,7 @@ import java.io.UncheckedIOException;
 import java.util.Locale;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@code AbstractResourceBundleProvider} is an abstract class that provides
@@ -181,7 +182,7 @@ public abstract class AbstractResourceBundleProvider implements ResourceBundlePr
      *         bundle loading
      */
     @Override
-    public ResourceBundle getBundle(String baseName, Locale locale) {
+    public @Nullable ResourceBundle getBundle(String baseName, Locale locale) {
         Module module = this.getClass().getModule();
         String bundleName = toBundleName(baseName, locale);
         var bundle = getBundle0(module, bundleName);

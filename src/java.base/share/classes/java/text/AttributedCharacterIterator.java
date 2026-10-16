@@ -30,6 +30,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An {@code AttributedCharacterIterator} allows iteration through both text and
@@ -276,7 +277,7 @@ public interface AttributedCharacterIterator extends CharacterIterator {
      * @param attribute the desired attribute
      * @return the value of the named {@code attribute} or {@code null}
      */
-    public Object getAttribute(Attribute attribute);
+    public @Nullable Object getAttribute(Attribute attribute);
 
     /**
      * Returns the keys of all attributes defined on the

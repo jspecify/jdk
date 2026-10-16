@@ -4672,7 +4672,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
          * @return the default mapped value for additions, or {@code null}
          * if not supported
          */
-        public V getMappedValue() { return value; }
+        public @Nullable V getMappedValue() { return value; }
 
         /**
          * {@inheritDoc}

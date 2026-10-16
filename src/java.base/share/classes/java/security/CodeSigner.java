@@ -28,6 +28,7 @@ package java.security;
 import java.io.*;
 import java.security.cert.CertPath;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class encapsulates information about a code signer.
@@ -94,7 +95,7 @@ public final class CodeSigner implements Serializable {
      *
      * @return The timestamp or {@code null} if none is present.
      */
-    public Timestamp getTimestamp() {
+    public @Nullable Timestamp getTimestamp() {
         return timestamp;
     }
 

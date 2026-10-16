@@ -1241,7 +1241,7 @@ public class X509CertSelector implements CertSelector {
      * @return the {@code X509Certificate} to match (or {@code null})
      * @see #setCertificate
      */
-    public X509Certificate getCertificate() {
+    public @Nullable X509Certificate getCertificate() {
         return x509Cert;
     }
 
@@ -1255,7 +1255,7 @@ public class X509CertSelector implements CertSelector {
      *                (or {@code null})
      * @see #setSerialNumber
      */
-    public BigInteger getSerialNumber() {
+    public @Nullable BigInteger getSerialNumber() {
         return serialNumber;
     }
 
@@ -1269,7 +1269,7 @@ public class X509CertSelector implements CertSelector {
      *         (or {@code null})
      * @since 1.5
      */
-    public X500Principal getIssuer() {
+    public @Nullable X500Principal getIssuer() {
         return issuer;
     }
 
@@ -1331,7 +1331,7 @@ public class X509CertSelector implements CertSelector {
      *         (or {@code null})
      * @since 1.5
      */
-    public X500Principal getSubject() {
+    public @Nullable X500Principal getSubject() {
         return subject;
     }
 
@@ -1485,7 +1485,7 @@ public class X509CertSelector implements CertSelector {
      * @return the subject public key to check for (or {@code null})
      * @see #setSubjectPublicKey
      */
-    public PublicKey getSubjectPublicKey() {
+    public @Nullable PublicKey getSubjectPublicKey() {
         return subjectPublicKey;
     }
 
@@ -1522,7 +1522,7 @@ public class X509CertSelector implements CertSelector {
      * format (or {@code null})
      * @see #setExtendedKeyUsage
      */
-    public Set<String> getExtendedKeyUsage() {
+    public @Nullable Set<String> getExtendedKeyUsage() {
         return keyPurposeSet;
     }
 
@@ -1722,7 +1722,7 @@ public class X509CertSelector implements CertSelector {
      *         string format (or {@code null})
      * @see #setPolicy
      */
-    public Set<String> getPolicy() {
+    public @Nullable Set<String> getPolicy() {
         return policySet;
     }
 

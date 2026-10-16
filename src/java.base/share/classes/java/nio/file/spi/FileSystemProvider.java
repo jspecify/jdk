@@ -925,7 +925,7 @@ public abstract class FileSystemProvider {
      * @return  a file attribute view of the specified type, or {@code null} if
      *          the attribute view type is not available
      */
-    public abstract <V extends FileAttributeView> V
+    public abstract <V extends FileAttributeView> @Nullable V
         getFileAttributeView(Path path, Class<V> type, LinkOption... options);
 
     /**

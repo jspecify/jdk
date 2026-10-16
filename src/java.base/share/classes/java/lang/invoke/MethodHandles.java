@@ -1488,7 +1488,7 @@ public final class MethodHandles {
          * @see MethodHandles#privateLookupIn(Class, Lookup)
          * @see <a href="#cross-module-lookup">Cross-module lookups</a>
          */
-        public Class<?> previousLookupClass() {
+        public @Nullable Class<?> previousLookupClass() {
             return prevLookupClass;
         }
 

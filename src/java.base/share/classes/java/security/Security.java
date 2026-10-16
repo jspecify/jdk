@@ -627,7 +627,7 @@ public final class Security {
      * @see #getProviders(java.util.Map)
      * @since 1.3
      */
-    public static Provider[] getProviders(String filter) {
+    public static Provider @Nullable [] getProviders(String filter) {
         String key;
         String value;
 
@@ -827,7 +827,7 @@ public final class Security {
      *
      * @see #setProperty
      */
-    public static String getProperty(String key) {
+    public static @Nullable String getProperty(String key) {
         SecPropLoader.checkReservedKey(key);
         String name = props.getProperty(key);
         if (name != null)

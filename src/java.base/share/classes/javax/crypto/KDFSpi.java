@@ -28,6 +28,7 @@ package javax.crypto;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.AlgorithmParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class defines the <i>Service Provider Interface</i> (<b>SPI</b>) for the
@@ -102,7 +103,7 @@ public abstract class KDFSpi {
      * @return the parameters used with this {@code KDF} object, or
      *         {@code null}
      */
-    protected abstract KDFParameters engineGetParameters();
+    protected abstract @Nullable KDFParameters engineGetParameters();
 
     /**
      * Derives a key, returned as a {@code SecretKey} object.

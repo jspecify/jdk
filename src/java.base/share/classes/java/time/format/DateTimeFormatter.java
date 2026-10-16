@@ -1631,7 +1631,7 @@ public final class DateTimeFormatter {
      *
      * @return the override chronology of this formatter, null if no override
      */
-    public Chronology getChronology() {
+    public @Nullable Chronology getChronology() {
         return chrono;
     }
 
@@ -1685,7 +1685,7 @@ public final class DateTimeFormatter {
      *
      * @return the override zone of this formatter, null if no override
      */
-    public ZoneId getZone() {
+    public @Nullable ZoneId getZone() {
         return zone;
     }
 
@@ -1785,7 +1785,7 @@ public final class DateTimeFormatter {
      *
      * @return the immutable set of resolver fields of this formatter, null if no fields
      */
-    public Set<TemporalField> getResolverFields() {
+    public @Nullable Set<TemporalField> getResolverFields() {
         return resolverFields;
     }
 

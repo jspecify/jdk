@@ -29,6 +29,7 @@ import sun.net.ResolverProviderConfiguration;
 
 import java.net.InetAddress;
 import java.util.ServiceLoader;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Service-provider class for {@linkplain InetAddressResolver InetAddress resolvers}.
@@ -96,7 +97,7 @@ public abstract class InetAddressResolverProvider {
     /**
      * {@return the name of this provider, or {@code null} if unnamed}
      */
-    public abstract String name();
+    public abstract @Nullable String name();
 
     /**
      * Creates a new instance of {@code InetAddressResolverProvider}.

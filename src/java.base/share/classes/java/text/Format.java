@@ -39,6 +39,7 @@
 package java.text;
 
 import java.io.Serializable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@code Format} is an abstract base class for formatting locale-sensitive
@@ -244,7 +245,7 @@ public abstract class Format implements Serializable, Cloneable {
      * @throws NullPointerException if {@code source} or {@code pos} is
      *         {@code null}.
      */
-    public abstract Object parseObject (String source, ParsePosition pos);
+    public abstract @Nullable Object parseObject (String source, ParsePosition pos);
 
     /**
      * Parses text from the beginning of the given string to produce an object.

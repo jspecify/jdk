@@ -25,6 +25,8 @@
 
 package javax.security.auth.callback;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * <p> Underlying security services instantiate and pass a
  * {@code TextInputCallback} to the {@code handle}
@@ -108,7 +110,7 @@ public class TextInputCallback implements Callback, java.io.Serializable {
      * @return the default text, or null if this {@code TextInputCallback}
      *          was not instantiated with {@code defaultText}.
      */
-    public String getDefaultText() {
+    public @Nullable String getDefaultText() {
         return defaultText;
     }
 
@@ -130,7 +132,7 @@ public class TextInputCallback implements Callback, java.io.Serializable {
      *
      * @see #setText
      */
-    public String getText() {
+    public @Nullable String getText() {
         return inputText;
     }
 }

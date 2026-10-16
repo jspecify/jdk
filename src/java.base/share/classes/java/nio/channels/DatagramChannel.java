@@ -33,6 +33,7 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.spi.AbstractSelectableChannel;
 import java.nio.channels.spi.SelectorProvider;
+import org.jspecify.annotations.Nullable;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -342,7 +343,7 @@ public abstract class DatagramChannel
      *
      * @since 1.7
      */
-    public abstract SocketAddress getRemoteAddress() throws IOException;
+    public abstract @Nullable SocketAddress getRemoteAddress() throws IOException;
 
     /**
      * Receives a datagram via this channel.
@@ -394,7 +395,7 @@ public abstract class DatagramChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract SocketAddress receive(ByteBuffer dst) throws IOException;
+    public abstract @Nullable SocketAddress receive(ByteBuffer dst) throws IOException;
 
     /**
      * Sends a datagram via this channel.
@@ -603,5 +604,5 @@ public abstract class DatagramChannel
      * @throws  IOException                {@inheritDoc}
      */
     @Override
-    public abstract SocketAddress getLocalAddress() throws IOException;
+    public abstract @Nullable SocketAddress getLocalAddress() throws IOException;
 }

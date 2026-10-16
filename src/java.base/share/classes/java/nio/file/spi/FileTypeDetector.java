@@ -27,6 +27,7 @@ package java.nio.file.spi;
 
 import java.nio.file.Path;
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A file type detector for probing a file to guess its file type.
@@ -83,6 +84,6 @@ public abstract class FileTypeDetector {
      *      RFC 2045: Multipurpose Internet Mail Extensions (MIME) Part One: Format of Internet Message Bodies
      * @see java.nio.file.Files#probeContentType
      */
-    public abstract String probeContentType(Path path)
+    public abstract @Nullable String probeContentType(Path path)
         throws IOException;
 }

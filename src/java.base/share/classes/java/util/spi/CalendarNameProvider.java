@@ -28,6 +28,7 @@ package java.util.spi;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An abstract class for service providers that provide localized string
@@ -246,7 +247,7 @@ public abstract class CalendarNameProvider extends LocaleServiceProvider {
      * @see java.util.Calendar#get(int)
      * @see java.util.Calendar#getDisplayName(int, int, Locale)
      */
-    public abstract String getDisplayName(String calendarType,
+    public abstract @Nullable String getDisplayName(String calendarType,
                                           int field, int value,
                                           int style, Locale locale);
 
@@ -299,7 +300,7 @@ public abstract class CalendarNameProvider extends LocaleServiceProvider {
      *         if {@code locale} is {@code null}
      * @see Calendar#getDisplayNames(int, int, Locale)
      */
-    public abstract Map<String, Integer> getDisplayNames(String calendarType,
+    public abstract @Nullable Map<String, Integer> getDisplayNames(String calendarType,
                                                          int field, int style,
                                                          Locale locale);
 }

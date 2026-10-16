@@ -25,6 +25,7 @@
 package java.lang.invoke;
 
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An entity that has a type descriptor.
@@ -81,7 +82,7 @@ public interface TypeDescriptor {
          * @return the component type, or {@code null} if this field descriptor does
          * not describe an array type
          */
-        F componentType();
+        @Nullable F componentType();
 
         /**
          * Return a descriptor for the array type whose component type is described by this

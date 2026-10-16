@@ -41,6 +41,7 @@ import jdk.internal.classfile.impl.ClassHierarchyImpl;
 import jdk.internal.classfile.impl.ClassHierarchyImpl.ClassLoadingClassHierarchyResolver;
 import jdk.internal.classfile.impl.ClassHierarchyImpl.StaticClassHierarchyResolver;
 import jdk.internal.classfile.impl.Util;
+import org.jspecify.annotations.Nullable;
 
 import static java.lang.constant.ConstantDescs.CD_Object;
 import static java.util.Objects.requireNonNull;
@@ -83,7 +84,7 @@ public interface ClassHierarchyResolver {
      * @throws IllegalArgumentException if a class shouldn't be queried for
      *         hierarchy, such as when it is inaccessible
      */
-    ClassHierarchyInfo getClassInfo(ClassDesc classDesc);
+    @Nullable ClassHierarchyInfo getClassInfo(ClassDesc classDesc);
 
     /**
      * Information about a resolved class.

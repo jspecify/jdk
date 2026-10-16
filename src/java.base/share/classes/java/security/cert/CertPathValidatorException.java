@@ -199,7 +199,7 @@ public class CertPathValidatorException extends GeneralSecurityException {
      * @return the {@code CertPath} that was being validated when
      * the exception was thrown (or {@code null} if not specified)
      */
-    public CertPath getCertPath() {
+    public @Nullable CertPath getCertPath() {
         return this.certPath;
     }
 

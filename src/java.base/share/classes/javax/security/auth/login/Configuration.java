@@ -498,7 +498,7 @@ public abstract class Configuration {
      *          from this Configuration, or null if there are no entries
      *          for the specified {@code name}
      */
-    public abstract AppConfigurationEntry[] getAppConfigurationEntry
+    public abstract AppConfigurationEntry @Nullable [] getAppConfigurationEntry
                                                         (String name);
 
     /**

@@ -26,6 +26,7 @@
 package javax.security.auth.callback;
 
 import java.util.Locale;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <p> Underlying security services instantiate and pass a
@@ -71,7 +72,7 @@ public class LanguageCallback implements Callback, java.io.Serializable {
      *
      * @see #setLocale
      */
-    public Locale getLocale() {
+    public @Nullable Locale getLocale() {
         return locale;
     }
 }

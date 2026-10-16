@@ -31,6 +31,7 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a cache response originally retrieved through secure
@@ -63,7 +64,7 @@ public abstract class SecureCacheResponse extends CacheResponse {
      *           certificate chain was sent, null will be returned.
      * @see #getLocalPrincipal()
      */
-    public abstract List<Certificate> getLocalCertificateChain();
+    public abstract @Nullable List<Certificate> getLocalCertificateChain();
 
     /**
      * Returns the server's certificate chain, which was established as
@@ -111,7 +112,7 @@ public abstract class SecureCacheResponse extends CacheResponse {
       * @see #getLocalCertificateChain()
       * @see #getPeerPrincipal()
       */
-     public abstract Principal getLocalPrincipal();
+     public abstract @Nullable Principal getLocalPrincipal();
 
     /**
      * Returns an {@link Optional} containing the {@code SSLSession} in

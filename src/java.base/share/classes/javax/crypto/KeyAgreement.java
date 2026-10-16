@@ -30,6 +30,7 @@ import java.util.*;
 import java.security.*;
 import java.security.Provider.Service;
 import java.security.spec.*;
+import org.jspecify.annotations.Nullable;
 
 import sun.security.util.Debug;
 import sun.security.jca.*;
@@ -581,7 +582,7 @@ public class KeyAgreement {
      * @exception IllegalStateException if this key agreement has not been
      * initialized.
      */
-    public final Key doPhase(Key key, boolean lastPhase)
+    public final @Nullable Key doPhase(Key key, boolean lastPhase)
         throws InvalidKeyException, IllegalStateException
     {
         chooseFirstProvider();

@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import org.jspecify.annotations.Nullable;
+
 
 /**
  * {@code AnnotatedArrayType} represents the potentially annotated use of an
@@ -57,5 +59,5 @@ public interface AnnotatedArrayType extends AnnotatedType {
      * @since 9
      */
     @Override
-    AnnotatedType getAnnotatedOwnerType();
+    @Nullable AnnotatedType getAnnotatedOwnerType();
 }

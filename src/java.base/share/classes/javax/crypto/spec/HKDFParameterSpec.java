@@ -490,7 +490,7 @@ public interface HKDFParameterSpec extends AlgorithmParameterSpec {
          * @return a clone of the optional context and application specific
          *         information, or {@code null} if not specified
          */
-        public byte[] info() {
+        public byte @Nullable [] info() {
             return exp.info();
         }
 

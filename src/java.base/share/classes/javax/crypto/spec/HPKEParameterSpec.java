@@ -386,7 +386,7 @@ public final class HPKEParameterSpec implements AlgorithmParameterSpec {
     /**
      * {@return pre-shared key, {@code null} if none}
      */
-    public SecretKey psk() {
+    public @Nullable SecretKey psk() {
         return psk;
     }
 
@@ -400,7 +400,7 @@ public final class HPKEParameterSpec implements AlgorithmParameterSpec {
     /**
      * {@return the key for authentication, {@code null} if none}
      */
-    public AsymmetricKey authKey() {
+    public @Nullable AsymmetricKey authKey() {
         return kS;
     }
 

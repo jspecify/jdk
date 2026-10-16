@@ -42,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
 import jdk.internal.misc.Unsafe;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A version of {@link AbstractQueuedSynchronizer} in
@@ -852,7 +853,7 @@ public abstract class AbstractQueuedLongSynchronizer
      * @return the first (longest-waiting) thread in the queue, or
      *         {@code null} if no threads are currently queued
      */
-    public final Thread getFirstQueuedThread() {
+    public final @Nullable Thread getFirstQueuedThread() {
         Thread first = null, w; Node h, s;
         if ((h = head) != null && ((s = h.next) == null ||
                                    (first = s.waiter) == null ||

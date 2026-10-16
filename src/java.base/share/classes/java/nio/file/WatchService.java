@@ -28,6 +28,7 @@ package java.nio.file;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A watch service that <em>watches</em> registered objects for changes and
@@ -150,7 +151,7 @@ public interface WatchService
      * @throws  ClosedWatchServiceException
      *          if this watch service is closed
      */
-    WatchKey poll();
+    @Nullable WatchKey poll();
 
     /**
      * Retrieves and removes the next watch key, waiting if necessary up to the
@@ -170,7 +171,7 @@ public interface WatchService
      * @throws  InterruptedException
      *          if interrupted while waiting
      */
-    WatchKey poll(long timeout, TimeUnit unit)
+    @Nullable WatchKey poll(long timeout, TimeUnit unit)
         throws InterruptedException;
 
     /**

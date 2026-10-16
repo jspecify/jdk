@@ -83,7 +83,7 @@ public class SubjectDomainCombiner implements java.security.DomainCombiner {
      *          if no {@code Subject} is associated with this
      *          {@code SubjectDomainCombiner}.
      */
-    public Subject getSubject() {
+    public @Nullable Subject getSubject() {
         return subject;
     }
 

@@ -29,6 +29,7 @@ import java.net.SocketOption;
 import java.net.SocketAddress;
 import java.util.Set;
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A channel to a network socket.
@@ -97,7 +98,7 @@ public interface NetworkChannel
      * @throws  IOException
      *          If an I/O error occurs
      */
-    SocketAddress getLocalAddress() throws IOException;
+    @Nullable SocketAddress getLocalAddress() throws IOException;
 
     /**
      * Sets the value of a socket option.

@@ -29,6 +29,7 @@ import java.util.EventObject;
 import java.security.cert.Certificate;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This event indicates that an SSL handshake completed on a given
@@ -109,7 +110,7 @@ public class HandshakeCompletedEvent extends EventObject
      *          then null is returned.
      * @see #getLocalPrincipal()
      */
-    public java.security.cert.Certificate [] getLocalCertificates()
+    public java.security.cert.Certificate @Nullable [] getLocalCertificates()
     {
         return session.getLocalCertificates();
     }
@@ -217,7 +218,7 @@ public class HandshakeCompletedEvent extends EventObject
      *
      * @since 1.5
      */
-    public Principal getLocalPrincipal()
+    public @Nullable Principal getLocalPrincipal()
     {
         Principal principal;
         try {

@@ -35,6 +35,7 @@ import java.net.SocketAddress;
 import java.net.UnixDomainSocketAddress;
 import java.nio.channels.spi.AbstractSelectableChannel;
 import java.nio.channels.spi.SelectorProvider;
+import org.jspecify.annotations.Nullable;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -336,7 +337,7 @@ public abstract class ServerSocketChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract SocketChannel accept() throws IOException;
+    public abstract @Nullable SocketChannel accept() throws IOException;
 
     /**
      * {@inheritDoc}
@@ -351,5 +352,5 @@ public abstract class ServerSocketChannel
      * @throws  IOException                {@inheritDoc}
      */
     @Override
-    public abstract SocketAddress getLocalAddress() throws IOException;
+    public abstract @Nullable SocketAddress getLocalAddress() throws IOException;
 }

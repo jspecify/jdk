@@ -25,6 +25,8 @@
 
 package java.io;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Signals that one of the ObjectStreamExceptions was thrown during a
  * write operation.  Thrown during a read operation when one of the
@@ -68,7 +70,7 @@ public class WriteAbortedException extends ObjectStreamException {
      * Produce the message and include the message from the nested
      * exception, if there is one.
      */
-    public String getMessage() {
+    public @Nullable String getMessage() {
         if (detail == null)
             return super.getMessage();
         else
@@ -83,7 +85,7 @@ public class WriteAbortedException extends ObjectStreamException {
      * @since   1.4
      */
     @Override
-    public Throwable getCause() {
+    public @Nullable Throwable getCause() {
         return detail;
     }
 }

@@ -26,6 +26,8 @@
 
 package javax.security.auth.login;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * This class defines the <i>Service Provider Interface</i> (<b>SPI</b>)
  * for the {@code Configuration} class.
@@ -56,7 +58,7 @@ public abstract class ConfigurationSpi {
      * @return an array of AppConfigurationEntries for the specified
      *          {@code name}, or null if there are no entries.
      */
-    protected abstract AppConfigurationEntry[] engineGetAppConfigurationEntry
+    protected abstract AppConfigurationEntry @Nullable [] engineGetAppConfigurationEntry
                                                         (String name);
 
     /**

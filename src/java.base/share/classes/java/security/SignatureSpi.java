@@ -407,7 +407,7 @@ public abstract class SignatureSpi {
      * by a provider
      * @since 1.4
      */
-    protected AlgorithmParameters engineGetParameters() {
+    protected @Nullable AlgorithmParameters engineGetParameters() {
         throw new UnsupportedOperationException();
     }
 
@@ -434,7 +434,7 @@ public abstract class SignatureSpi {
      * @deprecated
      */
     @Deprecated
-    protected abstract Object engineGetParameter(String param)
+    protected abstract @Nullable Object engineGetParameter(String param)
         throws InvalidParameterException;
 
     /**

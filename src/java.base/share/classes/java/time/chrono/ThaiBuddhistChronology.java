@@ -76,6 +76,7 @@ import java.time.temporal.ValueRange;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The Thai Buddhist calendar system.
@@ -332,7 +333,7 @@ public final class ThaiBuddhistChronology extends AbstractChronology implements 
 
     //-----------------------------------------------------------------------
     @Override  // override for return type
-    public ThaiBuddhistDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
+    public @Nullable ThaiBuddhistDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
         return (ThaiBuddhistDate) super.resolveDate(fieldValues, resolverStyle);
     }
 

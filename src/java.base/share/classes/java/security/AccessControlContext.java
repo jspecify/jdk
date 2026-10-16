@@ -27,6 +27,7 @@ package java.security;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@code AccessControlContext} was used with the Security Manager for access
@@ -117,7 +118,7 @@ public final class AccessControlContext {
      * @since 1.3
      */
     @SuppressWarnings("removal")
-    public DomainCombiner getDomainCombiner() {
+    public @Nullable DomainCombiner getDomainCombiner() {
         return combiner;
     }
 

@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * {@code AnnotatedParameterizedType} represents the potentially annotated use
  * of a parameterized type, whose type arguments may themselves represent
@@ -67,5 +69,5 @@ public interface AnnotatedParameterizedType extends AnnotatedType {
      * @since 9
      */
     @Override
-    AnnotatedType getAnnotatedOwnerType();
+    @Nullable AnnotatedType getAnnotatedOwnerType();
 }

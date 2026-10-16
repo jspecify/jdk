@@ -27,6 +27,7 @@ package javax.net.ssl;
 
 import java.security.AlgorithmConstraints;
 import java.util.*;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Encapsulates parameters for an SSL/TLS/DTLS connection. The parameters
@@ -164,7 +165,7 @@ public class SSLParameters {
      * @return a copy of the array of ciphersuites or null if none
      * have been set.
      */
-    public String[] getCipherSuites() {
+    public String @Nullable [] getCipherSuites() {
         return clone(cipherSuites);
     }
 
@@ -191,7 +192,7 @@ public class SSLParameters {
      * @return a copy of the array of protocols or null if none
      * have been set.
      */
-    public String[] getProtocols() {
+    public String @Nullable [] getProtocols() {
         return clone(protocols);
     }
 
@@ -254,7 +255,7 @@ public class SSLParameters {
      *
      * @since 1.7
      */
-    public AlgorithmConstraints getAlgorithmConstraints() {
+    public @Nullable AlgorithmConstraints getAlgorithmConstraints() {
         return algorithmConstraints;
     }
 
@@ -286,7 +287,7 @@ public class SSLParameters {
      *
      * @since 1.7
      */
-    public String getEndpointIdentificationAlgorithm() {
+    public @Nullable String getEndpointIdentificationAlgorithm() {
         return identificationAlgorithm;
     }
 
@@ -400,7 +401,7 @@ public class SSLParameters {
      *
      * @since 1.8
      */
-    public final List<SNIServerName> getServerNames() {
+    public final @Nullable List<SNIServerName> getServerNames() {
         return sniNames;
     }
 
@@ -473,7 +474,7 @@ public class SSLParameters {
      *
      * @since 1.8
      */
-    public final Collection<SNIMatcher> getSNIMatchers() {
+    public final @Nullable Collection<SNIMatcher> getSNIMatchers() {
         return sniMatchers;
     }
 
@@ -774,7 +775,7 @@ public class SSLParameters {
      *
      * @since 19
      */
-    public String[] getSignatureSchemes() {
+    public String @Nullable [] getSignatureSchemes() {
         return clone(signatureSchemes);
     }
 
@@ -895,7 +896,7 @@ public class SSLParameters {
      *
      * @since 20
      */
-    public String[] getNamedGroups() {
+    public String @Nullable [] getNamedGroups() {
         return clone(namedGroups);
     }
 

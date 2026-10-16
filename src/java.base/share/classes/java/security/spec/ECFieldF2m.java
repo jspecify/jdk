@@ -188,7 +188,7 @@ public class ECFieldF2m implements ECField {
      * i-th coefficient of the reduction polynomial for polynomial
      * basis or null for normal basis.
      */
-    public BigInteger getReductionPolynomial() {
+    public @Nullable BigInteger getReductionPolynomial() {
         return rp;
     }
 
