@@ -37,3 +37,48 @@ jobs:
     - name: Build the JDK
       run: make jdk
 
+  header_compile:
+    name: Header-compile the JSpecify JDK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TURBINE_VERSION: 1.17.0
+      TURBINE_SHA256: 5ab78a2c40276abddc86234f845b6cbaf1b531e62987980064ad623c0270e372
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Set up JDK 26
+      uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      with:
+        java-version: 26
+        distribution: 'temurin'
+    - name: Install dependencies for configure
+      run: |
+        sudo apt-get update
+        sudo apt-get install libcups2-dev libasound2-dev libfontconfig1-dev
+    - name: Preprocess JDK sources
+      run: |
+        bash ./configure --enable-headless-only --disable-warnings-as-errors
+        make gensrc
+    - name: Download Turbine
+      run: |
+        curl --fail --silent --show-error --location \
+            "https://github.com/google/turbine/releases/download/v${TURBINE_VERSION}/turbine-${TURBINE_VERSION}-all-deps.jar" \
+            --output "${RUNNER_TEMP}/turbine.jar"
+        echo "${TURBINE_SHA256}  ${RUNNER_TEMP}/turbine.jar" | sha256sum --check
+    - name: Header-compile JDK APIs
+      run: |
+        java jspecify/HeaderCompile.java \
+            --turbine "${RUNNER_TEMP}/turbine.jar" \
+            --output "${RUNNER_TEMP}/jspecify-jdk-stubs.jar"
+        java jspecify/HeaderCompile.java \
+            --turbine "${RUNNER_TEMP}/turbine.jar" \
+            --output "${RUNNER_TEMP}/jspecify-jdk-stubs-second-run.jar"
+    - name: Verify stub jar
+      run: |
+        java jspecify/HeaderCompileTest.java \
+            "${RUNNER_TEMP}/jspecify-jdk-stubs.jar" \
+            "${RUNNER_TEMP}/jspecify-jdk-stubs-second-run.jar"
+
