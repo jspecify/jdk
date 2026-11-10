@@ -367,7 +367,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         return (E) queue[0];
     }
 
-    private int indexOf(@Nullable Object o) {
+    private int indexOf(Object o) {
         if (o != null) {
             final Object[] es = queue;
             for (int i = 0, n = size; i < n; i++)
@@ -675,7 +675,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
             siftUpComparable(k, x, queue);
     }
 
-    private static <T extends @Nullable Object> void siftUpComparable(int k, T x, Object[] es) {
+    private static <T> void siftUpComparable(int k, T x, Object[] es) {
         Comparable<? super T> key = (Comparable<? super T>) x;
         while (k > 0) {
             int parent = (k - 1) >>> 1;
@@ -688,7 +688,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         es[k] = key;
     }
 
-    private static <T extends @Nullable Object> void siftUpUsingComparator(
+    private static <T> void siftUpUsingComparator(
         int k, T x, Object[] es, Comparator<? super T> cmp) {
         while (k > 0) {
             int parent = (k - 1) >>> 1;
@@ -716,7 +716,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
             siftDownComparable(k, x, queue, size);
     }
 
-    private static <T extends @Nullable Object> void siftDownComparable(int k, T x, Object[] es, int n) {
+    private static <T> void siftDownComparable(int k, T x, Object[] es, int n) {
         // assert n > 0;
         Comparable<? super T> key = (Comparable<? super T>)x;
         int half = n >>> 1;           // loop while a non-leaf
@@ -735,7 +735,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         es[k] = key;
     }
 
-    private static <T extends @Nullable Object> void siftDownUsingComparator(
+    private static <T> void siftDownUsingComparator(
         int k, T x, Object[] es, int n, Comparator<? super T> cmp) {
         // assert n > 0;
         int half = n >>> 1;

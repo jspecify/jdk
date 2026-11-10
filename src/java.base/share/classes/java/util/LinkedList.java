@@ -991,7 +991,7 @@ public class LinkedList<E extends @Nullable Object>
         }
     }
 
-    private static class Node<E extends @Nullable Object> {
+    private static class Node<E> {
         E item;
         Node<E> next;
         Node<E> prev;
@@ -1202,7 +1202,7 @@ public class LinkedList<E extends @Nullable Object>
     }
 
     /** A customized variant of Spliterators.IteratorSpliterator */
-    static final class LLSpliterator<E extends @Nullable Object> implements Spliterator<E> {
+    static final class LLSpliterator<E> implements Spliterator<E> {
         static final int BATCH_UNIT = 1 << 10;  // batch array size increment
         static final int MAX_BATCH = 1 << 25;  // max batch array size;
         final LinkedList<E> list; // null OK unless traversed

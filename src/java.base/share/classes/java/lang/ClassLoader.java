@@ -246,7 +246,7 @@ public abstract class ClassLoader {
     // The parent class loader for delegation
     // Note: VM hardcoded the offset of this field, thus all new fields
     // must be added *after* it.
-    private final @Nullable ClassLoader parent;
+    private final ClassLoader parent;
 
     // class loader name
     private final String name;
@@ -306,7 +306,7 @@ public abstract class ClassLoader {
     // class loader is parallel capable.
     // Note: VM also uses this field to decide if the current class loader
     // is parallel capable and the appropriate lock object for class loading.
-    private final @Nullable ConcurrentHashMap<String, Object> parallelLockMap;
+    private final ConcurrentHashMap<String, Object> parallelLockMap;
 
     // Maps packages to certs
     private final ConcurrentHashMap<String, Certificate[]> package2certs;
@@ -364,7 +364,7 @@ public abstract class ClassLoader {
         return p;
     }
 
-    private static @Nullable Void checkCreateClassLoader() {
+    private static Void checkCreateClassLoader() {
         return checkCreateClassLoader(null);
     }
 
@@ -848,8 +848,8 @@ public abstract class ClassLoader {
         - signer of this class matches signers for the rest of the classes in
           package.
     */
-    private ProtectionDomain preDefineClass(@Nullable String name,
-                                            @Nullable ProtectionDomain pd)
+    private ProtectionDomain preDefineClass(String name,
+                                            ProtectionDomain pd)
     {
         if (!checkName(name))
             throw new NoClassDefFoundError("IllegalName: " + name);
@@ -874,7 +874,7 @@ public abstract class ClassLoader {
         return pd;
     }
 
-    private @Nullable String defineClassSourceLocation(ProtectionDomain pd) {
+    private String defineClassSourceLocation(ProtectionDomain pd) {
         CodeSource cs = pd.getCodeSource();
         String source = null;
         if (cs != null && cs.getLocation() != null) {
@@ -1131,7 +1131,7 @@ public abstract class ClassLoader {
         return true;
     }
 
-    private void checkCerts(String name, @Nullable CodeSource cs) {
+    private void checkCerts(String name, CodeSource cs) {
         int i = name.lastIndexOf('.');
         String pname = (i == -1) ? "" : name.substring(0, i);
 
@@ -1945,7 +1945,7 @@ public abstract class ClassLoader {
     }
 
     // Returns the class's class loader, or null if none.
-    static @Nullable ClassLoader getClassLoader(Class<?> caller) {
+    static ClassLoader getClassLoader(Class<?> caller) {
         // This can be null if the VM is requesting it
         if (caller == null) {
             return null;
@@ -2372,14 +2372,14 @@ public abstract class ClassLoader {
     // none of this ClassLoader's assertion status modification methods have
     // been invoked.
     // @GuardedBy("assertionLock")
-    private @Nullable Map<@Nullable String, Boolean> packageAssertionStatus = null;
+    private Map<String, Boolean> packageAssertionStatus = null;
 
     // Maps String fullyQualifiedClassName to Boolean assertionStatus If this
     // field is null then we are delegating assertion status queries to the VM,
     // i.e., none of this ClassLoader's assertion status modification methods
     // have been invoked.
     // @GuardedBy("assertionLock")
-    @Nullable Map<String, Boolean> classAssertionStatus = null;
+    Map<String, Boolean> classAssertionStatus = null;
 
     /**
      * Sets the default assertion status for this class loader.  This setting
@@ -2665,7 +2665,7 @@ public abstract class ClassLoader {
 /*
  * A utility class that will enumerate over an array of enumerations.
  */
-final class CompoundEnumeration<E extends @Nullable Object> implements Enumeration<E> {
+final class CompoundEnumeration<E> implements Enumeration<E> {
     private final Enumeration<E>[] enums;
     private int index;
 

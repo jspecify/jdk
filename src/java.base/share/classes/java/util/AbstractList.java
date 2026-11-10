@@ -661,7 +661,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      * If the List is an instance of AbstractList then concurrent modification
      * checking is performed using the AbstractList's modCount field.
      */
-    static final class RandomAccessSpliterator<E extends @Nullable Object> implements Spliterator<E> {
+    static final class RandomAccessSpliterator<E> implements Spliterator<E> {
 
         private final List<E> list;
         private int index; // current index, modified on advance/split
@@ -744,7 +744,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
             return Spliterator.ORDERED | Spliterator.SIZED | Spliterator.SUBSIZED;
         }
 
-        private static <E extends @Nullable Object> E get(List<E> list, int i) {
+        private static <E> E get(List<E> list, int i) {
             try {
                 return list.get(i);
             } catch (IndexOutOfBoundsException ex) {
@@ -759,7 +759,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
         }
     }
 
-    private static class SubList<E extends @Nullable Object> extends AbstractList<E> {
+    private static class SubList<E> extends AbstractList<E> {
         private final AbstractList<E> root;
         private final SubList<E> parent;
         private final int offset;
@@ -929,7 +929,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
         }
     }
 
-    private static class RandomAccessSubList<E extends @Nullable Object>
+    private static class RandomAccessSubList<E>
             extends SubList<E> implements RandomAccess {
 
         /**

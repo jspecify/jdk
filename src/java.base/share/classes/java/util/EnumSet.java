@@ -441,7 +441,7 @@ public abstract sealed class EnumSet<E extends Enum<E>> extends AbstractSet<E>
          *
          * @serial
          */
-        private final @Nullable Enum<?>[] elements;
+        private final Enum<?>[] elements;
 
         SerializationProxy(EnumSet<E> set) {
             elementType = set.elementType;

@@ -895,7 +895,7 @@ public final class URI
      * Constructs a simple URI consisting of only a scheme and a pre-validated
      * path. Provides a fast-path for some internal cases.
      */
-    URI(@Nullable String scheme, @Nullable String path) {
+    URI(String scheme, String path) {
         assert validSchemeAndPath(scheme, path);
         this.scheme = scheme;
         this.path = path;

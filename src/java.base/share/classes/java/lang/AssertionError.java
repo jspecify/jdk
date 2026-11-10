@@ -61,7 +61,7 @@ public class AssertionError extends Error {
      * never call this constructor with a null argument.
      */
     
-    private AssertionError(@Nullable String detailMessage) {
+    private AssertionError(String detailMessage) {
         super(detailMessage);
     }
 

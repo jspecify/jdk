@@ -102,7 +102,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      * to which universe[i] is currently mapped, or null if it isn't
      * mapped to anything, or NULL if it's mapped to null.
      */
-    private transient @Nullable Object[] vals;
+    private transient Object[] vals;
 
     /**
      * The number of mappings in this map.
@@ -122,12 +122,12 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
         }
     };
 
-    private Object maskNull(@Nullable Object value) {
+    private Object maskNull(Object value) {
         return (value == null ? NULL : value);
     }
 
     @SuppressWarnings("unchecked")
-    private @Nullable V unmaskNull(@Nullable Object value) {
+    private  V unmaskNull(Object value) {
         return (V)(value == NULL ? null : value);
     }
 
@@ -231,7 +231,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
         return isValidKey(key) && vals[((Enum<?>)key).ordinal()] != null;
     }
 
-    private boolean containsMapping(@Nullable Object key, @Nullable Object value) {
+    private boolean containsMapping(Object key, Object value) {
         return isValidKey(key) &&
             maskNull(value).equals(vals[((Enum<?>)key).ordinal()]);
     }
@@ -304,7 +304,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
         return unmaskNull(oldValue);
     }
 
-    private boolean removeMapping(@Nullable Object key, @Nullable Object value) {
+    private boolean removeMapping(Object key, Object value) {
         if (!isValidKey(key))
             return false;
         int index = ((Enum<?>)key).ordinal();
@@ -321,7 +321,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      * enum map.
      */
     
-    private boolean isValidKey(@Nullable Object key) {
+    private boolean isValidKey(Object key) {
         if (key == null)
             return false;
 
@@ -380,7 +380,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      * view the first time this view is requested.  The view is stateless,
      * so there's no reason to create more than one.
      */
-    private transient @Nullable Set<Map.Entry<K,V>> entrySet;
+    private transient Set<Map.Entry<K,V>> entrySet;
 
     /**
      * Returns a {@link Set} view of the keys contained in this map.
@@ -410,10 +410,10 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
             return size;
         }
         
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return containsKey(o);
         }
-        public boolean remove(@Nullable Object o) {
+        public boolean remove(Object o) {
             int oldSize = size;
             EnumMap.this.remove(o);
             return size != oldSize;
@@ -452,10 +452,10 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
             return size;
         }
         
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return containsValue(o);
         }
-        public boolean remove(@Nullable Object o) {
+        public boolean remove(Object o) {
             o = maskNull(o);
 
             for (int i = 0; i < vals.length; i++) {
@@ -522,7 +522,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
             "nullness:argument.type.incompatible",
             "nullness:override.param.invalid"
         })
-        public <T extends @Nullable Object> T[] toArray(T[] a) {
+        public <T> T[] toArray(T[] a) {
             int size = size();
             if (a.length < size)
                 a = (T[])java.lang.reflect.Array
@@ -543,7 +543,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
         }
     }
 
-    private abstract class EnumMapIterator<T extends @Nullable Object> implements Iterator<T> {
+    private abstract class EnumMapIterator<T> implements Iterator<T> {
         // Lower bound on index of next element to return
         int index = 0;
 

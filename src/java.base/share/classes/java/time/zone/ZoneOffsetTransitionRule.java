@@ -221,7 +221,7 @@ public final class ZoneOffsetTransitionRule implements Serializable {
     ZoneOffsetTransitionRule(
             Month month,
             int dayOfMonthIndicator,
-            @Nullable DayOfWeek dayOfWeek,
+            DayOfWeek dayOfWeek,
             LocalTime time,
             boolean timeEndOfDay,
             TimeDefinition timeDefinition,

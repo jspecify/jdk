@@ -335,7 +335,7 @@ public class ThreadLocal<T extends @Nullable Object> {
      * An extension of ThreadLocal that obtains its initial value from
      * the specified {@code Supplier}.
      */
-    static final class SuppliedThreadLocal<T extends @Nullable Object> extends ThreadLocal<T> {
+    static final class SuppliedThreadLocal<T> extends ThreadLocal<T> {
 
         private final Supplier<? extends T> supplier;
 

@@ -630,7 +630,7 @@ public class Hashtable<K,V>
     }
 
 
-    private <T extends @Nullable Object> Enumeration<T> getEnumeration(int type) {
+    private <T> Enumeration<T> getEnumeration(int type) {
         if (count == 0) {
             return Collections.emptyEnumeration();
         } else {
@@ -638,7 +638,7 @@ public class Hashtable<K,V>
         }
     }
 
-    private <T extends @Nullable Object> Iterator<T> getIterator(int type) {
+    private <T> Iterator<T> getIterator(int type) {
         if (count == 0) {
             return Collections.emptyIterator();
         } else {
@@ -1390,7 +1390,7 @@ public class Hashtable<K,V>
     /**
      * Hashtable bucket collision list entry
      */
-    private static class Entry<K extends @Nullable Object,V extends @Nullable Object> implements Map.Entry<K,V> {
+    private static class Entry<K,V> implements Map.Entry<K,V> {
         final int hash;
         final K key;
         V value;
@@ -1458,7 +1458,7 @@ public class Hashtable<K,V>
      * to avoid unintentionally increasing the capabilities granted a user
      * by passing an Enumeration.
      */
-    private class Enumerator<T extends @Nullable Object> implements Enumeration<T>, Iterator<T> {
+    private class Enumerator<T> implements Enumeration<T>, Iterator<T> {
         final Entry<?,?>[] table = Hashtable.this.table;
         int index = table.length;
         Entry<?,?> entry;

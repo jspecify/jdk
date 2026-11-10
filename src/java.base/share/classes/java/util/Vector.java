@@ -747,7 +747,7 @@ public class Vector<E extends @Nullable Object>
     }
 
     @SuppressWarnings("unchecked")
-    static <E extends @Nullable Object> E elementAt(Object[] es, int index) {
+    static <E> E elementAt(Object[] es, int index) {
         return (E) es[index];
     }
 

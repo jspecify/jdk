@@ -931,11 +931,11 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
             return WeakHashMap.this.size();
         }
 
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return containsKey(o);
         }
 
-        public boolean remove(@Nullable Object o) {
+        public boolean remove(Object o) {
             if (containsKey(o)) {
                 WeakHashMap.this.remove(o);
                 return true;
@@ -988,7 +988,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
             return WeakHashMap.this.size();
         }
 
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return containsValue(o);
         }
 
@@ -1034,7 +1034,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
                     && getEntry(e.getKey()).equals(e);
         }
 
-        public boolean remove(@Nullable Object o) {
+        public boolean remove(Object o) {
             return removeMapping(o);
         }
 
@@ -1060,7 +1060,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
         }
 
         
-        public <T extends @Nullable Object> T[] toArray(T[] a) {
+        public <T> T[] toArray(T[] a) {
             return deepCopy().toArray(a);
         }
 

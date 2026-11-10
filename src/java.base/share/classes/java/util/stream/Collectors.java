@@ -153,7 +153,7 @@ public final class Collectors {
      * @param <M> type of the map
      * @return a merge function for two maps
      */
-    private static <K extends @Nullable Object, V extends @Nullable Object, M extends Map<K,V>>
+    private static <K, V, M extends Map<K,V>>
     BinaryOperator<M> uniqKeysMapMerger() {
         return (m1, m2) -> {
             for (Map.Entry<K,V> e : m2.entrySet()) {
@@ -178,7 +178,7 @@ public final class Collectors {
      * @param <V> type of map values
      * @return an accumulating consumer
      */
-    private static <T extends @Nullable Object, K extends @Nullable Object, V extends @Nullable Object>
+    private static <T, K, V>
     BiConsumer<Map<K, V>, T> uniqKeysMapAccumulator(Function<? super T, ? extends K> keyMapper,
                                                     Function<? super T, ? extends V> valueMapper) {
         return (map, element) -> {
@@ -190,7 +190,7 @@ public final class Collectors {
     }
 
     @SuppressWarnings("unchecked")
-    private static <I extends @Nullable Object, R extends @Nullable Object> Function<I, R> castingIdentity() {
+    private static <I, R> Function<I, R> castingIdentity() {
         return i -> (R) i;
     }
 
@@ -397,7 +397,7 @@ public final class Collectors {
      * {@link Map#merge(Object, Object, BiFunction) Map.merge()}
      * @return a merge function for two maps
      */
-    private static <K extends @Nullable Object, V extends @Nullable Object, M extends Map<K,V>>
+    private static <K, V, M extends Map<K,V>>
     BinaryOperator<M> mapMerger(BinaryOperator<V> mergeFunction) {
         return (m1, m2) -> {
             for (Map.Entry<K,V> e : m2.entrySet())
@@ -861,7 +861,7 @@ public final class Collectors {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends @Nullable Object> Supplier<T[]> boxSupplier(T identity) {
+    private static <T> Supplier<T[]> boxSupplier(T identity) {
         return () -> (T[]) new Object[] { identity };
     }
 
@@ -1982,7 +1982,7 @@ public final class Collectors {
     /**
      * Implementation class used by partitioningBy.
      */
-    private static final class Partition<T extends @Nullable Object>
+    private static final class Partition<T>
             extends AbstractMap<Boolean, T>
             implements Map<Boolean, T> {
         final T forTrue;
