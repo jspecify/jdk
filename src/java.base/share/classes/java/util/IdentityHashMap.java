@@ -755,7 +755,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
         }
     }
 
-    private abstract class IdentityHashMapIterator<T extends @Nullable Object> implements Iterator<T> {
+    private abstract class IdentityHashMapIterator<T> implements Iterator<T> {
         int index = (size != 0 ? 0 : table.length); // current slot.
         int expectedModCount = modCount; // to support fast-fail
         int lastReturnedIndex = -1;      // to allow remove()
@@ -927,7 +927,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
                 return oldValue;
             }
 
-            public boolean equals(@Nullable Object o) {
+            public boolean equals(Object o) {
                 if (index < 0)
                     return super.equals(o);
 
@@ -1025,10 +1025,10 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
         public  int size() {
             return size;
         }
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return containsKey(o);
         }
-        public boolean remove(@Nullable Object o) {
+        public boolean remove(Object o) {
             int oldSize = size;
             IdentityHashMap.this.remove(o);
             return size != oldSize;
@@ -1064,7 +1064,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
         }
         @SuppressWarnings("unchecked")
         
-        public <T extends @Nullable Object> T[] toArray(T[] a) {
+        public <T> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
             if (a.length < size)
@@ -1137,10 +1137,10 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
         public  int size() {
             return size;
         }
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return containsValue(o);
         }
-        public boolean remove(@Nullable Object o) {
+        public boolean remove(Object o) {
             for (Iterator<V> i = iterator(); i.hasNext(); ) {
                 if (i.next() == o) {
                     i.remove();
@@ -1158,7 +1158,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
         }
         @SuppressWarnings("unchecked")
         
-        public <T extends @Nullable Object> T[] toArray(T[] a) {
+        public <T> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
             if (a.length < size)
@@ -1284,7 +1284,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
 
         @SuppressWarnings("unchecked")
         
-        public <T extends @Nullable Object> T[] toArray(T[] a) {
+        public <T> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
             if (a.length < size)
@@ -1522,7 +1522,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
         }
     }
 
-    static final class KeySpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class KeySpliterator<K,V>
         extends IdentityHashMapSpliterator<K,V>
         implements Spliterator<K> {
         KeySpliterator(IdentityHashMap<K,V> map, int origin, int fence, int est,
@@ -1579,7 +1579,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
         }
     }
 
-    static final class ValueSpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ValueSpliterator<K,V>
         extends IdentityHashMapSpliterator<K,V>
         implements Spliterator<V> {
         ValueSpliterator(IdentityHashMap<K,V> m, int origin, int fence, int est,
@@ -1638,7 +1638,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
 
     }
 
-    static final class EntrySpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class EntrySpliterator<K,V>
         extends IdentityHashMapSpliterator<K,V>
         implements Spliterator<Map.Entry<K,V>> {
         EntrySpliterator(IdentityHashMap<K,V> m, int origin, int fence, int est,

@@ -185,9 +185,9 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * optimization.
      */
 
-    static final class Node<E extends @Nullable Object> {
+    static final class Node<E> {
         volatile E item;
-        volatile @Nullable Node<E> next;
+        volatile Node<E> next;
 
         /**
          * Constructs a node holding item.  Uses relaxed write because
@@ -428,7 +428,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * and the need to add a retry loop to deal with the possibility
      * of losing a race to a concurrent poll().
      */
-    @Nullable Node<E> first() {
+    Node<E> first() {
         restartFromHead: for (;;) {
             for (Node<E> h = head, p = h, q;; p = q) {
                 boolean hasItem = (p.item != null);
@@ -743,7 +743,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
         /**
          * Next node to return item for.
          */
-        private @Nullable Node<E> nextNode;
+        private Node<E> nextNode;
 
         /**
          * nextItem holds on to item fields because once we claim

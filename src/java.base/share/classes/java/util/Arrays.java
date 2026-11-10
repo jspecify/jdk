@@ -1237,7 +1237,7 @@ public final class Arrays {
     }
 
     /** To be removed in a future release. */
-    private static <T extends @Nullable Object> void legacyMergeSort(T[] a, @Nullable Comparator<? super T> c) {
+    private static <T> void legacyMergeSort(T[] a, Comparator<? super T> c) {
         T[] aux = a.clone();
         if (c==null)
             mergeSort(aux, a, 0, a.length, 0);
@@ -1311,7 +1311,7 @@ public final class Arrays {
     }
 
     /** To be removed in a future release. */
-    private static <T extends @Nullable Object> void legacyMergeSort(T[] a,  int fromIndex,  int toIndex,
+    private static <T> void legacyMergeSort(T[] a,  int fromIndex,  int toIndex,
                                             Comparator<? super T> c) {
         T[] aux = copyOfRange(a, fromIndex, toIndex);
         if (c==null)
@@ -2328,8 +2328,8 @@ public final class Arrays {
     }
 
     // Like public version, but without range checks.
-    private static <T extends @Nullable Object> int binarySearch0(T[] a,  int fromIndex,  int toIndex,
-                                         T key, @Nullable Comparator<? super T> c) {
+    private static <T> int binarySearch0(T[] a,  int fromIndex,  int toIndex,
+                                         T key, Comparator<? super T> c) {
         if (c == null) {
             return binarySearch0(a, fromIndex, toIndex, key);
         }
@@ -4209,7 +4209,7 @@ public final class Arrays {
     /**
      * @serial include
      */
-    private static class ArrayList<E extends @Nullable Object> extends AbstractList<E>
+    private static class ArrayList<E> extends AbstractList<E>
         implements RandomAccess, java.io.Serializable
     {
         @java.io.Serial
@@ -4230,14 +4230,14 @@ public final class Arrays {
 
         
         @Override
-        public @Nullable Object[] toArray() {
+        public Object[] toArray() {
             return Arrays.copyOf(a, a.length, Object[].class);
         }
 
         
         @Override
         @SuppressWarnings("unchecked")
-        public <T extends @Nullable Object> T[] toArray(T[] a) {
+        public <T> T[] toArray(T[] a) {
             int size = size();
             if (a.length < size)
                 return Arrays.copyOf(this.a, size,
@@ -4261,7 +4261,7 @@ public final class Arrays {
         }
 
         @Override
-        public int indexOf(@Nullable Object o) {
+        public int indexOf(Object o) {
             E[] a = this.a;
             if (o == null) {
                 for (int i = 0; i < a.length; i++)
@@ -4276,7 +4276,7 @@ public final class Arrays {
         }
 
         @Override
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return indexOf(o) >= 0;
         }
 
@@ -4314,7 +4314,7 @@ public final class Arrays {
         }
     }
 
-    private static class ArrayItr<E extends @Nullable Object> implements Iterator<E> {
+    private static class ArrayItr<E> implements Iterator<E> {
         private int cursor;
         private final E[] a;
 

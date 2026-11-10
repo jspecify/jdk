@@ -548,7 +548,7 @@ public class ZipFile implements ZipConstants, Closeable {
         }
     }
 
-    private class EntrySpliterator<T extends @Nullable Object> extends Spliterators.AbstractSpliterator<T> {
+    private class EntrySpliterator<T> extends Spliterators.AbstractSpliterator<T> {
         private int index;
         private final int fence;
         private final IntFunction<T> gen;

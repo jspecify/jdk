@@ -601,7 +601,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
         return Integer.MAX_VALUE;
     }
 
-    private int indexOf(@Nullable Object o) {
+    private int indexOf(Object o) {
         if (o != null) {
             final Object[] es = queue;
             for (int i = 0, n = size; i < n; i++)

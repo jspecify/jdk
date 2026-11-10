@@ -206,7 +206,7 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
     /**
      * HashMap.Node subclass for normal LinkedHashMap entries.
      */
-    static class Entry<K extends @Nullable Object,V extends @Nullable Object> extends HashMap.Node<K,V> {
+    static class Entry<K,V> extends HashMap.Node<K,V> {
         Entry<K,V> before, after;
         Entry(int hash, K key, V value, Node<K,V> next) {
             super(hash, key, value, next);
@@ -707,8 +707,8 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
         public final Iterator<K> iterator() {
             return new LinkedKeyIterator(reversed);
         }
-        public final boolean contains(@Nullable Object o) { return containsKey(o); }
-        public final boolean remove(@Nullable Object key) {
+        public final boolean contains(Object o) { return containsKey(o); }
+        public final boolean remove(Object key) {
             return removeNode(hash(key), key, null, false, true) != null;
         }
         
@@ -817,7 +817,7 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
         public final Iterator<V> iterator() {
             return new LinkedValueIterator(reversed);
         }
-        public final boolean contains(@Nullable Object o) { return containsValue(o); }
+        public final boolean contains(Object o) { return containsValue(o); }
         
         public final Spliterator<V> spliterator() {
             return Spliterators.spliterator(this, Spliterator.SIZED |

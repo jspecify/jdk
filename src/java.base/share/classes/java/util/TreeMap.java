@@ -1371,11 +1371,11 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
             return TreeMap.this.size();
         }
 
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return TreeMap.this.containsValue(o);
         }
 
-        public boolean remove(@Nullable Object o) {
+        public boolean remove(Object o) {
             for (Entry<K,V> e = getFirstEntry(); e != null; e = successor(e)) {
                 if (valEquals(e.getValue(), o)) {
                     deleteEntry(e);
@@ -1452,7 +1452,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
         return new DescendingKeyIterator(getLastEntry());
     }
 
-    static final class KeySet<E extends @Nullable Object> extends AbstractSet<E> implements NavigableSet<E> {
+    static final class KeySet<E> extends AbstractSet<E> implements NavigableSet<E> {
         private final NavigableMap<E, ?> m;
         KeySet(NavigableMap<E,?> map) { m = map; }
 
@@ -1475,7 +1475,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
         public  int size() { return m.size(); }
         
         public boolean isEmpty() { return m.isEmpty(); }
-        public boolean contains(@Nullable Object o) { return m.containsKey(o); }
+        public boolean contains(Object o) { return m.containsKey(o); }
         public void clear() { m.clear(); }
         public E lower(E e) { return m.lowerKey(e); }
         public E floor(E e) { return m.floorKey(e); }
@@ -1492,7 +1492,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
             Map.Entry<E,?> e = m.pollLastEntry();
             return (e == null) ? null : e.getKey();
         }
-        public boolean remove(@Nullable Object o) {
+        public boolean remove(Object o) {
             int oldSize = size();
             m.remove(o);
             return size() != oldSize;
@@ -1530,7 +1530,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     /**
      * Base class for TreeMap Iterators
      */
-    abstract class PrivateEntryIterator<T extends @Nullable Object> implements Iterator<T> {
+    abstract class PrivateEntryIterator<T> implements Iterator<T> {
         Entry<K,V> next;
         Entry<K,V> lastReturned;
         int expectedModCount;
@@ -1648,7 +1648,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     /**
      * Return SimpleImmutableEntry for entry, or null if null
      */
-    static <K extends @Nullable Object,V extends @Nullable Object> Map.Entry<K,V> exportEntry(TreeMap.Entry<K,V> e) {
+    static <K,V> Map.Entry<K,V> exportEntry(TreeMap.Entry<K,V> e) {
         return (e == null) ? null :
             new AbstractMap.SimpleImmutableEntry<>(e);
     }
@@ -1656,7 +1656,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     /**
      * Return key for entry, or null if null
      */
-    static <K extends @Nullable Object,V extends @Nullable Object> K keyOrNull(TreeMap.Entry<K,V> e) {
+    static <K,V> K keyOrNull(TreeMap.Entry<K,V> e) {
         return (e == null) ? null : e.key;
     }
 
@@ -1664,7 +1664,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * Returns the key corresponding to the specified Entry.
      * @throws NoSuchElementException if the Entry is null
      */
-    static <K extends @Nullable Object> K key(Entry<K,?> e) {
+    static <K> K key(Entry<K,?> e) {
         if (e==null)
             throw new NoSuchElementException();
         return e.key;
@@ -1682,7 +1682,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     /**
      * @serial include
      */
-    abstract static class NavigableSubMap<K extends @Nullable Object,V extends @Nullable Object> extends AbstractMap<K,V>
+    abstract static class NavigableSubMap<K,V> extends AbstractMap<K,V>
         implements NavigableMap<K,V>, java.io.Serializable {
         @java.io.Serial
         private static final long serialVersionUID = -2102997345730753016L;
@@ -1860,7 +1860,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
 
         
         
-        public final boolean containsKey(@Nullable Object key) {
+        public final boolean containsKey(Object key) {
             return inRange(key) && m.containsKey(key);
         }
 
@@ -1911,7 +1911,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
             return !inRange(key) ? null :  m.get(key);
         }
 
-        public final V remove(@Nullable Object key) {
+        public final V remove(Object key) {
             return !inRange(key) ? null : m.remove(key);
         }
 
@@ -2072,7 +2072,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
         /**
          * Iterators for SubMaps
          */
-        abstract class SubMapIterator<T extends @Nullable Object> implements Iterator<T> {
+        abstract class SubMapIterator<T> implements Iterator<T> {
             TreeMap.Entry<K,V> lastReturned;
             TreeMap.Entry<K,V> next;
             final Object fenceKey;
@@ -2475,7 +2475,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * user (see Map.Entry).
      */
 
-    static final class Entry<K extends @Nullable Object,V extends @Nullable Object> implements Map.Entry<K,V> {
+    static final class Entry<K,V> implements Map.Entry<K,V> {
         K key;
         V value;
         Entry<K,V> left;
@@ -2568,7 +2568,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     /**
      * Returns the successor of the specified Entry, or null if no such.
      */
-    static <K extends @Nullable Object,V extends @Nullable Object> TreeMap.Entry<K,V> successor(Entry<K,V> t) {
+    static <K,V> TreeMap.Entry<K,V> successor(Entry<K,V> t) {
         if (t == null)
             return null;
         else if (t.right != null) {
@@ -2590,7 +2590,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
     /**
      * Returns the predecessor of the specified Entry, or null if no such.
      */
-    static <K extends @Nullable Object,V extends @Nullable Object> Entry<K,V> predecessor(Entry<K,V> t) {
+    static <K,V> Entry<K,V> predecessor(Entry<K,V> t) {
         if (t == null)
             return null;
         else if (t.left != null) {
@@ -2619,24 +2619,24 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * algorithms.
      */
 
-    private static <K extends @Nullable Object,V extends @Nullable Object> boolean colorOf(Entry<K,V> p) {
+    private static <K,V> boolean colorOf(Entry<K,V> p) {
         return (p == null ? BLACK : p.color);
     }
 
-    private static <K extends @Nullable Object,V extends @Nullable Object> Entry<K,V> parentOf(Entry<K,V> p) {
+    private static <K,V> Entry<K,V> parentOf(Entry<K,V> p) {
         return (p == null ? null: p.parent);
     }
 
-    private static <K extends @Nullable Object,V extends @Nullable Object> void setColor(Entry<K,V> p, boolean c) {
+    private static <K,V> void setColor(Entry<K,V> p, boolean c) {
         if (p != null)
             p.color = c;
     }
 
-    private static <K extends @Nullable Object,V extends @Nullable Object> Entry<K,V> leftOf(Entry<K,V> p) {
+    private static <K,V> Entry<K,V> leftOf(Entry<K,V> p) {
         return (p == null) ? null: p.left;
     }
 
-    private static <K extends @Nullable Object,V extends @Nullable Object> Entry<K,V> rightOf(Entry<K,V> p) {
+    private static <K,V> Entry<K,V> rightOf(Entry<K,V> p) {
         return (p == null) ? null: p.right;
     }
 
@@ -3036,7 +3036,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * structures. Callers must use plain default spliterators if this
      * returns null.
      */
-    static <K extends @Nullable Object> Spliterator<K> keySpliteratorFor(NavigableMap<K,?> m) {
+    static <K> Spliterator<K> keySpliteratorFor(NavigableMap<K,?> m) {
         if (m instanceof TreeMap) {
             @SuppressWarnings("unchecked") TreeMap<K,Object> t =
                 (TreeMap<K,Object>) m;
@@ -3090,7 +3090,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
      * To bootstrap initialization, external constructors use
      * negative size estimates: -1 for ascend, -2 for descend.
      */
-    static class TreeMapSpliterator<K extends @Nullable Object,V extends @Nullable Object> {
+    static class TreeMapSpliterator<K,V> {
         final TreeMap<K,V> tree;
         TreeMap.Entry<K,V> current; // traverser; initially first node in range
         TreeMap.Entry<K,V> fence;   // one past last, or null
@@ -3128,7 +3128,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
         }
     }
 
-    static final class KeySpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class KeySpliterator<K,V>
         extends TreeMapSpliterator<K,V>
         implements Spliterator<K> {
         KeySpliterator(TreeMap<K,V> tree,
@@ -3206,7 +3206,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
 
     }
 
-    static final class DescendingKeySpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class DescendingKeySpliterator<K,V>
         extends TreeMapSpliterator<K,V>
         implements Spliterator<K> {
         DescendingKeySpliterator(TreeMap<K,V> tree,
@@ -3279,7 +3279,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
         }
     }
 
-    static final class ValueSpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ValueSpliterator<K,V>
             extends TreeMapSpliterator<K,V>
             implements Spliterator<V> {
         ValueSpliterator(TreeMap<K,V> tree,
@@ -3351,7 +3351,7 @@ public class TreeMap<K extends @Nullable Object,V extends @Nullable Object>
         }
     }
 
-    static final class EntrySpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class EntrySpliterator<K,V>
         extends TreeMapSpliterator<K,V>
         implements Spliterator<Map.Entry<K,V>> {
         EntrySpliterator(TreeMap<K,V> tree,

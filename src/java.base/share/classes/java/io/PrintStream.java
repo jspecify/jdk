@@ -86,7 +86,7 @@ public class PrintStream extends FilterOutputStream
      * dependency on java.util.Objects.requireNonNull. PrintStream is loaded
      * early during system initialization.
      */
-    private static <T extends @Nullable Object> T requireNonNull(T obj, String message) {
+    private static <T> T requireNonNull(T obj, String message) {
         if (obj == null)
             throw new NullPointerException(message);
         return obj;

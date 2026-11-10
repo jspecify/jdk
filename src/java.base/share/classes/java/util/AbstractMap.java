@@ -384,7 +384,7 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
                     AbstractMap.this.clear();
                 }
 
-                public boolean contains(@Nullable Object k) {
+                public boolean contains(Object k) {
                     return AbstractMap.this.containsKey(k);
                 }
             };
@@ -432,7 +432,7 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
                     AbstractMap.this.clear();
                 }
 
-                public boolean contains(@Nullable Object v) {
+                public boolean contains(Object v) {
                     return AbstractMap.this.containsValue(v);
                 }
             };

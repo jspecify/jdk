@@ -61,7 +61,7 @@ public class ProtectionDomain {
     private final Principal[] principals;
 
     /* the rights this protection domain is granted */
-    private @Nullable PermissionCollection permissions;
+    private PermissionCollection permissions;
 
     /* if the permissions object has AllPermission */
     private boolean hasAllPerm = false;

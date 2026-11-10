@@ -296,7 +296,7 @@ public class ConcurrentLinkedDeque<E>
         return (Node<E>) NEXT_TERMINATOR;
     }
 
-    static final class Node<E extends @Nullable Object> {
+    static final class Node<E> {
         volatile Node<E> prev;
         volatile E item;
         volatile Node<E> next;
@@ -306,7 +306,7 @@ public class ConcurrentLinkedDeque<E>
      * Returns a new node holding item.  Uses relaxed write because item
      * can only be seen after piggy-backing publication via CAS.
      */
-    static <E extends @Nullable Object> Node<E> newNode(E item) {
+    static <E> Node<E> newNode(E item) {
         Node<E> node = new Node<E>();
         ITEM.set(node, item);
         return node;
@@ -1371,7 +1371,7 @@ public class ConcurrentLinkedDeque<E>
         /**
          * Next node to return item for.
          */
-        private @Nullable Node<E> nextNode;
+        private Node<E> nextNode;
 
         /**
          * nextItem holds on to item fields because once we claim
@@ -1379,13 +1379,13 @@ public class ConcurrentLinkedDeque<E>
          * the following next() call even if it was in the process of
          * being removed when hasNext() was called.
          */
-        private @Nullable E nextItem;
+        private E nextItem;
 
         /**
          * Node returned by most recent call to next. Needed by remove.
          * Reset to null if this element is deleted by a call to remove.
          */
-        private @Nullable Node<E> lastRet;
+        private Node<E> lastRet;
 
         abstract Node<E> startNode();
         abstract Node<E> nextNode(Node<E> p);

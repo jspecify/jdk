@@ -296,7 +296,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
         return indexOfRange(o, 0, size);
     }
 
-    int indexOfRange(@Nullable Object o, int start, int end) {
+    int indexOfRange(Object o, int start, int end) {
         Object[] es = elementData;
         if (o == null) {
             for (int i = start; i < end; i++) {
@@ -326,7 +326,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
         return lastIndexOfRange(o, 0, size);
     }
 
-    int lastIndexOfRange(@Nullable Object o, int start, int end) {
+    int lastIndexOfRange(Object o, int start, int end) {
         Object[] es = elementData;
         if (o == null) {
             for (int i = end - 1; i >= start; i--) {
@@ -426,7 +426,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
     }
 
     @SuppressWarnings("unchecked")
-    static <E extends @Nullable Object> E elementAt(Object[] es, int index) {
+    static <E> E elementAt(Object[] es, int index) {
         return (E) es[index];
     }
 
@@ -1218,7 +1218,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
         return new SubList<>(this, fromIndex, toIndex);
     }
 
-    private static class SubList<E extends @Nullable Object> extends AbstractList<E> implements RandomAccess {
+    private static class SubList<E> extends AbstractList<E> implements RandomAccess {
         private final ArrayList<E> root;
         private final SubList<E> parent;
         private final int offset;
@@ -1333,13 +1333,13 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             return modified;
         }
 
-        public @Nullable Object[] toArray() {
+        public Object[] toArray() {
             checkForComodification();
             return Arrays.copyOfRange(root.elementData, offset, offset + size);
         }
 
         @SuppressWarnings("unchecked")
-        public <T extends @Nullable Object> T[] toArray(T[] a) {
+        public <T> T[] toArray(T[] a) {
             checkForComodification();
             if (a.length < size)
                 return (T[]) Arrays.copyOfRange(
@@ -1350,7 +1350,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             return a;
         }
 
-        public boolean equals(@Nullable Object o) {
+        public boolean equals(Object o) {
             if (o == this) {
                 return true;
             }
@@ -1370,19 +1370,19 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             return hash;
         }
 
-        public int indexOf(@Nullable Object o) {
+        public int indexOf(Object o) {
             int index = root.indexOfRange(o, offset, offset + size);
             checkForComodification();
             return index >= 0 ? index - offset : -1;
         }
 
-        public int lastIndexOf(@Nullable Object o) {
+        public int lastIndexOf(Object o) {
             int index = root.lastIndexOfRange(o, offset, offset + size);
             checkForComodification();
             return index >= 0 ? index - offset : -1;
         }
 
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return indexOf(o) >= 0;
         }
 

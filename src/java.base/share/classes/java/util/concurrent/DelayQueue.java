@@ -122,7 +122,7 @@ public class DelayQueue<E extends  Delayed> extends AbstractQueue<E>
      * signalled.  So waiting threads must be prepared to acquire
      * and lose leadership while waiting.
      */
-    private @Nullable Thread leader;
+    private Thread leader;
 
     /**
      * Condition signalled when a newer element becomes available

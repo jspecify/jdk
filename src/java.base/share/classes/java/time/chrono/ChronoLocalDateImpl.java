@@ -56,8 +56,6 @@
  */
 package java.time.chrono;
 
-import org.jspecify.annotations.Nullable;
-
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;
 import static java.time.temporal.ChronoField.ERA;
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
@@ -413,9 +411,7 @@ abstract /*value*/ class ChronoLocalDateImpl<D extends ChronoLocalDate>
     }
 
     @Override
-    
-    
-    public boolean equals(@Nullable Object obj) {
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }

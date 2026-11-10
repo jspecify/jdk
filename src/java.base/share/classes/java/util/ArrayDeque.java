@@ -257,7 +257,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * This is a slight abuse of generics, accepted by javac.
      */
     @SuppressWarnings("unchecked")
-    static final <E extends @Nullable Object> E elementAt(Object[] es, int i) {
+    static final <E> E elementAt(Object[] es, int i) {
         return (E) es[i];
     }
 
@@ -266,7 +266,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * This check doesn't catch all possible comodifications,
      * but does catch ones that corrupt traversal.
      */
-    static final <E extends @Nullable Object> E nonNullElementAt(Object[] es, int i) {
+    static final <E> E nonNullElementAt(Object[] es, int i) {
         @SuppressWarnings("unchecked") E e = (E) es[i];
         if (e == null)
             throw new ConcurrentModificationException();
@@ -1078,7 +1078,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
         return toArray(Object[].class);
     }
 
-    private <T extends @Nullable Object> T[] toArray(Class<T[]> klazz) {
+    private <T> T[] toArray(Class<T[]> klazz) {
         final Object[] es = elements;
         final T[] a;
         final int head = this.head, tail = this.tail, end;

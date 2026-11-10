@@ -773,7 +773,7 @@ public abstract class ResourceBundle {
             }
         }
 
-        private @Nullable Throwable getCause() {
+        private Throwable getCause() {
             return cause;
         }
 
@@ -808,7 +808,7 @@ public abstract class ResourceBundle {
      * References to a CacheKey element as a WeakReference so that it can be
      * garbage collected when nobody else is using it.
      */
-    private static class KeyElementReference<T extends @Nullable Object> extends WeakReference<T>
+    private static class KeyElementReference<T> extends WeakReference<T>
                                                 implements CacheKeyReference {
         private final CacheKey cacheKey;
 

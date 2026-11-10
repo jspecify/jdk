@@ -85,7 +85,7 @@ public final /*value*/ class Optional<T> {
     /**
      * If non-null, the value; if null, indicates no value is present
      */
-    private final @Nullable T value;
+    private final T value;
 
     /**
      * Returns an empty {@code Optional} instance.  No value is present for this

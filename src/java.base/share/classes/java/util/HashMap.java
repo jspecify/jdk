@@ -283,7 +283,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * Basic hash bin node, used for most entries.  (See below for
      * TreeNode subclass, and in LinkedHashMap for its Entry subclass.)
      */
-    static class Node<K extends @Nullable Object,V extends @Nullable Object> implements Map.Entry<K,V> {
+    static class Node<K,V> implements Map.Entry<K,V> {
         final int hash;
         final K key;
         V value;
@@ -338,7 +338,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * to incorporate impact of the highest bits that would otherwise
      * never be used in index calculations because of table bounds.
      */
-    static final int hash(@Nullable Object key) {
+    static final int hash(Object key) {
         int h;
         return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
     }
@@ -852,7 +852,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * @param movable if false do not move other nodes while removing
      * @return the node, or null if none
      */
-    final Node<K,V> removeNode(int hash, @Nullable Object key, @Nullable Object value,
+    final Node<K,V> removeNode(int hash, Object key, Object value,
                                boolean matchValue, boolean movable) {
         Node<K,V>[] tab; Node<K,V> p; int n, index;
         if ((tab = table) != null && (n = tab.length) > 0 &&
@@ -1029,8 +1029,8 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         public final void clear()               { HashMap.this.clear(); }
         
         public final Iterator<K> iterator()     { return new KeyIterator(); }
-        public final boolean contains(@Nullable Object o) { return containsKey(o); }
-        public final boolean remove(@Nullable Object key) {
+        public final boolean contains(Object o) { return containsKey(o); }
+        public final boolean remove(Object key) {
             return removeNode(hash(key), key, null, false, true) != null;
         }
         
@@ -1093,7 +1093,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         public final void clear()               { HashMap.this.clear(); }
         
         public final Iterator<V> iterator()     { return new ValueIterator(); }
-        public final boolean contains(@Nullable Object o) { return containsValue(o); }
+        public final boolean contains(Object o) { return containsValue(o); }
         
         public final Spliterator<V> spliterator() {
             return new ValueSpliterator<>(HashMap.this, 0, -1, 0, 0);
@@ -1692,7 +1692,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
     /* ------------------------------------------------------------ */
     // spliterators
 
-    static class HashMapSpliterator<K extends @Nullable Object,V extends @Nullable Object> {
+    static class HashMapSpliterator<K,V> {
         final HashMap<K,V> map;
         Node<K,V> current;          // current node
         int index;                  // current index, modified on advance/split
@@ -1728,7 +1728,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         }
     }
 
-    static final class KeySpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class KeySpliterator<K,V>
         extends HashMapSpliterator<K,V>
         implements Spliterator<K> {
         KeySpliterator(HashMap<K,V> m, int origin, int fence, int est,
@@ -1800,7 +1800,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         }
     }
 
-    static final class ValueSpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ValueSpliterator<K,V>
         extends HashMapSpliterator<K,V>
         implements Spliterator<V> {
         ValueSpliterator(HashMap<K,V> m, int origin, int fence, int est,
@@ -1871,7 +1871,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         }
     }
 
-    static final class EntrySpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class EntrySpliterator<K,V>
         extends HashMapSpliterator<K,V>
         implements Spliterator<Map.Entry<K,V>> {
         EntrySpliterator(HashMap<K,V> m, int origin, int fence, int est,
@@ -2014,7 +2014,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * extends Node) so can be used as extension of either regular or
      * linked node.
      */
-    static final class TreeNode<K extends @Nullable Object,V extends @Nullable Object> extends LinkedHashMap.Entry<K,V> {
+    static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V> {
         TreeNode<K,V> parent;  // red-black tree links
         TreeNode<K,V> left;
         TreeNode<K,V> right;
@@ -2038,7 +2038,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         /**
          * Ensures that the given root is the first node of its bin.
          */
-        static <K extends @Nullable Object,V extends @Nullable Object> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root) {
+        static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root) {
             int n;
             if (root != null && tab != null && (n = tab.length) > 0) {
                 int index = (n - 1) & root.hash;
@@ -2395,7 +2395,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         /* ------------------------------------------------------------ */
         // Red-black tree methods, all adapted from CLR
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
                                               TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
             if (p != null && (r = p.right) != null) {
@@ -2413,7 +2413,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
             return root;
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
                                                TreeNode<K,V> p) {
             TreeNode<K,V> l, pp, lr;
             if (p != null && (l = p.left) != null) {
@@ -2431,7 +2431,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
             return root;
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                                                     TreeNode<K,V> x) {
             x.red = true;
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
@@ -2486,7 +2486,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
             }
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                                    TreeNode<K,V> x) {
             for (TreeNode<K,V> xp, xpl, xpr;;) {
                 if (x == null || x == root)
@@ -2581,7 +2581,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         /**
          * Recursive invariant check
          */
-        static <K extends @Nullable Object,V extends @Nullable Object> boolean checkInvariants(TreeNode<K,V> t) {
+        static <K,V> boolean checkInvariants(TreeNode<K,V> t) {
             TreeNode<K,V> tp = t.parent, tl = t.left, tr = t.right,
                 tb = t.prev, tn = (TreeNode<K,V>)t.next;
             if (tb != null && tb.next != t)

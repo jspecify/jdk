@@ -2919,7 +2919,7 @@ public final class Class<T> implements java.io.Serializable,
 
     // Reflection data caches various derived names and reflective members. Cached
     // values may be invalidated when JVM TI RedefineClasses() is called
-    private static class ReflectionData<T extends @Nullable Object> {
+    private static class ReflectionData<T> {
         volatile Field[] declaredFields;
         volatile Field[] publicFields;
         volatile Method[] declaredMethods;
@@ -3355,7 +3355,7 @@ public final class Class<T> implements java.io.Serializable,
         return out;
     }
 
-    private static <U extends @Nullable Object> Constructor<U>[] copyConstructors(Constructor<U>[] arg) {
+    private static <U> Constructor<U>[] copyConstructors(Constructor<U>[] arg) {
         Constructor<U>[] out = arg.clone();
         ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         for (int i = 0; i < out.length; i++) {

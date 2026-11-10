@@ -399,7 +399,7 @@ public class JarFile extends ZipFile {
         return getManifestFromReference();
     }
 
-    private @Nullable Manifest getManifestFromReference() throws IOException {
+    private Manifest getManifestFromReference() throws IOException {
         Manifest man = manRef != null ? manRef.get() : null;
 
         if (man == null) {
@@ -626,7 +626,7 @@ public class JarFile extends ZipFile {
         }
 
         @Override
-        public @Nullable Attributes getAttributes() throws IOException {
+        public Attributes getAttributes() throws IOException {
             Manifest man = JarFile.this.getManifest();
             if (man != null) {
                 return man.getAttributes(super.getName());
@@ -636,7 +636,7 @@ public class JarFile extends ZipFile {
         }
 
         @Override
-        public Certificate @Nullable [] getCertificates() {
+        public Certificate[] getCertificates() {
             try {
                 maybeInstantiateVerifier();
             } catch (IOException e) {
@@ -649,7 +649,7 @@ public class JarFile extends ZipFile {
         }
 
         @Override
-        public CodeSigner @Nullable [] getCodeSigners() {
+        public CodeSigner[] getCodeSigners() {
             try {
                 maybeInstantiateVerifier();
             } catch (IOException e) {

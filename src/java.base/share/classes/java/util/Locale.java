@@ -769,7 +769,7 @@ public final class Locale implements Cloneable, Serializable {
     /**
      * Private constructor used by getInstance method
      */
-    private Locale(BaseLocale baseLocale, @Nullable LocaleExtensions extensions) {
+    private Locale(BaseLocale baseLocale,  LocaleExtensions extensions) {
         this.baseLocale = baseLocale;
         this.localeExtensions = extensions;
     }
@@ -960,7 +960,7 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     static Locale getInstance(String language, String script, String country,
-                                      String variant, @Nullable LocaleExtensions extensions) {
+                                      String variant, LocaleExtensions extensions) {
         if (language== null || script == null || country == null || variant == null) {
             throw new NullPointerException();
         }
@@ -1008,10 +1008,10 @@ public final class Locale implements Cloneable, Serializable {
     private static final class LocaleKey {
 
         private final BaseLocale base;
-        private final @Nullable LocaleExtensions exts;
+        private final  LocaleExtensions exts;
         private final int hash;
 
-        private LocaleKey(BaseLocale baseLocale, @Nullable LocaleExtensions extensions) {
+        private LocaleKey(BaseLocale baseLocale, LocaleExtensions extensions) {
             base = baseLocale;
             exts = extensions;
 
@@ -1488,7 +1488,7 @@ public final class Locale implements Cloneable, Serializable {
      * @return locale extensions of this Locale,
      *         or {@code null} if no extensions are defined
      */
-     @Nullable LocaleExtensions getLocaleExtensions() {
+     LocaleExtensions getLocaleExtensions() {
          return localeExtensions;
      }
 
