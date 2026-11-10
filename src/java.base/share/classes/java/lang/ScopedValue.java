@@ -26,8 +26,6 @@
 
 package java.lang;
 
-import org.jspecify.annotations.Nullable;
-
 import java.lang.ref.Reference;
 import java.util.NoSuchElementException;
 import java.util.Objects;
