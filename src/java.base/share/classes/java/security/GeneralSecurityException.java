@@ -36,6 +36,7 @@ import org.jspecify.annotations.Nullable;
  * @author Jan Luehe
  * @since 1.2
  */
+
 @NullMarked
 public class GeneralSecurityException extends Exception {
 

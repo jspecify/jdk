@@ -370,7 +370,7 @@ public class GregorianCalendar extends Calendar {
      *
      * @see #ERA
      */
-    public static final  int BC = 0;
+    public static final int BC = 0;
 
     /**
      * Value of the {@link #ERA} field indicating
@@ -388,7 +388,7 @@ public class GregorianCalendar extends Calendar {
      *
      * @see #ERA
      */
-    public static final  int AD = 1;
+    public static final int AD = 1;
 
     /**
      * Value of the {@link #ERA} field indicating
@@ -830,7 +830,6 @@ public class GregorianCalendar extends Calendar {
      * @param year the given year.
      * @return {@code true} if the given year is a leap year; {@code false} otherwise.
      */
-    
     public boolean isLeapYear(int year) {
         if ((year & 3) != 0) {
             return false;
@@ -882,9 +881,8 @@ public class GregorianCalendar extends Calendar {
      * {@code false} otherwise.
      * @see Calendar#compareTo(Calendar)
      */
-    
     @Override
-    public boolean equals( @Nullable Object obj) {
+    public boolean equals(@Nullable Object obj) {
         return obj instanceof GregorianCalendar &&
             super.equals(obj) &&
             gregorianCutover == ((GregorianCalendar)obj).gregorianCutover;
@@ -893,7 +891,6 @@ public class GregorianCalendar extends Calendar {
     /**
      * Generates the hash code for this {@code GregorianCalendar} object.
      */
-    
     @Override
     public int hashCode() {
         return super.hashCode() ^ (int)gregorianCutoverDate;
@@ -1987,7 +1984,6 @@ public class GregorianCalendar extends Calendar {
             (internalGet(ZONE_OFFSET) + internalGet(DST_OFFSET));
     }
 
-    
     @Override
     public Object clone()
     {

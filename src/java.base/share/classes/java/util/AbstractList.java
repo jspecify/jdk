@@ -75,7 +75,6 @@ import java.util.function.Consumer;
  * @since 1.2
  */
 
-
 @NullMarked
 public abstract class AbstractList<E extends @Nullable Object> extends AbstractCollection<E> implements List<E> {
     /**
@@ -124,8 +123,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      *
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    
-    public abstract E get( int index);
+    public abstract E get(int index);
 
     /**
      * {@inheritDoc}
@@ -140,7 +138,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      * @throws IllegalArgumentException      {@inheritDoc}
      * @throws IndexOutOfBoundsException     {@inheritDoc}
      */
-    public E set( int index, E element) {
+    public E set(int index, E element) {
         throw new UnsupportedOperationException();
     }
 
@@ -157,7 +155,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      * @throws IllegalArgumentException      {@inheritDoc}
      * @throws IndexOutOfBoundsException     {@inheritDoc}
      */
-    public void add( int index, E element) {
+    public void add(int index, E element) {
         throw new UnsupportedOperationException();
     }
 
@@ -171,7 +169,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      * @throws UnsupportedOperationException {@inheritDoc}
      * @throws IndexOutOfBoundsException     {@inheritDoc}
      */
-    public E remove( int index) {
+    public E remove(int index) {
         throw new UnsupportedOperationException();
     }
 
@@ -189,8 +187,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      * @throws ClassCastException   {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    
-    public  int indexOf(@Nullable Object o) {
+    public int indexOf(@Nullable Object o) {
         ListIterator<E> it = listIterator();
         if (o==null) {
             while (it.hasNext())
@@ -216,8 +213,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      * @throws ClassCastException   {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    
-    public  int lastIndexOf(@Nullable Object o) {
+    public int lastIndexOf(@Nullable Object o) {
         ListIterator<E> it = listIterator(size());
         if (o==null) {
             while (it.hasPrevious())
@@ -273,7 +269,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      * @throws IllegalArgumentException      {@inheritDoc}
      * @throws IndexOutOfBoundsException     {@inheritDoc}
      */
-    public boolean addAll( int index, Collection<? extends E> c) {
+    public boolean addAll(int index, Collection<? extends E> c) {
         rangeCheckForAdd(index);
         boolean modified = false;
         for (E e : c) {
@@ -305,7 +301,6 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      *
      * @return an iterator over the elements in this list in proper sequence
      */
-    
     public Iterator<E> iterator() {
         return new Itr();
     }
@@ -345,7 +340,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      *
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public ListIterator<E> listIterator(final  int index) {
+    public ListIterator<E> listIterator(final int index) {
         rangeCheckForAdd(index);
 
         return new ListItr(index);
@@ -504,8 +499,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      * @throws IllegalArgumentException if the endpoint indices are out of order
      *         {@code (fromIndex > toIndex)}
      */
-    
-    public List<E> subList( int fromIndex,  int toIndex) {
+    public List<E> subList(int fromIndex, int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size());
         return (this instanceof RandomAccess ?
                 new RandomAccessSubList<>(this, fromIndex, toIndex) :
@@ -546,8 +540,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      * @param o the object to be compared for equality with this list
      * @return {@code true} if the specified object is equal to this list
      */
-    
-    public boolean equals( @Nullable Object o) {
+    public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;
         if (!(o instanceof List))
@@ -574,7 +567,6 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      *
      * @return the hash code value for this list
      */
-    
     public int hashCode() {
         int hashCode = 1;
         for (E e : this)
@@ -605,7 +597,7 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
      * @param fromIndex index of first element to be removed
      * @param toIndex index after last element to be removed
      */
-    protected void removeRange( int fromIndex,  int toIndex) {
+    protected void removeRange(int fromIndex, int toIndex) {
         ListIterator<E> it = listIterator(fromIndex);
         for (int i=0, n=toIndex-fromIndex; i<n; i++) {
             it.next();
@@ -800,7 +792,6 @@ public abstract class AbstractList<E extends @Nullable Object> extends AbstractC
             return root.get(offset + index);
         }
 
-        
         public int size() {
             checkForComodification();
             return size;

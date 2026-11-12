@@ -230,8 +230,6 @@ public final class SimpleType<T> extends OpenType<T> {
      *
      * @return  <code>true</code> if the specified object is equal to this <code>SimpleType</code> instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
 
         /* If it weren't for readReplace(), we could replace this method

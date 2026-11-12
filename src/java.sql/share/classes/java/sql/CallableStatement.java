@@ -971,7 +971,7 @@ public interface CallableStatement extends PreparedStatement {
      * @see #getBytes
      * @since 1.4
      */
-    void setBytes(String parameterName, byte @Nullable [] x) throws SQLException;
+    void setBytes(String parameterName, byte x @Nullable []) throws SQLException;
 
     /**
      * Sets the designated parameter to the given {@code java.sql.Date} value

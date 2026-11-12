@@ -540,8 +540,6 @@ public abstract class DocumentBuilderFactory {
      *
      * @since 1.5
      */
-    
-    @SuppressWarnings({"nullness"})
     public @Nullable Schema getSchema() {
         throw new UnsupportedOperationException(
             "This parser does not support specification \""
@@ -609,8 +607,6 @@ public abstract class DocumentBuilderFactory {
      *
      * @since 1.5
      */
-    
-    @SuppressWarnings({"nullness"})
     public void setSchema(@Nullable Schema schema) {
         throw new UnsupportedOperationException(
             "This parser does not support specification \""
@@ -658,8 +654,6 @@ public abstract class DocumentBuilderFactory {
      *
      * @since 1.5
      */
-    
-    @SuppressWarnings({"nullness"})
     public boolean isXIncludeAware() {
         throw new UnsupportedOperationException(
             "This parser does not support specification \""

@@ -246,8 +246,6 @@ public class GcInfo implements CompositeData, CompositeDataView {
         return cdata.containsValue(value);
     }
 
-    
-    
     public boolean equals(@Nullable Object obj) {
         return cdata.equals(obj);
     }

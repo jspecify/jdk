@@ -822,8 +822,6 @@ public final class AlphaComposite implements Composite {
      * @return {@code true} if {@code obj} equals this
      * {@code AlphaComposite}; {@code false} otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof AlphaComposite)) {
             return false;

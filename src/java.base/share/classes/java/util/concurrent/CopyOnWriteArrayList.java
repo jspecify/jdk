@@ -178,7 +178,6 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      *
      * @return the number of elements in this list
      */
-    
     public int size() {
         return getArray().length;
     }
@@ -188,7 +187,6 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      *
      * @return {@code true} if this list contains no elements
      */
-    
     public boolean isEmpty() {
         return size() == 0;
     }
@@ -1079,8 +1077,6 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      * @param o the object to be compared for equality with this list
      * @return {@code true} if the specified object is equal to this list
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;
@@ -1404,7 +1400,6 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             return true;
         }
 
-        
         public boolean isEmpty() {
             return size() == 0;
         }

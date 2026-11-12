@@ -75,7 +75,6 @@ public interface Enumeration<E extends @Nullable Object> {
      *           contains at least one more element to provide;
      *          {@code false} otherwise.
      */
-    
     boolean hasMoreElements();
 
     /**

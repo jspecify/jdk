@@ -64,7 +64,6 @@ import java.nio.charset.UnsupportedCharsetException;
  * @see Charset#defaultCharset()
  */
 
-
 @NullMarked
 public class PrintStream extends FilterOutputStream
     implements Appendable, Closeable
@@ -1062,8 +1061,6 @@ public class PrintStream extends FilterOutputStream
      *
      * @since  1.5
      */
-    
-    
     public PrintStream printf(String format, @Nullable Object ... args) {
         return format(format, args);
     }
@@ -1116,7 +1113,6 @@ public class PrintStream extends FilterOutputStream
      *
      * @since  1.5
      */
-    
     public PrintStream printf(@Nullable Locale l, String format, @Nullable Object ... args) {
         return format(l, format, args);
     }
@@ -1162,7 +1158,6 @@ public class PrintStream extends FilterOutputStream
      *
      * @since  1.5
      */
-    
     public PrintStream format(String format, @Nullable Object ... args) {
         try {
             synchronized (this) {
@@ -1217,7 +1212,6 @@ public class PrintStream extends FilterOutputStream
      *
      * @since  1.5
      */
-    
     public PrintStream format(@Nullable Locale l, String format, @Nullable Object ... args) {
         try {
             synchronized (this) {
@@ -1298,7 +1292,7 @@ public class PrintStream extends FilterOutputStream
      *
      * @since  1.5
      */
-    public PrintStream append(@Nullable CharSequence csq,  int start,  int end) {
+    public PrintStream append(@Nullable CharSequence csq, int start, int end) {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }

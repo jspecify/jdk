@@ -157,15 +157,13 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      *
      * @return the number of elements in this list
      */
-    
-     int size();
+    int size();
 
     /**
      * Returns {@code true} if this list contains no elements.
      *
      * @return {@code true} if this list contains no elements
      */
-    
     boolean isEmpty();
 
     /**
@@ -183,7 +181,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      *         list does not permit null elements
      * (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-    
     boolean contains(@Nullable Object o);
 
     /**
@@ -191,7 +188,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      *
      * @return an iterator over the elements in this list in proper sequence
      */
-    
     Iterator<E> iterator();
 
     /**
@@ -210,7 +206,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      *         sequence
      * @see Arrays#asList(Object[])
      */
-    
     @Nullable Object[] toArray();
 
     /**
@@ -252,7 +247,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      *         this list
      * @throws NullPointerException if the specified array is null
      */
-    
     <T extends @Nullable Object> T[] toArray(T[] a);
 
 
@@ -280,7 +274,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      * @throws IllegalArgumentException if some property of this element
      *         prevents it from being added to this list
      */
-    
     boolean add(E e);
 
     /**
@@ -327,7 +320,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      *         or if the specified collection is null
      * @see #contains(Object)
      */
-    
     boolean containsAll(Collection<?> c);
 
     /**
@@ -380,7 +372,7 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index > size()})
      */
-    boolean addAll( int index, Collection<? extends E> c);
+    boolean addAll(int index, Collection<? extends E> c);
 
     /**
      * Removes from this list all of its elements that are contained in the
@@ -555,7 +547,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      * @param o the object to be compared for equality with this list
      * @return {@code true} if the specified object is equal to this list
      */
-    
     boolean equals(@Nullable Object o);
 
     /**
@@ -575,7 +566,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      * @see Object#equals(Object)
      * @see #equals(Object)
      */
-    
     int hashCode();
 
 
@@ -589,8 +579,7 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index >= size()})
      */
-    
-    E get( int index);
+    E get(int index);
 
     /**
      * Replaces the element at the specified position in this list with the
@@ -610,7 +599,7 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index >= size()})
      */
-    E set( int index, E element);
+    E set(int index, E element);
 
     /**
      * Inserts the specified element at the specified position in this list
@@ -631,8 +620,7 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index > size()})
      */
-    
-    void add( int index, E element);
+    void add(int index, E element);
 
     /**
      * Removes the element at the specified position in this list (optional
@@ -647,8 +635,7 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index >= size()})
      */
-    
-    E remove( int index);
+    E remove(int index);
 
 
     // Search Operations
@@ -670,7 +657,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      *         list does not permit null elements
      *         (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-     
     int indexOf(@Nullable Object o);
 
     /**
@@ -690,7 +676,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      *         list does not permit null elements
      *         (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-     
     int lastIndexOf(@Nullable Object o);
 
 
@@ -720,7 +705,7 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      * @throws IndexOutOfBoundsException if the index is out of range
      *         ({@code index < 0 || index > size()})
      */
-    ListIterator<E> listIterator( int index);
+    ListIterator<E> listIterator(int index);
 
     // View
 
@@ -758,8 +743,7 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      *         ({@code fromIndex < 0 || toIndex > size ||
      *         fromIndex > toIndex})
      */
-    
-    List<E> subList( int fromIndex,  int toIndex);
+    List<E> subList(int fromIndex, int toIndex);
 
     /**
      * Creates a {@link Spliterator} over the elements in this list.
@@ -794,7 +778,6 @@ public interface List<E extends @Nullable Object> extends SequencedCollection<E>
      * @return a {@code Spliterator} over the elements in this list
      * @since 1.8
      */
-    
     @Override
     default Spliterator<E> spliterator() {
         if (this instanceof RandomAccess) {

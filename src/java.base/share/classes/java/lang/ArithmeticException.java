@@ -49,7 +49,6 @@ public class ArithmeticException extends RuntimeException {
      * Constructs an {@code ArithmeticException} with no detail
      * message.
      */
-    
     public ArithmeticException() {
         super();
     }
@@ -60,7 +59,6 @@ public class ArithmeticException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    
     public ArithmeticException(@Nullable String s) {
         super(s);
     }

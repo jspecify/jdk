@@ -108,8 +108,6 @@ public class XMLDTDDescription extends XMLResourceIdentifierImpl
      * @param desc The description of the grammar to be compared with
      * @return     True if they are equal, else false
      */
-    
-    
     public boolean equals(@Nullable Object desc) {
         if (!(desc instanceof XMLGrammarDescription)) return false;
         if (!getGrammarType().equals(((XMLGrammarDescription)desc).getGrammarType())) {

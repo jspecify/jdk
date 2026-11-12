@@ -136,8 +136,6 @@ public final class ImageLocationWriter extends ImageLocation {
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

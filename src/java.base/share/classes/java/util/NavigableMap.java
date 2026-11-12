@@ -103,7 +103,6 @@ import org.jspecify.annotations.Nullable;
  * @param <V> the type of mapped values
  * @since 1.6
  */
-
 @NullMarked
 public interface NavigableMap<K extends @Nullable Object,V extends @Nullable Object> extends SortedMap<K,V> {
     /**
@@ -281,7 +280,6 @@ public interface NavigableMap<K extends @Nullable Object,V extends @Nullable Obj
      *
      * @return a reverse order view of this map
      */
-    
     NavigableMap<K,V> descendingMap();
 
     /**
@@ -298,8 +296,7 @@ public interface NavigableMap<K extends @Nullable Object,V extends @Nullable Obj
      *
      * @return a navigable set view of the keys in this map
      */
-    
-    NavigableSet< K> navigableKeySet();
+    NavigableSet<K> navigableKeySet();
 
     /**
      * Returns a reverse order {@link NavigableSet} view of the keys contained in this map.
@@ -315,8 +312,7 @@ public interface NavigableMap<K extends @Nullable Object,V extends @Nullable Obj
      *
      * @return a reverse order navigable set view of the keys in this map
      */
-    
-    NavigableSet< K> descendingKeySet();
+    NavigableSet<K> descendingKeySet();
 
     /**
      * Returns a view of the portion of this map whose keys range from
@@ -352,7 +348,6 @@ public interface NavigableMap<K extends @Nullable Object,V extends @Nullable Obj
      *         range, and {@code fromKey} or {@code toKey} lies
      *         outside the bounds of the range
      */
-    
     NavigableMap<K,V> subMap(K fromKey, boolean fromInclusive,
                              K toKey,   boolean toInclusive);
 
@@ -383,7 +378,6 @@ public interface NavigableMap<K extends @Nullable Object,V extends @Nullable Obj
      *         restricted range, and {@code toKey} lies outside the
      *         bounds of the range
      */
-    
     NavigableMap<K,V> headMap(K toKey, boolean inclusive);
 
     /**
@@ -413,7 +407,6 @@ public interface NavigableMap<K extends @Nullable Object,V extends @Nullable Obj
      *         restricted range, and {@code fromKey} lies outside the
      *         bounds of the range
      */
-    
     NavigableMap<K,V> tailMap(K fromKey, boolean inclusive);
 
     /**
@@ -425,7 +418,6 @@ public interface NavigableMap<K extends @Nullable Object,V extends @Nullable Obj
      * @throws NullPointerException     {@inheritDoc}
      * @throws IllegalArgumentException {@inheritDoc}
      */
-    
     SortedMap<K,V> subMap(K fromKey, K toKey);
 
     /**
@@ -437,7 +429,6 @@ public interface NavigableMap<K extends @Nullable Object,V extends @Nullable Obj
      * @throws NullPointerException     {@inheritDoc}
      * @throws IllegalArgumentException {@inheritDoc}
      */
-    
     SortedMap<K,V> headMap(K toKey);
 
     /**
@@ -449,7 +440,6 @@ public interface NavigableMap<K extends @Nullable Object,V extends @Nullable Obj
      * @throws NullPointerException     {@inheritDoc}
      * @throws IllegalArgumentException {@inheritDoc}
      */
-    
     SortedMap<K,V> tailMap(K fromKey);
 
     /**

@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 
@@ -57,5 +56,5 @@ public interface Readable {
      * @throws java.nio.ReadOnlyBufferException if cb is a read only buffer,
      *         even if its length is zero
      */
-    public  int read(java.nio.CharBuffer cb) throws IOException;
+    public int read(java.nio.CharBuffer cb) throws IOException;
 }

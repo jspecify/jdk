@@ -104,8 +104,6 @@ public interface OpenMBeanAttributeInfo extends OpenMBeanParameterInfo {
      *
      * @return  {@code true} if the specified object is equal to this {@code OpenMBeanAttributeInfo} instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj);
 
     /**

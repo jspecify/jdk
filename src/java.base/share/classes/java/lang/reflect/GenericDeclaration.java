@@ -26,7 +26,6 @@
 package java.lang.reflect;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A common interface for all entities that declare type variables.

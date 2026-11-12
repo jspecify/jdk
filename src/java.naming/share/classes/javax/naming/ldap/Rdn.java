@@ -362,8 +362,6 @@ public class Rdn implements Serializable, Comparable<Object> {
      * @return true if the specified object is equal to this Rdn.
      * @see #hashCode()
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this) {
             return true;

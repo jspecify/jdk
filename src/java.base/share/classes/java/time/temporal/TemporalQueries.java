@@ -345,7 +345,7 @@ public final class TemporalQueries {
     /**
      * A strict query for the {@code ZoneId}.
      */
-    static final TemporalQuery<ZoneId> ZONE_ID = new TemporalQuery<ZoneId>() {
+    static final TemporalQuery<ZoneId> ZONE_ID = new TemporalQuery<>() {
         @Override
         public ZoneId queryFrom(TemporalAccessor temporal) {
             return temporal.query(TemporalQueries.ZONE_ID);
@@ -360,7 +360,7 @@ public final class TemporalQueries {
     /**
      * A query for the {@code Chronology}.
      */
-    static final TemporalQuery<Chronology> CHRONO = new TemporalQuery<Chronology>() {
+    static final TemporalQuery<Chronology> CHRONO = new TemporalQuery<>() {
         @Override
         public Chronology queryFrom(TemporalAccessor temporal) {
             return temporal.query(TemporalQueries.CHRONO);
@@ -376,7 +376,7 @@ public final class TemporalQueries {
     /**
      * A query for the smallest supported unit.
      */
-    static final TemporalQuery<TemporalUnit> PRECISION = new TemporalQuery<TemporalUnit>() {
+    static final TemporalQuery<TemporalUnit> PRECISION = new TemporalQuery<>() {
         @Override
         public TemporalUnit queryFrom(TemporalAccessor temporal) {
             return temporal.query(TemporalQueries.PRECISION);
@@ -392,7 +392,7 @@ public final class TemporalQueries {
     /**
      * A query for {@code ZoneOffset} returning null if not found.
      */
-    static final TemporalQuery<ZoneOffset> OFFSET = new TemporalQuery<ZoneOffset>() {
+    static final TemporalQuery<ZoneOffset> OFFSET = new TemporalQuery<>() {
         @Override
         public ZoneOffset queryFrom(TemporalAccessor temporal) {
             if (temporal.isSupported(OFFSET_SECONDS)) {
@@ -410,7 +410,7 @@ public final class TemporalQueries {
     /**
      * A lenient query for the {@code ZoneId}, falling back to the {@code ZoneOffset}.
      */
-    static final TemporalQuery<ZoneId> ZONE = new TemporalQuery<ZoneId>() {
+    static final TemporalQuery<ZoneId> ZONE = new TemporalQuery<>() {
         @Override
         public ZoneId queryFrom(TemporalAccessor temporal) {
             ZoneId zone = temporal.query(ZONE_ID);
@@ -426,7 +426,7 @@ public final class TemporalQueries {
     /**
      * A query for {@code LocalDate} returning null if not found.
      */
-    static final TemporalQuery<LocalDate> LOCAL_DATE = new TemporalQuery<LocalDate>() {
+    static final TemporalQuery<LocalDate> LOCAL_DATE = new TemporalQuery<>() {
         @Override
         public LocalDate queryFrom(TemporalAccessor temporal) {
             if (temporal.isSupported(EPOCH_DAY)) {
@@ -444,7 +444,7 @@ public final class TemporalQueries {
     /**
      * A query for {@code LocalTime} returning null if not found.
      */
-    static final TemporalQuery<LocalTime> LOCAL_TIME = new TemporalQuery<LocalTime>() {
+    static final TemporalQuery<LocalTime> LOCAL_TIME = new TemporalQuery<>() {
         @Override
         public LocalTime queryFrom(TemporalAccessor temporal) {
             if (temporal.isSupported(NANO_OF_DAY)) {

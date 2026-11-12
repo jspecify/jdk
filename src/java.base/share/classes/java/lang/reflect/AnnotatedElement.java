@@ -291,7 +291,6 @@ public interface AnnotatedElement {
      *     type is present on this element, else false
      * @throws NullPointerException if the given annotation class is null
      */
-    
     default boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
         return getAnnotation(annotationClass) != null;
     }

@@ -217,8 +217,6 @@ public final class ObjID implements Serializable {
      * @return  <code>true</code> if the given object is equivalent to
      * this one, and <code>false</code> otherwise
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof ObjID) {
             ObjID id = (ObjID) obj;

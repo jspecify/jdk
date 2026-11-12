@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.nio.CharBuffer;
 import java.nio.ReadOnlyBufferException;
@@ -59,7 +58,7 @@ import jdk.internal.util.ArraysSupport;
  */
 
 @NullMarked
-public abstract  class Reader implements Readable, Closeable {
+public abstract class Reader implements Readable, Closeable {
 
     private static final int TRANSFER_BUFFER_SIZE = 8192;
 
@@ -574,7 +573,7 @@ public abstract  class Reader implements Readable, Closeable {
      * @throws     IllegalArgumentException  If {@code n} is negative.
      * @throws     IOException  If an I/O error occurs
      */
-    public  long skip( long n) throws IOException {
+    public long skip(long n) throws IOException {
         if (n < 0L)
             throw new IllegalArgumentException("skip value is negative");
         synchronized (lock) {
@@ -629,7 +628,7 @@ public abstract  class Reader implements Readable, Closeable {
      * @throws     IOException  If the stream does not support mark(),
      *                          or if some other I/O error occurs
      */
-    public void mark( int readAheadLimit) throws IOException {
+    public void mark(int readAheadLimit) throws IOException {
         throw new IOException("mark() not supported");
     }
 

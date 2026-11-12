@@ -145,8 +145,6 @@ public final class DisplayMode {
      * {@inheritDoc}
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object dm) {
         if (dm instanceof DisplayMode) {
             return equals((DisplayMode)dm);

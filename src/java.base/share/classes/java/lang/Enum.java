@@ -102,7 +102,7 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return the name of this enum constant
      */
-    public final  String name() {
+    public final String name() {
         return name;
     }
 
@@ -128,7 +128,7 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return the ordinal of this enumeration constant
      */
-    public final  int ordinal() {
+    public final int ordinal() {
         return ordinal;
     }
 
@@ -143,7 +143,7 @@ public abstract class Enum<E extends Enum<E>>
      *         in the enum declaration, where the initial constant is assigned
      *         an ordinal of zero).
      */
-    protected Enum(String name,  int ordinal) {
+    protected Enum(String name, int ordinal) {
         this.name = name;
         this.ordinal = ordinal;
     }
@@ -156,7 +156,6 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return the name of this enum constant
      */
-    
     public String toString() {
         return name;
     }
@@ -169,8 +168,7 @@ public abstract class Enum<E extends Enum<E>>
      * @return  true if the specified object is equal to this
      *          enum constant.
      */
-    
-    public final boolean equals( @Nullable Object other) {
+    public final boolean equals(@Nullable Object other) {
         return this==other;
     }
 
@@ -185,7 +183,6 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return a hash code for this enum constant.
      */
-    
     public final int hashCode() {
         // Once initialized, the hash field value does not change.
         // HotSpot's identity hash code generation also never returns zero
@@ -206,7 +203,6 @@ public abstract class Enum<E extends Enum<E>>
      *
      * @return (never returns)
      */
-    
     protected final Object clone() throws CloneNotSupportedException {
         throw new CloneNotSupportedException();
     }
@@ -220,7 +216,6 @@ public abstract class Enum<E extends Enum<E>>
      * same enum type.  The natural order implemented by this
      * method is the order in which the constants are declared.
      */
-    @SuppressWarnings({"rawtypes"})
     public final int compareTo(E o) {
         Enum<?> other = o;
         Enum<E> self = this;

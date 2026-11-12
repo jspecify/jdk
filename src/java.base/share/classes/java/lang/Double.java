@@ -403,7 +403,7 @@ public final /*value*/ class Double extends Number
      * {@code 0x1.fffffffffffffP+1023} and also equal to
      * {@code Double.longBitsToDouble(0x7fefffffffffffffL)}.
      */
-    public static final  double MAX_VALUE = 0x1.fffffffffffffP+1023; // 1.7976931348623157e+308
+    public static final double MAX_VALUE = 0x1.fffffffffffffP+1023; // 1.7976931348623157e+308
 
     /**
      * A constant holding the smallest positive normal value of type
@@ -422,7 +422,7 @@ public final /*value*/ class Double extends Number
      * {@code 0x0.0000000000001P-1022} and also equal to
      * {@code Double.longBitsToDouble(0x1L)}.
      */
-    public static final  double MIN_VALUE = 0x0.0000000000001P-1022; // 4.9e-324
+    public static final double MIN_VALUE = 0x0.0000000000001P-1022; // 4.9e-324
 
     /**
      * The number of bits used to represent a {@code double} value,
@@ -430,7 +430,7 @@ public final /*value*/ class Double extends Number
      *
      * @since 1.5
      */
-    public static final  int SIZE = 64;
+    public static final int SIZE = 64;
 
     /**
      * The number of bits in the significand of a {@code double}
@@ -465,7 +465,7 @@ public final /*value*/ class Double extends Number
      *
      * @since 1.8
      */
-    public static final  int BYTES = SIZE / Byte.SIZE;
+    public static final int BYTES = SIZE / Byte.SIZE;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -624,8 +624,6 @@ public final /*value*/ class Double extends Number
      * @param   d   the {@code double} to be converted.
      * @return a string representation of the argument.
      */
-    
-    
     public static String toString(double d) {
         return DoubleToDecimal.toString(d);
     }
@@ -712,8 +710,6 @@ public final /*value*/ class Double extends Number
      * @return a hex string representation of the argument.
      * @since 1.5
      */
-    
-    
     public static String toHexString(double d) {
         /*
          * Modeled after the "a" conversion specifier in C99, section
@@ -970,8 +966,6 @@ public final /*value*/ class Double extends Number
      *             parsable number.
      * @see Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
      */
-    
-    
     public static Double valueOf(String s) throws NumberFormatException {
         return new Double(parseDouble(s));
     }
@@ -1021,8 +1015,6 @@ public final /*value*/ class Double extends Number
      * @see    Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
      * @since 1.2
      */
-    
-    
     public static double parseDouble(String s) throws NumberFormatException {
         return FloatingDecimal.parseDouble(s);
     }
@@ -1039,8 +1031,6 @@ public final /*value*/ class Double extends Number
      * @return  {@code true} if the value of the argument is NaN;
      *          {@code false} otherwise.
      */
-    
-    
     public static boolean isNaN(double v) {
         return (v != v);
     }
@@ -1133,8 +1123,6 @@ public final /*value*/ class Double extends Number
      * @return  {@code true} if the value represented by this object is
      *          NaN; {@code false} otherwise.
      */
-    
-    
     public boolean isNaN() {
         return isNaN(value);
     }
@@ -1147,8 +1135,6 @@ public final /*value*/ class Double extends Number
      *          positive infinity or negative infinity;
      *          {@code false} otherwise.
      */
-    
-    
     public boolean isInfinite() {
         return isInfinite(value);
     }
@@ -1162,8 +1148,6 @@ public final /*value*/ class Double extends Number
      * @return  a {@code String} representation of this object.
      * @see java.lang.Double#toString(double)
      */
-    
-    
     public String toString() {
         return toString(value);
     }
@@ -1280,8 +1264,6 @@ public final /*value*/ class Double extends Number
      *
      * @return  a {@code hash code} value for this object.
      */
-    
-    
     @Override
     public int hashCode() {
         return Double.hashCode(value);
@@ -1295,7 +1277,6 @@ public final /*value*/ class Double extends Number
      * @return a hash code value for a {@code double} value.
      * @since 1.8
      */
-    
     public static int hashCode(double value) {
         return Long.hashCode(doubleToLongBits(value));
     }
@@ -1557,8 +1538,6 @@ public final /*value*/ class Double extends Number
      *          {@code d2}.
      * @since 1.4
      */
-    
-    
     public static int compare(double d1, double d2) {
         if (d1 < d2)
             return -1;           // Neither val is NaN, thisVal is smaller
@@ -1587,8 +1566,6 @@ public final /*value*/ class Double extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static double sum(double a, double b) {
         return a + b;
     }
@@ -1607,8 +1584,6 @@ public final /*value*/ class Double extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static double max(double a, double b) {
         return Math.max(a, b);
     }
@@ -1627,8 +1602,6 @@ public final /*value*/ class Double extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static double min(double a, double b) {
         return Math.min(a, b);
     }

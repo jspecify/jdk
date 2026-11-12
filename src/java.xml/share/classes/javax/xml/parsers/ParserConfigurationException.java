@@ -26,7 +26,6 @@
 package javax.xml.parsers;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Indicates a serious configuration error.

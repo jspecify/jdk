@@ -138,8 +138,6 @@ public class TabStop implements Serializable {
      * Returns true if the tabs are equal.
      * @return true if the tabs are equal, otherwise false
      */
-    
-    
     public boolean equals(@Nullable Object other)
     {
         if (other == this) {

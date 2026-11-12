@@ -1073,8 +1073,6 @@ public final /*value*/ class Year
      * @return true if this is equal to the other year
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

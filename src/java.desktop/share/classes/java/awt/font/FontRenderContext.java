@@ -302,8 +302,6 @@ public class FontRenderContext {
      *         this {@code FontRenderContext}; {@code false}
      *         otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         try {
             return equals((FontRenderContext)obj);

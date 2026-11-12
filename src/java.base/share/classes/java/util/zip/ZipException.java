@@ -35,6 +35,7 @@ import org.jspecify.annotations.Nullable;
  * @see     java.io.IOException
  * @since   1.1
  */
+
 @NullMarked
 public class ZipException extends IOException {
     @java.io.Serial

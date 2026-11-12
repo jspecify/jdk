@@ -491,7 +491,6 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      *
      * @return an array containing the elements of this stream
      */
-    
     long[] toArray();
 
     /**
@@ -866,11 +865,9 @@ public interface LongStream extends BaseStream<Long, LongStream> {
     @Override
     LongStream parallel();
 
-    
     @Override
     PrimitiveIterator.OfLong iterator();
 
-    
     @Override
     Spliterator.OfLong spliterator();
 

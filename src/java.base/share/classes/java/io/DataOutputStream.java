@@ -27,7 +27,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.lang.runtime.ExactConversionsSupport;
 
@@ -108,7 +107,7 @@ public class DataOutputStream extends FilterOutputStream implements DataOutput {
      * @throws     IOException  if an I/O error occurs.
      * @see        java.io.FilterOutputStream#out
      */
-    public synchronized void write( int b) throws IOException {
+    public synchronized void write(int b) throws IOException {
         out.write(b);
         incCount(1);
     }
@@ -414,8 +413,7 @@ public class DataOutputStream extends FilterOutputStream implements DataOutput {
      * @return  the value of the {@code written} field.
      * @see     java.io.DataOutputStream#written
      */
-    
-    public final  int size() {
+    public final int size() {
         return written;
     }
 }

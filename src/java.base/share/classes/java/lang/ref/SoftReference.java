@@ -125,7 +125,6 @@ public non-sealed class SoftReference<@jdk.internal.RequiresIdentity T> extends 
      * @return   The object to which this reference refers, or
      *           {@code null} if this reference object has been cleared
      */
-    
     public @Nullable T get() {
         T o = super.get();
         if (o != null && this.timestamp != clock)

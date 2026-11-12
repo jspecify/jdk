@@ -159,8 +159,6 @@ public final class TransformAttribute implements Serializable {
      * transform.
      * @since 1.6
      */
-    
-    
     public boolean equals(@Nullable Object rhs) {
         if (rhs != null) {
             try {

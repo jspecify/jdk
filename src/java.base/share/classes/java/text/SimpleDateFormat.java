@@ -2499,8 +2499,6 @@ public class SimpleDateFormat extends DateFormat {
      * @see Object#equals(Object)
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj)
     {
         if (!super.equals(obj)) {

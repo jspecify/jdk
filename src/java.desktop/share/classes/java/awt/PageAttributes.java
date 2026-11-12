@@ -1331,8 +1331,6 @@ public final class PageAttributes implements Cloneable {
      * @return  whether obj is equal to this PageAttribute according to the
      *          above criteria.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof PageAttributes)) {
             return false;

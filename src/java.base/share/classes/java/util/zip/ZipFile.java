@@ -684,8 +684,7 @@ public class ZipFile implements ZipConstants, Closeable {
      * @return the number of entries in the ZIP file
      * @throws IllegalStateException if the ZIP file has been closed
      */
-    
-    public  int size() {
+    public int size() {
         synchronized (this) {
             ensureOpen();
             return res.zsrc.total;

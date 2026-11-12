@@ -3933,8 +3933,6 @@ public class AffineTransform implements Cloneable, java.io.Serializable {
      * {@code AffineTransform} object; {@code false} otherwise.
      * @since 1.2
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof AffineTransform)) {
             return false;

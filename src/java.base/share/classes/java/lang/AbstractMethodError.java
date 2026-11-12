@@ -45,7 +45,6 @@ public class AbstractMethodError extends IncompatibleClassChangeError {
     /**
      * Constructs an {@code AbstractMethodError} with no detail  message.
      */
-    
     public AbstractMethodError() {
         super();
     }
@@ -56,7 +55,6 @@ public class AbstractMethodError extends IncompatibleClassChangeError {
      *
      * @param   s   the detail message.
      */
-    
     public AbstractMethodError(@Nullable String s) {
         super(s);
     }

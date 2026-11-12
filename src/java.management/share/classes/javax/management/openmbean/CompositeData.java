@@ -143,8 +143,6 @@ public interface CompositeData {
      * @return  {@code true} if the specified object is equal to this
      * {@code CompositeData} instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj) ;
 
     /**

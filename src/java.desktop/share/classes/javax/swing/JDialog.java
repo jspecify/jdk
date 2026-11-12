@@ -626,7 +626,7 @@ public class JDialog extends Dialog implements WindowConstants,
      * @since 1.6
      */
     public JDialog(@Nullable Window owner, @Nullable String title, Dialog.ModalityType modalityType,
-    			   @Nullable GraphicsConfiguration gc) {
+                   @Nullable GraphicsConfiguration gc) {
         super(owner, title, modalityType, gc);
         dialogInit();
     }

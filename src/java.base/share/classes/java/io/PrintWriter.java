@@ -862,7 +862,6 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    
     public PrintWriter printf(String format, @Nullable Object ... args) {
         return format(format, args);
     }
@@ -916,7 +915,6 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    
     public PrintWriter printf(@Nullable Locale l, String format, @Nullable Object ... args) {
         return format(l, format, args);
     }
@@ -1100,7 +1098,7 @@ public class PrintWriter extends Writer {
      *
      * @since  1.5
      */
-    public PrintWriter append(@Nullable CharSequence csq,  int start,  int end) {
+    public PrintWriter append(@Nullable CharSequence csq, int start, int end) {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }

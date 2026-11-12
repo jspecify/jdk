@@ -471,7 +471,6 @@ public interface Spliterator<T extends @Nullable Object> {
      * @throws IllegalStateException if the spliterator does not report
      *         a characteristic of {@code SORTED}.
      */
-    
     default @Nullable Comparator<? super T> getComparator() {
         throw new IllegalStateException();
     }

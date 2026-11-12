@@ -168,8 +168,6 @@ public class EllipticCurve {
      * @return true if {@code obj} is an instance of
      * EllipticCurve and the field, A, and B match, false otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
 

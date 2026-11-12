@@ -54,8 +54,6 @@ public class EventQueueImpl extends MirrorImpl implements EventQueue {
     /*
      * Override superclass back to default equality
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         return this == obj;
     }

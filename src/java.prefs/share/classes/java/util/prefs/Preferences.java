@@ -216,7 +216,7 @@ import java.util.ServiceConfigurationError;
  * @since   1.4
  */
 @NullMarked
-public abstract  class Preferences {
+public abstract class Preferences {
 
     private static final PreferencesFactory factory = factory();
 
@@ -842,7 +842,7 @@ public abstract  class Preferences {
      * @see #get(String,String)
      * @see #putByteArray(String,byte[])
      */
-    public abstract byte @Nullable[] getByteArray(String key, byte @Nullable[] def);
+    public abstract byte @Nullable [] getByteArray(String key, byte @Nullable [] def);
 
     /**
      * Returns all of the keys that have an associated value in this

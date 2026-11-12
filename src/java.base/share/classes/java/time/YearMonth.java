@@ -1196,8 +1196,6 @@ public final /*value*/ class YearMonth
      * @return true if this is equal to the other year-month
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

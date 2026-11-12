@@ -73,7 +73,6 @@ import java.util.StringJoiner;
  * @since 1.1
  */
 @NullMarked
-@SuppressWarnings({"rawtypes"})
 public final class Method extends Executable {
     private final Class<?>            clazz;
     private final int                 slot;
@@ -216,7 +215,7 @@ public final class Method extends Executable {
      * object, as a {@code String}.
      */
     @Override
-    public  String getName() {
+    public String getName() {
         return name;
     }
 
@@ -250,7 +249,6 @@ public final class Method extends Executable {
      *
      * @return the return type for the method this object represents
      */
-    
     public Class<?> getReturnType() {
         return returnType;
     }
@@ -279,7 +277,6 @@ public final class Method extends Executable {
      *     type that cannot be instantiated for any reason
      * @since 1.5
      */
-    
     public Type getGenericReturnType() {
       if (getGenericSignature() != null) {
         return getGenericInfo().getReturnType();
@@ -366,7 +363,6 @@ public final class Method extends Executable {
      * as the exclusive-or of the hashcodes for the underlying
      * method's declaring class name and the method's name.
      */
-    
     public int hashCode() {
         int hc = hash;
 
@@ -405,7 +401,6 @@ public final class Method extends Executable {
      * @jls 9.4 Method Declarations
      * @jls 9.6.1 Annotation Interface Elements
      */
-    
     public String toString() {
         return sharedToString(parameterTypes,
                               exceptionTypes);
@@ -564,7 +559,6 @@ public final class Method extends Executable {
      * @throws    ExceptionInInitializerError if the initialization
      * provoked by this method fails.
      */
-    
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
     @IntrinsicCandidate
@@ -676,7 +670,6 @@ public final class Method extends Executable {
      * href="{@docRoot}/java.base/java/lang/reflect/package-summary.html#LanguageJvmModel">Java
      * programming language and JVM modeling in core reflection</a>
      */
-    
     public boolean isBridge() {
         return (getModifiers() & Modifier.BRIDGE) != 0;
     }
@@ -686,7 +679,6 @@ public final class Method extends Executable {
      * @since 1.5
      * @jls 8.4.1 Formal Parameters
      */
-    
     @Override
     public boolean isVarArgs() {
         return super.isVarArgs();
@@ -701,7 +693,6 @@ public final class Method extends Executable {
      * programming language and JVM modeling in core reflection</a>
      * @since 1.5
      */
-    
     @Override
     public boolean isSynthetic() {
         return super.isSynthetic();

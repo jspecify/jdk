@@ -410,8 +410,6 @@ public class BasicStroke implements Stroke {
     *            dash phase are the same for both objects;
     *            {@code false} otherwise.
     */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof BasicStroke)) {
             return false;

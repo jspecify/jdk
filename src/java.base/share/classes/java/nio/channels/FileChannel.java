@@ -372,7 +372,7 @@ public abstract class FileChannel
      * @throws  ClosedByInterruptException  {@inheritDoc}
      * @throws  NonReadableChannelException {@inheritDoc}
      */
-    public abstract  int read(ByteBuffer dst) throws IOException;
+    public abstract int read(ByteBuffer dst) throws IOException;
 
     /**
      * Reads a sequence of bytes from this channel into a subsequence of the
@@ -388,7 +388,7 @@ public abstract class FileChannel
      * @throws  ClosedByInterruptException  {@inheritDoc}
      * @throws  NonReadableChannelException {@inheritDoc}
      */
-    public abstract  long read(ByteBuffer[] dsts,  int offset,  int length)
+    public abstract long read(ByteBuffer[] dsts, int offset, int length)
         throws IOException;
 
     /**
@@ -404,7 +404,7 @@ public abstract class FileChannel
      * @throws  ClosedByInterruptException  {@inheritDoc}
      * @throws  NonReadableChannelException {@inheritDoc}
      */
-    public final  long read(ByteBuffer[] dsts) throws IOException {
+    public final long read(ByteBuffer[] dsts) throws IOException {
         return read(dsts, 0, dsts.length);
     }
 
@@ -424,7 +424,7 @@ public abstract class FileChannel
      * @throws  ClosedByInterruptException  {@inheritDoc}
      * @throws  NonWritableChannelException {@inheritDoc}
      */
-    public abstract  int write(ByteBuffer src) throws IOException;
+    public abstract int write(ByteBuffer src) throws IOException;
 
     /**
      * Writes a sequence of bytes to this channel from a subsequence of the
@@ -443,7 +443,7 @@ public abstract class FileChannel
      * @throws  ClosedByInterruptException  {@inheritDoc}
      * @throws  NonWritableChannelException {@inheritDoc}
      */
-    public abstract  long write(ByteBuffer[] srcs,  int offset,  int length)
+    public abstract long write(ByteBuffer[] srcs, int offset, int length)
         throws IOException;
 
     /**
@@ -462,7 +462,7 @@ public abstract class FileChannel
      * @throws  ClosedByInterruptException  {@inheritDoc}
      * @throws  NonWritableChannelException {@inheritDoc}
      */
-    public final  long write(ByteBuffer[] srcs) throws IOException {
+    public final long write(ByteBuffer[] srcs) throws IOException {
         return write(srcs, 0, srcs.length);
     }
 
@@ -482,7 +482,7 @@ public abstract class FileChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract  long position() throws IOException;
+    public abstract long position() throws IOException;
 
     /**
      * Sets this channel's file position.
@@ -510,7 +510,7 @@ public abstract class FileChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract FileChannel position( long newPosition) throws IOException;
+    public abstract FileChannel position(long newPosition) throws IOException;
 
     /**
      * Returns the current size of this channel's file.
@@ -524,7 +524,7 @@ public abstract class FileChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract  long size() throws IOException;
+    public abstract long size() throws IOException;
 
     /**
      * Truncates this channel's file to the given size.
@@ -553,7 +553,7 @@ public abstract class FileChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract FileChannel truncate( long size) throws IOException;
+    public abstract FileChannel truncate(long size) throws IOException;
 
     /**
      * Forces any updates to this channel's file to be written to the storage
@@ -671,7 +671,7 @@ public abstract class FileChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract  long transferTo( long position,  long count,
+    public abstract long transferTo(long position, long count,
                                     WritableByteChannel target)
         throws IOException;
 
@@ -741,8 +741,8 @@ public abstract class FileChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract  long transferFrom(ReadableByteChannel src,
-                                       long position,  long count)
+    public abstract long transferFrom(ReadableByteChannel src,
+                                      long position, long count)
         throws IOException;
 
     /**
@@ -789,7 +789,7 @@ public abstract class FileChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract  int read(ByteBuffer dst,  long position) throws IOException;
+    public abstract int read(ByteBuffer dst, long position) throws IOException;
 
     /**
      * Writes a sequence of bytes to this channel from the given buffer,
@@ -838,7 +838,7 @@ public abstract class FileChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
-    public abstract  int write(ByteBuffer src,  long position) throws IOException;
+    public abstract int write(ByteBuffer src, long position) throws IOException;
 
 
     // -- Memory-mapped buffers --
@@ -1180,7 +1180,7 @@ public abstract class FileChannel
      * @see     #tryLock()
      * @see     #tryLock(long,long,boolean)
      */
-    public abstract FileLock lock( long position,  long size, boolean shared)
+    public abstract FileLock lock(long position, long size, boolean shared)
         throws IOException;
 
     /**
@@ -1306,7 +1306,7 @@ public abstract class FileChannel
      * @see     #lock(long,long,boolean)
      * @see     #tryLock()
      */
-    public abstract @Nullable FileLock tryLock( long position,  long size, boolean shared)
+    public abstract @Nullable FileLock tryLock(long position, long size, boolean shared)
         throws IOException;
 
     /**

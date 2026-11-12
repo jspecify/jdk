@@ -193,8 +193,6 @@ public final class UID implements Serializable {
      * @return  <code>true</code> if the given object is equivalent to
      * this one, and <code>false</code> otherwise
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof UID) {
             UID uid = (UID) obj;

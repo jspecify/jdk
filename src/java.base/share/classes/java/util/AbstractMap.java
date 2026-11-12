@@ -91,8 +91,7 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      * @implSpec
      * This implementation returns {@code entrySet().size()}.
      */
-    
-    public  int size() {
+    public int size() {
         return entrySet().size();
     }
 
@@ -102,7 +101,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      * @implSpec
      * This implementation returns {@code size() == 0}.
      */
-    
     public boolean isEmpty() {
         return size() == 0;
     }
@@ -120,7 +118,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      * @throws ClassCastException   {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    
     public boolean containsValue(@Nullable Object value) {
         Iterator<Entry<K,V>> i = entrySet().iterator();
         if (value==null) {
@@ -153,8 +150,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      * @throws ClassCastException   {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    
-    
     public boolean containsKey(@Nullable Object key) {
         Iterator<Map.Entry<K,V>> i = entrySet().iterator();
         if (key==null) {
@@ -187,7 +182,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      * @throws ClassCastException            {@inheritDoc}
      * @throws NullPointerException          {@inheritDoc}
      */
-    
     public @Nullable V get(@Nullable Object key) {
         Iterator<Entry<K,V>> i = entrySet().iterator();
         if (key==null) {
@@ -221,8 +215,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      * @throws NullPointerException          {@inheritDoc}
      * @throws IllegalArgumentException      {@inheritDoc}
      */
-    
-    
     public @Nullable V put(K key, V value) {
         throw new UnsupportedOperationException();
     }
@@ -361,8 +353,7 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      * is performed, so there is a slight chance that multiple calls to this
      * method will not all return the same set.
      */
-    
-    public Set< K> keySet() {
+    public Set<K> keySet() {
         Set<K> ks = keySet;
         if (ks == null) {
             ks = new AbstractSet<>() {
@@ -370,12 +361,10 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
                     return new KeyIterator();
                 }
 
-                
                 public int size() {
                     return AbstractMap.this.size();
                 }
 
-                
                 public boolean isEmpty() {
                     return AbstractMap.this.isEmpty();
                 }
@@ -409,7 +398,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      * performed, so there is a slight chance that multiple calls to this
      * method will not all return the same collection.
      */
-    
     public Collection<V> values() {
         Collection<V> vals = values;
         if (vals == null) {
@@ -418,12 +406,10 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
                     return new ValueIterator();
                 }
 
-                
                 public int size() {
                     return AbstractMap.this.size();
                 }
 
-                
                 public boolean isEmpty() {
                     return AbstractMap.this.isEmpty();
                 }
@@ -441,8 +427,7 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
         return vals;
     }
 
-    
-    public abstract Set<Entry< K,V>> entrySet();
+    public abstract Set<Entry<K,V>> entrySet();
 
 
     // Comparison and hashing
@@ -469,8 +454,7 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      * @param o object to be compared for equality with this map
      * @return {@code true} if the specified object is equal to this map
      */
-    
-    public boolean equals( @Nullable Object o) {
+    public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;
 
@@ -516,7 +500,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      * @see Object#equals(Object)
      * @see Set#equals(Object)
      */
-    
     public int hashCode() {
         int h = 0;
         for (Entry<K, V> entry : entrySet())
@@ -536,7 +519,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
      *
      * @return a string representation of this map
      */
-    
     public String toString() {
         Iterator<Entry<K,V>> i = entrySet().iterator();
         if (! i.hasNext())
@@ -646,7 +628,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
          *
          * @return the key corresponding to this entry
          */
-        
         public K getKey() {
             return key;
         }
@@ -656,7 +637,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
          *
          * @return the value corresponding to this entry
          */
-        
         public V getValue() {
             return value;
         }
@@ -714,7 +694,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
          * @return the hash code value for this map entry
          * @see    #equals
          */
-        
         public int hashCode() {
             return (key   == null ? 0 :   key.hashCode()) ^
                    (value == null ? 0 : value.hashCode());
@@ -728,7 +707,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
          *
          * @return a String representation of this map entry
          */
-        
         public String toString() {
             return key + "=" + value;
         }
@@ -798,7 +776,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
          *
          * @return the key corresponding to this entry
          */
-        
         public K getKey() {
             return key;
         }
@@ -808,7 +785,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
          *
          * @return the value corresponding to this entry
          */
-        
         public V getValue() {
             return value;
         }
@@ -870,7 +846,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
          * @return the hash code value for this map entry
          * @see    #equals
          */
-        
         public int hashCode() {
             return (key   == null ? 0 :   key.hashCode()) ^
                    (value == null ? 0 : value.hashCode());
@@ -884,7 +859,6 @@ public abstract class AbstractMap<K extends @Nullable Object,V extends @Nullable
          *
          * @return a String representation of this map entry
          */
-        
         public String toString() {
             return key + "=" + value;
         }

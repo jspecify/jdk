@@ -48,7 +48,6 @@ public class InstantiationError extends IncompatibleClassChangeError {
     /**
      * Constructs an {@code InstantiationError} with no detail  message.
      */
-    
     public InstantiationError() {
         super();
     }
@@ -59,7 +58,6 @@ public class InstantiationError extends IncompatibleClassChangeError {
      *
      * @param   s   the detail message.
      */
-    
     public InstantiationError(@Nullable String s) {
         super(s);
     }

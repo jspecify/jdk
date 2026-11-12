@@ -26,7 +26,6 @@
 package java.util;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * <p>
@@ -40,7 +39,7 @@ import org.jspecify.annotations.Nullable;
  */
 
 @NullMarked
-public  class EventObject implements java.io.Serializable {
+public class EventObject implements java.io.Serializable {
 
     @java.io.Serial
     private static final long serialVersionUID = 5516075349620653480L;
@@ -77,7 +76,6 @@ public  class EventObject implements java.io.Serializable {
      *
      * @return a String representation of this EventObject
      */
-    
     public String toString() {
         return getClass().getName() + "[source=" + source + "]";
     }

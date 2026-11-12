@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * The abstract class {@code Number} is the superclass of platform
@@ -79,8 +78,7 @@ public abstract /*value*/ class Number implements java.io.Serializable {
      * @return  the numeric value represented by this object after conversion
      *          to type {@code int}.
      */
-    
-    public abstract  int intValue();
+    public abstract int intValue();
 
     /**
      * Returns the value of the specified number as a {@code long}.
@@ -88,8 +86,7 @@ public abstract /*value*/ class Number implements java.io.Serializable {
      * @return  the numeric value represented by this object after conversion
      *          to type {@code long}.
      */
-    
-    public abstract  long longValue();
+    public abstract long longValue();
 
     /**
      * Returns the value of the specified number as a {@code float}.
@@ -97,8 +94,7 @@ public abstract /*value*/ class Number implements java.io.Serializable {
      * @return  the numeric value represented by this object after conversion
      *          to type {@code float}.
      */
-    
-    public abstract  float floatValue();
+    public abstract float floatValue();
 
     /**
      * Returns the value of the specified number as a {@code double}.
@@ -106,8 +102,7 @@ public abstract /*value*/ class Number implements java.io.Serializable {
      * @return  the numeric value represented by this object after conversion
      *          to type {@code double}.
      */
-    
-    public abstract  double doubleValue();
+    public abstract double doubleValue();
 
     /**
      * Returns the value of the specified number as a {@code byte}.
@@ -120,8 +115,7 @@ public abstract /*value*/ class Number implements java.io.Serializable {
      *          to type {@code byte}.
      * @since   1.1
      */
-    
-    public  byte byteValue() {
+    public byte byteValue() {
         return (byte)intValue();
     }
 
@@ -136,8 +130,7 @@ public abstract /*value*/ class Number implements java.io.Serializable {
      *          to type {@code short}.
      * @since   1.1
      */
-    
-    public  short shortValue() {
+    public short shortValue() {
         return (short)intValue();
     }
 

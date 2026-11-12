@@ -334,7 +334,6 @@ public abstract class TimeZone implements Serializable, Cloneable {
      * @see Locale#getDefault(Locale.Category)
      * @see Locale.Category
      */
-    
     public final String getDisplayName() {
         return getDisplayName(false, LONG,
                               Locale.getDefault(Locale.Category.DISPLAY));
@@ -358,7 +357,6 @@ public abstract class TimeZone implements Serializable, Cloneable {
      * @since 1.2
      * @see #getDisplayName(boolean, int, Locale)
      */
-    
     public final String getDisplayName(Locale locale) {
         return getDisplayName(false, LONG, locale);
     }
@@ -390,7 +388,6 @@ public abstract class TimeZone implements Serializable, Cloneable {
      * @see Locale.Category
      * @see java.text.DateFormatSymbols#getZoneStrings()
      */
-    
     public final String getDisplayName(boolean daylight, int style) {
         return getDisplayName(daylight, style,
                               Locale.getDefault(Locale.Category.DISPLAY));
@@ -429,7 +426,6 @@ public abstract class TimeZone implements Serializable, Cloneable {
      * @since 1.2
      * @see java.text.DateFormatSymbols#getZoneStrings()
      */
-    
     public String getDisplayName(boolean daylight, int style, Locale locale) {
         if (style != SHORT && style != LONG) {
             throw new IllegalArgumentException("Illegal style: " + style);
@@ -483,7 +479,6 @@ public abstract class TimeZone implements Serializable, Cloneable {
      * @see #getOffset(int,int,int,int,int,int)
      * @see Calendar#ZONE_OFFSET
      */
-    
     public int getDSTSavings() {
         if (useDaylightTime()) {
             return 3600000;
@@ -506,7 +501,6 @@ public abstract class TimeZone implements Serializable, Cloneable {
      * @see #inDaylightTime(Date)
      * @see Calendar#DST_OFFSET
      */
-    
     public abstract boolean useDaylightTime();
 
     /**
@@ -541,7 +535,6 @@ public abstract class TimeZone implements Serializable, Cloneable {
      * @throws NullPointerException This method may throw a
      * {@code NullPointerException} if {@code date} is {@code null}
      */
-    
     public abstract boolean inDaylightTime(Date date);
 
     /**
@@ -811,7 +804,6 @@ public abstract class TimeZone implements Serializable, Cloneable {
      *
      * @return a clone of this {@code TimeZone}
      */
-    
     public Object clone()
     {
         try {

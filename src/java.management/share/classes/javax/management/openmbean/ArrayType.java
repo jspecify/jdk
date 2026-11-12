@@ -687,8 +687,6 @@ public class ArrayType<T> extends OpenType<T> {
      * @return {@code true} if the specified object is equal to
      *         this {@code ArrayType} instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
 
         // if obj is null, return false

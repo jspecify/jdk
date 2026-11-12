@@ -223,8 +223,6 @@ public final class DOMKeyInfo extends DOMStructure implements KeyInfo {
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object o) {
         if (this == o) {
             return true;

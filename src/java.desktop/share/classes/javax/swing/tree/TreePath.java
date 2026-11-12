@@ -249,8 +249,6 @@ public class TreePath implements Serializable {
      *
      * @param o the object to compare
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if(o == this)
             return true;

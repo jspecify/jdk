@@ -26,7 +26,6 @@
 package java.util.zip;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.io.FilterInputStream;
 import java.io.InputStream;
@@ -104,7 +103,7 @@ public class InflaterInputStream extends FilterInputStream {
      * @param size the input buffer size
      * @throws    IllegalArgumentException if {@code size <= 0}
      */
-    public InflaterInputStream(InputStream in, Inflater inf,  int size) {
+    public InflaterInputStream(InputStream in, Inflater inf, int size) {
         super(in);
         if (in == null || inf == null) {
             throw new NullPointerException();

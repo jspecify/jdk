@@ -192,7 +192,7 @@ public class DefaultTableCellRenderer extends JLabel
      * @see javax.swing.JComponent#isPaintingForPrint()
      */
     public Component getTableCellRendererComponent(JTable table, @Nullable Object value,
-                          boolean isSelected, boolean hasFocus,  int row,  int column) {
+                          boolean isSelected, boolean hasFocus, int row, int column) {
         if (table == null) {
             return this;
         }
@@ -345,7 +345,7 @@ public class DefaultTableCellRenderer extends JLabel
      * See the <a href="#override">Implementation Note</a>
      * for more information.
      */
-    protected void firePropertyChange( String propertyName, @Nullable Object oldValue, @Nullable Object newValue) {
+    protected void firePropertyChange(String propertyName, @Nullable Object oldValue, @Nullable Object newValue) {
         // Strings get interned...
         if (propertyName=="text"
             || propertyName == "labelFor"

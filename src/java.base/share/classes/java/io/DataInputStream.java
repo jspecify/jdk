@@ -234,7 +234,7 @@ public class DataInputStream extends FilterInputStream implements DataInput {
      *             the contained input stream does not support
      *             reading after close, or another I/O error occurs.
      */
-    public final  int skipBytes(int n) throws IOException {
+    public final int skipBytes(int n) throws IOException {
         int total = 0;
         int cur = 0;
 
@@ -299,7 +299,7 @@ public class DataInputStream extends FilterInputStream implements DataInput {
      *             another I/O error occurs.
      * @see         java.io.FilterInputStream#in
      */
-    public final  int readUnsignedByte() throws IOException {
+    public final int readUnsignedByte() throws IOException {
         int ch = in.read();
         if (ch < 0)
             throw new EOFException();

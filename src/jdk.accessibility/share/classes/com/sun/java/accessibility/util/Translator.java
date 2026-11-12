@@ -178,8 +178,6 @@ public class Translator extends AccessibleContext
      * @param o the {@code Object} to check against
      * @return true if this is the same object
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o instanceof Translator) {
             return java.util.Objects.equals(source, o);

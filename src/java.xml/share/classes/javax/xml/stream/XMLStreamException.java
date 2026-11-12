@@ -59,7 +59,6 @@ public class XMLStreamException extends Exception {
   /**
    * Default constructor
    */
-  
   public XMLStreamException(){
     super();
   }
@@ -69,7 +68,6 @@ public class XMLStreamException extends Exception {
    *
    * @param msg the message to report
    */
-  
   public XMLStreamException(@Nullable String msg) {
     super(msg);
   }
@@ -79,7 +77,6 @@ public class XMLStreamException extends Exception {
    *
    * @param th a nested exception
    */
-  
   public XMLStreamException(@Nullable Throwable th) {
       super(th);
     nested = th;
@@ -91,7 +88,6 @@ public class XMLStreamException extends Exception {
    * @param msg the message to report
    * @param th a nested exception
    */
-  
   public XMLStreamException(@Nullable String msg, @Nullable Throwable th) {
     super(msg, th);
     nested = th;
@@ -104,7 +100,6 @@ public class XMLStreamException extends Exception {
    * @param location the location of the error
    * @param th a nested exception
    */
-  
   public XMLStreamException(@Nullable String msg, Location location, @Nullable Throwable th) {
     super("ParseError at [row,col]:["+location.getLineNumber()+","+
           location.getColumnNumber()+"]\n"+
@@ -119,7 +114,6 @@ public class XMLStreamException extends Exception {
    * @param msg the message to report
    * @param location the location of the error
    */
-  
   public XMLStreamException(@Nullable String msg,
                             Location location) {
     super("ParseError at [row,col]:["+location.getLineNumber()+","+
@@ -134,7 +128,6 @@ public class XMLStreamException extends Exception {
    *
    * @return Nested exception
    */
-  
   public @Nullable Throwable getNestedException() {
     return nested;
   }
@@ -144,7 +137,6 @@ public class XMLStreamException extends Exception {
    *
    * @return the location of the exception, may be null if none is available
    */
-  
   public @Nullable Location getLocation() {
     return location;
   }

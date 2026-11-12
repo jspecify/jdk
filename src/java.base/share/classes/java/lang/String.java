@@ -280,9 +280,7 @@ public final class String
      * an empty character sequence.  Note that use of this constructor is
      * unnecessary since Strings are immutable.
      */
-    
-    
-    public   String() {
+    public String() {
         this.value = "".value;
         this.coder = "".coder;
     }
@@ -385,9 +383,7 @@ public final class String
      *
      * @since  1.5
      */
-    
-    
-    public  String(int  [] codePoints,  int offset,   int count) {
+    public String(int[] codePoints, int offset, int count) {
         checkBoundsOffCount(offset, count, codePoints.length);
         if (count == 0) {
             this.value = "".value;
@@ -446,8 +442,6 @@ public final class String
      * @see  #String(byte[], java.nio.charset.Charset)
      * @see  #String(byte[])
      */
-    
-    
     @Deprecated(since="1.1")
     public String(byte[] ascii, int hibyte, int offset, int count) {
         checkBoundsOffCount(offset, count, ascii.length);
@@ -502,8 +496,6 @@ public final class String
      * @see  #String(byte[], java.nio.charset.Charset)
      * @see  #String(byte[])
      */
-    
-    
     @Deprecated(since="1.1")
     public String(byte[] ascii, int hibyte) {
         this(ascii, hibyte, 0, ascii.length);
@@ -1768,9 +1760,7 @@ public final class String
      * @param  buffer
      *         A {@code StringBuffer}
      */
-    
-    
-    public  String( StringBuffer buffer) {
+    public String(StringBuffer buffer) {
         this(buffer.toString());
     }
 
@@ -1792,9 +1782,7 @@ public final class String
      *
      * @since  1.5
      */
-    
-    
-    public  String( StringBuilder builder) {
+    public String(StringBuilder builder) {
         this(builder, null);
     }
 
@@ -1806,9 +1794,7 @@ public final class String
      * @return  the length of the sequence of characters represented by this
      *          object.
      */
-    
-    
-    public  int length() {
+    public int length() {
         return value.length >> coder();
     }
 
@@ -1848,9 +1834,7 @@ public final class String
      *             argument is negative or not less than the length of this
      *             string.
      */
-    
-    
-    public char charAt( int index) {
+    public char charAt(int index) {
         if (isLatin1()) {
             return StringLatin1.charAt(value, index);
         } else {
@@ -1880,9 +1864,7 @@ public final class String
      *             string.
      * @since      1.5
      */
-    
-    
-    public int codePointAt( int index) {
+    public int codePointAt(int index) {
         if (isLatin1()) {
             checkIndex(index, value.length);
             return value[index] & 0xff;
@@ -1914,9 +1896,7 @@ public final class String
      *            of this string.
      * @since     1.5
      */
-    
-    
-    public int codePointBefore(  int index) {
+    public int codePointBefore(int index) {
         int i = index - 1;
         checkIndex(i, length());
         if (isLatin1()) {
@@ -2073,9 +2053,7 @@ public final class String
      *
      * @since  1.1
      */
-    
-    
-    public  byte[] getBytes(String charsetName)
+    public byte[] getBytes(String charsetName)
             throws UnsupportedEncodingException {
         return encode(lookupCharset(charsetName), coder(), value);
     }
@@ -2098,9 +2076,7 @@ public final class String
      *
      * @since  1.6
      */
-    
-    
-    public  byte[] getBytes(Charset charset) {
+    public byte[] getBytes(Charset charset) {
         if (charset == null) throw new NullPointerException();
         return encode(charset, coder(), value);
      }
@@ -2186,10 +2162,7 @@ public final class String
      * @see  #compareTo(String)
      * @see  #equalsIgnoreCase(String)
      */
-    
-    
-    
-    public boolean equals( @Nullable Object anObject) {
+    public boolean equals(@Nullable Object anObject) {
         if (this == anObject) {
             return true;
         }
@@ -2216,9 +2189,7 @@ public final class String
      *
      * @since  1.4
      */
-    
-    
-    public boolean contentEquals( StringBuffer sb) {
+    public boolean contentEquals(StringBuffer sb) {
         return contentEquals((CharSequence)sb);
     }
 
@@ -2259,9 +2230,7 @@ public final class String
      *
      * @since  1.5
      */
-    
-    
-    public boolean contentEquals( CharSequence cs) {
+    public boolean contentEquals(CharSequence cs) {
         // Argument is a StringBuffer, StringBuilder
         if (cs instanceof AbstractStringBuilder) {
             if (cs instanceof StringBuffer) {
@@ -2326,9 +2295,6 @@ public final class String
      * @see  #equalsFoldCase(String)
      * @see  #codePoints()
      */
-    
-    
-    
     public boolean equalsIgnoreCase(@Nullable String anotherString) {
         return (this == anotherString) ? true
                 : (anotherString != null)
@@ -2431,8 +2397,6 @@ public final class String
      *          value greater than {@code 0} if this string is
      *          lexicographically greater than the string argument.
      */
-    
-    
     public int compareTo(String anotherString) {
         byte[] v1 = value;
         byte[] v2 = anotherString.value;
@@ -2507,8 +2471,6 @@ public final class String
      * @see     #compareToFoldCase(String)
      * @since   1.2
      */
-    
-    
     public int compareToIgnoreCase(String str) {
         return CASE_INSENSITIVE_ORDER.compare(this, str);
     }
@@ -2621,8 +2583,6 @@ public final class String
      *          exactly matches the specified subregion of the string argument;
      *          {@code false} otherwise.
      */
-    
-    
     public boolean regionMatches(int toffset, String other, int ooffset, int len) {
         // Note: toffset, ooffset, or len might be near -1>>>1.
         if ((ooffset < 0) || (toffset < 0) ||
@@ -2713,8 +2673,6 @@ public final class String
      *          argument.
      * @see     #codePoints()
      */
-    
-    
     public boolean regionMatches(boolean ignoreCase, int toffset,
             String other, int ooffset, int len) {
         if (!ignoreCase) {
@@ -2756,8 +2714,6 @@ public final class String
      *          this.substring(toffset).startsWith(prefix)
      *          </pre>
      */
-    
-    
     public boolean startsWith(String prefix, int toffset) {
         // Note: toffset might be near -1>>>1.
         if (toffset < 0 || toffset > length() - prefix.length()) {
@@ -2801,8 +2757,6 @@ public final class String
      *          {@link #equals(Object)} method.
      * @since   1.0
      */
-    
-    
     public boolean startsWith(String prefix) {
         return startsWith(prefix, 0);
     }
@@ -2818,8 +2772,6 @@ public final class String
      *          empty string or is equal to this {@code String} object
      *          as determined by the {@link #equals(Object)} method.
      */
-    
-    
     public boolean endsWith(String suffix) {
         return startsWith(suffix, length() - suffix.length());
     }
@@ -2837,8 +2789,6 @@ public final class String
      *
      * @return  a hash code value for this object.
      */
-    
-    
     public int hashCode() {
         // The hash or hashIsZero fields are subject to a benign data race,
         // making it crucial to ensure that any observable result of the
@@ -3017,9 +2967,7 @@ public final class String
      *          character sequence represented by this object, or
      *          {@code -1} if the character does not occur.
      */
-    
-    
-    public  int lastIndexOf(int ch) {
+    public int lastIndexOf(int ch) {
         return lastIndexOf(ch, length() - 1);
     }
 
@@ -3057,9 +3005,7 @@ public final class String
      *          than or equal to {@code fromIndex}, or {@code -1}
      *          if the character does not occur before that point.
      */
-    
-    
-    public  int lastIndexOf(int ch, int fromIndex) {
+    public int lastIndexOf(int ch, int fromIndex) {
         return isLatin1() ? StringLatin1.lastIndexOf(value, ch, fromIndex)
                           : StringUTF16.lastIndexOf(value, ch, fromIndex);
     }
@@ -3120,9 +3066,7 @@ public final class String
      *          starting at the specified index,
      *          or {@code -1} if there is no such occurrence.
      */
-    
-    
-    public   int indexOf(String str, int fromIndex) {
+    public int indexOf(String str, int fromIndex) {
         return indexOf(value, coder(), length(), str, fromIndex);
     }
 
@@ -3210,9 +3154,7 @@ public final class String
      * @return  the index of the last occurrence of the specified substring,
      *          or {@code -1} if there is no such occurrence.
      */
-    
-    
-    public   int lastIndexOf(String str) {
+    public int lastIndexOf(String str) {
         return lastIndexOf(str, length());
     }
 
@@ -3233,9 +3175,7 @@ public final class String
      *          searching backward from the specified index,
      *          or {@code -1} if there is no such occurrence.
      */
-    
-    
-    public   int lastIndexOf(String str, int fromIndex) {
+    public int lastIndexOf(String str, int fromIndex) {
         return lastIndexOf(value, coder(), length(), str, fromIndex);
     }
 
@@ -3325,9 +3265,7 @@ public final class String
      *             {@code beginIndex} is larger than
      *             {@code endIndex}.
      */
-    
-    
-    public String substring( int beginIndex,  int endIndex) {
+    public String substring(int beginIndex, int endIndex) {
         int length = length();
         checkBoundsBeginEnd(beginIndex, endIndex, length);
         if (beginIndex == 0 && endIndex == length) {
@@ -3366,9 +3304,7 @@ public final class String
      *
      * @since 1.4
      */
-    
-    
-    public CharSequence subSequence( int beginIndex,  int endIndex) {
+    public CharSequence subSequence(int beginIndex, int endIndex) {
         return this.substring(beginIndex, endIndex);
     }
 
@@ -3392,8 +3328,6 @@ public final class String
      * @return  a string that represents the concatenation of this object's
      *          characters followed by the string argument's characters.
      */
-    
-    
     public String concat(String str) {
         if (str.isEmpty()) {
             return this;
@@ -3430,8 +3364,6 @@ public final class String
      * @return  a string derived from this string by replacing every
      *          occurrence of {@code oldChar} with {@code newChar}.
      */
-    
-    
     public String replace(char oldChar, char newChar) {
         if (oldChar != newChar) {
             String ret = isLatin1() ? StringLatin1.replace(value, oldChar, newChar)
@@ -3469,9 +3401,7 @@ public final class String
      *
      * @since 1.4
      */
-    
-    
-    public boolean matches( String regex) {
+    public boolean matches(String regex) {
         return Pattern.matches(regex, this);
     }
 
@@ -3483,8 +3413,6 @@ public final class String
      * @return true if this string contains {@code s}, false otherwise
      * @since 1.5
      */
-    
-    
     public boolean contains(CharSequence s) {
         return indexOf(s.toString()) >= 0;
     }
@@ -3529,9 +3457,7 @@ public final class String
      *
      * @since 1.4
      */
-    
-    
-    public String replaceFirst( String regex, String replacement) {
+    public String replaceFirst(String regex, String replacement) {
         return Pattern.compile(regex).matcher(this).replaceFirst(replacement);
     }
 
@@ -3575,9 +3501,7 @@ public final class String
      *
      * @since 1.4
      */
-    
-    
-    public String replaceAll( String regex, String replacement) {
+    public String replaceAll(String regex, String replacement) {
         return Pattern.compile(regex).matcher(this).replaceAll(replacement);
     }
 
@@ -3984,8 +3908,6 @@ public final class String
      * @see java.util.StringJoiner
      * @since 1.8
      */
-    
-    
     public static String join(CharSequence delimiter, @Nullable CharSequence... elements) {
         var delim = delimiter.toString();
         var elems = new String[elements.length];
@@ -4079,8 +4001,6 @@ public final class String
      * @see    java.util.StringJoiner
      * @since 1.8
      */
-    
-    
     public static String join(CharSequence delimiter,
             Iterable<? extends @Nullable CharSequence> elements) {
         Objects.requireNonNull(delimiter);
@@ -4151,9 +4071,7 @@ public final class String
      * @see     java.lang.String#toUpperCase(Locale)
      * @since   1.1
      */
-    
-    
-    public String toLowerCase( Locale locale) {
+    public String toLowerCase(Locale locale) {
         return isLatin1() ? StringLatin1.toLowerCase(this, value, locale)
                           : StringUTF16.toLowerCase(this, value, locale);
     }
@@ -4177,8 +4095,6 @@ public final class String
      * @return  the {@code String}, converted to lowercase.
      * @see     java.lang.String#toLowerCase(Locale)
      */
-    
-    
     public String toLowerCase() {
         return toLowerCase(Locale.getDefault());
     }
@@ -4235,9 +4151,7 @@ public final class String
      * @see     java.lang.String#toLowerCase(Locale)
      * @since   1.1
      */
-    
-    
-    public String toUpperCase( Locale locale) {
+    public String toUpperCase(Locale locale) {
         return isLatin1() ? StringLatin1.toUpperCase(this, value, locale)
                           : StringUTF16.toUpperCase(this, value, locale);
     }
@@ -4261,8 +4175,6 @@ public final class String
      * @return  the {@code String}, converted to uppercase.
      * @see     java.lang.String#toUpperCase(Locale)
      */
-    
-    
     public String toUpperCase() {
         return toUpperCase(Locale.getDefault());
     }
@@ -4303,8 +4215,6 @@ public final class String
      *          and trailing space removed, or this string if it
      *          has no leading or trailing space.
      */
-    
-    
     public String trim() {
         String ret = isLatin1() ? StringLatin1.trim(value)
                                 : StringUTF16.trim(value);
@@ -4337,8 +4247,6 @@ public final class String
      *
      * @since 11
      */
-    
-    
     public String strip() {
         String ret = isLatin1() ? StringLatin1.strip(value)
                                 : StringUTF16.strip(value);
@@ -4369,8 +4277,6 @@ public final class String
      *
      * @since 11
      */
-    
-    
     public String stripLeading() {
         String ret = isLatin1() ? StringLatin1.stripLeading(value)
                                 : StringUTF16.stripLeading(value);
@@ -4401,8 +4307,6 @@ public final class String
      *
      * @since 11
      */
-    
-    
     public String stripTrailing() {
         String ret = isLatin1() ? StringLatin1.stripTrailing(value)
                                 : StringUTF16.stripTrailing(value);
@@ -4418,8 +4322,6 @@ public final class String
      *
      * @since 11
      */
-    
-    
     public boolean isBlank() {
         return indexOfNonWhitespace() == length();
     }
@@ -4830,9 +4732,7 @@ public final class String
      *
      * @return  the string itself.
      */
-    
-    
-    public    String toString() {
+    public String toString() {
         return this;
     }
 
@@ -4880,9 +4780,7 @@ public final class String
      *          of this string and whose contents are initialized to contain
      *          the character sequence represented by this string.
      */
-    
-    
-    public  char   [] toCharArray() {
+    public char[] toCharArray() {
         return isLatin1() ? StringLatin1.toChars(value)
                           : StringUTF16.toChars(value);
     }
@@ -4924,10 +4822,7 @@ public final class String
      * @see  java.util.Formatter
      * @since  1.5
      */
-    
-    
-    
-    public static String format(String format,  @Nullable Object  ... args) {
+    public static String format(String format, @Nullable Object... args) {
         return new Formatter().format(format, args).toString();
     }
 
@@ -4968,10 +4863,7 @@ public final class String
      * @see  java.util.Formatter
      * @since  1.5
      */
-    
-    
-    
-    public static String format( @Nullable Locale l, String format,  @Nullable Object  ... args) {
+    public static String format(@Nullable Locale l, String format, @Nullable Object... args) {
         return new Formatter(l).format(format, args).toString();
     }
 
@@ -5005,9 +4897,7 @@ public final class String
      *          {@code obj.toString()} is returned.
      * @see     java.lang.Object#toString()
      */
-    
-    
-    public static String valueOf( @Nullable Object obj) {
+    public static String valueOf(@Nullable Object obj) {
         return (obj == null) ? "null" : obj.toString();
     }
 
@@ -5091,9 +4981,7 @@ public final class String
      *          {@code "true"} is returned; otherwise, a string equal to
      *          {@code "false"} is returned.
      */
-    
-    
-    public static  String valueOf(boolean b) {
+    public static String valueOf(boolean b) {
         return b ? "true" : "false";
     }
 
@@ -5105,9 +4993,7 @@ public final class String
      * @return  a string of length {@code 1} containing
      *          as its single character the argument {@code c}.
      */
-    
-    
-    public static  String valueOf(char c) {
+    public static String valueOf(char c) {
         if (COMPACT_STRINGS && StringLatin1.canEncode(c)) {
             return new String(StringLatin1.toBytes(c), LATIN1);
         }
@@ -5124,9 +5010,7 @@ public final class String
      * @return  a string representation of the {@code int} argument.
      * @see     java.lang.Integer#toString(int, int)
      */
-    
-    
-    public static  String valueOf(int i) {
+    public static String valueOf(int i) {
         return Integer.toString(i);
     }
 
@@ -5140,9 +5024,7 @@ public final class String
      * @return  a string representation of the {@code long} argument.
      * @see     java.lang.Long#toString(long)
      */
-    
-    
-    public static  String valueOf(long l) {
+    public static String valueOf(long l) {
         return Long.toString(l);
     }
 
@@ -5156,8 +5038,6 @@ public final class String
      * @return  a string representation of the {@code float} argument.
      * @see     java.lang.Float#toString(float)
      */
-    
-    
     public static String valueOf(float f) {
         return Float.toString(f);
     }
@@ -5172,8 +5052,6 @@ public final class String
      * @return  a  string representation of the {@code double} argument.
      * @see     java.lang.Double#toString(double)
      */
-    
-    
     public static String valueOf(double d) {
         return Double.toString(d);
     }
@@ -5201,9 +5079,7 @@ public final class String
      * @return  a string that has the same contents as this string, but is
      *          guaranteed to be from a pool of unique strings.
      */
-    
-    
-    public native      String intern();
+    public native String intern();
 
     /**
      * Returns a string whose value is the concatenation of this
@@ -5223,8 +5099,6 @@ public final class String
      *
      * @since 11
      */
-    
-    
     public String repeat(int count) {
         if (count < 0) {
             throw new IllegalArgumentException("count is negative: " + count);

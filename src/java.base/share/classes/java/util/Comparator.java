@@ -114,7 +114,6 @@ import java.util.function.ToDoubleFunction;
  * @see java.io.Serializable
  * @since 1.2
  */
-
 @NullMarked
 @FunctionalInterface
 public interface Comparator<T extends @Nullable Object> {
@@ -179,8 +178,7 @@ public interface Comparator<T extends @Nullable Object> {
      * @see Object#equals(Object)
      * @see Object#hashCode()
      */
-    
-    boolean equals( @Nullable Object obj);
+    boolean equals(@Nullable Object obj);
 
     /**
      * Returns a comparator that imposes the reverse ordering of this
@@ -408,7 +406,7 @@ public interface Comparator<T extends @Nullable Object> {
      * @since 1.8
      */
     @SuppressWarnings("unchecked")
-    public static <T extends Comparable< ? super  T>> Comparator<T> naturalOrder() {
+    public static <T extends Comparable<? super T>> Comparator<T> naturalOrder() {
         return (Comparator<T>) Comparators.NaturalOrderComparator.INSTANCE;
     }
 
@@ -429,7 +427,7 @@ public interface Comparator<T extends @Nullable Object> {
      *         {@code Comparator}.
      * @since 1.8
      */
-    public static <T extends @Nullable Object> Comparator<@Nullable T> nullsFirst(@Nullable Comparator< ? super T> comparator) {
+    public static <T extends @Nullable Object> Comparator<@Nullable T> nullsFirst(@Nullable Comparator<? super T> comparator) {
         return new Comparators.NullComparator<>(true, comparator);
     }
 
@@ -450,7 +448,7 @@ public interface Comparator<T extends @Nullable Object> {
      *         {@code Comparator}.
      * @since 1.8
      */
-    public static <T extends @Nullable Object> Comparator<@Nullable T> nullsLast(@Nullable Comparator< ? super T> comparator) {
+    public static <T extends @Nullable Object> Comparator<@Nullable T> nullsLast(@Nullable Comparator<? super T> comparator) {
         return new Comparators.NullComparator<>(false, comparator);
     }
 

@@ -447,8 +447,6 @@ public final class SurfaceType {
         return desc.hashCode();
     }
 
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o instanceof SurfaceType) {
             return (((SurfaceType) o).uniqueID == this.uniqueID);

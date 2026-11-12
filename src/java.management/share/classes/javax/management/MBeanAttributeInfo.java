@@ -257,8 +257,6 @@ public class MBeanAttributeInfo extends MBeanFeatureInfo implements Cloneable {
      * #isWritable()}, and {@link #isIs()} values are equal (not
      * necessarily identical) to those of this MBeanAttributeInfo.
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;

@@ -562,8 +562,6 @@ public class SerialArray implements Array, Serializable, Cloneable {
      *          equivalent to this SerialArray, {@code false} otherwise
      *
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

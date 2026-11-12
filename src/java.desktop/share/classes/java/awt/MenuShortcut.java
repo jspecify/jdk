@@ -165,8 +165,6 @@ public class MenuShortcut implements java.io.Serializable
      * {@code false} otherwise.
      * @since 1.2
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof MenuShortcut) {
             return equals( (MenuShortcut) obj );

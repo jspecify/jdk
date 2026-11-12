@@ -98,8 +98,6 @@ public final class VMID implements java.io.Serializable {
      * Compare this VMID to another, and return true if they are the
      * same identifier.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof VMID) {
             VMID vmid = (VMID) obj;

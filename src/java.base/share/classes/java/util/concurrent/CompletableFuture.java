@@ -144,8 +144,7 @@ import static java.util.concurrent.DelayScheduler.ScheduledForkJoinTask;
  * @since 1.8
  */
 @NullMarked
-public class CompletableFuture<T extends @Nullable Object>
-    implements Future<T>, CompletionStage<T> {
+public class CompletableFuture<T extends @Nullable Object> implements Future<T>, CompletionStage<T> {
 
     /*
      * Overview:
@@ -2025,7 +2024,8 @@ public class CompletableFuture<T extends @Nullable Object>
      * @param <U> the function's return type
      * @return the new CompletableFuture
      */
-    public static <U extends @Nullable Object> CompletableFuture<U> supplyAsync(Supplier<U> supplier, Executor executor) {
+    public static <U extends @Nullable Object> CompletableFuture<U> supplyAsync(Supplier<U> supplier,
+                                                       Executor executor) {
         return asyncSupplyStage(Objects.requireNonNull(executor), supplier);
     }
 
@@ -2266,22 +2266,19 @@ public class CompletableFuture<T extends @Nullable Object>
         return uniRunStage(Objects.requireNonNull(executor), action);
     }
 
-    public <U extends @Nullable Object, V extends @Nullable Object>
-        CompletableFuture<V> thenCombine(
+    public <U extends @Nullable Object,V extends @Nullable Object> CompletableFuture<V> thenCombine(
         CompletionStage<? extends U> other,
         BiFunction<? super T,? super U,? extends V> fn) {
         return biApplyStage(null, other, fn);
     }
 
-    public <U extends @Nullable Object, V extends @Nullable Object>
-        CompletableFuture<V> thenCombineAsync(
+    public <U extends @Nullable Object,V extends @Nullable Object> CompletableFuture<V> thenCombineAsync(
         CompletionStage<? extends U> other,
         BiFunction<? super T,? super U,? extends V> fn) {
         return biApplyStage(defaultExecutor(), other, fn);
     }
 
-    public <U extends @Nullable Object, V extends @Nullable Object>
-        CompletableFuture<V> thenCombineAsync(
+    public <U extends @Nullable Object,V extends @Nullable Object> CompletableFuture<V> thenCombineAsync(
         CompletionStage<? extends U> other,
         BiFunction<? super T,? super U,? extends V> fn, Executor executor) {
         return biApplyStage(Objects.requireNonNull(executor), other, fn);
@@ -2293,15 +2290,13 @@ public class CompletableFuture<T extends @Nullable Object>
         return biAcceptStage(null, other, action);
     }
 
-    public <U extends @Nullable Object> CompletableFuture<@Nullable Void>
-        thenAcceptBothAsync(
+    public <U extends @Nullable Object> CompletableFuture<@Nullable Void> thenAcceptBothAsync(
         CompletionStage<? extends U> other,
         BiConsumer<? super T, ? super U> action) {
         return biAcceptStage(defaultExecutor(), other, action);
     }
 
-    public <U extends @Nullable Object> CompletableFuture<@Nullable Void>
-        thenAcceptBothAsync(
+    public <U extends @Nullable Object> CompletableFuture<@Nullable Void> thenAcceptBothAsync(
         CompletionStage<? extends U> other,
         BiConsumer<? super T, ? super U> action, Executor executor) {
         return biAcceptStage(Objects.requireNonNull(executor), other, action);
@@ -2398,8 +2393,7 @@ public class CompletableFuture<T extends @Nullable Object>
     }
 
     public CompletableFuture<T> whenCompleteAsync(
-        BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action,
-        Executor executor) {
+        BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action, Executor executor) {
         return uniWhenCompleteStage(Objects.requireNonNull(executor), action);
     }
 
@@ -2414,8 +2408,7 @@ public class CompletableFuture<T extends @Nullable Object>
     }
 
     public <U extends @Nullable Object> CompletableFuture<U> handleAsync(
-        BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn,
-        Executor executor) {
+        BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn, Executor executor) {
         return uniHandleStage(Objects.requireNonNull(executor), fn);
     }
 

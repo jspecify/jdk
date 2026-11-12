@@ -26,7 +26,6 @@
 package java.util;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A task that can be scheduled for one-time or repeated execution by a
@@ -41,7 +40,7 @@ import org.jspecify.annotations.Nullable;
  */
 
 @NullMarked
-public abstract  class TimerTask implements Runnable {
+public abstract class TimerTask implements Runnable {
     /**
      * This object is used to control access to the TimerTask internals.
      */

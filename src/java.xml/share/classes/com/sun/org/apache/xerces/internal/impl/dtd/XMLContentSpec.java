@@ -249,8 +249,6 @@ public class XMLContentSpec {
     }
 
     /** Returns true if the two objects are equal. */
-    
-    
     public boolean equals(@Nullable Object object) {
         if (object != null && object instanceof XMLContentSpec) {
             XMLContentSpec contentSpec = (XMLContentSpec)object;

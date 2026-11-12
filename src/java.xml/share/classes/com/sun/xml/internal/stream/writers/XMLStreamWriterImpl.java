@@ -2243,8 +2243,6 @@ public final class XMLStreamWriterImpl extends AbstractMap<Object, Object>
      * This is required to satisfy the contract for hashCode.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         return (this == obj);
     }

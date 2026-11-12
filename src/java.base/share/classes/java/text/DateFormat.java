@@ -851,8 +851,6 @@ public abstract class DateFormat extends Format {
      * @return {@code true} if the specified object is equal to this {@code DateFormat}
      * @see Object#equals(Object)
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;

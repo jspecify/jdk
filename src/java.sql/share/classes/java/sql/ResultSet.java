@@ -2096,7 +2096,7 @@ public interface ResultSet extends Wrapper, AutoCloseable {
      * this method
      * @since 1.2
      */
-    void updateBytes(String columnLabel, byte @Nullable [] x) throws SQLException;
+    void updateBytes(String columnLabel, byte x @Nullable []) throws SQLException;
 
     /**
      * Updates the designated column with a {@code java.sql.Date} value.

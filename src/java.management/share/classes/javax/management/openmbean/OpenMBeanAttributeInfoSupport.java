@@ -973,8 +973,6 @@ public class OpenMBeanAttributeInfoSupport
      * @return {@code true} if the specified object is equal to this
      * {@code OpenMBeanAttributeInfoSupport} instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof OpenMBeanAttributeInfo))
             return false;

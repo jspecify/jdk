@@ -50,8 +50,6 @@ public class XObject extends JLabel {
         setHorizontalAlignment(SwingConstants.LEFT);
     }
 
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o instanceof XObject) {
             return Objects.equals(object, ((XObject)o).getObject());

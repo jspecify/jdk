@@ -461,8 +461,6 @@ public abstract class Clock implements InstantSource {
      * @return true if this is equal to the other clock
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         return super.equals(obj);
     }

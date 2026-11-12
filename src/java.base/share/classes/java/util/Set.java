@@ -120,7 +120,6 @@ import java.util.function.Predicate;
  * @since 1.2
  */
 
-
 @NullMarked
 public interface Set<E extends @Nullable Object> extends Collection<E> {
     // Query Operations
@@ -132,15 +131,13 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
      *
      * @return the number of elements in this set (its cardinality)
      */
-    
-     int size();
+    int size();
 
     /**
      * Returns {@code true} if this set contains no elements.
      *
      * @return {@code true} if this set contains no elements
      */
-    
     boolean isEmpty();
 
     /**
@@ -158,7 +155,6 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
      *         set does not permit null elements
      * (<a href="Collection.html#optional-restrictions">optional</a>)
      */
-    
     boolean contains(@Nullable Object o);
 
     /**
@@ -168,7 +164,6 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
      *
      * @return an iterator over the elements in this set
      */
-    
     Iterator<E> iterator();
 
     /**
@@ -187,7 +182,6 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
      *
      * @return an array containing all the elements in this set
      */
-    
     @Nullable Object[] toArray();
 
     /**
@@ -232,7 +226,6 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
      *         set
      * @throws NullPointerException if the specified array is null
      */
-    
     <T extends @Nullable Object> T[] toArray(T[] a);
 
 
@@ -316,7 +309,6 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
      *         or if the specified collection is null
      * @see    #contains(Object)
      */
-    
     boolean containsAll(Collection<?> c);
 
     /**
@@ -413,8 +405,7 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
      * @param o object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    
-    boolean equals( @Nullable Object o);
+    boolean equals(@Nullable Object o);
 
     /**
      * Returns the hash code value for this set.  The hash code of a set is
@@ -429,7 +420,6 @@ public interface Set<E extends @Nullable Object> extends Collection<E> {
      * @see Object#equals(Object)
      * @see Set#equals(Object)
      */
-    
     int hashCode();
 
     /**

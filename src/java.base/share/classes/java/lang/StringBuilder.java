@@ -218,7 +218,7 @@ public final class StringBuilder
      * @throws     IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder append(@Nullable CharSequence s,  int start,  int end) {
+    public StringBuilder append(@Nullable CharSequence s, int start, int end) {
         super.append(s, start, end);
         return this;
     }
@@ -233,7 +233,7 @@ public final class StringBuilder
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder append(char[] str,  int offset,   int len) {
+    public StringBuilder append(char[] str, int offset, int len) {
         super.append(str, offset, len);
         return this;
     }
@@ -289,7 +289,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder delete( int start,  int end) {
+    public StringBuilder delete(int start, int end) {
         super.delete(start, end);
         return this;
     }
@@ -298,7 +298,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder deleteCharAt( int index) {
+    public StringBuilder deleteCharAt(int index) {
         super.deleteCharAt(index);
         return this;
     }
@@ -307,7 +307,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder replace( int start,  int end, String str) {
+    public StringBuilder replace(int start, int end, String str) {
         super.replace(start, end, str);
         return this;
     }
@@ -316,8 +316,8 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int index, char[] str,  int offset,
-                                 int len)
+    public StringBuilder insert(int index, char[] str, int offset,
+                                int len)
     {
         super.insert(index, str, offset, len);
         return this;
@@ -327,7 +327,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int offset, @Nullable Object obj) {
+    public StringBuilder insert(int offset, @Nullable Object obj) {
             super.insert(offset, obj);
             return this;
     }
@@ -336,7 +336,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int offset, @Nullable String str) {
+    public StringBuilder insert(int offset, @Nullable String str) {
         super.insert(offset, str);
         return this;
     }
@@ -345,7 +345,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int offset, char[] str) {
+    public StringBuilder insert(int offset, char[] str) {
         super.insert(offset, str);
         return this;
     }
@@ -354,7 +354,7 @@ public final class StringBuilder
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int dstOffset, @Nullable CharSequence s) {
+    public StringBuilder insert(int dstOffset, @Nullable CharSequence s) {
             super.insert(dstOffset, s);
             return this;
     }
@@ -363,8 +363,8 @@ public final class StringBuilder
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int dstOffset, @Nullable CharSequence s,
-                                 int start,  int end)
+    public StringBuilder insert(int dstOffset, @Nullable CharSequence s,
+                                int start, int end)
     {
         super.insert(dstOffset, s, start, end);
         return this;
@@ -374,7 +374,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int offset, boolean b) {
+    public StringBuilder insert(int offset, boolean b) {
         super.insert(offset, b);
         return this;
     }
@@ -383,7 +383,7 @@ public final class StringBuilder
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int offset, char c) {
+    public StringBuilder insert(int offset, char c) {
         super.insert(offset, c);
         return this;
     }
@@ -392,7 +392,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int offset, int i) {
+    public StringBuilder insert(int offset, int i) {
         super.insert(offset, i);
         return this;
     }
@@ -401,7 +401,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int offset, long l) {
+    public StringBuilder insert(int offset, long l) {
         super.insert(offset, l);
         return this;
     }
@@ -410,7 +410,7 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int offset, float f) {
+    public StringBuilder insert(int offset, float f) {
         super.insert(offset, f);
         return this;
     }
@@ -419,32 +419,28 @@ public final class StringBuilder
      * @throws StringIndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public StringBuilder insert( int offset, double d) {
+    public StringBuilder insert(int offset, double d) {
         super.insert(offset, d);
         return this;
     }
 
-    
     @Override
-    public  int indexOf(String str) {
+    public int indexOf(String str) {
         return super.indexOf(str);
     }
 
-    
     @Override
-    public  int indexOf(String str, int fromIndex) {
+    public int indexOf(String str, int fromIndex) {
         return super.indexOf(str, fromIndex);
     }
 
-    
     @Override
-    public  int lastIndexOf(String str) {
+    public int lastIndexOf(String str) {
         return super.lastIndexOf(str);
     }
 
-    
     @Override
-    public  int lastIndexOf(String str, int fromIndex) {
+    public int lastIndexOf(String str, int fromIndex) {
         return super.lastIndexOf(str, fromIndex);
     }
 

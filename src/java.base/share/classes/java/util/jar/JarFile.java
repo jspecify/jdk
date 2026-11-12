@@ -200,14 +200,14 @@ public class JarFile extends ZipFile {
         }
     }
 
-    private static final   String META_INF = "META-INF/";
+    private static final String META_INF = "META-INF/";
 
-    private static final   String META_INF_VERSIONS = META_INF + "versions/";
+    private static final String META_INF_VERSIONS = META_INF + "versions/";
 
     /**
      * The JAR manifest file name.
      */
-    public static final    String MANIFEST_NAME = META_INF + "MANIFEST.MF";
+    public static final String MANIFEST_NAME = META_INF + "MANIFEST.MF";
 
     /**
      * The 'JAR index' feature has been removed, but JarInputStream and

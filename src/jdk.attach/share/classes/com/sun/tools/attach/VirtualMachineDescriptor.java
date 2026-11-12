@@ -175,8 +175,6 @@ public class VirtualMachineDescriptor {
      *                a VirtualMachineDescriptor that is equal to this
      *                VirtualMachineDescriptor.
      */
-    
-    
     public boolean equals(@Nullable Object ob) {
         if (ob == this)
             return true;

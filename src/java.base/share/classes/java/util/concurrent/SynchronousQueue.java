@@ -362,7 +362,6 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      *
      * @return {@code true}
      */
-    
     public boolean isEmpty() {
         return true;
     }
@@ -373,7 +372,6 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      *
      * @return zero
      */
-    
     public int size() {
         return 0;
     }
@@ -402,7 +400,6 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @param o the element
      * @return {@code false}
      */
-    
     public boolean contains(@Nullable Object o) {
         return false;
     }
@@ -425,7 +422,6 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @param c the collection
      * @return {@code false} unless given collection is empty
      */
-    
     public boolean containsAll(Collection<?> c) {
         return c.isEmpty();
     }
@@ -469,7 +465,6 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      *
      * @return an empty iterator
      */
-    
     public Iterator<E> iterator() {
         return Collections.emptyIterator();
     }
@@ -481,7 +476,6 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @return an empty spliterator
      * @since 1.8
      */
-    
     public Spliterator<E> spliterator() {
         return Spliterators.emptySpliterator();
     }
@@ -489,7 +483,6 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
     /**
      * {@return a zero-length array}
      */
-    
     public Object[] toArray() {
         return new Object[0];
     }
@@ -502,7 +495,6 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @return the specified array
      * @throws NullPointerException if the specified array is null
      */
-    
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         if (a.length > 0)
             a[0] = null;

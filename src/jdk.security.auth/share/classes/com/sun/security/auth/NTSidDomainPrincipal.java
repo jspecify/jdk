@@ -90,8 +90,6 @@ public class NTSidDomainPrincipal extends NTSid {
      * @return true if the specified Object is equal to this
      *          {@code NTSidDomainPrincipal}.
      */
-    
-    
     public boolean equals(@Nullable Object o) {
             if (o == null)
                 return false;

@@ -1036,7 +1036,7 @@ public final class Arrays {
      *         ordering of the array elements is found to violate the
      *         {@link Comparable} contract
      */
-    public static void sort( Object[] a) {
+    public static void sort(Object[] a) {
         if (LegacyMergeSort.userRequested)
             legacyMergeSort(a);
         else
@@ -1101,7 +1101,7 @@ public final class Arrays {
      *         not <i>mutually comparable</i> (for example, strings and
      *         integers).
      */
-    public static void sort( Object[] a,  int fromIndex,  int toIndex) {
+    public static void sort(Object[] a, int fromIndex, int toIndex) {
         rangeCheck(a.length, fromIndex, toIndex);
         if (LegacyMergeSort.userRequested)
             legacyMergeSort(a, fromIndex, toIndex);
@@ -1111,7 +1111,7 @@ public final class Arrays {
 
     /** To be removed in a future release. */
     private static void legacyMergeSort(Object[] a,
-                                         int fromIndex,  int toIndex) {
+                                        int fromIndex, int toIndex) {
         Object[] aux = copyOfRange(a, fromIndex, toIndex);
         mergeSort(aux, a, fromIndex, toIndex, -fromIndex);
     }
@@ -1297,7 +1297,7 @@ public final class Arrays {
      * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
      *         {@code toIndex > a.length}
      */
-    public static <T extends @Nullable Object> void sort(T[] a,  int fromIndex,  int toIndex,
+    public static <T extends @Nullable Object> void sort(T[] a, int fromIndex, int toIndex,
                                 @Nullable Comparator<? super T> c) {
         if (c == null) {
             sort(a, fromIndex, toIndex);
@@ -1311,7 +1311,7 @@ public final class Arrays {
     }
 
     /** To be removed in a future release. */
-    private static <T> void legacyMergeSort(T[] a,  int fromIndex,  int toIndex,
+    private static <T> void legacyMergeSort(T[] a, int fromIndex, int toIndex,
                                             Comparator<? super T> c) {
         T[] aux = copyOfRange(a, fromIndex, toIndex);
         if (c==null)
@@ -1576,7 +1576,7 @@ public final class Arrays {
      *         that this guarantees that the return value will be &gt;= 0 if
      *         and only if the key is found.
      */
-    public static  int binarySearch(long[] a, long key) {
+    public static int binarySearch(long[] a, long key) {
         return binarySearch0(a, 0, a.length, key);
     }
 
@@ -1612,14 +1612,14 @@ public final class Arrays {
      *         if {@code fromIndex < 0 or toIndex > a.length}
      * @since 1.6
      */
-    public static  int binarySearch(long[] a,  int fromIndex,  int toIndex,
+    public static int binarySearch(long[] a, int fromIndex, int toIndex,
                                    long key) {
         rangeCheck(a.length, fromIndex, toIndex);
         return binarySearch0(a, fromIndex, toIndex, key);
     }
 
     // Like public version, but without range checks.
-    private static int binarySearch0(long[] a,  int fromIndex,  int toIndex,
+    private static int binarySearch0(long[] a, int fromIndex, int toIndex,
                                      long key) {
         int low = fromIndex;
         int high = toIndex - 1;
@@ -1657,7 +1657,7 @@ public final class Arrays {
      *         that this guarantees that the return value will be &gt;= 0 if
      *         and only if the key is found.
      */
-    public static  int binarySearch(int[] a, int key) {
+    public static int binarySearch(int[] a, int key) {
         return binarySearch0(a, 0, a.length, key);
     }
 
@@ -1693,14 +1693,14 @@ public final class Arrays {
      *         if {@code fromIndex < 0 or toIndex > a.length}
      * @since 1.6
      */
-    public static  int binarySearch(int[] a,  int fromIndex,  int toIndex,
+    public static int binarySearch(int[] a, int fromIndex, int toIndex,
                                    int key) {
         rangeCheck(a.length, fromIndex, toIndex);
         return binarySearch0(a, fromIndex, toIndex, key);
     }
 
     // Like public version, but without range checks.
-    private static  int binarySearch0(int[] a,  int fromIndex,  int toIndex,
+    private static int binarySearch0(int[] a, int fromIndex, int toIndex,
                                      int key) {
         int low = fromIndex;
         int high = toIndex - 1;
@@ -1738,7 +1738,7 @@ public final class Arrays {
      *         that this guarantees that the return value will be &gt;= 0 if
      *         and only if the key is found.
      */
-    public static  int binarySearch(short[] a, short key) {
+    public static int binarySearch(short[] a, short key) {
         return binarySearch0(a, 0, a.length, key);
     }
 
@@ -1774,14 +1774,14 @@ public final class Arrays {
      *         if {@code fromIndex < 0 or toIndex > a.length}
      * @since 1.6
      */
-    public static  int binarySearch(short[] a,  int fromIndex,  int toIndex,
+    public static int binarySearch(short[] a, int fromIndex, int toIndex,
                                    short key) {
         rangeCheck(a.length, fromIndex, toIndex);
         return binarySearch0(a, fromIndex, toIndex, key);
     }
 
     // Like public version, but without range checks.
-    private static int binarySearch0(short[] a,  int fromIndex,  int toIndex,
+    private static int binarySearch0(short[] a, int fromIndex, int toIndex,
                                      short key) {
         int low = fromIndex;
         int high = toIndex - 1;
@@ -1819,7 +1819,7 @@ public final class Arrays {
      *         that this guarantees that the return value will be &gt;= 0 if
      *         and only if the key is found.
      */
-    public static  int binarySearch(char[] a, char key) {
+    public static int binarySearch(char[] a, char key) {
         return binarySearch0(a, 0, a.length, key);
     }
 
@@ -1855,14 +1855,14 @@ public final class Arrays {
      *         if {@code fromIndex < 0 or toIndex > a.length}
      * @since 1.6
      */
-    public static  int binarySearch(char[] a,  int fromIndex,  int toIndex,
+    public static int binarySearch(char[] a, int fromIndex, int toIndex,
                                    char key) {
         rangeCheck(a.length, fromIndex, toIndex);
         return binarySearch0(a, fromIndex, toIndex, key);
     }
 
     // Like public version, but without range checks.
-    private static int binarySearch0(char[] a,  int fromIndex,  int toIndex,
+    private static int binarySearch0(char[] a, int fromIndex, int toIndex,
                                      char key) {
         int low = fromIndex;
         int high = toIndex - 1;
@@ -1900,7 +1900,7 @@ public final class Arrays {
      *         that this guarantees that the return value will be &gt;= 0 if
      *         and only if the key is found.
      */
-    public static  int binarySearch(byte[] a, byte key) {
+    public static int binarySearch(byte[] a, byte key) {
         return binarySearch0(a, 0, a.length, key);
     }
 
@@ -1936,14 +1936,14 @@ public final class Arrays {
      *         if {@code fromIndex < 0 or toIndex > a.length}
      * @since 1.6
      */
-    public static  int binarySearch(byte[] a,  int fromIndex,  int toIndex,
+    public static int binarySearch(byte[] a, int fromIndex, int toIndex,
                                    byte key) {
         rangeCheck(a.length, fromIndex, toIndex);
         return binarySearch0(a, fromIndex, toIndex, key);
     }
 
     // Like public version, but without range checks.
-    private static int binarySearch0(byte[] a,  int fromIndex,  int toIndex,
+    private static int binarySearch0(byte[] a, int fromIndex, int toIndex,
                                      byte key) {
         int low = fromIndex;
         int high = toIndex - 1;
@@ -1982,7 +1982,7 @@ public final class Arrays {
      *         that this guarantees that the return value will be &gt;= 0 if
      *         and only if the key is found.
      */
-    public static  int binarySearch(double[] a, double key) {
+    public static int binarySearch(double[] a, double key) {
         return binarySearch0(a, 0, a.length, key);
     }
 
@@ -2019,14 +2019,14 @@ public final class Arrays {
      *         if {@code fromIndex < 0 or toIndex > a.length}
      * @since 1.6
      */
-    public static  int binarySearch(double[] a,  int fromIndex,  int toIndex,
+    public static int binarySearch(double[] a, int fromIndex, int toIndex,
                                    double key) {
         rangeCheck(a.length, fromIndex, toIndex);
         return binarySearch0(a, fromIndex, toIndex, key);
     }
 
     // Like public version, but without range checks.
-    private static int binarySearch0(double[] a,  int fromIndex,  int toIndex,
+    private static int binarySearch0(double[] a, int fromIndex, int toIndex,
                                      double key) {
         int low = fromIndex;
         int high = toIndex - 1;
@@ -2073,7 +2073,7 @@ public final class Arrays {
      *         that this guarantees that the return value will be &gt;= 0 if
      *         and only if the key is found.
      */
-    public static  int binarySearch(float[] a, float key) {
+    public static int binarySearch(float[] a, float key) {
         return binarySearch0(a, 0, a.length, key);
     }
 
@@ -2110,14 +2110,14 @@ public final class Arrays {
      *         if {@code fromIndex < 0 or toIndex > a.length}
      * @since 1.6
      */
-    public static  int binarySearch(float[] a,  int fromIndex,  int toIndex,
+    public static int binarySearch(float[] a, int fromIndex, int toIndex,
                                    float key) {
         rangeCheck(a.length, fromIndex, toIndex);
         return binarySearch0(a, fromIndex, toIndex, key);
     }
 
     // Like public version, but without range checks.
-    private static int binarySearch0(float[] a,  int fromIndex,  int toIndex,
+    private static int binarySearch0(float[] a, int fromIndex, int toIndex,
                                      float key) {
         int low = fromIndex;
         int high = toIndex - 1;
@@ -2172,7 +2172,7 @@ public final class Arrays {
      * @throws ClassCastException if the search key is not comparable to the
      *         elements of the array.
      */
-    public static  int binarySearch(Object[] a, Object key) {
+    public static int binarySearch(Object[] a, Object key) {
         return binarySearch0(a, 0, a.length, key);
     }
 
@@ -2216,14 +2216,14 @@ public final class Arrays {
      *         if {@code fromIndex < 0 or toIndex > a.length}
      * @since 1.6
      */
-    public static  int binarySearch(Object[] a,  int fromIndex,  int toIndex,
+    public static int binarySearch(Object[] a, int fromIndex, int toIndex,
                                    Object key) {
         rangeCheck(a.length, fromIndex, toIndex);
         return binarySearch0(a, fromIndex, toIndex, key);
     }
 
     // Like public version, but without range checks.
-    private static int binarySearch0(Object[] a,  int fromIndex,  int toIndex,
+    private static int binarySearch0(Object[] a, int fromIndex, int toIndex,
                                      Object key) {
         int low = fromIndex;
         int high = toIndex - 1;
@@ -2275,7 +2275,7 @@ public final class Arrays {
      *         or the search key is not comparable to the
      *         elements of the array using this comparator.
      */
-    public static <T extends @Nullable Object>  int binarySearch(T[] a, T key, @Nullable Comparator<? super T> c) {
+    public static <T extends @Nullable Object> int binarySearch(T[] a, T key, @Nullable Comparator<? super T> c) {
         return binarySearch0(a, 0, a.length, key, c);
     }
 
@@ -2321,14 +2321,14 @@ public final class Arrays {
      *         if {@code fromIndex < 0 or toIndex > a.length}
      * @since 1.6
      */
-    public static <T extends @Nullable Object>  int binarySearch(T[] a,  int fromIndex,  int toIndex,
+    public static <T extends @Nullable Object> int binarySearch(T[] a, int fromIndex, int toIndex,
                                        T key, @Nullable Comparator<? super T> c) {
         rangeCheck(a.length, fromIndex, toIndex);
         return binarySearch0(a, fromIndex, toIndex, key, c);
     }
 
     // Like public version, but without range checks.
-    private static <T> int binarySearch0(T[] a,  int fromIndex,  int toIndex,
+    private static <T> int binarySearch0(T[] a, int fromIndex, int toIndex,
                                          T key, Comparator<? super T> c) {
         if (c == null) {
             return binarySearch0(a, fromIndex, toIndex, key);
@@ -2364,8 +2364,7 @@ public final class Arrays {
      * @param a2 the other array to be tested for equality
      * @return {@code true} if the two arrays are equal
      */
-    
-    public static boolean equals( long @Nullable [] a,  long @Nullable [] a2) {
+    public static boolean equals(long @Nullable [] a, long @Nullable [] a2) {
         if (a==a2)
             return true;
         if (a==null || a2==null)
@@ -2437,8 +2436,7 @@ public final class Arrays {
      * @param a2 the other array to be tested for equality
      * @return {@code true} if the two arrays are equal
      */
-    
-    public static boolean equals( int @Nullable [] a,  int @Nullable [] a2) {
+    public static boolean equals(int @Nullable [] a, int @Nullable [] a2) {
         if (a==a2)
             return true;
         if (a==null || a2==null)
@@ -2728,7 +2726,6 @@ public final class Arrays {
      * @param a2 the other array to be tested for equality
      * @return {@code true} if the two arrays are equal
      */
-    
     public static boolean equals(boolean @Nullable [] a, boolean @Nullable [] a2) {
         if (a==a2)
             return true;
@@ -2807,7 +2804,6 @@ public final class Arrays {
      * @return {@code true} if the two arrays are equal
      * @see Double#equals(Object)
      */
-    
     public static boolean equals(double @Nullable [] a, double @Nullable [] a2) {
         if (a==a2)
             return true;
@@ -2891,7 +2887,6 @@ public final class Arrays {
      * @return {@code true} if the two arrays are equal
      * @see Float#equals(Object)
      */
-    
     public static boolean equals(float @Nullable [] a, float @Nullable [] a2) {
         if (a==a2)
             return true;
@@ -2972,8 +2967,7 @@ public final class Arrays {
      * @param a2 the other array to be tested for equality
      * @return {@code true} if the two arrays are equal
      */
-    
-    public static boolean equals(@Nullable  Object   @Nullable [] a, @Nullable  Object   @Nullable [] a2) {
+    public static boolean equals(@Nullable Object @Nullable [] a, @Nullable Object @Nullable [] a2) {
         if (a==a2)
             return true;
         if (a==null || a2==null)
@@ -3150,7 +3144,7 @@ public final class Arrays {
      * @param a the array to be filled
      * @param val the value to be stored in all elements of the array
      */
-    public static void fill( long[] a,  long val) {
+    public static void fill(long[] a, long val) {
         for (int i = 0, len = a.length; i < len; i++)
             a[i] = val;
     }
@@ -3172,7 +3166,7 @@ public final class Arrays {
      * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
      *         {@code toIndex > a.length}
      */
-    public static void fill( long[] a,  int fromIndex,  int toIndex,  long val) {
+    public static void fill(long[] a, int fromIndex, int toIndex, long val) {
         rangeCheck(a.length, fromIndex, toIndex);
         for (int i = fromIndex; i < toIndex; i++)
             a[i] = val;
@@ -3185,7 +3179,7 @@ public final class Arrays {
      * @param a the array to be filled
      * @param val the value to be stored in all elements of the array
      */
-    public static void fill( int[] a,  int val) {
+    public static void fill(int[] a, int val) {
         for (int i = 0, len = a.length; i < len; i++)
             a[i] = val;
     }
@@ -3207,7 +3201,7 @@ public final class Arrays {
      * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
      *         {@code toIndex > a.length}
      */
-    public static void fill( int[] a,  int fromIndex,  int toIndex,  int val) {
+    public static void fill(int[] a, int fromIndex, int toIndex, int val) {
         rangeCheck(a.length, fromIndex, toIndex);
         for (int i = fromIndex; i < toIndex; i++)
             a[i] = val;
@@ -3220,7 +3214,7 @@ public final class Arrays {
      * @param a the array to be filled
      * @param val the value to be stored in all elements of the array
      */
-    public static void fill( short[] a,  short val) {
+    public static void fill(short[] a, short val) {
         for (int i = 0, len = a.length; i < len; i++)
             a[i] = val;
     }
@@ -3242,7 +3236,7 @@ public final class Arrays {
      * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
      *         {@code toIndex > a.length}
      */
-    public static void fill( short[] a,  int fromIndex,  int toIndex,  short val) {
+    public static void fill(short[] a, int fromIndex, int toIndex, short val) {
         rangeCheck(a.length, fromIndex, toIndex);
         for (int i = fromIndex; i < toIndex; i++)
             a[i] = val;
@@ -3255,7 +3249,7 @@ public final class Arrays {
      * @param a the array to be filled
      * @param val the value to be stored in all elements of the array
      */
-    public static void fill( char[] a,  char val) {
+    public static void fill(char[] a, char val) {
         for (int i = 0, len = a.length; i < len; i++)
             a[i] = val;
     }
@@ -3277,7 +3271,7 @@ public final class Arrays {
      * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
      *         {@code toIndex > a.length}
      */
-    public static void fill( char[] a,  int fromIndex,  int toIndex,  char val) {
+    public static void fill(char[] a, int fromIndex, int toIndex, char val) {
         rangeCheck(a.length, fromIndex, toIndex);
         for (int i = fromIndex; i < toIndex; i++)
             a[i] = val;
@@ -3290,7 +3284,7 @@ public final class Arrays {
      * @param a the array to be filled
      * @param val the value to be stored in all elements of the array
      */
-    public static void fill( byte[] a,  byte val) {
+    public static void fill(byte[] a, byte val) {
         for (int i = 0, len = a.length; i < len; i++)
             a[i] = val;
     }
@@ -3312,7 +3306,7 @@ public final class Arrays {
      * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
      *         {@code toIndex > a.length}
      */
-    public static void fill( byte[] a,  int fromIndex,  int toIndex,  byte val) {
+    public static void fill(byte[] a, int fromIndex, int toIndex, byte val) {
         rangeCheck(a.length, fromIndex, toIndex);
         for (int i = fromIndex; i < toIndex; i++)
             a[i] = val;
@@ -3347,7 +3341,7 @@ public final class Arrays {
      * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
      *         {@code toIndex > a.length}
      */
-    public static void fill(boolean[] a,  int fromIndex,  int toIndex,
+    public static void fill(boolean[] a, int fromIndex, int toIndex,
                             boolean val) {
         rangeCheck(a.length, fromIndex, toIndex);
         for (int i = fromIndex; i < toIndex; i++)
@@ -3383,7 +3377,7 @@ public final class Arrays {
      * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
      *         {@code toIndex > a.length}
      */
-    public static void fill(double[] a,  int fromIndex,  int toIndex,double val){
+    public static void fill(double[] a, int fromIndex, int toIndex,double val){
         rangeCheck(a.length, fromIndex, toIndex);
         for (int i = fromIndex; i < toIndex; i++)
             a[i] = val;
@@ -3418,7 +3412,7 @@ public final class Arrays {
      * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
      *         {@code toIndex > a.length}
      */
-    public static void fill(float[] a,  int fromIndex,  int toIndex, float val) {
+    public static void fill(float[] a, int fromIndex, int toIndex, float val) {
         rangeCheck(a.length, fromIndex, toIndex);
         for (int i = fromIndex; i < toIndex; i++)
             a[i] = val;
@@ -3433,7 +3427,7 @@ public final class Arrays {
      * @throws ArrayStoreException if the specified value is not of a
      *         runtime type that can be stored in the specified array
      */
-    public static void fill(@Nullable  Object[] a, @Nullable  Object val) {
+    public static void fill(@Nullable Object[] a, @Nullable Object val) {
         for (int i = 0, len = a.length; i < len; i++)
             a[i] = val;
     }
@@ -3457,7 +3451,7 @@ public final class Arrays {
      * @throws ArrayStoreException if the specified value is not of a
      *         runtime type that can be stored in the specified array
      */
-    public static void fill(@Nullable  Object[] a,  int fromIndex,  int toIndex, @Nullable  Object val) {
+    public static void fill(@Nullable Object[] a, int fromIndex, int toIndex, @Nullable Object val) {
         rangeCheck(a.length, fromIndex, toIndex);
         for (int i = fromIndex; i < toIndex; i++)
             a[i] = val;
@@ -3485,7 +3479,7 @@ public final class Arrays {
      * @since 1.6
      */
     @SuppressWarnings("unchecked")
-    public static <T> @Nullable T[] copyOf(@Nullable T[] original,  int newLength) {
+    public static <T> @Nullable T[] copyOf(@Nullable T[] original, int newLength) {
         return (T[]) copyOf(original, newLength, original.getClass());
     }
 
@@ -3778,7 +3772,7 @@ public final class Arrays {
      * @since 1.6
      */
     @SuppressWarnings("unchecked")
-    public static <T> @Nullable T[] copyOfRange(@Nullable T[] original,  int from, int to) {
+    public static <T> @Nullable T[] copyOfRange(@Nullable T[] original, int from, int to) {
         return copyOfRange(original, from, to, (Class<? extends T[]>) original.getClass());
     }
 
@@ -4223,18 +4217,15 @@ public final class Arrays {
         }
 
         @Override
-        
-        public  int size() {
+        public int size() {
             return a.length;
         }
 
-        
         @Override
         public Object[] toArray() {
             return Arrays.copyOf(a, a.length, Object[].class);
         }
 
-        
         @Override
         @SuppressWarnings("unchecked")
         public <T> T[] toArray(T[] a) {
@@ -4280,7 +4271,6 @@ public final class Arrays {
             return indexOf(o) >= 0;
         }
 
-        
         @Override
         public Spliterator<E> spliterator() {
             return Spliterators.spliterator(a, Spliterator.ORDERED);
@@ -4668,8 +4658,7 @@ public final class Arrays {
      * @see Objects#deepEquals(Object, Object)
      * @since 1.5
      */
-    
-    public static boolean deepEquals(@Nullable  Object   @Nullable [] a1, @Nullable  Object   @Nullable [] a2) {
+    public static boolean deepEquals(@Nullable Object @Nullable [] a1, @Nullable Object @Nullable [] a2) {
         if (a1 == a2)
             return true;
         if (a1 == null || a2==null)
@@ -4735,8 +4724,7 @@ public final class Arrays {
      * @return a string representation of {@code a}
      * @since 1.5
      */
-    
-    public static  String toString(long @Nullable [] a) {
+    public static String toString(long @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -4766,8 +4754,7 @@ public final class Arrays {
      * @return a string representation of {@code a}
      * @since 1.5
      */
-    
-    public static  String toString(int @Nullable [] a) {
+    public static String toString(int @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -4797,8 +4784,7 @@ public final class Arrays {
      * @return a string representation of {@code a}
      * @since 1.5
      */
-    
-    public static  String toString(short @Nullable [] a) {
+    public static String toString(short @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -4828,8 +4814,7 @@ public final class Arrays {
      * @return a string representation of {@code a}
      * @since 1.5
      */
-    
-    public static  String toString(char @Nullable [] a) {
+    public static String toString(char @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -4859,8 +4844,7 @@ public final class Arrays {
      * @return a string representation of {@code a}
      * @since 1.5
      */
-    
-    public static  String toString(byte @Nullable [] a) {
+    public static String toString(byte @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -4890,8 +4874,7 @@ public final class Arrays {
      * @return a string representation of {@code a}
      * @since 1.5
      */
-    
-    public static  String toString(boolean @Nullable [] a) {
+    public static String toString(boolean @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -4921,8 +4904,7 @@ public final class Arrays {
      * @return a string representation of {@code a}
      * @since 1.5
      */
-    
-    public static  String toString(float @Nullable [] a) {
+    public static String toString(float @Nullable [] a) {
         if (a == null)
             return "null";
 
@@ -4953,8 +4935,7 @@ public final class Arrays {
      * @return a string representation of {@code a}
      * @since 1.5
      */
-    
-    public static  String toString(double @Nullable [] a) {
+    public static String toString(double @Nullable [] a) {
         if (a == null)
             return "null";
         int iMax = a.length - 1;
@@ -4987,8 +4968,7 @@ public final class Arrays {
      * @see #deepToString(Object[])
      * @since 1.5
      */
-    
-    public static  String toString(@Nullable  Object @Nullable [] a) {
+    public static String toString(@Nullable Object @Nullable [] a) {
         if (a == null)
             return "null";
 
@@ -5039,8 +5019,7 @@ public final class Arrays {
      * @see #toString(Object[])
      * @since 1.5
      */
-    
-    public static  String deepToString(@Nullable  Object @Nullable [] a) {
+    public static String deepToString(@Nullable Object @Nullable [] a) {
         if (a == null)
             return "null";
 
@@ -5344,7 +5323,6 @@ public final class Arrays {
      * @return a spliterator for the array elements
      * @since 1.8
      */
-    
     public static <T extends @Nullable Object> Spliterator<T> spliterator(T[] array) {
         return Spliterators.spliterator(array,
                                         Spliterator.ORDERED | Spliterator.IMMUTABLE);
@@ -5369,7 +5347,6 @@ public final class Arrays {
      *         the array size
      * @since 1.8
      */
-    
     public static <T extends @Nullable Object> Spliterator<T> spliterator(T[] array, int startInclusive, int endExclusive) {
         return Spliterators.spliterator(array, startInclusive, endExclusive,
                                         Spliterator.ORDERED | Spliterator.IMMUTABLE);
@@ -5386,7 +5363,6 @@ public final class Arrays {
      * @return a spliterator for the array elements
      * @since 1.8
      */
-    
     public static Spliterator.OfInt spliterator(int[] array) {
         return Spliterators.spliterator(array,
                                         Spliterator.ORDERED | Spliterator.IMMUTABLE);
@@ -5410,7 +5386,6 @@ public final class Arrays {
      *         the array size
      * @since 1.8
      */
-    
     public static Spliterator.OfInt spliterator(int[] array, int startInclusive, int endExclusive) {
         return Spliterators.spliterator(array, startInclusive, endExclusive,
                                         Spliterator.ORDERED | Spliterator.IMMUTABLE);
@@ -5427,7 +5402,6 @@ public final class Arrays {
      * @return the spliterator for the array elements
      * @since 1.8
      */
-    
     public static Spliterator.OfLong spliterator(long[] array) {
         return Spliterators.spliterator(array,
                                         Spliterator.ORDERED | Spliterator.IMMUTABLE);
@@ -5451,7 +5425,6 @@ public final class Arrays {
      *         the array size
      * @since 1.8
      */
-    
     public static Spliterator.OfLong spliterator(long[] array, int startInclusive, int endExclusive) {
         return Spliterators.spliterator(array, startInclusive, endExclusive,
                                         Spliterator.ORDERED | Spliterator.IMMUTABLE);
@@ -5469,7 +5442,6 @@ public final class Arrays {
      * @return a spliterator for the array elements
      * @since 1.8
      */
-    
     public static Spliterator.OfDouble spliterator(double[] array) {
         return Spliterators.spliterator(array,
                                         Spliterator.ORDERED | Spliterator.IMMUTABLE);
@@ -5493,7 +5465,6 @@ public final class Arrays {
      *         the array size
      * @since 1.8
      */
-    
     public static Spliterator.OfDouble spliterator(double[] array, int startInclusive, int endExclusive) {
         return Spliterators.spliterator(array, startInclusive, endExclusive,
                                         Spliterator.ORDERED | Spliterator.IMMUTABLE);

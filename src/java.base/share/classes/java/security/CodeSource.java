@@ -52,6 +52,7 @@ import sun.security.util.IOUtils;
  * @author Roland Schemers
  * @since 1.2
  */
+
 @NullMarked
 public class CodeSource implements java.io.Serializable {
 
@@ -154,8 +155,6 @@ public class CodeSource implements java.io.Serializable {
      * {@code false} otherwise.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;

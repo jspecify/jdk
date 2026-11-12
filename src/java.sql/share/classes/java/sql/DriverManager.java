@@ -81,8 +81,7 @@ import jdk.internal.reflect.Reflection;
  * @see Connection
  * @since 1.1
  */
-
-public  class DriverManager {
+public class DriverManager {
 
 
     // List of registered JDBC drivers
@@ -660,8 +659,6 @@ class DriverInfo {
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object other) {
         return (other instanceof DriverInfo)
                 && this.driver == ((DriverInfo) other).driver;

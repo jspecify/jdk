@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -128,7 +127,7 @@ public class PipedReader extends Reader {
      * @throws  IllegalArgumentException if {@code pipeSize <= 0}.
      * @since   1.6
      */
-    public PipedReader( int pipeSize) {
+    public PipedReader(int pipeSize) {
         initPipe(pipeSize);
     }
 
@@ -239,7 +238,7 @@ public class PipedReader extends Reader {
      *          {@link #connect(java.io.PipedWriter) unconnected}, closed,
      *          or an I/O error occurs.
      */
-    public synchronized  int read()  throws IOException {
+    public synchronized int read()  throws IOException {
         if (!connected) {
             throw new IOException("Pipe not connected");
         } else if (closedByReader) {

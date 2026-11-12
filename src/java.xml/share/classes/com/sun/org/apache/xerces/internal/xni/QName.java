@@ -150,8 +150,6 @@ implements Cloneable {
     } // hashCode():int
 
     /** Returns true if the two objects are equal. */
-    
-    
     public boolean equals(@Nullable Object object) {
         if (object == this) {
             return true;

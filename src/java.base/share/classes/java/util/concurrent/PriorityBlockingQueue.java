@@ -581,7 +581,6 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
         return comparator;
     }
 
-    
     public int size() {
         final ReentrantLock lock = this.lock;
         lock.lock();

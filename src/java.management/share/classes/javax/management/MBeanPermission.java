@@ -1145,8 +1145,6 @@ public class MBeanPermission extends Permission {
      * @return true if obj is an MBeanPermission, and has the
      * same name and actions as this MBeanPermission object.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;

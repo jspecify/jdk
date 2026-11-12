@@ -35,7 +35,6 @@
 
 package java.util.concurrent;
 
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -926,7 +925,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * {@inheritDoc}
      */
-    
     public int size() {
         long n = sumCount();
         return ((n < 0L) ? 0 :
@@ -937,7 +935,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * {@inheritDoc}
      */
-    
     public boolean isEmpty() {
         return sumCount() <= 0L; // ignore transient negative values
     }
@@ -953,7 +950,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @throws NullPointerException if the specified key is null
      */
-    
     public @Nullable V get(Object key) {
         Node<K,V>[] tab; Node<K,V> e, p; int n, eh; K ek;
         int h = spread(key.hashCode());
@@ -983,8 +979,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *         {@code equals} method; {@code false} otherwise
      * @throws NullPointerException if the specified key is null
      */
-    
-    
     public boolean containsKey(Object key) {
         return get(key) != null;
     }
@@ -999,7 +993,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *         specified value
      * @throws NullPointerException if the specified value is null
      */
-    
     public boolean containsValue(Object value) {
         if (value == null)
             throw new NullPointerException();
@@ -1028,7 +1021,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *         {@code null} if there was no mapping for {@code key}
      * @throws NullPointerException if the specified key or value is null
      */
-    
     public @Nullable V put(K key, V value) {
         return putVal(key, value, false);
     }
@@ -1262,8 +1254,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @return the set view
      */
-    
-    public KeySetView< K,V> keySet() {
+    public KeySetView<K,V> keySet() {
         KeySetView<K,V> ks;
         if ((ks = keySet) != null) return ks;
         return keySet = new KeySetView<K,V>(this, null);
@@ -1287,7 +1278,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @return the collection view
      */
-    
     public Collection<V> values() {
         ValuesView<K,V> vs;
         if ((vs = values) != null) return vs;
@@ -1311,8 +1301,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @return the set view
      */
-    
-    public Set<Map.Entry< K,V>> entrySet() {
+    public Set<Map.Entry<K,V>> entrySet() {
         EntrySetView<K,V> es;
         if ((es = entrySet) != null) return es;
         return entrySet = new EntrySetView<K,V>(this);
@@ -1379,8 +1368,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param o object to be compared for equality with this map
      * @return {@code true} if the specified object is equal to this map
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o != this) {
             if (!(o instanceof Map))
@@ -1579,7 +1566,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *         or {@code null} if there was no mapping for the key
      * @throws NullPointerException if the specified key or value is null
      */
-    
     public @Nullable V putIfAbsent(K key, V value) {
         return putVal(key, value, true);
     }
@@ -2176,7 +2162,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *         {@code false} otherwise
      * @throws NullPointerException if the specified value is null
      */
-    
     public boolean contains(Object value) {
         return containsValue(value);
     }
@@ -2187,8 +2172,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @return an enumeration of the keys in this table
      * @see #keySet()
      */
-    
-    public Enumeration< K> keys() {
+    public Enumeration<K> keys() {
         Node<K,V>[] t;
         int f = (t = table) == null ? 0 : t.length;
         return new KeyIterator<K,V>(t, f, 0, f, this);
@@ -2200,7 +2184,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @return an enumeration of the values in this table
      * @see #values()
      */
-    
     public Enumeration<V> elements() {
         Node<K,V>[] t;
         int f = (t = table) == null ? 0 : t.length;
@@ -4491,9 +4474,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
          * the mappings from the map backing this view.
          */
         public final void clear()      { map.clear(); }
-        
         public final int size()        { return map.size(); }
-        
         public final boolean isEmpty() { return map.isEmpty(); }
 
         // implementations below rely on concrete classes supplying these
@@ -4506,14 +4487,12 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
          *
          * @return an iterator over the elements in this collection
          */
-        
         public abstract Iterator<E> iterator();
         public abstract boolean contains(Object o);
         public abstract boolean remove(Object o);
 
         private static final String OOME_MSG = "Required array size too large";
 
-        
         public final @Nullable Object[] toArray() {
             long sz = map.mappingCount();
             if (sz > MAX_ARRAY_SIZE)
@@ -4536,7 +4515,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return (i == n) ? r : Arrays.copyOf(r, i);
         }
 
-        
         @SuppressWarnings("unchecked")
         public final <T extends @Nullable Object> T[] toArray(T[] a) {
             long sz = map.mappingCount();
@@ -4594,7 +4572,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return sb.append(']').toString();
         }
 
-        public final boolean containsAll(Collection<? extends  Object> c) {
+        public final boolean containsAll(Collection<? extends Object> c) {
             if (c != this) {
                 for (Object e : c) {
                     if (e == null || !contains(e))
@@ -4694,7 +4672,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         /**
          * @return an iterator over the keys of the backing map
          */
-        
         public Iterator<K> iterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
@@ -4756,7 +4733,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                      (containsAll(c) && c.containsAll(this))));
         }
 
-        
         public Spliterator<K> spliterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
@@ -4801,7 +4777,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return false;
         }
 
-        
         public final Iterator<V> iterator() {
             ConcurrentHashMap<K,V> m = map;
             Node<K,V>[] t;
@@ -4832,7 +4807,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return map.removeValueIf(filter);
         }
 
-        
         public Spliterator<V> spliterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
@@ -4882,7 +4856,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         /**
          * @return an iterator over the entries of the backing map
          */
-        
         public Iterator<Map.Entry<K,V>> iterator() {
             ConcurrentHashMap<K,V> m = map;
             Node<K,V>[] t;
@@ -4926,7 +4899,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                      (containsAll(c) && c.containsAll(this))));
         }
 
-        
         public Spliterator<Map.Entry<K,V>> spliterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;

@@ -51,7 +51,6 @@ import org.jspecify.annotations.Nullable;
  * @see     java.util.Hashtable
  * @since   1.0
  */
-
 @NullMarked
 public abstract
 class Dictionary<K extends @Nullable Object,V extends @Nullable Object> {
@@ -67,8 +66,7 @@ class Dictionary<K extends @Nullable Object,V extends @Nullable Object> {
      *
      * @return  the number of keys in this dictionary.
      */
-    
-    public abstract  int size();
+    public abstract int size();
 
     /**
      * Tests if this dictionary maps no keys to value. The general contract
@@ -78,7 +76,6 @@ class Dictionary<K extends @Nullable Object,V extends @Nullable Object> {
      * @return  {@code true} if this dictionary maps no keys to values;
      *          {@code false} otherwise.
      */
-    
     public abstract boolean isEmpty();
 
     /**
@@ -118,7 +115,6 @@ class Dictionary<K extends @Nullable Object,V extends @Nullable Object> {
      * @throws    NullPointerException if the {@code key} is {@code null}.
      * @see     java.util.Dictionary#put(java.lang.Object, java.lang.Object)
      */
-    
     public abstract @Nullable V get(Object key);
 
     /**
@@ -148,7 +144,6 @@ class Dictionary<K extends @Nullable Object,V extends @Nullable Object> {
      * @see        java.lang.Object#equals(java.lang.Object)
      * @see        java.util.Dictionary#get(java.lang.Object)
      */
-    
     public abstract @Nullable V put(K key, V value);
 
     /**
