@@ -687,8 +687,6 @@ public abstract class VirtualMachine {
      *                a VirtualMachine that is equal to this
      *                VirtualMachine.
      */
-    
-    
     public boolean equals(@Nullable Object ob) {
         if (ob == this)
             return true;

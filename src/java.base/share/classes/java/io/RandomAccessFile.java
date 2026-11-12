@@ -66,7 +66,7 @@ import sun.nio.ch.FileChannelImpl;
  */
 
 @NullMarked
-public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
+public class RandomAccessFile implements DataOutput, DataInput, Closeable {
 
     private static final int O_RDONLY = 1;
     private static final int O_RDWR =   2;
@@ -525,7 +525,7 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
      * @return     the actual number of bytes skipped.
      * @throws     IOException  if an I/O error occurs.
      */
-    public  int skipBytes( int n) throws IOException {
+    public int skipBytes(int n) throws IOException {
         long pos;
         long len;
         long newpos;
@@ -582,7 +582,7 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
         }
     }
 
-    private native void write0( int b) throws IOException;
+    private native void write0(int b) throws IOException;
 
     /**
      * Writes a sub array as a sequence of bytes.
@@ -672,7 +672,7 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
      * @throws     IOException  if {@code pos} is less than
      *                          {@code 0} or if an I/O error occurs.
      */
-    public void seek( long pos) throws IOException {
+    public void seek(long pos) throws IOException {
         if (pos < 0) {
             throw new IOException("Negative seek offset");
         }
@@ -822,7 +822,7 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
      * @throws     EOFException  if this file has reached the end.
      * @throws     IOException   if an I/O error occurs.
      */
-    public final   int readUnsignedByte() throws IOException {
+    public final int readUnsignedByte() throws IOException {
         int ch = this.read();
         if (ch < 0)
             throw new EOFException();
@@ -1123,7 +1123,7 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
      * @param      v   a {@code byte} value to be written.
      * @throws     IOException  if an I/O error occurs.
      */
-    public final void writeByte( int v) throws IOException {
+    public final void writeByte(int v) throws IOException {
         write(v);
     }
 

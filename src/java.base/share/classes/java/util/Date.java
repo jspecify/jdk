@@ -279,7 +279,6 @@ public class Date
     /**
      * Return a copy of this object.
      */
-    
     public Object clone() {
         Date d = null;
         try {
@@ -949,8 +948,7 @@ public class Date
      *          {@code false} otherwise.
      * @see     java.util.Date#getTime()
      */
-    
-    public boolean equals( @Nullable Object obj) {
+    public boolean equals(@Nullable Object obj) {
         return obj instanceof Date && getTime() == ((Date) obj).getTime();
     }
 
@@ -996,7 +994,6 @@ public class Date
      *
      * @return  a hash code value for this object.
      */
-    
     public int hashCode() {
         long ht = this.getTime();
         return (int) ht ^ (int) (ht >> 32);
@@ -1032,7 +1029,6 @@ public class Date
      * @see     java.util.Date#toLocaleString()
      * @see     java.util.Date#toGMTString()
      */
-    
     public String toString() {
         // "EEE MMM dd HH:mm:ss zzz yyyy";
         BaseCalendar.Date date = normalize();

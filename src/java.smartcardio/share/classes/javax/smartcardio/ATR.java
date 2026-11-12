@@ -139,8 +139,6 @@ public final class ATR implements java.io.Serializable {
      * @param obj the object to be compared for equality with this ATR
      * @return true if the specified object is equal to this ATR
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

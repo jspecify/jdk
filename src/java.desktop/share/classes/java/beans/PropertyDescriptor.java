@@ -72,7 +72,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @throws IntrospectionException if an exception occurs during
      *              introspection.
      */
-    
     public PropertyDescriptor(String propertyName, Class<?> beanClass)
                 throws IntrospectionException {
         this(propertyName, beanClass,
@@ -94,7 +93,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @throws IntrospectionException if an exception occurs during
      *              introspection.
      */
-    
     public PropertyDescriptor(String propertyName, Class<?> beanClass,
                 @Nullable String readMethodName, @Nullable String writeMethodName)
                 throws IntrospectionException {
@@ -137,7 +135,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @throws IntrospectionException if an exception occurs during
      *              introspection.
      */
-    
     public PropertyDescriptor(String propertyName, @Nullable Method readMethod, @Nullable Method writeMethod)
                 throws IntrospectionException {
         if (propertyName == null || propertyName.length() == 0) {
@@ -208,7 +205,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return the {@code Class} object that represents the Java type info,
      *         or {@code null} if the type cannot be determined
      */
-    
     public synchronized @Nullable Class<?> getPropertyType() {
         Class<?> type = getPropertyType0();
         if (type  == null) {
@@ -238,7 +234,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return The method that should be used to read the property value.
      * May return null if the property can't be read.
      */
-    
     public synchronized @Nullable Method getReadMethod() {
         Method readMethod = this.readMethodRef.get();
         if (readMethod == null) {
@@ -308,7 +303,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return The method that should be used to write the property value.
      * May return null if the property can't be written.
      */
-    
     public synchronized @Nullable Method getWriteMethod() {
         Method writeMethod = this.writeMethodRef.get();
         if (writeMethod == null) {
@@ -396,7 +390,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *
      * @return True if this is a bound property.
      */
-    
     public boolean isBound() {
         return bound;
     }
@@ -417,7 +410,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *
      * @return True if this is a constrained property.
      */
-    
     public boolean isConstrained() {
         return constrained;
     }
@@ -455,7 +447,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *          so the PropertyEditorManager should be used to locate
      *          a suitable PropertyEditor.
      */
-    
     public @Nullable Class<?> getPropertyEditorClass() {
         return (this.propertyEditorClassRef != null)
                 ? this.propertyEditorClassRef.get()
@@ -475,7 +466,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *         not been defined or cannot be created
      * @since 1.5
      */
-    
     @SuppressWarnings("deprecation")
     public @Nullable PropertyEditor createPropertyEditor(@Nullable Object bean) {
         Object editor = null;

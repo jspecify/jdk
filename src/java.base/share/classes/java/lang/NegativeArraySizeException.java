@@ -42,7 +42,6 @@ public class NegativeArraySizeException extends RuntimeException {
      * Constructs a {@code NegativeArraySizeException} with no
      * detail message.
      */
-    
     public NegativeArraySizeException() {
         super();
     }
@@ -53,7 +52,6 @@ public class NegativeArraySizeException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    
     public NegativeArraySizeException(@Nullable String s) {
         super(s);
     }

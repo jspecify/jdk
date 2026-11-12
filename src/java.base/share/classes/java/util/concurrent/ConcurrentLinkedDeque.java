@@ -1078,7 +1078,6 @@ public class ConcurrentLinkedDeque<E>
      * @param o element whose presence in this deque is to be tested
      * @return {@code true} if this deque contains the specified element
      */
-    
     public boolean contains(@Nullable Object o) {
         if (o != null) {
             for (Node<E> p = first(); p != null; p = succ(p)) {
@@ -1095,8 +1094,6 @@ public class ConcurrentLinkedDeque<E>
      *
      * @return {@code true} if this collection contains no elements
      */
-    
-    
     public boolean isEmpty() {
         return peekFirst() == null;
     }
@@ -1117,7 +1114,6 @@ public class ConcurrentLinkedDeque<E>
      *
      * @return the number of elements in this deque
      */
-    
     public int size() {
         restart: for (;;) {
             int count = 0;
@@ -1290,7 +1286,6 @@ public class ConcurrentLinkedDeque<E>
      *
      * @return an array containing all of the elements in this deque
      */
-    
     public Object[] toArray() {
         return toArrayInternal(null);
     }
@@ -1332,7 +1327,6 @@ public class ConcurrentLinkedDeque<E>
      *         this deque
      * @throws NullPointerException if the specified array is null
      */
-    
     @SuppressWarnings("unchecked")
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         if (a == null) throw new NullPointerException();
@@ -1348,7 +1342,6 @@ public class ConcurrentLinkedDeque<E>
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
-    
     public Iterator<E> iterator() {
         return new Itr();
     }
@@ -1554,7 +1547,6 @@ public class ConcurrentLinkedDeque<E>
      * @return a {@code Spliterator} over the elements in this deque
      * @since 1.8
      */
-    
     public Spliterator<E> spliterator() {
         return new CLDSpliterator();
     }

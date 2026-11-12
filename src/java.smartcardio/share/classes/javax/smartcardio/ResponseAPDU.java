@@ -158,8 +158,6 @@ public final class ResponseAPDU implements java.io.Serializable {
      * @param obj the object to be compared for equality with this response APDU
      * @return true if the specified object is equal to this response APDU
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

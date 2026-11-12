@@ -123,8 +123,6 @@ public final class LocalRMIServerSocketFactory implements RMIServerSocketFactory
      * are equal if they are of the same type.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         return (obj instanceof LocalRMIServerSocketFactory);
     }

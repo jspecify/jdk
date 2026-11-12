@@ -41,8 +41,6 @@ public class LinuxAddress implements Address {
     // Basic Java routines
     //
 
-    
-    
     public boolean equals(@Nullable Object arg) {
         if (arg == null) {
             return false;

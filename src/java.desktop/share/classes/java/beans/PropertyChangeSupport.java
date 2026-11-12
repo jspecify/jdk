@@ -85,8 +85,7 @@ import java.util.Map.Entry;
  * @since 1.1
  */
 @NullMarked
-
-public  class PropertyChangeSupport implements Serializable {
+public class PropertyChangeSupport implements Serializable {
     private PropertyChangeListenerMap map = new PropertyChangeListenerMap();
 
     /**
@@ -94,8 +93,7 @@ public  class PropertyChangeSupport implements Serializable {
      *
      * @param sourceBean  The bean to be given as the source for any events.
      */
-    
-    public PropertyChangeSupport(  Object sourceBean) {
+    public PropertyChangeSupport(Object sourceBean) {
         if (sourceBean == null) {
             throw new NullPointerException();
         }
@@ -112,8 +110,7 @@ public  class PropertyChangeSupport implements Serializable {
      *
      * @param listener  The PropertyChangeListener to be added
      */
-    
-    public void addPropertyChangeListener(@Nullable  PropertyChangeListener listener) {
+    public void addPropertyChangeListener(@Nullable PropertyChangeListener listener) {
         if (listener == null) {
             return;
         }
@@ -139,7 +136,6 @@ public  class PropertyChangeSupport implements Serializable {
      *
      * @param listener  The PropertyChangeListener to be removed
      */
-    
     public void removePropertyChangeListener(@Nullable PropertyChangeListener listener) {
         if (listener == null) {
             return;
@@ -186,8 +182,7 @@ public  class PropertyChangeSupport implements Serializable {
      *         empty array if no listeners have been added
      * @since 1.4
      */
-    
-    public  PropertyChangeListener[] getPropertyChangeListeners() {
+    public PropertyChangeListener[] getPropertyChangeListeners() {
         return this.map.getListeners();
     }
 
@@ -205,10 +200,9 @@ public  class PropertyChangeSupport implements Serializable {
      * @param listener  The PropertyChangeListener to be added
      * @since 1.2
      */
-    
     public void addPropertyChangeListener(
                 @Nullable String propertyName,
-                @Nullable  PropertyChangeListener listener) {
+                @Nullable PropertyChangeListener listener) {
         if (listener == null || propertyName == null) {
             return;
         }
@@ -232,7 +226,7 @@ public  class PropertyChangeSupport implements Serializable {
      * @param listener  The PropertyChangeListener to be removed
      * @since 1.2
      */
-     public void removePropertyChangeListener(
+    public void removePropertyChangeListener(
                 @Nullable String propertyName,
                 @Nullable PropertyChangeListener listener) {
         if (listener == null || propertyName == null) {
@@ -255,7 +249,7 @@ public  class PropertyChangeSupport implements Serializable {
      *         returned.
      * @since 1.4
      */
-     public  PropertyChangeListener[] getPropertyChangeListeners(String propertyName) {
+    public PropertyChangeListener[] getPropertyChangeListeners(String propertyName) {
         return this.map.getListeners(propertyName);
     }
 
@@ -273,7 +267,7 @@ public  class PropertyChangeSupport implements Serializable {
      * @param oldValue      the old value of the property
      * @param newValue      the new value of the property
      */
-     public void firePropertyChange(String propertyName, @Nullable  Object oldValue, @Nullable  Object newValue) {
+    public void firePropertyChange(String propertyName, @Nullable Object oldValue, @Nullable Object newValue) {
         if (oldValue == null || newValue == null || !oldValue.equals(newValue)) {
             firePropertyChange(new PropertyChangeEvent(this.source, propertyName, oldValue, newValue));
         }
@@ -294,7 +288,7 @@ public  class PropertyChangeSupport implements Serializable {
      * @param newValue      the new value of the property
      * @since 1.2
      */
-     public void firePropertyChange(String propertyName,  int oldValue,  int newValue) {
+    public void firePropertyChange(String propertyName, int oldValue, int newValue) {
         if (oldValue != newValue) {
             firePropertyChange(propertyName, Integer.valueOf(oldValue), Integer.valueOf(newValue));
         }
@@ -315,7 +309,7 @@ public  class PropertyChangeSupport implements Serializable {
      * @param newValue      the new value of the property
      * @since 1.2
      */
-     public void firePropertyChange(String propertyName, boolean oldValue, boolean newValue) {
+    public void firePropertyChange(String propertyName, boolean oldValue, boolean newValue) {
         if (oldValue != newValue) {
             firePropertyChange(propertyName, Boolean.valueOf(oldValue), Boolean.valueOf(newValue));
         }
@@ -331,7 +325,7 @@ public  class PropertyChangeSupport implements Serializable {
      * @param event  the {@code PropertyChangeEvent} to be fired
      * @since 1.2
      */
-     public void firePropertyChange(PropertyChangeEvent event) {
+    public void firePropertyChange(PropertyChangeEvent event) {
         Object oldValue = event.getOldValue();
         Object newValue = event.getNewValue();
         if (oldValue == null || newValue == null || !oldValue.equals(newValue)) {
@@ -371,7 +365,7 @@ public  class PropertyChangeSupport implements Serializable {
      * @param newValue      the new value of the property
      * @since 1.5
      */
-     public void fireIndexedPropertyChange(String propertyName, int index, @Nullable Object oldValue, @Nullable Object newValue) {
+    public void fireIndexedPropertyChange(String propertyName, int index, @Nullable Object oldValue, @Nullable Object newValue) {
         if (oldValue == null || newValue == null || !oldValue.equals(newValue)) {
             firePropertyChange(new IndexedPropertyChangeEvent(source, propertyName, oldValue, newValue, index));
         }
@@ -393,7 +387,7 @@ public  class PropertyChangeSupport implements Serializable {
      * @param newValue      the new value of the property
      * @since 1.5
      */
-     public void fireIndexedPropertyChange(String propertyName, int index, int oldValue, int newValue) {
+    public void fireIndexedPropertyChange(String propertyName, int index, int oldValue, int newValue) {
         if (oldValue != newValue) {
             fireIndexedPropertyChange(propertyName, index, Integer.valueOf(oldValue), Integer.valueOf(newValue));
         }
@@ -415,7 +409,7 @@ public  class PropertyChangeSupport implements Serializable {
      * @param newValue      the new value of the property
      * @since 1.5
      */
-     public void fireIndexedPropertyChange(String propertyName, int index, boolean oldValue, boolean newValue) {
+    public void fireIndexedPropertyChange(String propertyName, int index, boolean oldValue, boolean newValue) {
         if (oldValue != newValue) {
             fireIndexedPropertyChange(propertyName, index, Boolean.valueOf(oldValue), Boolean.valueOf(newValue));
         }
@@ -430,7 +424,7 @@ public  class PropertyChangeSupport implements Serializable {
      * @return true if there are one or more listeners for the given property
      * @since 1.2
      */
-     public boolean hasListeners(@Nullable String propertyName) {
+    public boolean hasListeners(@Nullable String propertyName) {
         return this.map.hasListeners(propertyName);
     }
 
@@ -514,7 +508,7 @@ public  class PropertyChangeSupport implements Serializable {
     /**
      * The object to be provided as the "source" for any generated events.
      */
-    private  Object source;
+    private Object source;
 
     /**
      * @serialField children Hashtable

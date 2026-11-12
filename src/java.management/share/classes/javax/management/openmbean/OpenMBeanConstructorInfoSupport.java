@@ -178,8 +178,6 @@ public class OpenMBeanConstructorInfoSupport
      * @return {@code true} if the specified object is equal to this
      * {@code OpenMBeanConstructorInfoSupport} instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
 
         // if obj is null, return false

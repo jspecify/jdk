@@ -26,7 +26,6 @@
 package java.util;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -91,7 +90,7 @@ import jdk.internal.ref.CleanerFactory;
  */
 
 @NullMarked
-public  class Timer {
+public class Timer {
     /**
      * The timer task queue.  This data structure is shared with the timer
      * thread.  The timer produces tasks, via its various schedule calls,
@@ -475,7 +474,7 @@ public  class Timer {
      * @see TimerTask#cancel()
      * @since 1.5
      */
-     public  int purge() {
+     public int purge() {
          int result = 0;
 
          synchronized(queue) {
@@ -608,7 +607,6 @@ class TaskQueue {
     /**
      * Returns the number of tasks currently on the queue.
      */
-    
     int size() {
         return size;
     }
@@ -675,7 +673,6 @@ class TaskQueue {
     /**
      * Returns true if the priority queue contains no elements.
      */
-    
     boolean isEmpty() {
         return size==0;
     }

@@ -100,7 +100,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @param <E> the type of elements held in this queue
  */
 @NullMarked
-public class DelayQueue<E extends  Delayed> extends AbstractQueue<E>
+public class DelayQueue<E extends Delayed> extends AbstractQueue<E>
     implements BlockingQueue<E> {
 
     private final transient ReentrantLock lock = new ReentrantLock();
@@ -356,7 +356,6 @@ public class DelayQueue<E extends  Delayed> extends AbstractQueue<E>
         }
     }
 
-    
     public int size() {
         final ReentrantLock lock = this.lock;
         lock.lock();
@@ -446,7 +445,6 @@ public class DelayQueue<E extends  Delayed> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    
     public Object[] toArray() {
         final ReentrantLock lock = this.lock;
         lock.lock();
@@ -492,7 +490,6 @@ public class DelayQueue<E extends  Delayed> extends AbstractQueue<E>
      *         this queue
      * @throws NullPointerException if the specified array is null
      */
-    
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         final ReentrantLock lock = this.lock;
         lock.lock();
@@ -545,7 +542,6 @@ public class DelayQueue<E extends  Delayed> extends AbstractQueue<E>
      *
      * @return an iterator over the elements in this queue
      */
-    
     public Iterator<E> iterator() {
         return new Itr(toArray());
     }

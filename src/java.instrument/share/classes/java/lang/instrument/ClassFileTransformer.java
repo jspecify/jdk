@@ -181,6 +181,7 @@ import java.security.ProtectionDomain;
  * @see     java.lang.instrument.Instrumentation
  * @since   1.5
  */
+
 @NullMarked
 public interface ClassFileTransformer {
 
@@ -211,7 +212,7 @@ public interface ClassFileTransformer {
      */
     default byte @Nullable []
     transform(  @Nullable ClassLoader         loader,
-                 String              className,
+                String              className,
                 @Nullable Class<?>            classBeingRedefined,
                 ProtectionDomain    protectionDomain,
                 byte[]              classfileBuffer)
@@ -250,7 +251,7 @@ public interface ClassFileTransformer {
     default byte @Nullable []
     transform(  Module              module,
                 @Nullable ClassLoader         loader,
-                 String              className,
+                String              className,
                 @Nullable Class<?>            classBeingRedefined,
                 ProtectionDomain    protectionDomain,
                 byte[]              classfileBuffer)

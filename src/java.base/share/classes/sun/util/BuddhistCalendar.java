@@ -104,8 +104,6 @@ public class BuddhistCalendar extends GregorianCalendar {
      * @return true if this object is equal to <code>obj</code>; false otherwise
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         return obj instanceof BuddhistCalendar
             && super.equals(obj);

@@ -44,7 +44,6 @@ public class IncompatibleClassChangeError extends LinkageError {
      * Constructs an {@code IncompatibleClassChangeError} with no
      * detail message.
      */
-    
     public IncompatibleClassChangeError () {
         super();
     }
@@ -55,7 +54,6 @@ public class IncompatibleClassChangeError extends LinkageError {
      *
      * @param   s   the detail message.
      */
-    
     public IncompatibleClassChangeError(@Nullable String s) {
         super(s);
     }

@@ -53,7 +53,7 @@ import java.util.Map.Entry;
  */
 
 @NullMarked
-public  class FeatureDescriptor {
+public class FeatureDescriptor {
     private static final String TRANSIENT = "transient";
 
     private @Nullable Reference<? extends Class<?>> classRef;
@@ -289,7 +289,6 @@ public  class FeatureDescriptor {
      *
      * @return the initialized attribute table
      */
-    
     private Hashtable<String, Object> getTable() {
         if (this.table == null) {
             this.table = new Hashtable<>();

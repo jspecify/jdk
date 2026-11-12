@@ -1713,7 +1713,6 @@ public class Thread implements Runnable {
      * @see ##thread-interruption Thread Interruption
      * @see #interrupt()
      */
-    
     public boolean isInterrupted() {
         return interrupted;
     }
@@ -2124,7 +2123,6 @@ public class Thread implements Runnable {
      *          {@code false} otherwise.
      * @see     #setDaemon(boolean)
      */
-    
     public final boolean isDaemon() {
         if (isVirtual()) {
             return true;
@@ -2153,8 +2151,6 @@ public class Thread implements Runnable {
      *
      * @return  a string representation of this thread.
      */
-    @Override
-    
     public String toString() {
         StringBuilder sb = new StringBuilder("Thread[#");
         sb.append(threadId());
@@ -2221,8 +2217,6 @@ public class Thread implements Runnable {
      *         the specified object.
      * @since 1.4
      */
-    
-    
     public static native boolean holdsLock(Object obj);
 
     private static final StackTraceElement[] EMPTY_STACK_TRACE

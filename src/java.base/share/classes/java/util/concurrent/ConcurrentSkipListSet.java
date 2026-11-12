@@ -176,7 +176,6 @@ public class ConcurrentSkipListSet<E>
      *
      * @return a shallow copy of this set
      */
-    
     public ConcurrentSkipListSet<E> clone() {
         try {
             @SuppressWarnings("unchecked")
@@ -204,7 +203,6 @@ public class ConcurrentSkipListSet<E>
      *
      * @return the number of elements in this set
      */
-    
     public int size() {
         return m.size();
     }
@@ -213,7 +211,6 @@ public class ConcurrentSkipListSet<E>
      * Returns {@code true} if this set contains no elements.
      * @return {@code true} if this set contains no elements
      */
-    
     public boolean isEmpty() {
         return m.isEmpty();
     }
@@ -229,7 +226,6 @@ public class ConcurrentSkipListSet<E>
      *         compared with the elements currently in this set
      * @throws NullPointerException if the specified element is null
      */
-    
     public boolean contains(Object o) {
         return m.containsKey(o);
     }
@@ -282,7 +278,6 @@ public class ConcurrentSkipListSet<E>
      *
      * @return an iterator over the elements in this set in ascending order
      */
-    
     public Iterator<E> iterator() {
         return m.navigableKeySet().iterator();
     }
@@ -311,8 +306,6 @@ public class ConcurrentSkipListSet<E>
      * @param o the object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         // Override AbstractSet version to avoid calling size()
         if (o == this)
@@ -397,7 +390,6 @@ public class ConcurrentSkipListSet<E>
 
     /* ---------------- SortedSet operations -------------- */
 
-    
     public @Nullable Comparator<? super E> comparator() {
         return m.comparator();
     }
@@ -535,8 +527,6 @@ public class ConcurrentSkipListSet<E>
      * @return a {@code Spliterator} over the elements in this set
      * @since 1.8
      */
-    @SuppressWarnings({"unchecked"})
-    
     public Spliterator<E> spliterator() {
         return (m instanceof ConcurrentSkipListMap)
             ? ((ConcurrentSkipListMap<E,?>)m).keySpliterator()

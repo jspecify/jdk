@@ -266,8 +266,6 @@ public class OpenMBeanOperationInfoSupport
      * @return {@code true} if the specified object is equal to this
      * {@code OpenMBeanOperationInfoSupport} instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
 
         // if obj is null, return false

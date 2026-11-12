@@ -1546,8 +1546,6 @@ public final class URI
      * @return  {@code true} if, and only if, the given object is a URI that
      *          is identical to this URI
      */
-    
-    
     public boolean equals(@Nullable Object ob) {
         if (ob == this)
             return true;

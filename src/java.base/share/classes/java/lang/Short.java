@@ -82,13 +82,13 @@ public final /*value*/ class Short extends Number
      * A constant holding the minimum value a {@code short} can
      * have, -2<sup>15</sup>.
      */
-    public static final  short   MIN_VALUE = -32768;
+    public static final short   MIN_VALUE = -32768;
 
     /**
      * A constant holding the maximum value a {@code short} can
      * have, 2<sup>15</sup>-1.
      */
-    public static final   short   MAX_VALUE = 32767;
+    public static final short   MAX_VALUE = 32767;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -148,9 +148,7 @@ public final /*value*/ class Short extends Number
      * @throws          NumberFormatException If the {@code String}
      *                  does not contain a parsable {@code short}.
      */
-    
-    
-    public static short parseShort(String s,   int radix)
+    public static short parseShort(String s, int radix)
         throws NumberFormatException {
         int i = Integer.parseInt(s, radix);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -177,8 +175,6 @@ public final /*value*/ class Short extends Number
      * @throws  NumberFormatException If the string does not
      *          contain a parsable {@code short}.
      */
-    
-    
     public static short parseShort(String s) throws NumberFormatException {
         return parseShort(s, 10);
     }
@@ -208,9 +204,7 @@ public final /*value*/ class Short extends Number
      * @throws          NumberFormatException If the {@code String} does
      *                  not contain a parsable {@code short}.
      */
-    
-    
-    public static Short valueOf(String s,   int radix)
+    public static Short valueOf(String s, int radix)
         throws NumberFormatException {
         return valueOf(parseShort(s, radix));
     }
@@ -237,8 +231,6 @@ public final /*value*/ class Short extends Number
      * @throws  NumberFormatException If the {@code String} does
      *          not contain a parsable {@code short}.
      */
-    
-    
     public static Short valueOf(String s) throws NumberFormatException {
         return valueOf(s, 10);
     }
@@ -371,8 +363,6 @@ public final /*value*/ class Short extends Number
      *            contain a parsable {@code short}.
      * @see java.lang.Short#parseShort(java.lang.String, int)
      */
-    
-    
     public static Short decode(String nm) throws NumberFormatException {
         int i = Integer.decode(nm);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -434,9 +424,7 @@ public final /*value*/ class Short extends Number
      * a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
-    
-    
-    public   byte byteValue() {
+    public byte byteValue() {
         return (byte)value;
     }
 
@@ -454,9 +442,7 @@ public final /*value*/ class Short extends Number
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public   int intValue() {
+    public int intValue() {
         return (int)value;
     }
 
@@ -465,9 +451,7 @@ public final /*value*/ class Short extends Number
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public   long longValue() {
+    public long longValue() {
         return (long)value;
     }
 
@@ -476,9 +460,7 @@ public final /*value*/ class Short extends Number
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  float floatValue() {
+    public float floatValue() {
         return (float)value;
     }
 
@@ -487,9 +469,7 @@ public final /*value*/ class Short extends Number
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  double doubleValue() {
+    public double doubleValue() {
         return (double)value;
     }
 
@@ -514,8 +494,6 @@ public final /*value*/ class Short extends Number
      *
      * @return a hash code value for this {@code Short}
      */
-    
-    
     @Override
     public int hashCode() {
         return Short.hashCode(value);
@@ -529,8 +507,6 @@ public final /*value*/ class Short extends Number
      * @return a hash code value for a {@code short} value.
      * @since 1.8
      */
-    
-    
     public static int hashCode(short value) {
         return (int)value;
     }
@@ -565,8 +541,6 @@ public final /*value*/ class Short extends Number
      *           comparison).
      * @since   1.2
      */
-    
-    
     public int compareTo(Short anotherShort) {
         return compare(this.value, anotherShort.value);
     }
@@ -585,8 +559,6 @@ public final /*value*/ class Short extends Number
      *         a value greater than {@code 0} if {@code x > y}
      * @since 1.7
      */
-    
-    
     public static int compare(short x, short y) {
         return x - y;
     }
@@ -603,8 +575,6 @@ public final /*value*/ class Short extends Number
      *         unsigned values
      * @since 9
      */
-    
-    
     public static int compareUnsigned(short x, short y) {
         return Short.toUnsignedInt(x) - Short.toUnsignedInt(y);
     }
@@ -614,7 +584,7 @@ public final /*value*/ class Short extends Number
      * complement binary form.
      * @since 1.5
      */
-    public static final   int SIZE = 16;
+    public static final int SIZE = 16;
 
     /**
      * The number of bytes used to represent a {@code short} value in two's
@@ -622,7 +592,7 @@ public final /*value*/ class Short extends Number
      *
      * @since 1.8
      */
-    public static final  int BYTES = SIZE / Byte.SIZE;
+    public static final int BYTES = SIZE / Byte.SIZE;
 
     /**
      * Returns the value obtained by reversing the order of the bytes in the
@@ -655,8 +625,6 @@ public final /*value*/ class Short extends Number
      *         conversion
      * @since 1.8
      */
-    
-    
     public static int toUnsignedInt(short x) {
         return ((int) x) & 0xffff;
     }
@@ -677,8 +645,6 @@ public final /*value*/ class Short extends Number
      *         conversion
      * @since 1.8
      */
-    
-    
     public static long toUnsignedLong(short x) {
         return ((long) x) & 0xffffL;
     }

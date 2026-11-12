@@ -169,8 +169,6 @@ public class XSElementDecl implements XSElementDeclaration {
     /**
      * whether two decls are the same
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         return o == this;
     }

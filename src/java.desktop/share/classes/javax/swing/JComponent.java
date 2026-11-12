@@ -229,7 +229,6 @@ import static javax.swing.ClientPropertyKey.JComponent_TRANSFER_HANDLER;
  * @since 1.2
  */
 @NullMarked
-
 @JavaBean(defaultProperty = "UIClassID")
 @SuppressWarnings("serial") // Same-version serialization only
 public abstract class JComponent extends Container implements Serializable,
@@ -353,7 +352,7 @@ public abstract class JComponent extends Container implements Serializable,
      * The comment to display when the cursor is over the component,
      * also known as a "value tip", "flyover help", or "flyover label".
      */
-    public static final  String TOOL_TIP_TEXT_KEY = "ToolTipText";
+    public static final String TOOL_TIP_TEXT_KEY = "ToolTipText";
 
     private static final String NEXT_FOCUS = "nextFocus";
 
@@ -4921,7 +4920,6 @@ public abstract class JComponent extends Container implements Serializable,
      * @see #isValidateRoot
      * @see RepaintManager#addInvalidComponent
      */
-    
     public void revalidate() {
         if (getParent() == null) {
             // Note: We don't bother invalidating here as once added

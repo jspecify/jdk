@@ -212,7 +212,6 @@ import sun.swing.SwingAccessor;
  * @since 1.2
  */
 @NullMarked
-
 @SuppressWarnings("serial") // Same-version serialization only
 public class UIManager implements Serializable
 {
@@ -596,7 +595,6 @@ public class UIManager implements Serializable
      *          {@code false}
      * @see #getLookAndFeel
      */
-    
     public static void setLookAndFeel(LookAndFeel newLookAndFeel)
         throws UnsupportedLookAndFeelException
     {
@@ -648,7 +646,6 @@ public class UIManager implements Serializable
      *         a class that extends {@code LookAndFeel}
      * @throws NullPointerException if {@code className} is {@code null}
      */
-    
     @SuppressWarnings("deprecation")
     public static void setLookAndFeel(String className)
         throws ClassNotFoundException,

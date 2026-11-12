@@ -208,8 +208,6 @@ public class Dimension extends Dimension2D implements java.io.Serializable {
     /**
      * Checks whether two dimension objects have equal values.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof Dimension) {
             Dimension d = (Dimension)obj;

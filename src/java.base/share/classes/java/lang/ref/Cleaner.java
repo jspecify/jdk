@@ -31,7 +31,6 @@ import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * {@code Cleaner} manages a set of object references and corresponding cleaning actions.

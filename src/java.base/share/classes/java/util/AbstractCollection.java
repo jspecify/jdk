@@ -64,7 +64,6 @@ import jdk.internal.util.ArraysSupport;
  * @since 1.2
  */
 
-
 @NullMarked
 public abstract class AbstractCollection<E extends @Nullable Object> implements Collection<E> {
     /**
@@ -81,13 +80,9 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      *
      * @return an iterator over the elements contained in this collection
      */
-    @Override
-    
     public abstract Iterator<E> iterator();
 
-    @Override
-    
-    public abstract  int size();
+    public abstract int size();
 
     /**
      * {@inheritDoc}
@@ -95,8 +90,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      * @implSpec
      * This implementation returns {@code size() == 0}.
      */
-    @Override
-    
     public boolean isEmpty() {
         return size() == 0;
     }
@@ -111,8 +104,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      * @throws ClassCastException   {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    @Override
-    
     public boolean contains(@Nullable Object o) {
         Iterator<E> it = iterator();
         if (o==null) {
@@ -150,8 +141,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      * return list.toArray();
      * }</pre>
      */
-    @Override
-    
     public @Nullable Object[] toArray() {
         // Estimate size of array; be prepared to see more or fewer elements
         Object[] r = new Object[size()];
@@ -192,8 +181,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      * @throws ArrayStoreException  {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    @Override
-    
     @SuppressWarnings("unchecked")
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         // Estimate size of array; be prepared to see more or fewer elements
@@ -265,7 +252,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      * @throws IllegalArgumentException      {@inheritDoc}
      * @throws IllegalStateException         {@inheritDoc}
      */
-    @Override
     public boolean add(E e) {
         throw new UnsupportedOperationException();
     }
@@ -287,7 +273,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      * @throws ClassCastException            {@inheritDoc}
      * @throws NullPointerException          {@inheritDoc}
      */
-    @Override
     public boolean remove(@Nullable Object o) {
         Iterator<E> it = iterator();
         if (o==null) {
@@ -324,8 +309,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      * @throws NullPointerException          {@inheritDoc}
      * @see #contains(Object)
      */
-    @Override
-    
     public boolean containsAll(Collection<?> c) {
         for (Object e : c)
             if (!contains(e))
@@ -352,7 +335,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      *
      * @see #add(Object)
      */
-    @Override
     public boolean addAll(Collection<? extends E> c) {
         boolean modified = false;
         for (E e : c)
@@ -383,7 +365,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    @Override
     public boolean removeAll(Collection<?> c) {
         Objects.requireNonNull(c);
         boolean modified = false;
@@ -419,7 +400,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    @Override
     public boolean retainAll(Collection<?> c) {
         Objects.requireNonNull(c);
         boolean modified = false;
@@ -449,7 +429,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      *
      * @throws UnsupportedOperationException {@inheritDoc}
      */
-    @Override
     public void clear() {
         Iterator<E> it = iterator();
         while (it.hasNext()) {
@@ -471,8 +450,6 @@ public abstract class AbstractCollection<E extends @Nullable Object> implements 
      *
      * @return a string representation of this collection
      */
-    @Override
-    
     public String toString() {
         Iterator<E> it = iterator();
         if (! it.hasNext())

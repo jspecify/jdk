@@ -183,8 +183,6 @@ public class SslRMIClientSocketFactory
      * as {@link #hashCode()}) if its instances are not all
      * functionally equivalent.</p>
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == null) return false;
         if (obj == this) return true;

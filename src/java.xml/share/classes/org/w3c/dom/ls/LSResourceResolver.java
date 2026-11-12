@@ -107,7 +107,6 @@ public interface LSResourceResolver {
      *   source, or <code>null</code> to request that the parser open a
      *   regular URI connection to the resource.
      */
-    
     public @Nullable LSInput resolveResource(String type,
                                    @Nullable String namespaceURI,
                                    @Nullable String publicId,

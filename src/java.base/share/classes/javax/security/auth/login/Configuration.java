@@ -484,7 +484,7 @@ public abstract class Configuration {
      *
      * @since 1.6
      */
-    public Configuration. @Nullable Parameters getParameters() {
+    public Configuration.@Nullable Parameters getParameters() {
         return null;
     }
 

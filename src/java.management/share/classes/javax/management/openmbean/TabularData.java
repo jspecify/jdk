@@ -275,8 +275,6 @@ public interface TabularData /*extends Map*/ {
      *
      * @return  {@code true} if the specified object is equal to this {@code TabularData} instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj);
 
     /**

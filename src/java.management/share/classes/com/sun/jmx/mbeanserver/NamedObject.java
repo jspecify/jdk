@@ -90,8 +90,6 @@ public class NamedObject  {
      *
      * @return  True if the two named objects are equal, otherwise false.
      */
-    
-    
     public boolean equals(@Nullable Object object)  {
         if (this == object) return true;
         if (object == null) return false;

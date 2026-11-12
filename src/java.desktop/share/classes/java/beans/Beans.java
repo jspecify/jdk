@@ -57,7 +57,7 @@ import java.util.Vector;
  */
 
 @NullMarked
-public  class Beans {
+public class Beans {
 
     /**
      * Constructs a {@code Beans}.

@@ -3197,8 +3197,6 @@ public class DecimalFormat extends NumberFormat {
      * @see Object#equals(Object)
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj)
     {
         if (this == obj) {

@@ -696,7 +696,7 @@ public class DefaultTreeCellRenderer extends JLabel implements TreeCellRenderer
     * See the <a href="#override">Implementation Note</a>
     * for more information.
     */
-    protected void firePropertyChange( String propertyName, @Nullable Object oldValue, @Nullable Object newValue) {
+    protected void firePropertyChange(String propertyName, @Nullable Object oldValue, @Nullable Object newValue) {
         // Strings get interned...
         if (propertyName == "text"
             || ((SwingUtilities2.isScaleChanged(propertyName, oldValue, newValue)

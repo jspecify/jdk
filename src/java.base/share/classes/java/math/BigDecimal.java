@@ -3740,7 +3740,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
-    public  int intValue() {
+    public int intValue() {
         return  (intCompact != INFLATED && scale == 0) ?
             (int)intCompact :
             (int)longValue();

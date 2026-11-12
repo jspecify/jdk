@@ -68,7 +68,7 @@ public class CharArrayWriter extends Writer {
      * @param  initialSize  an int specifying the initial buffer size.
      * @throws IllegalArgumentException if initialSize is negative
      */
-    public CharArrayWriter( int initialSize) {
+    public CharArrayWriter(int initialSize) {
         if (initialSize < 0) {
             throw new IllegalArgumentException("Negative initial size: "
                                                + initialSize);
@@ -127,7 +127,7 @@ public class CharArrayWriter extends Writer {
      *          or {@code off + len} is negative or greater than the length
      *          of the given string
      */
-    public void write(String str,  int off,   int len) {
+    public void write(String str, int off, int len) {
         synchronized (lock) {
             int newcount = count + len;
             if (newcount > buf.length) {
@@ -216,7 +216,7 @@ public class CharArrayWriter extends Writer {
      *
      * @since  1.5
      */
-    public CharArrayWriter append(@Nullable CharSequence csq,  int start,  int end) {
+    public CharArrayWriter append(@Nullable CharSequence csq, int start, int end) {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }
@@ -267,8 +267,7 @@ public class CharArrayWriter extends Writer {
      *
      * @return an int representing the current size of the buffer.
      */
-    
-    public  int size() {
+    public int size() {
         return count;
     }
 
@@ -276,7 +275,6 @@ public class CharArrayWriter extends Writer {
      * Converts input data to a string.
      * @return the string.
      */
-    
     public String toString() {
         synchronized (lock) {
             return new String(buf, 0, count);

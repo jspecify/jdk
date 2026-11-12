@@ -117,6 +117,7 @@ import java.io.IOException;
  *
  * @see Files#newDirectoryStream(Path)
  */
+
 @NullMarked
 public interface DirectoryStream<T>
     extends Closeable, Iterable<T> {

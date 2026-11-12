@@ -34,6 +34,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @since   1.4
  */
+
 @NullMarked
 public class PortUnreachableException extends SocketException {
     @java.io.Serial

@@ -264,7 +264,7 @@ public final class ObjectStreamClass implements Serializable {
      *
      * @return a string representing the name of the class
      */
-    public  String getName() {
+    public String getName() {
         return name;
     }
 
@@ -327,7 +327,6 @@ public final class ObjectStreamClass implements Serializable {
     /**
      * Return a string describing this ObjectStreamClass.
      */
-    
     public String toString() {
         return name + ": static final long serialVersionUID = " +
             getSerialVersionUID() + "L;";

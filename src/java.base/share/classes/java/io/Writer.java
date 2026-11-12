@@ -51,7 +51,7 @@ import java.util.Objects;
  */
 
 @NullMarked
-public abstract  class Writer implements Appendable, Closeable, Flushable {
+public abstract class Writer implements Appendable, Closeable, Flushable {
 
     /**
      * Temporary buffer used to hold writes of strings and single characters
@@ -365,7 +365,7 @@ public abstract  class Writer implements Appendable, Closeable, Flushable {
      *
      * @since  1.5
      */
-    public Writer append(@Nullable CharSequence csq,  int start,  int end) throws IOException {
+    public Writer append(@Nullable CharSequence csq, int start, int end) throws IOException {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }

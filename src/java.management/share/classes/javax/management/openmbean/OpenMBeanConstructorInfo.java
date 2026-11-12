@@ -106,8 +106,6 @@ public interface OpenMBeanConstructorInfo {
      *
      * @return  {@code true} if the specified object is equal to this {@code OpenMBeanConstructorInfo} instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj);
 
     /**

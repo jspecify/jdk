@@ -95,7 +95,7 @@ import sun.util.logging.PlatformLogger;
  * @since     1.0
  */
 @NullMarked
-public  class Container extends Component {
+public class Container extends Component {
 
     private static final PlatformLogger log = PlatformLogger.getLogger("java.awt.Container");
     private static final PlatformLogger eventLog = PlatformLogger.getLogger("java.awt.event.Container");
@@ -1604,7 +1604,6 @@ public  class Container extends Component {
      * @see #layout
      * @see LayoutManager2
      */
-    
     @Override
     public void invalidate() {
         LayoutManager layoutMgr = this.layoutMgr;

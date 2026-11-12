@@ -90,8 +90,6 @@ public final class ShortListImpl extends AbstractList<Short> implements ShortLis
         return fArray[index];
     }
 
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == null || !(obj instanceof ShortList)) {
             return false;

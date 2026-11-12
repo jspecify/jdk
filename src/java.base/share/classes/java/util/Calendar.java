@@ -380,13 +380,13 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see GregorianCalendar#AD
      * @see GregorianCalendar#BC
      */
-    public static final  int ERA = 0;
+    public static final int ERA = 0;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
      * year. This is a calendar-specific value; see subclass documentation.
      */
-    public static final  int YEAR = 1;
+    public static final int YEAR = 1;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
@@ -409,7 +409,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #DECEMBER
      * @see #UNDECIMBER
      */
-    public static final  int MONTH = 2;
+    public static final int MONTH = 2;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
@@ -422,7 +422,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #getFirstDayOfWeek
      * @see #getMinimalDaysInFirstWeek
      */
-    public static final  int WEEK_OF_YEAR = 3;
+    public static final int WEEK_OF_YEAR = 3;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
@@ -435,7 +435,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #getFirstDayOfWeek
      * @see #getMinimalDaysInFirstWeek
      */
-    public static final  int WEEK_OF_MONTH = 4;
+    public static final int WEEK_OF_MONTH = 4;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
@@ -444,7 +444,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      *
      * @see #DAY_OF_MONTH
      */
-    public static final  int DATE = 5;
+    public static final int DATE = 5;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
@@ -453,13 +453,13 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      *
      * @see #DATE
      */
-    public static final  int DAY_OF_MONTH = 5;
+    public static final int DAY_OF_MONTH = 5;
 
     /**
      * Field number for {@code get} and {@code set} indicating the day
      * number within the current year.  The first day of the year has value 1.
      */
-    public static final  int DAY_OF_YEAR = 6;
+    public static final int DAY_OF_YEAR = 6;
 
     /**
      * Field number for {@code get} and {@code set} indicating the day
@@ -477,7 +477,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #FRIDAY
      * @see #SATURDAY
      */
-    public static final  int DAY_OF_WEEK = 7;
+    public static final int DAY_OF_WEEK = 7;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
@@ -502,7 +502,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #DAY_OF_WEEK
      * @see #WEEK_OF_MONTH
      */
-    public static final  int DAY_OF_WEEK_IN_MONTH = 8;
+    public static final int DAY_OF_WEEK_IN_MONTH = 8;
 
     /**
      * Field number for {@code get} and {@code set} indicating
@@ -513,7 +513,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #PM
      * @see #HOUR
      */
-    public static final  int AM_PM = 9;
+    public static final int AM_PM = 9;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
@@ -524,7 +524,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #AM_PM
      * @see #HOUR_OF_DAY
      */
-    public static final  int HOUR = 10;
+    public static final int HOUR = 10;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
@@ -533,28 +533,28 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      *
      * @see #HOUR
      */
-    public static final  int HOUR_OF_DAY = 11;
+    public static final int HOUR_OF_DAY = 11;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
      * minute within the hour.
      * E.g., at 10:04:15.250 PM the {@code MINUTE} is 4.
      */
-    public static final  int MINUTE = 12;
+    public static final int MINUTE = 12;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
      * second within the minute.
      * E.g., at 10:04:15.250 PM the {@code SECOND} is 15.
      */
-    public static final  int SECOND = 13;
+    public static final int SECOND = 13;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
      * millisecond within the second.
      * E.g., at 10:04:15.250 PM the {@code MILLISECOND} is 250.
      */
-    public static final  int MILLISECOND = 14;
+    public static final int MILLISECOND = 14;
 
     /**
      * Field number for {@code get} and {@code set}
@@ -565,7 +565,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * {@code TimeZone} implementation subclass supports
      * historical GMT offset changes.
      */
-    public static final  int ZONE_OFFSET = 15;
+    public static final int ZONE_OFFSET = 15;
 
     /**
      * Field number for {@code get} and {@code set} indicating the
@@ -576,146 +576,146 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * {@code TimeZone} implementation subclass supports
      * historical Daylight Saving Time schedule changes.
      */
-    public static final  int DST_OFFSET = 16;
+    public static final int DST_OFFSET = 16;
 
     /**
      * The number of distinct fields recognized by {@code get} and {@code set}.
      * Field numbers range from {@code 0..FIELD_COUNT-1}.
      */
-    public static final  int FIELD_COUNT = 17;
+    public static final int FIELD_COUNT = 17;
 
     /**
      * Value of the {@link #DAY_OF_WEEK} field indicating
      * Sunday.
      */
-    public static final  int SUNDAY = 1;
+    public static final int SUNDAY = 1;
 
     /**
      * Value of the {@link #DAY_OF_WEEK} field indicating
      * Monday.
      */
-    public static final  int MONDAY = 2;
+    public static final int MONDAY = 2;
 
     /**
      * Value of the {@link #DAY_OF_WEEK} field indicating
      * Tuesday.
      */
-    public static final  int TUESDAY = 3;
+    public static final int TUESDAY = 3;
 
     /**
      * Value of the {@link #DAY_OF_WEEK} field indicating
      * Wednesday.
      */
-    public static final  int WEDNESDAY = 4;
+    public static final int WEDNESDAY = 4;
 
     /**
      * Value of the {@link #DAY_OF_WEEK} field indicating
      * Thursday.
      */
-    public static final  int THURSDAY = 5;
+    public static final int THURSDAY = 5;
 
     /**
      * Value of the {@link #DAY_OF_WEEK} field indicating
      * Friday.
      */
-    public static final  int FRIDAY = 6;
+    public static final int FRIDAY = 6;
 
     /**
      * Value of the {@link #DAY_OF_WEEK} field indicating
      * Saturday.
      */
-    public static final  int SATURDAY = 7;
+    public static final int SATURDAY = 7;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * first month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int JANUARY = 0;
+    public static final int JANUARY = 0;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * second month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int FEBRUARY = 1;
+    public static final int FEBRUARY = 1;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * third month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int MARCH = 2;
+    public static final int MARCH = 2;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * fourth month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int APRIL = 3;
+    public static final int APRIL = 3;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * fifth month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int MAY = 4;
+    public static final int MAY = 4;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * sixth month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int JUNE = 5;
+    public static final int JUNE = 5;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * seventh month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int JULY = 6;
+    public static final int JULY = 6;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * eighth month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int AUGUST = 7;
+    public static final int AUGUST = 7;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * ninth month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int SEPTEMBER = 8;
+    public static final int SEPTEMBER = 8;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * tenth month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int OCTOBER = 9;
+    public static final int OCTOBER = 9;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * eleventh month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int NOVEMBER = 10;
+    public static final int NOVEMBER = 10;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * twelfth month of the year in the Gregorian and Julian calendars.
      */
-    public static final  int DECEMBER = 11;
+    public static final int DECEMBER = 11;
 
     /**
      * Value of the {@link #MONTH} field indicating the
      * thirteenth month of the year. Although {@code GregorianCalendar}
      * does not use this value, lunar calendars do.
      */
-    public static final  int UNDECIMBER = 12;
+    public static final int UNDECIMBER = 12;
 
     /**
      * Value of the {@link #AM_PM} field indicating the
      * period of the day from midnight to just before noon.
      */
-    public static final  int AM = 0;
+    public static final int AM = 0;
 
     /**
      * Value of the {@link #AM_PM} field indicating the
      * period of the day from noon to just before midnight.
      */
-    public static final  int PM = 1;
+    public static final int PM = 1;
 
     /**
      * A style specifier for {@link #getDisplayNames(int, int, Locale)
@@ -730,7 +730,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #LONG
      * @since 1.6
      */
-    public static final  int ALL_STYLES = 0;
+    public static final int ALL_STYLES = 0;
 
     static final int STANDALONE_MASK = 0x8000;
 
@@ -743,7 +743,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #LONG
      * @since 1.6
      */
-    public static final  int SHORT = 1;
+    public static final int SHORT = 1;
 
     /**
      * A style specifier for {@link #getDisplayName(int, int, Locale)
@@ -754,7 +754,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #SHORT
      * @since 1.6
      */
-    public static final  int LONG = 2;
+    public static final int LONG = 2;
 
     /**
      * A style specifier for {@link #getDisplayName(int, int, Locale)
@@ -1853,8 +1853,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #set(int,int)
      * @see #complete()
      */
-    
-    public  int get( int field)
+    public int get(int field)
     {
         complete();
         return internalGet(field);
@@ -1899,7 +1898,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #set(int,int,int,int,int,int)
      * @see #get(int)
      */
-    public void set( int field, int value)
+    public void set(int field, int value)
     {
         // If the fields are partially normalized, calculate all the
         // fields before changing any fields.
@@ -1930,7 +1929,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #set(int,int,int,int,int)
      * @see #set(int,int,int,int,int,int)
      */
-    public final void set( int year,  int month,  int date)
+    public final void set(int year, int month, int date)
     {
         set(YEAR, year);
         set(MONTH, month);
@@ -1954,7 +1953,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #set(int,int,int)
      * @see #set(int,int,int,int,int,int)
      */
-    public final void set( int year,  int month,  int date,  int hourOfDay,  int minute)
+    public final void set(int year, int month, int date, int hourOfDay, int minute)
     {
         set(YEAR, year);
         set(MONTH, month);
@@ -1981,8 +1980,8 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #set(int,int,int)
      * @see #set(int,int,int,int,int)
      */
-    public final void set( int year,  int month,  int date,  int hourOfDay,  int minute,
-                           int second)
+    public final void set(int year, int month, int date, int hourOfDay, int minute,
+                          int second)
     {
         set(YEAR, year);
         set(MONTH, month);
@@ -2037,7 +2036,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @param field the calendar field to be cleared.
      * @see #clear()
      */
-    public final void clear( int field)
+    public final void clear(int field)
     {
         fields[field] = 0;
         stamp[field] = UNSET;
@@ -2056,8 +2055,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @return {@code true} if the given calendar field has a value set;
      * {@code false} otherwise.
      */
-    
-    public final boolean isSet( int field)
+    public final boolean isSet(int field)
     {
         return stamp[field] != UNSET;
     }
@@ -2112,7 +2110,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      *        if {@code locale} is null
      * @since 1.6
      */
-    public @Nullable String getDisplayName( int field, int style, Locale locale) {
+    public @Nullable String getDisplayName(int field, int style, Locale locale) {
         if (!checkDisplayNameParams(field, style, SHORT, NARROW_FORMAT, locale,
                             ERA_MASK|MONTH_MASK|DAY_OF_WEEK_MASK|AM_PM_MASK)) {
             return null;
@@ -2207,7 +2205,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      *        if {@code locale} is null
      * @since 1.6
      */
-    public @Nullable Map<String, Integer> getDisplayNames( int field, int style, Locale locale) {
+    public @Nullable Map<String, Integer> getDisplayNames(int field, int style, Locale locale) {
         if (!checkDisplayNameParams(field, style, ALL_STYLES, NARROW_FORMAT, locale,
                                     ERA_MASK|MONTH_MASK|DAY_OF_WEEK_MASK|AM_PM_MASK)) {
             return null;
@@ -2704,7 +2702,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * {@code false} otherwise.
      */
     @Override
-    public boolean equals( @Nullable Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;
         }
@@ -2732,7 +2730,6 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @return a hash code value for this object.
      * @since 1.2
      */
-    
     @Override
     public int hashCode() {
         // 'otheritems' represents the hash code for the previous versions.
@@ -2805,9 +2802,8 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * any invalid calendar values.
      * @since   1.5
      */
-    
     @Override
-    public int compareTo( Calendar anotherCalendar) {
+    public int compareTo(Calendar anotherCalendar) {
         return compareTo(getMillisOf(anotherCalendar));
     }
 
@@ -2874,7 +2870,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #add(int,int)
      * @see #set(int,int)
      */
-    public void roll( int field, int amount)
+    public void roll(int field, int amount)
     {
         while (amount > 0) {
             roll(field, true);
@@ -2961,7 +2957,6 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * {@code false} otherwise.
      * @see #setLenient(boolean)
      */
-    
     public boolean isLenient()
     {
         return lenient;
@@ -2975,7 +2970,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #getFirstDayOfWeek()
      * @see #getMinimalDaysInFirstWeek()
      */
-    public void setFirstDayOfWeek( int value)
+    public void setFirstDayOfWeek(int value)
     {
         if (firstDayOfWeek == value) {
             return;
@@ -2992,7 +2987,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #setFirstDayOfWeek(int)
      * @see #getMinimalDaysInFirstWeek()
      */
-    public  int getFirstDayOfWeek()
+    public int getFirstDayOfWeek()
     {
         return firstDayOfWeek;
     }
@@ -3007,7 +3002,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * of the year.
      * @see #getMinimalDaysInFirstWeek()
      */
-    public void setMinimalDaysInFirstWeek( int value)
+    public void setMinimalDaysInFirstWeek(int value)
     {
         if (minimalDaysInFirstWeek == value) {
             return;
@@ -3026,7 +3021,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @return the minimal days required in the first week of the year.
      * @see #setMinimalDaysInFirstWeek(int)
      */
-    public  int getMinimalDaysInFirstWeek()
+    public int getMinimalDaysInFirstWeek()
     {
         return minimalDaysInFirstWeek;
     }
@@ -3141,7 +3136,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #getActualMinimum(int)
      * @see #getActualMaximum(int)
      */
-    public abstract int getMinimum( int field);
+    public abstract int getMinimum(int field);
 
     /**
      * Returns the maximum value for the given calendar field of this
@@ -3158,7 +3153,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #getActualMinimum(int)
      * @see #getActualMaximum(int)
      */
-    public abstract int getMaximum( int field);
+    public abstract int getMaximum(int field);
 
     /**
      * Returns the highest minimum value for the given calendar field
@@ -3176,7 +3171,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #getActualMinimum(int)
      * @see #getActualMaximum(int)
      */
-    public abstract int getGreatestMinimum( int field);
+    public abstract int getGreatestMinimum(int field);
 
     /**
      * Returns the lowest maximum value for the given calendar field
@@ -3198,7 +3193,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #getActualMinimum(int)
      * @see #getActualMaximum(int)
      */
-    public abstract int getLeastMaximum( int field);
+    public abstract int getLeastMaximum(int field);
 
     /**
      * Returns the minimum value that the specified calendar field
@@ -3220,7 +3215,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #getActualMaximum(int)
      * @since 1.2
      */
-    public  int getActualMinimum( int field) {
+    public int getActualMinimum(int field) {
         int fieldValue = getGreatestMinimum(field);
         int endValue = getMinimum(field);
 
@@ -3274,7 +3269,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * @see #getActualMinimum(int)
      * @since 1.2
      */
-    public  int getActualMaximum( int field) {
+    public int getActualMaximum(int field) {
         int fieldValue = getLeastMaximum(field);
         int endValue = getMaximum(field);
 
@@ -3317,7 +3312,6 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      *
      * @return a copy of this object.
      */
-    
     @Override
     public Object clone()
     {
@@ -3370,7 +3364,6 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      *
      * @return  a string representation of this calendar.
      */
-    
     @Override
     public String toString() {
         // NOTE: BuddhistCalendar.toString() interprets the string

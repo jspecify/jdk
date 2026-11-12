@@ -406,8 +406,6 @@ public final class SunPKCS11 extends AuthProvider {
         return sb.toString();
     }
 
-    
-    
     public boolean equals(@Nullable Object obj) {
         return this == obj;
     }

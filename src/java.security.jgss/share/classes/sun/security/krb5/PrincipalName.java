@@ -204,8 +204,6 @@ public class PrincipalName implements Cloneable {
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object o) {
         if (this == o) {
             return true;

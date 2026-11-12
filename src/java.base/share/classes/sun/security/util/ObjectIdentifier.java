@@ -350,8 +350,6 @@ public final class ObjectIdentifier implements Serializable {
      * @return true iff the names are identical.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

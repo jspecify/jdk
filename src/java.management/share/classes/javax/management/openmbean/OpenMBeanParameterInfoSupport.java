@@ -546,8 +546,6 @@ public class OpenMBeanParameterInfoSupport
      * @return {@code true} if the specified object is equal to this
      * {@code OpenMBeanParameterInfoSupport} instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof OpenMBeanParameterInfo))
             return false;

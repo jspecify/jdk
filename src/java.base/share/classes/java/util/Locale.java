@@ -769,7 +769,7 @@ public final class Locale implements Cloneable, Serializable {
     /**
      * Private constructor used by getInstance method
      */
-    private Locale(BaseLocale baseLocale,  LocaleExtensions extensions) {
+    private Locale(BaseLocale baseLocale, LocaleExtensions extensions) {
         this.baseLocale = baseLocale;
         this.localeExtensions = extensions;
     }
@@ -1008,7 +1008,7 @@ public final class Locale implements Cloneable, Serializable {
     private static final class LocaleKey {
 
         private final BaseLocale base;
-        private final  LocaleExtensions exts;
+        private final LocaleExtensions exts;
         private final int hash;
 
         private LocaleKey(BaseLocale baseLocale, LocaleExtensions extensions) {
@@ -1346,7 +1346,7 @@ public final class Locale implements Cloneable, Serializable {
      * @return The country/region code, or the empty string if none is defined.
      * @see #getDisplayCountry
      */
-    public  String getCountry() {
+    public String getCountry() {
         return baseLocale.getRegion();
     }
 
@@ -1356,7 +1356,7 @@ public final class Locale implements Cloneable, Serializable {
      * @return The variant code, or the empty string if none is defined.
      * @see #getDisplayVariant
      */
-    public  String getVariant() {
+    public String getVariant() {
         return baseLocale.getVariant();
     }
 
@@ -1534,7 +1534,6 @@ public final class Locale implements Cloneable, Serializable {
      * @see #getDisplayName
      * @see #toLanguageTag
      */
-    
     @Override
     public final String toString() {
         boolean l = !baseLocale.getLanguage().isEmpty();
@@ -2260,7 +2259,6 @@ public final class Locale implements Cloneable, Serializable {
     /**
      * Overrides Cloneable.
      */
-    
     @Override
     public Object clone()
     {
@@ -2277,7 +2275,6 @@ public final class Locale implements Cloneable, Serializable {
      * Since Locales are often used in hashtables, caches the value
      * for speed.
      */
-    
     @Override
     public int hashCode() {
         int hc = hashCodeValue;
@@ -2300,7 +2297,6 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @return true if this Locale is equal to the specified object.
      */
-    
     @Override
     public boolean equals(@Nullable Object obj) {
         if (this == obj)                      // quick check
@@ -2328,8 +2324,8 @@ public final class Locale implements Cloneable, Serializable {
     private transient @Stable int hashCodeValue;
 
     private static volatile Locale defaultLocale = initDefault();
-    private static volatile  Locale defaultDisplayLocale;
-    private static volatile  Locale defaultFormatLocale;
+    private static volatile Locale defaultDisplayLocale;
+    private static volatile Locale defaultFormatLocale;
 
     private final transient LazyConstant<String> languageTag =
             LazyConstant.of(new Supplier<>() {
@@ -3482,7 +3478,6 @@ public final class Locale implements Cloneable, Serializable {
          *     {@code weight} are the same as the {@code obj}'s; {@code false}
          *     otherwise.
          */
-        
         @Override
         public boolean equals(@Nullable Object obj) {
             if (this == obj) {

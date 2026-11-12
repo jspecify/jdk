@@ -117,7 +117,7 @@ import java.util.stream.StreamSupport;
  */
 
 @NullMarked
-public final  class Matcher implements MatchResult {
+public final class Matcher implements MatchResult {
 
     /**
      * The Pattern object that created this Matcher.
@@ -643,7 +643,6 @@ public final  class Matcher implements MatchResult {
      *          If no match has yet been attempted,
      *          or if the previous match operation failed
      */
-    
     public @Nullable String group() {
         return group(0);
     }
@@ -740,8 +739,7 @@ public final  class Matcher implements MatchResult {
      *
      * @return The number of capturing groups in this matcher's pattern
      */
-    
-    public  int groupCount() {
+    public int groupCount() {
         return parentPattern.capturingGroupCount - 1;
     }
 
@@ -810,7 +808,7 @@ public final  class Matcher implements MatchResult {
      *          sequence starting at the given index matches this matcher's
      *          pattern
      */
-    public boolean find( int start) {
+    public boolean find(int start) {
         int limit = getTextLength();
         if ((start < 0) || (start > limit))
             throw new IndexOutOfBoundsException("Illegal start index");
@@ -1550,7 +1548,7 @@ public final  class Matcher implements MatchResult {
      * @return  this matcher
      * @since 1.5
      */
-    public Matcher region( int start,  int end) {
+    public Matcher region(int start, int end) {
         if ((start < 0) || (start > getTextLength()))
             throw new IndexOutOfBoundsException("start");
         if ((end < 0) || (end > getTextLength()))
@@ -1572,8 +1570,7 @@ public final  class Matcher implements MatchResult {
      * @return  The starting point of this matcher's region
      * @since 1.5
      */
-    
-    public  int regionStart() {
+    public int regionStart() {
         return from;
     }
 
@@ -1586,8 +1583,7 @@ public final  class Matcher implements MatchResult {
      * @return  the ending point of this matcher's region
      * @since 1.5
      */
-    
-    public  int regionEnd() {
+    public int regionEnd() {
         return to;
     }
 
@@ -1608,7 +1604,6 @@ public final  class Matcher implements MatchResult {
      * @see java.util.regex.Matcher#useTransparentBounds(boolean)
      * @since 1.5
      */
-    
     public boolean hasTransparentBounds() {
         return transparentBounds;
     }
@@ -1660,7 +1655,6 @@ public final  class Matcher implements MatchResult {
      * @see java.util.regex.Matcher#useAnchoringBounds(boolean)
      * @since 1.5
      */
-    
     public boolean hasAnchoringBounds() {
         return anchoringBounds;
     }
@@ -1699,7 +1693,6 @@ public final  class Matcher implements MatchResult {
      * @return  The string representation of this matcher
      * @since 1.5
      */
-    
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("java.util.regex.Matcher")
@@ -1725,7 +1718,6 @@ public final  class Matcher implements MatchResult {
      *          otherwise
      * @since 1.5
      */
-    
     public boolean hitEnd() {
         return hitEnd;
     }
@@ -1744,7 +1736,6 @@ public final  class Matcher implements MatchResult {
      *          negative one.
      * @since 1.5
      */
-    
     public boolean requireEnd() {
         return requireEnd;
     }

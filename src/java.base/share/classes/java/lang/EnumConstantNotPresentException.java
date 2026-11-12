@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when an application tries to access an enum constant by name
@@ -62,7 +61,6 @@ public class EnumConstantNotPresentException extends RuntimeException {
      * @param enumType the type of the missing enum constant
      * @param constantName the name of the missing enum constant
      */
-    
     public EnumConstantNotPresentException(Class<? extends Enum> enumType,
                                            String constantName) {
         super(enumType.getName() + "." + constantName);

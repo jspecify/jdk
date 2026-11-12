@@ -883,7 +883,6 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      * @return an array, whose {@linkplain Class#getComponentType runtime component
      * type} is {@code Object}, containing the elements of this stream
      */
-    
     @Nullable Object[] toArray();
 
     /**
@@ -913,7 +912,6 @@ public interface Stream<T extends @Nullable Object> extends BaseStream<T, Stream
      *         stream is not assignable to the {@linkplain Class#getComponentType
      *         runtime component type} of the generated array
      */
-    
     <A extends @Nullable Object> A[] toArray(IntFunction<A[]> generator);
 
     /**

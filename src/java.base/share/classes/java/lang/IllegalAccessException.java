@@ -66,7 +66,6 @@ public class IllegalAccessException extends ReflectiveOperationException {
      * Constructs an {@code IllegalAccessException} without a
      * detail message.
      */
-    
     public IllegalAccessException() {
         super();
     }
@@ -76,7 +75,6 @@ public class IllegalAccessException extends ReflectiveOperationException {
      *
      * @param   s   the detail message.
      */
-    
     public IllegalAccessException(@Nullable String s) {
         super(s);
     }

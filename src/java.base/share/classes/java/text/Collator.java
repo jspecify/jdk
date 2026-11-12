@@ -532,8 +532,6 @@ public abstract class Collator
      * false otherwise.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object that)
     {
         if (this == that) {

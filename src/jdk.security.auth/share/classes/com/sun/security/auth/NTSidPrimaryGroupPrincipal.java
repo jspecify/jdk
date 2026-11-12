@@ -88,8 +88,6 @@ public class NTSidPrimaryGroupPrincipal extends NTSid {
      * @return true if the specified Object is equal to this
      *          {@code NTSidPrimaryGroupPrincipal}.
      */
-    
-    
     public boolean equals(@Nullable Object o) {
             if (o == null)
                 return false;

@@ -749,8 +749,6 @@ public final /*value*/ class MonthDay
      * @return true if this is equal to the other month-day
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

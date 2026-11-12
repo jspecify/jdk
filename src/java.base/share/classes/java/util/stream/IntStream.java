@@ -489,7 +489,6 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      *
      * @return an array containing the elements of this stream
      */
-    
     int[] toArray();
 
     /**
@@ -877,11 +876,9 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
     @Override
     IntStream parallel();
 
-    
     @Override
     PrimitiveIterator.OfInt iterator();
 
-    
     @Override
     Spliterator.OfInt spliterator();
 

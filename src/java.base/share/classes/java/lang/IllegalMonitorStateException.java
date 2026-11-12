@@ -49,7 +49,6 @@ public class IllegalMonitorStateException extends RuntimeException {
      * Constructs an {@code IllegalMonitorStateException} with no
      * detail message.
      */
-    
     public IllegalMonitorStateException() {
         super();
     }
@@ -60,7 +59,6 @@ public class IllegalMonitorStateException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    
     public IllegalMonitorStateException(@Nullable String s) {
         super(s);
     }

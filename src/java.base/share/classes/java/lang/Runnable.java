@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents an operation that does not return a result.
@@ -39,7 +38,6 @@ import org.jspecify.annotations.Nullable;
  * @since   1.0
  */
 @NullMarked
-
 @FunctionalInterface
 public interface Runnable {
     /**

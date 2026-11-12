@@ -817,7 +817,6 @@ public class LinkedBlockingDeque<E>
      *
      * @return the number of elements in this deque
      */
-    
     public int size() {
         return count;
     }

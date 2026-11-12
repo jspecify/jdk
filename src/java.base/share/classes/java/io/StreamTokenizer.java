@@ -66,7 +66,7 @@ import java.util.Arrays;
  */
 
 @NullMarked
-public  class StreamTokenizer {
+public class StreamTokenizer {
 
     /* Only one of these will be non-null */
     private Reader reader = null;
@@ -765,7 +765,7 @@ public  class StreamTokenizer {
      *
      * @return  the current line number of this stream tokenizer.
      */
-    public  int lineno() {
+    public int lineno() {
         return LINENO;
     }
 
@@ -785,7 +785,6 @@ public  class StreamTokenizer {
      * @see     java.io.StreamTokenizer#sval
      * @see     java.io.StreamTokenizer#ttype
      */
-    
     public String toString() {
         String ret = switch (ttype) {
             case TT_EOF     -> "EOF";

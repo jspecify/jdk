@@ -168,7 +168,6 @@ import java.io.Serializable;
  * @see Set
  * @since 1.2
  */
-
 @NullMarked
 public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
     // Query Operations
@@ -180,15 +179,13 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @return the number of key-value mappings in this map
      */
-    
-     int size();
+    int size();
 
     /**
      * Returns {@code true} if this map contains no key-value mappings.
      *
      * @return {@code true} if this map contains no key-value mappings
      */
-    
     boolean isEmpty();
 
     /**
@@ -206,8 +203,6 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      * @throws NullPointerException if the specified key is null and this map
      *         does not permit null keys ({@linkplain Collection##optional-restrictions optional})
      */
-    
-    
     boolean containsKey(@Nullable Object key);
 
     /**
@@ -226,7 +221,6 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      * @throws NullPointerException if the specified value is null and this
      *         map does not permit null values ({@linkplain Collection##optional-restrictions optional})
      */
-    
     boolean containsValue(@Nullable Object value);
 
     /**
@@ -253,7 +247,6 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      * @throws NullPointerException if the specified key is null and this map
      *         does not permit null keys ({@linkplain Collection##optional-restrictions optional})
      */
-    
     @Nullable V get(@Nullable Object key);
 
     // Modification Operations
@@ -282,8 +275,6 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      * @throws IllegalArgumentException if some property of the specified key
      *         or value prevents it from being stored in this map
      */
-    
-    
     @Nullable V put(K key, V value);
 
     /**
@@ -369,8 +360,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @return a set view of the keys contained in this map
      */
-    
-    Set< K> keySet();
+    Set<K> keySet();
 
     /**
      * Returns a {@link Collection} view of the values contained in this map.
@@ -387,7 +377,6 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @return a collection view of the values contained in this map
      */
-    
     Collection<V> values();
 
     /**
@@ -406,8 +395,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *
      * @return a set view of the mappings contained in this map
      */
-    
-    Set<Map.Entry< K, V>> entrySet();
+    Set<Map.Entry<K, V>> entrySet();
 
     /**
      * A map entry (key-value pair). The Entry may be unmodifiable, or the
@@ -467,7 +455,6 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      * @see Map#entrySet()
      * @since 1.2
      */
-    
     interface Entry<K extends @Nullable Object, V extends @Nullable Object> {
         /**
          * Returns the key corresponding to this entry.
@@ -477,7 +464,6 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
          *         required to, throw this exception if the entry has been
          *         removed from the backing map.
          */
-        
         K getKey();
 
         /**
@@ -490,7 +476,6 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
          *         required to, throw this exception if the entry has been
          *         removed from the backing map.
          */
-        
         V getValue();
 
         /**
@@ -533,8 +518,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
          * @return {@code true} if the specified object is equal to this map
          *         entry
          */
-        
-        boolean equals( @Nullable Object o);
+        boolean equals(@Nullable Object o);
 
         /**
          * Returns the hash code value for this map entry.  The hash code
@@ -552,7 +536,6 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
          * @see Object#equals(Object)
          * @see #equals(Object)
          */
-        
         int hashCode();
 
         /**
@@ -673,7 +656,7 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      * @param o object to be compared for equality with this map
      * @return {@code true} if the specified object is equal to this map
      */
-    boolean equals( @Nullable Object o);
+    boolean equals(@Nullable Object o);
 
     /**
      * Returns the hash code value for this map.  The hash code of a map is
@@ -861,7 +844,6 @@ public interface Map<K extends @Nullable Object, V extends @Nullable Object> {
      *         ({@linkplain Collection##optional-restrictions optional})
      * @since 1.8
      */
-    
     default @Nullable V putIfAbsent(K key, V value) {
         V v = get(key);
         if (v == null) {

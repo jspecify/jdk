@@ -864,8 +864,6 @@ public sealed class InetAddress implements Serializable permits Inet4Address, In
      *          {@code false} otherwise.
      * @see     java.net.InetAddress#getAddress()
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         return false;
     }

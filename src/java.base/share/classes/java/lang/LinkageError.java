@@ -45,7 +45,6 @@ public class LinkageError extends Error {
     /**
      * Constructs a {@code LinkageError} with no detail message.
      */
-    
     public LinkageError() {
         super();
     }
@@ -56,7 +55,6 @@ public class LinkageError extends Error {
      *
      * @param   s   the detail message.
      */
-    
     public LinkageError(@Nullable String s) {
         super(s);
     }
@@ -69,7 +67,6 @@ public class LinkageError extends Error {
      * @param cause the cause, may be {@code null}
      * @since 1.7
      */
-    
     public LinkageError(@Nullable String s, @Nullable Throwable cause) {
         super(s, cause);
     }

@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -68,8 +67,6 @@ public interface CharSequence {
      *
      * @return  the number of {@code char}s in this sequence
      */
-    
-    
     int length();
 
     /**
@@ -90,7 +87,7 @@ public interface CharSequence {
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
      */
-    char charAt( int index);
+    char charAt(int index);
 
     /**
      * Returns {@code true} if this character sequence is empty.
@@ -125,7 +122,7 @@ public interface CharSequence {
      *          if {@code end} is greater than {@code length()},
      *          or if {@code start} is greater than {@code end}
      */
-    CharSequence subSequence( int start,  int end);
+    CharSequence subSequence(int start, int end);
 
     /**
      * Returns a string containing the characters in this sequence in the same
@@ -134,8 +131,7 @@ public interface CharSequence {
      *
      * @return  a string consisting of exactly this sequence of characters
      */
-    
-    public  String toString();
+    public String toString();
 
     /**
      * Returns a stream of {@code int} zero-extending the {@code char} values

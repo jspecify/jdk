@@ -82,6 +82,7 @@ import org.jspecify.annotations.NullMarked;
  * @author  Michael McCloskey
  * @since   1.2
  */
+
 @NullMarked
 public final class URLDecoder {
 

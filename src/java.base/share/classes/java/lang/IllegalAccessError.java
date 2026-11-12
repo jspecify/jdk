@@ -46,7 +46,6 @@ public class IllegalAccessError extends IncompatibleClassChangeError {
     /**
      * Constructs an {@code IllegalAccessError} with no detail message.
      */
-    
     public IllegalAccessError() {
         super();
     }
@@ -57,7 +56,6 @@ public class IllegalAccessError extends IncompatibleClassChangeError {
      *
      * @param   s   the detail message.
      */
-    
     public IllegalAccessError(@Nullable String s) {
         super(s);
     }

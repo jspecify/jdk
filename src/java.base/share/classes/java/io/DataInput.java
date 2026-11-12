@@ -273,7 +273,7 @@ public interface DataInput {
      * @return     the number of bytes actually skipped.
      * @throws     IOException   if an I/O error occurs.
      */
-     int skipBytes(int n) throws IOException;
+    int skipBytes(int n) throws IOException;
 
     /**
      * Reads one input byte and returns
@@ -324,7 +324,7 @@ public interface DataInput {
      *               all the bytes.
      * @throws     IOException   if an I/O error occurs.
      */
-     int readUnsignedByte() throws IOException;
+    int readUnsignedByte() throws IOException;
 
     /**
      * Reads two input bytes and returns
@@ -368,7 +368,7 @@ public interface DataInput {
      *               all the bytes.
      * @throws     IOException   if an I/O error occurs.
      */
-     int readUnsignedShort() throws IOException;
+    int readUnsignedShort() throws IOException;
 
     /**
      * Reads two input bytes and returns a {@code char} value.

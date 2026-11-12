@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 import jdk.internal.misc.Blocker;
 import jdk.internal.util.StaticProperty;
 
@@ -312,7 +311,6 @@ public abstract class Process implements Closeable {
      * @return the output stream connected to the normal input of the
      *         process
      */
-    
     public abstract OutputStream getOutputStream();
 
     /**

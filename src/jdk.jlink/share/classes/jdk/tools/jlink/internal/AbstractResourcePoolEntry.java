@@ -82,8 +82,6 @@ abstract class AbstractResourcePoolEntry implements ResourcePoolEntry {
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object other) {
         if (!(other instanceof AbstractResourcePoolEntry)) {
             return false;

@@ -146,8 +146,6 @@ public final class ModelIdentifier {
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof ModelIdentifier))
             return false;

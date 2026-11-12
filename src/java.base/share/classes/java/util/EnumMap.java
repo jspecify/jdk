@@ -127,7 +127,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
     }
 
     @SuppressWarnings("unchecked")
-    private  V unmaskNull(Object value) {
+    private V unmaskNull(Object value) {
         return (V)(value == NULL ? null : value);
     }
 
@@ -194,8 +194,7 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      *
      * @return the number of key-value mappings in this map
      */
-    
-    public  int size() {
+    public int size() {
         return size;
     }
 
@@ -206,7 +205,6 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      * @param value the value whose presence in this map is to be tested
      * @return {@code true} if this map maps one or more keys to this value
      */
-    
     public boolean containsValue(@Nullable Object value) {
         value = maskNull(value);
 
@@ -225,8 +223,6 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      * @return {@code true} if this map contains a mapping for the specified
      *            key
      */
-    
-    
     public boolean containsKey(@Nullable Object key) {
         return isValidKey(key) && vals[((Enum<?>)key).ordinal()] != null;
     }
@@ -272,7 +268,6 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      *     {@code null} with the specified key.)
      * @throws NullPointerException if the specified key is null
      */
-    
     public @Nullable V put(K key, V value) {
         typeCheck(key);
 
@@ -320,7 +315,6 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      * Returns true if key is of the proper type to be a key in this
      * enum map.
      */
-    
     private boolean isValidKey(Object key) {
         if (key == null)
             return false;
@@ -341,9 +335,6 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      * @throws NullPointerException the specified map is null, or if
      *     one or more keys in the specified map are null
      */
-    
-    @SuppressWarnings({"nullness:contracts.precondition.override.invalid"})
-    
     public void putAll(Map<? extends K, ? extends V> m) {
         if (m instanceof EnumMap<?, ?> em) {
             if (em.keyType != keyType) {
@@ -401,15 +392,12 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
     }
 
     private class KeySet extends AbstractSet<K> {
-        
         public Iterator<K> iterator() {
             return new KeyIterator();
         }
-        
-        public  int size() {
+        public int size() {
             return size;
         }
-        
         public boolean contains(Object o) {
             return containsKey(o);
         }
@@ -443,15 +431,12 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
     }
 
     private class Values extends AbstractCollection<V> {
-        
         public Iterator<V> iterator() {
             return new ValueIterator();
         }
-        
-        public  int size() {
+        public int size() {
             return size;
         }
-        
         public boolean contains(Object o) {
             return containsValue(o);
         }
@@ -481,7 +466,6 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
      *
      * @return a set view of the mappings contained in this enum map
      */
-    
     public Set<Map.Entry<K,V>> entrySet() {
         Set<Map.Entry<K,V>> es = entrySet;
         if (es != null)
@@ -491,7 +475,6 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
     }
 
     private class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        
         public Iterator<Map.Entry<K,V>> iterator() {
             return new EntryIterator();
         }
@@ -504,24 +487,16 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
             return o instanceof Map.Entry<?, ?> entry
                     && removeMapping(entry.getKey(), entry.getValue());
         }
-        
-        public  int size() {
+        public int size() {
             return size;
         }
         public void clear() {
             EnumMap.this.clear();
         }
-        
         public Object[] toArray() {
             return fillEntryArray(new Object[size]);
         }
-        
-        
-        @SuppressWarnings({
-            "unchecked",
-            "nullness:argument.type.incompatible",
-            "nullness:override.param.invalid"
-        })
+        @SuppressWarnings("unchecked")
         public <T> T[] toArray(T[] a) {
             int size = size();
             if (a.length < size)
@@ -531,8 +506,6 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
                 a[size] = null;
             return (T[]) fillEntryArray(a);
         }
-        
-        @SuppressWarnings({"nullness:argument.type.incompatible"})
         private Object[] fillEntryArray(Object[] a) {
             int j = 0;
             for (int i = 0; i < vals.length; i++)
@@ -582,8 +555,6 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
     }
 
     private class ValueIterator extends EnumMapIterator<V> {
-        
-        @SuppressWarnings({"nullness:return.type.incompatible"})
         public V next() {
             if (!hasNext())
                 throw new NoSuchElementException();
@@ -622,15 +593,11 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
                 return keyUniverse[index];
             }
 
-            
-            @SuppressWarnings("nullness:return.type.incompatible")
             public V getValue() {
                 checkIndexForEntryUse();
                 return unmaskNull(vals[index]);
             }
 
-            
-            @SuppressWarnings("nullness:return.type.incompatible")
             public V setValue(V value) {
                 checkIndexForEntryUse();
                 V oldValue = unmaskNull(vals[index]);
@@ -747,8 +714,6 @@ public class EnumMap<K extends Enum<K>, V extends @Nullable Object> extends Abst
         return h;
     }
 
-    
-    @SuppressWarnings({"nullness:dereference.of.nullable"})
     private int entryHashCode(int index) {
         return (keyUniverse[index].hashCode() ^ vals[index].hashCode());
     }

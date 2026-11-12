@@ -177,8 +177,6 @@ public class DOMTransform extends DOMStructure implements Transform {
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object o) {
         if (this == o) {
             return true;

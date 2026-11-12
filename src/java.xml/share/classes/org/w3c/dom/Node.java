@@ -227,7 +227,6 @@ public interface Node {
     /**
      * The name of this node, depending on its type; see the table above.
      */
-    
     public String getNodeName();
 
     /**
@@ -239,7 +238,6 @@ public interface Node {
      *   fit in a <code>DOMString</code> variable on the implementation
      *   platform.
      */
-    
     public @Nullable String getNodeValue()
                               throws DOMException;
     /**
@@ -256,7 +254,6 @@ public interface Node {
     /**
      * A code representing the type of the underlying object, as defined above.
      */
-    
     public short getNodeType();
 
     /**
@@ -267,7 +264,6 @@ public interface Node {
      * tree, or if it has been removed from the tree, this is
      * <code>null</code>.
      */
-    
     public @Nullable Node getParentNode();
 
     /**
@@ -275,42 +271,36 @@ public interface Node {
      * there are no children, this is a <code>NodeList</code> containing no
      * nodes.
      */
-    
     public NodeList getChildNodes();
 
     /**
      * The first child of this node. If there is no such node, this returns
      * <code>null</code>.
      */
-    
     public @Nullable Node getFirstChild();
 
     /**
      * The last child of this node. If there is no such node, this returns
      * <code>null</code>.
      */
-    
     public @Nullable Node getLastChild();
 
     /**
      * The node immediately preceding this node. If there is no such node,
      * this returns <code>null</code>.
      */
-    
     public @Nullable Node getPreviousSibling();
 
     /**
      * The node immediately following this node. If there is no such node,
      * this returns <code>null</code>.
      */
-    
     public @Nullable Node getNextSibling();
 
     /**
      * A <code>NamedNodeMap</code> containing the attributes of this node (if
      * it is an <code>Element</code>) or <code>null</code> otherwise.
      */
-    
     public @Nullable NamedNodeMap getAttributes();
 
     /**
@@ -322,7 +312,6 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    
     public @Nullable Document getOwnerDocument();
 
     /**
@@ -454,7 +443,6 @@ public interface Node {
      * @return Returns <code>true</code> if this node has any children,
      *   <code>false</code> otherwise.
      */
-    
     public boolean hasChildNodes();
 
     /**
@@ -528,7 +516,6 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    
     public boolean isSupported(String feature,
                                @Nullable String version);
 
@@ -549,7 +536,6 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    
     public @Nullable String getNamespaceURI();
 
     /**
@@ -574,7 +560,6 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    
     public @Nullable String getPrefix();
     /**
      * The namespace prefix of this node, or <code>null</code> if it is
@@ -624,7 +609,6 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    
     public @Nullable String getLocalName();
 
     /**
@@ -634,7 +618,6 @@ public interface Node {
      *
      * @since 1.4, DOM Level 2
      */
-    
     public boolean hasAttributes();
 
     /**
@@ -649,7 +632,6 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public @Nullable String getBaseURI();
 
     // DocumentPosition
@@ -697,7 +679,6 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public short compareDocumentPosition(Node other)
                                          throws DOMException;
 
@@ -754,7 +735,6 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public @Nullable String getTextContent()
                                          throws DOMException;
     /**
@@ -826,7 +806,6 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public boolean isSameNode(Node other);
 
     /**
@@ -842,7 +821,6 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public @Nullable String lookupPrefix(@Nullable String namespaceURI);
 
     /**
@@ -855,7 +833,6 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public boolean isDefaultNamespace(@Nullable String namespaceURI);
 
     /**
@@ -870,7 +847,6 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public @Nullable String lookupNamespaceURI(@Nullable String prefix);
 
     /**
@@ -937,7 +913,6 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public boolean isEqualNode(Node arg);
 
     /**
@@ -963,7 +938,6 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public @Nullable Object getFeature(String feature,
                              @Nullable String version);
 
@@ -995,7 +969,6 @@ public interface Node {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public @Nullable Object getUserData(String key);
 
 }

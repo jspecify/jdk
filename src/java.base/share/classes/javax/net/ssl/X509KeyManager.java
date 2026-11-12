@@ -83,7 +83,7 @@ public interface X509KeyManager extends KeyManager {
      *          are no matches.
      */
     @Nullable String chooseClientAlias(String[] keyType, Principal @Nullable [] issuers,
-        @Nullable Socket socket);
+                             @Nullable Socket socket);
 
     /**
      * Get the matching aliases for authenticating the server side of a secure
@@ -114,7 +114,7 @@ public interface X509KeyManager extends KeyManager {
      *          are no matches.
      */
     @Nullable String chooseServerAlias(String keyType, Principal @Nullable [] issuers,
-        @Nullable Socket socket);
+                             @Nullable Socket socket);
 
     /**
      * Returns the certificate chain associated with the given alias.

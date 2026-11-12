@@ -25,7 +25,6 @@
 
 package java.util;
 
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -137,7 +136,6 @@ import jdk.internal.util.ArraysSupport;
  * @see     TreeMap
  * @since 1.0
  */
-
 @NullMarked
 public class Hashtable<K,V>
     extends Dictionary<K,V>
@@ -190,7 +188,7 @@ public class Hashtable<K,V>
      * @throws     IllegalArgumentException  if the initial capacity is less
      *             than zero, or if the load factor is nonpositive.
      */
-    public Hashtable( int initialCapacity, float loadFactor) {
+    public Hashtable(int initialCapacity, float loadFactor) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal Capacity: "+
                                                initialCapacity);
@@ -212,7 +210,7 @@ public class Hashtable<K,V>
      * @throws    IllegalArgumentException if the initial capacity is less
      *              than zero.
      */
-    public Hashtable( int initialCapacity) {
+    public Hashtable(int initialCapacity) {
         this(initialCapacity, 0.75f);
     }
 
@@ -252,8 +250,7 @@ public class Hashtable<K,V>
      *
      * @return  the number of keys in this hashtable.
      */
-    
-    public synchronized  int size() {
+    public synchronized int size() {
         return count;
     }
 
@@ -263,7 +260,6 @@ public class Hashtable<K,V>
      * @return  {@code true} if this hashtable maps no keys to values;
      *          {@code false} otherwise.
      */
-    
     public synchronized boolean isEmpty() {
         return count == 0;
     }
@@ -280,7 +276,7 @@ public class Hashtable<K,V>
      * @see     #keySet()
      * @see     Map
      */
-    public synchronized Enumeration< K> keys() {
+    public synchronized Enumeration<K> keys() {
         return this.<K>getEnumeration(KEYS);
     }
 
@@ -316,8 +312,7 @@ public class Hashtable<K,V>
      *             {@code false} otherwise.
      * @throws     NullPointerException  if the value is {@code null}
      */
-    
-    public synchronized boolean contains( Object value) {
+    public synchronized boolean contains(Object value) {
         if (value == null) {
             throw new NullPointerException();
         }
@@ -345,8 +340,7 @@ public class Hashtable<K,V>
      * @throws NullPointerException  if the value is {@code null}
      * @since 1.2
      */
-    
-    public boolean containsValue( Object value) {
+    public boolean containsValue(Object value) {
         return contains(value);
     }
 
@@ -360,9 +354,7 @@ public class Hashtable<K,V>
      * @throws  NullPointerException  if the key is {@code null}
      * @see     #contains(Object)
      */
-    
-    
-    public synchronized boolean containsKey( Object key) {
+    public synchronized boolean containsKey(Object key) {
         Entry<?,?> tab[] = table;
         int hash = key.hashCode();
         int index = (hash & 0x7FFFFFFF) % tab.length;
@@ -389,9 +381,8 @@ public class Hashtable<K,V>
      * @throws NullPointerException if the specified key is null
      * @see     #put(Object, Object)
      */
-    
     @SuppressWarnings("unchecked")
-    public synchronized @Nullable V get( Object key) {
+    public synchronized @Nullable V get(Object key) {
         Entry<?,?> tab[] = table;
         int hash = key.hashCode();
         int index = (hash & 0x7FFFFFFF) % tab.length;
@@ -482,7 +473,6 @@ public class Hashtable<K,V>
      * @see     Object#equals(Object)
      * @see     #get(Object)
      */
-    
     public synchronized @Nullable V put(K key, V value) {
         // Make sure the value is not null
         if (value == null) {
@@ -571,7 +561,6 @@ public class Hashtable<K,V>
      *
      * @return  a clone of the hashtable
      */
-    
     public synchronized Object clone() {
         Hashtable<?,?> t = cloneHashtable();
         t.table = new Entry<?,?>[table.length];
@@ -672,20 +661,17 @@ public class Hashtable<K,V>
      *
      * @since 1.2
      */
-    
-    public Set< K> keySet() {
+    public Set<K> keySet() {
         if (keySet == null)
             keySet = Collections.synchronizedSet(new KeySet(), this);
         return keySet;
     }
 
     private class KeySet extends AbstractSet<K> {
-        
         public Iterator<K> iterator() {
             return getIterator(KEYS);
         }
-        
-        public  int size() {
+        public int size() {
             return count;
         }
         public boolean contains(Object o) {
@@ -715,15 +701,13 @@ public class Hashtable<K,V>
      *
      * @since 1.2
      */
-    
-    public Set<Map.Entry< K,V>> entrySet() {
+    public Set<Map.Entry<K,V>> entrySet() {
         if (entrySet==null)
             entrySet = Collections.synchronizedSet(new EntrySet(), this);
         return entrySet;
     }
 
     private class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        
         public Iterator<Map.Entry<K,V>> iterator() {
             return getIterator(ENTRIES);
         }
@@ -772,8 +756,7 @@ public class Hashtable<K,V>
             return false;
         }
 
-        
-        public  int size() {
+        public int size() {
             return count;
         }
 
@@ -797,7 +780,6 @@ public class Hashtable<K,V>
      *
      * @since 1.2
      */
-    
     public Collection<V> values() {
         if (values==null)
             values = Collections.synchronizedCollection(new ValueCollection(),
@@ -806,12 +788,10 @@ public class Hashtable<K,V>
     }
 
     private class ValueCollection extends AbstractCollection<V> {
-        
         public Iterator<V> iterator() {
             return getIterator(VALUES);
         }
-        
-        public  int size() {
+        public int size() {
             return count;
         }
         public boolean contains(Object o) {
@@ -833,8 +813,7 @@ public class Hashtable<K,V>
      * @see Map#equals(Object)
      * @since 1.2
      */
-    
-    public synchronized boolean equals( @Nullable Object o) {
+    public synchronized boolean equals(@Nullable Object o) {
         if (o == this)
             return true;
 
@@ -869,7 +848,6 @@ public class Hashtable<K,V>
      * @see Map#hashCode()
      * @since 1.2
      */
-    
     public synchronized int hashCode() {
         /*
          * This code detects the recursion caused by computing the hash code
@@ -946,7 +924,6 @@ public class Hashtable<K,V>
         }
     }
 
-    
     @Override
     public synchronized @Nullable V putIfAbsent(K key, V value) {
         Objects.requireNonNull(value);
@@ -1403,7 +1380,6 @@ public class Hashtable<K,V>
             this.next = next;
         }
 
-        
         @SuppressWarnings("unchecked")
         protected Object clone() {
             return new Entry<>(hash, key, value,

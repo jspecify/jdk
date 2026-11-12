@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -54,7 +53,7 @@ public class PushbackReader extends FilterReader {
      * @param   size The size of the pushback buffer
      * @throws  IllegalArgumentException if {@code size <= 0}
      */
-    public PushbackReader(Reader in,  int size) {
+    public PushbackReader(Reader in, int size) {
         super(in);
         if (size <= 0) {
             throw new IllegalArgumentException("size <= 0");
@@ -206,7 +205,7 @@ public class PushbackReader extends FilterReader {
      *
      * @throws     IOException  Always, since mark is not supported
      */
-    public void mark( int readAheadLimit) throws IOException {
+    public void mark(int readAheadLimit) throws IOException {
         throw new IOException("mark/reset not supported");
     }
 
@@ -247,7 +246,7 @@ public class PushbackReader extends FilterReader {
     /**
      * {@inheritDoc}
      */
-    public  long skip( long n) throws IOException {
+    public long skip(long n) throws IOException {
         if (n < 0L)
             throw new IllegalArgumentException("skip value is negative");
         synchronized (lock) {

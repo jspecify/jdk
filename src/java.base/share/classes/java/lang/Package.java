@@ -125,7 +125,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      *          <cite>The Java Language Specification</cite>,
      *          for example, {@code java.lang}
      */
-    public  String getName() {
+    public String getName() {
         return packageName();
     }
 
@@ -230,7 +230,6 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @return true if the package is sealed, false otherwise
      *
      */
-    
     public boolean isSealed() {
         return module().isNamed() || versionInfo.sealBase != null;
     }
@@ -249,8 +248,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @param  url the code source URL
      * @return true if this package is sealed with respect to the given {@code url}
      */
-    
-    public boolean isSealed( URL url) {
+    public boolean isSealed(URL url) {
         Objects.requireNonNull(url);
 
         URL sealBase = null;
@@ -288,7 +286,6 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @throws NumberFormatException if the current version is not known or
      *         the desired or current version is not of the correct dotted form.
      */
-    
     public boolean isCompatibleWith(String desired)
         throws NumberFormatException
     {
@@ -358,7 +355,6 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      *
      * @see ClassLoader#getDefinedPackage
      */
-    
     @CallerSensitive
     @Deprecated(since="9")
     public static @Nullable Package getPackage(String name) {
@@ -380,7 +376,6 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      *
      * @see ClassLoader#getDefinedPackages
      */
-    
     @CallerSensitive
     public static Package[] getPackages() {
         ClassLoader cl = ClassLoader.getClassLoader(Reflection.getCallerClass());
@@ -391,7 +386,6 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * Return the hash code computed from the package name.
      * @return the hash code computed from the package name.
      */
-    
     @Override
     public int hashCode(){
         return packageName().hashCode();
@@ -404,7 +398,6 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * If the package version is defined it is appended.
      * @return the string representation of the package.
      */
-    
     @Override
     public String toString() {
         String spec = versionInfo.specTitle;
@@ -462,9 +455,8 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
-    
     @Override
-    public boolean isAnnotationPresent( Class<? extends Annotation> annotationClass) {
+    public boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
         return AnnotatedElement.super.isAnnotationPresent(annotationClass);
     }
 
@@ -542,7 +534,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @param sealbase code source where this Package comes from
      * @param loader defining class loader
      */
-    Package( String name,
+    Package(String name,
             String spectitle, String specversion, String specvendor,
             String impltitle, String implversion, String implvendor,
             URL sealbase, ClassLoader loader)
@@ -557,7 +549,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
                                                    sealbase);
     }
 
-    Package( String name, Module module) {
+    Package(String name, Module module) {
         super(name, module);
         this.versionInfo = VersionInfo.NULL_VERSION_INFO;
     }

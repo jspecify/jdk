@@ -256,7 +256,6 @@ import static sun.font.EAttribute.EWIDTH;
  * especially important are called out as having 'baseline-relative
  * coordinates.'
  */
-
 public class Font implements java.io.Serializable
 {
     private static class FontAccessImpl extends FontAccess {
@@ -308,7 +307,7 @@ public class Font implements java.io.Serializable
      * to provide compile-time verification of the name.
      * @since 1.6
      */
-    public static final  String DIALOG = "Dialog";
+    public static final String DIALOG = "Dialog";
 
     /**
      * A String constant for the canonical family name of the
@@ -316,7 +315,7 @@ public class Font implements java.io.Serializable
      * to provide compile-time verification of the name.
      * @since 1.6
      */
-    public static final  String DIALOG_INPUT = "DialogInput";
+    public static final String DIALOG_INPUT = "DialogInput";
 
     /**
      * A String constant for the canonical family name of the
@@ -324,7 +323,7 @@ public class Font implements java.io.Serializable
      * to provide compile-time verification of the name.
      * @since 1.6
      */
-    public static final  String SANS_SERIF = "SansSerif";
+    public static final String SANS_SERIF = "SansSerif";
 
     /**
      * A String constant for the canonical family name of the
@@ -332,7 +331,7 @@ public class Font implements java.io.Serializable
      * to provide compile-time verification of the name.
      * @since 1.6
      */
-    public static final  String SERIF = "Serif";
+    public static final String SERIF = "Serif";
 
     /**
      * A String constant for the canonical family name of the
@@ -340,7 +339,7 @@ public class Font implements java.io.Serializable
      * to provide compile-time verification of the name.
      * @since 1.6
      */
-    public static final  String MONOSPACED = "Monospaced";
+    public static final String MONOSPACED = "Monospaced";
 
     /*
      * Constants to be used for styles. Can be combined to mix
@@ -1696,8 +1695,6 @@ public class Font implements java.io.Serializable
      *          {@code false} otherwise.
      * @since 1.0
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this) {
             return true;

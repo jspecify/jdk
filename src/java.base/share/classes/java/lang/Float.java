@@ -143,7 +143,7 @@ public final /*value*/ class Float extends Number
      *
      * @since 1.5
      */
-    public static final  int SIZE = 32;
+    public static final int SIZE = 32;
 
     /**
      * The number of bits in the significand of a {@code float} value,
@@ -178,7 +178,7 @@ public final /*value*/ class Float extends Number
      *
      * @since 1.8
      */
-    public static final  int BYTES = SIZE / Byte.SIZE;
+    public static final int BYTES = SIZE / Byte.SIZE;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -337,8 +337,6 @@ public final /*value*/ class Float extends Number
      * @param   f   the {@code float} to be converted.
      * @return a string representation of the argument.
      */
-    
-    
     public static String toString(float f) {
         return FloatToDecimal.toString(f);
     }
@@ -425,8 +423,6 @@ public final /*value*/ class Float extends Number
      * @return a hex string representation of the argument.
      * @since 1.5
      */
-    
-    
     public static String toHexString(float f) {
         if (Math.abs(f) < Float.MIN_NORMAL
             &&  f != 0.0f ) {// float subnormal
@@ -572,8 +568,6 @@ public final /*value*/ class Float extends Number
      *          parsable number.
      * @see Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
      */
-    
-    
     public static Float valueOf(String s) throws NumberFormatException {
         return new Float(parseFloat(s));
     }
@@ -622,8 +616,6 @@ public final /*value*/ class Float extends Number
      * @see    Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
      * @since 1.2
      */
-    
-    
     public static float parseFloat(String s) throws NumberFormatException {
         return FloatingDecimal.parseFloat(s);
     }
@@ -640,8 +632,6 @@ public final /*value*/ class Float extends Number
      * @return  {@code true} if the argument is NaN;
      *          {@code false} otherwise.
      */
-    
-    
     public static boolean isNaN(float v) {
         return (v != v);
     }
@@ -751,8 +741,6 @@ public final /*value*/ class Float extends Number
      * @return  {@code true} if the value represented by this object is
      *          NaN; {@code false} otherwise.
      */
-    
-    
     public boolean isNaN() {
         return isNaN(value);
     }
@@ -765,8 +753,6 @@ public final /*value*/ class Float extends Number
      *          positive infinity or negative infinity;
      *          {@code false} otherwise.
      */
-    
-    
     public boolean isInfinite() {
         return isInfinite(value);
     }
@@ -780,8 +766,6 @@ public final /*value*/ class Float extends Number
      * @return  a {@code String} representation of this object.
      * @see java.lang.Float#toString(float)
      */
-    
-    
     public String toString() {
         return Float.toString(value);
     }
@@ -884,8 +868,6 @@ public final /*value*/ class Float extends Number
      *
      * @return a hash code value for this object.
      */
-    
-    
     @Override
     public int hashCode() {
         return Float.hashCode(value);
@@ -899,8 +881,6 @@ public final /*value*/ class Float extends Number
      * @return a hash code value for a {@code float} value.
      * @since 1.8
      */
-    
-    
     public static int hashCode(float value) {
         return floatToIntBits(value);
     }
@@ -1345,8 +1325,6 @@ public final /*value*/ class Float extends Number
      *          {@code f2}.
      * @since 1.4
      */
-    
-    
     public static int compare(float f1, float f2) {
         if (f1 < f2)
             return -1;           // Neither val is NaN, thisVal is smaller
@@ -1375,8 +1353,6 @@ public final /*value*/ class Float extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static float sum(float a, float b) {
         return a + b;
     }
@@ -1395,8 +1371,6 @@ public final /*value*/ class Float extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static float max(float a, float b) {
         return Math.max(a, b);
     }
@@ -1415,8 +1389,6 @@ public final /*value*/ class Float extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static float min(float a, float b) {
         return Math.min(a, b);
     }

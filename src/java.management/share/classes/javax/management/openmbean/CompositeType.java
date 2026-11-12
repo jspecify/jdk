@@ -60,9 +60,9 @@ public class CompositeType extends OpenType<CompositeData> {
 
     /* As this instance is immutable, following three values need only
      * be calculated once.  */
-    private transient  Integer myHashCode = null;
-    private transient  String  myToString = null;
-    private transient  Set<String> myNamesSet = null;
+    private transient Integer myHashCode = null;
+    private transient String  myToString = null;
+    private transient Set<String> myNamesSet = null;
 
 
     /* *** Constructor *** */
@@ -185,7 +185,6 @@ public class CompositeType extends OpenType<CompositeData> {
      *
      * @return true if an item of this name is present.
      */
-    
     public boolean containsKey(@Nullable String itemName) {
 
         if (itemName == null) {

@@ -209,8 +209,6 @@ public final class MarshalledObject<T> implements Serializable {
      * serialized object; <code>false</code> otherwise
      * @since 1.2
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;

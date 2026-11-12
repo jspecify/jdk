@@ -1000,8 +1000,6 @@ public final /*value*/ class Period
      * @return true if this is equal to the other period
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

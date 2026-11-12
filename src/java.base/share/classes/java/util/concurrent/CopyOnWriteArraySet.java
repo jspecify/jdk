@@ -144,7 +144,6 @@ public class CopyOnWriteArraySet<E extends @Nullable Object> extends AbstractSet
      *
      * @return the number of elements in this set
      */
-    
     public int size() {
         return al.size();
     }
@@ -154,7 +153,6 @@ public class CopyOnWriteArraySet<E extends @Nullable Object> extends AbstractSet
      *
      * @return {@code true} if this set contains no elements
      */
-    
     public boolean isEmpty() {
         return al.isEmpty();
     }
@@ -419,8 +417,6 @@ public class CopyOnWriteArraySet<E extends @Nullable Object> extends AbstractSet
      * @param o object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         return (o == this)
             || ((o instanceof Set)

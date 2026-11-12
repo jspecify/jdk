@@ -378,7 +378,7 @@ import jdk.internal.reflect.Reflection;
  */
 
 @NullMarked
-public final  class ServiceLoader<S>
+public final class ServiceLoader<S>
     implements Iterable<S>
 {
     // The class or interface representing the service being loaded
@@ -1218,7 +1218,6 @@ public final  class ServiceLoader<S>
      * @return  An iterator that lazily loads providers for this loader's
      *          service
      */
-    
     public Iterator<S> iterator() {
 
         // create lookup iterator if needed
@@ -1697,7 +1696,6 @@ public final  class ServiceLoader<S>
      *
      * @return  A descriptive string
      */
-    
     public String toString() {
         return "java.util.ServiceLoader[" + service.getName() + "]";
     }

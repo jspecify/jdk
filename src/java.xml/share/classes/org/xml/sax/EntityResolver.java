@@ -126,7 +126,6 @@ public interface EntityResolver {
      *            or Reader for the InputSource.
      * @see org.xml.sax.InputSource
      */
-    
     public abstract @Nullable InputSource resolveEntity (@Nullable String publicId,
                                                String systemId)
         throws SAXException, IOException;

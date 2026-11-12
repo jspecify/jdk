@@ -86,7 +86,6 @@ import jdk.internal.util.ArraysSupport;
  * @author Josh Bloch, Doug Lea
  * @param <E> the type of elements held in this queue
  */
-
 @NullMarked
 @SuppressWarnings("unchecked")
 public class PriorityQueue<E> extends AbstractQueue<E>
@@ -143,7 +142,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @throws IllegalArgumentException if {@code initialCapacity} is less
      *         than 1
      */
-    public PriorityQueue( int initialCapacity) {
+    public PriorityQueue(int initialCapacity) {
         this(initialCapacity, null);
     }
 
@@ -171,7 +170,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @throws IllegalArgumentException if {@code initialCapacity} is
      *         less than 1
      */
-    public PriorityQueue( int initialCapacity,
+    public PriorityQueue(int initialCapacity,
                          @Nullable Comparator<? super E> comparator) {
         // Note: This restriction of at least one is not actually needed,
         // but continues for 1.5 compatibility
@@ -421,7 +420,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @param o object to be checked for containment in this queue
      * @return {@code true} if this queue contains the specified element
      */
-    
     public boolean contains(@Nullable Object o) {
         return indexOf(o) >= 0;
     }
@@ -439,7 +437,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    
     public Object[] toArray() {
         return Arrays.copyOf(queue, size);
     }
@@ -480,7 +477,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      *         this queue
      * @throws NullPointerException if the specified array is null
      */
-    
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         final int size = this.size;
         if (a.length < size)
@@ -498,7 +494,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      *
      * @return an iterator over the elements in this queue
      */
-    
     public Iterator<E> iterator() {
         return new Itr();
     }
@@ -587,8 +582,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         }
     }
 
-    
-    public  int size() {
+    public int size() {
         return size;
     }
 
@@ -779,7 +773,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      *         {@code null} if this queue is sorted according to the
      *         natural ordering of its elements
      */
-    
     public @Nullable Comparator<? super E> comparator() {
         return comparator;
     }

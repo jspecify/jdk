@@ -204,7 +204,7 @@ import sun.security.util.CryptoAlgorithmConstraints;
  */
 
 @NullMarked
-public  class KeyStore {
+public class KeyStore {
 
     private static final Debug kdebug = Debug.getInstance("keystore");
     private static final Debug pdebug =

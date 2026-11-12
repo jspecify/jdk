@@ -95,7 +95,7 @@ public interface ObjectInput extends DataInput, AutoCloseable {
      * @return  the actual number of bytes skipped.
      * @throws   IOException If an I/O error has occurred.
      */
-    public  long skip(long n) throws IOException;
+    public long skip(long n) throws IOException;
 
     /**
      * Returns the number of bytes that can be read
@@ -103,7 +103,7 @@ public interface ObjectInput extends DataInput, AutoCloseable {
      * @return  the number of available bytes.
      * @throws  IOException If an I/O error has occurred.
      */
-    public  int available() throws IOException;
+    public int available() throws IOException;
 
     /**
      * Closes the input stream. Must be called

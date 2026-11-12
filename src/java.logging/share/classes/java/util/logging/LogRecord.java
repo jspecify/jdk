@@ -73,7 +73,7 @@ import static jdk.internal.logger.SurrogateLogger.isFilteredFrame;
  */
 
 @NullMarked
-public  class LogRecord implements java.io.Serializable {
+public class LogRecord implements java.io.Serializable {
     private static final AtomicLong globalSequenceNumber
         = new AtomicLong();
 
@@ -280,7 +280,7 @@ public  class LogRecord implements java.io.Serializable {
      * The result may be null if the message is not localizable.
      * @return the localization resource bundle name
      */
-    public @Nullable  String getResourceBundleName() {
+    public @Nullable String getResourceBundleName() {
         return resourceBundleName;
     }
 

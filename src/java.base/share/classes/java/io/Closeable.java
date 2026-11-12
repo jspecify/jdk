@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 
@@ -53,6 +52,5 @@ public interface Closeable extends AutoCloseable {
      *
      * @throws IOException if an I/O error occurs
      */
-    
     public void close() throws IOException;
 }

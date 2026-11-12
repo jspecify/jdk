@@ -202,7 +202,7 @@ import static jdk.internal.util.Exceptions.formatMsg;
 
 @NullMarked
 public final
- class Inet6Address extends InetAddress {
+class Inet6Address extends InetAddress {
     static final int INADDRSZ = 16;
 
     private static class Inet6AddressHolder {

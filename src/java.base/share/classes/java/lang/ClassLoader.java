@@ -502,7 +502,7 @@ public abstract class ClassLoader {
      * @throws  ClassNotFoundException
      *          If the class was not found
      */
-    public Class<?> loadClass( String name) throws ClassNotFoundException {
+    public Class<?> loadClass(String name) throws ClassNotFoundException {
         return loadClass(name, false);
     }
 
@@ -547,7 +547,7 @@ public abstract class ClassLoader {
      * @throws  ClassNotFoundException
      *          If the class could not be found
      */
-    protected Class<?> loadClass( String name, boolean resolve)
+    protected Class<?> loadClass(String name, boolean resolve)
         throws ClassNotFoundException
     {
         synchronized (getClassLoadingLock(name)) {
@@ -685,7 +685,7 @@ public abstract class ClassLoader {
      *
      * @since  1.2
      */
-    protected Class<?> findClass( String name) throws ClassNotFoundException {
+    protected Class<?> findClass(String name) throws ClassNotFoundException {
         throw new ClassNotFoundException(name);
     }
 
@@ -766,7 +766,6 @@ public abstract class ClassLoader {
      * defineClass(String, byte[], int, int)}
      */
     @Deprecated(since="1.1")
-    @SuppressWarnings("signature")
     protected final Class<?> defineClass(byte[] b, int off, int len)
         throws ClassFormatError
     {
@@ -837,7 +836,7 @@ public abstract class ClassLoader {
      *
      * @since  1.1
      */
-    protected final Class<?> defineClass(@Nullable  String name, byte[] b, int off, int len)
+    protected final Class<?> defineClass(@Nullable String name, byte[] b, int off, int len)
         throws ClassFormatError
     {
         return defineClass(name, b, off, len, null);
@@ -970,7 +969,7 @@ public abstract class ClassLoader {
      *          "{@code java.}" and this class loader is not the platform
      *          class loader or its ancestor.
      */
-    protected final Class<?> defineClass(@Nullable  String name, byte[] b, int off, int len,
+    protected final Class<?> defineClass(@Nullable String name, byte[] b, int off, int len,
                                          @Nullable ProtectionDomain protectionDomain)
         throws ClassFormatError
     {
@@ -1090,7 +1089,7 @@ public abstract class ClassLoader {
         }
     }
 
-    static native Class<?> defineClass1(ClassLoader loader,  String name, byte[] b, int off, int len,
+    static native Class<?> defineClass1(ClassLoader loader, String name, byte[] b, int off, int len,
                                         ProtectionDomain pd, String source);
 
     // Warning: Before calling this method, the provided ByteBuffer must be guarded
@@ -1233,7 +1232,7 @@ public abstract class ClassLoader {
      * @see  #ClassLoader(ClassLoader)
      * @see  #getParent()
      */
-    protected final Class<?> findSystemClass( String name)
+    protected final Class<?> findSystemClass(String name)
         throws ClassNotFoundException
     {
         return getSystemClassLoader().loadClass(name);
@@ -1266,7 +1265,7 @@ public abstract class ClassLoader {
      *
      * @since  1.1
      */
-    protected final @Nullable Class<?> findLoadedClass( String name) {
+    protected final @Nullable Class<?> findLoadedClass(String name) {
         if (!checkName(name))
             return null;
         return findLoadedClass0(name);
@@ -2094,7 +2093,7 @@ public abstract class ClassLoader {
      * @see <a href="{@docRoot}/../specs/jar/jar.html#package-sealing">
      *      The JAR File Specification: Package Sealing</a>
      */
-    protected Package definePackage( String name, @Nullable String specTitle,
+    protected Package definePackage(String name, @Nullable String specTitle,
                                     @Nullable String specVersion, @Nullable String specVendor,
                                     @Nullable String implTitle, @Nullable String implVersion,
                                     @Nullable String implVendor, @Nullable URL sealBase)
@@ -2232,8 +2231,6 @@ public abstract class ClassLoader {
      *
      * @since  1.2
      */
-    
-    @SuppressWarnings({"nullness:return.type.incompatible"})
     protected Package[] getPackages() {
         Stream<Package> pkgs = packages();
         ClassLoader ld = parent;
@@ -2526,7 +2523,6 @@ public abstract class ClassLoader {
      *
      * @since  1.4
      */
-    
     boolean desiredAssertionStatus(String className) {
         synchronized (assertionLock) {
             // assert classAssertionStatus   != null;
@@ -2559,8 +2555,6 @@ public abstract class ClassLoader {
 
     // Set up the assertions with information provided by the VM.
     // Note: Should only be called inside a synchronized block
-    @SuppressWarnings({"contracts.postcondition.not.satisfied"})
-    
     private void initializeJavaAssertionMaps() {
         // assert Thread.holdsLock(assertionLock);
 

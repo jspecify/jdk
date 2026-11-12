@@ -201,8 +201,6 @@ public class XSDDescription extends XMLResourceIdentifierImpl
      * @param descObj The description of the grammar to be compared with
      * @return        True if they are equal, else false
      */
-    
-    
     public boolean equals(@Nullable Object descObj) {
         if(!(descObj instanceof XMLSchemaDescription)) return false;
         XMLSchemaDescription desc = (XMLSchemaDescription)descObj;

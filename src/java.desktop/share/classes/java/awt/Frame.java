@@ -43,7 +43,6 @@ import javax.accessibility.AccessibleRole;
 import javax.accessibility.AccessibleState;
 import javax.accessibility.AccessibleStateSet;
 
-
 import sun.awt.AWTAccessor;
 import sun.awt.SunToolkit;
 

@@ -77,7 +77,6 @@ public interface Element extends Node {
      * the <code>tagName</code> of an HTML element in the canonical
      * uppercase form, regardless of the case in the source HTML document.
      */
-    
     public String getTagName();
 
     /**
@@ -86,7 +85,6 @@ public interface Element extends Node {
      * @return The <code>Attr</code> value as a string, or the empty string
      *   if that attribute does not have a specified or default value.
      */
-    
     public String getAttribute(String name);
 
     /**
@@ -143,7 +141,6 @@ public interface Element extends Node {
      *   <code>nodeName</code>) or <code>null</code> if there is no such
      *   attribute.
      */
-    
     public @Nullable Attr getAttributeNode(String name);
 
     /**
@@ -196,7 +193,6 @@ public interface Element extends Node {
      *   matches all tags.
      * @return A list of matching <code>Element</code> nodes.
      */
-    
     public NodeList getElementsByTagName(String name);
 
     /**
@@ -215,7 +211,6 @@ public interface Element extends Node {
      *   through the Document does not support XML Namespaces (such as [<a href='http://www.w3.org/TR/1999/REC-html401-19991224/'>HTML 4.01</a>]).
      * @since 1.4, DOM Level 2
      */
-    
     public String getAttributeNS(@Nullable String namespaceURI,
                                  String localName)
                                  throws DOMException;
@@ -312,7 +307,6 @@ public interface Element extends Node {
      *   through the Document does not support XML Namespaces (such as [<a href='http://www.w3.org/TR/1999/REC-html401-19991224/'>HTML 4.01</a>]).
      * @since 1.4, DOM Level 2
      */
-    
     public @Nullable Attr getAttributeNodeNS(@Nullable String namespaceURI,
                                    String localName)
                                    throws DOMException;
@@ -362,7 +356,6 @@ public interface Element extends Node {
      *   through the Document does not support XML Namespaces (such as [<a href='http://www.w3.org/TR/1999/REC-html401-19991224/'>HTML 4.01</a>]).
      * @since 1.4, DOM Level 2
      */
-    
     public NodeList getElementsByTagNameNS(@Nullable String namespaceURI,
                                            String localName)
                                            throws DOMException;
@@ -377,7 +370,6 @@ public interface Element extends Node {
      *    otherwise.
      * @since 1.4, DOM Level 2
      */
-    
     public boolean hasAttribute(String name);
 
     /**
@@ -399,7 +391,6 @@ public interface Element extends Node {
      *   through the Document does not support XML Namespaces (such as [<a href='http://www.w3.org/TR/1999/REC-html401-19991224/'>HTML 4.01</a>]).
      * @since 1.4, DOM Level 2
      */
-    
     public boolean hasAttributeNS(@Nullable String namespaceURI,
                                   String localName)
                                   throws DOMException;
@@ -408,7 +399,6 @@ public interface Element extends Node {
      *  The type information associated with this element.
      * @since 1.5, DOM Level 3
      */
-    
     public TypeInfo getSchemaTypeInfo();
 
     /**
