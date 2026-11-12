@@ -246,6 +246,32 @@ $(eval $(call SetupGenerateBuffersWithRO,false,))
 $(eval $(call SetupGenerateBuffersWithRO,true,R))
 
 ################################################################################
+# Verify that the checked-in public Buffer classes match the generated files
+
+PUBLIC_BUFFER_FILES := $(foreach t, $(NUMBER_TYPES), $(call titlecase, $(t))Buffer.java)
+PUBLIC_BUFFER_CHECK_MARKER := $(BUFFER_OUTPUT_DIR)/_check_public_buffers.marker
+
+$(PUBLIC_BUFFER_CHECK_MARKER): \
+    $(addprefix $(BUFFER_OUTPUT_DIR)/, $(PUBLIC_BUFFER_FILES)) \
+    $(addprefix $(BUFFER_INPUT_DIR)/, $(PUBLIC_BUFFER_FILES))
+	$(call LogInfo, Verifying checked-in public buffer classes match generated files)
+	failed=0; \
+	for f in $(PUBLIC_BUFFER_FILES); do \
+	  if ! $(DIFF) -u $(BUFFER_INPUT_DIR)/$$f $(BUFFER_OUTPUT_DIR)/$$f; then \
+	    failed=1; \
+	  fi; \
+	done; \
+	if [ $$failed -ne 0 ]; then \
+	  $(ECHO) "ERROR: Checked-in java.nio.*Buffer.java files are out of sync with generated files."; \
+	  $(ECHO) "To update them, run:"; \
+	  $(ECHO) "  cp $(addprefix $(BUFFER_OUTPUT_DIR)/, $(PUBLIC_BUFFER_FILES)) $(BUFFER_INPUT_DIR)/"; \
+	  exit 1; \
+	fi
+	$(TOUCH) $@
+
+TARGETS += $(PUBLIC_BUFFER_CHECK_MARKER)
+
+################################################################################
 
 endif # include guard
 include MakeIncludeEnd.gmk
