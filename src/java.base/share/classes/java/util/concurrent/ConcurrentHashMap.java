@@ -1263,7 +1263,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @return the set view
      */
     
-    public KeySetView< K,V> keySet() {
+    public KeySetView<K, @Nullable V> keySet() {
         KeySetView<K,V> ks;
         if ((ks = keySet) != null) return ks;
         return keySet = new KeySetView<K,V>(this, null);
@@ -4473,7 +4473,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Base class for views.
      */
-    abstract static sealed class CollectionView<K,V,E>
+    abstract static sealed class CollectionView<K,V extends @Nullable Object,E>
         implements Collection<E>, java.io.Serializable permits EntrySetView, KeySetView, ValuesView {
         private static final long serialVersionUID = 7249069246763182397L;
         final ConcurrentHashMap<K,V> map;
@@ -4484,7 +4484,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
          *
          * @return the map backing this view
          */
-        public ConcurrentHashMap<K,V> getMap() { return map; }
+        public ConcurrentHashMap<K, @NonNull V> getMap() { return map; }
 
         /**
          * Removes all of the elements from this view, by removing all
@@ -4514,7 +4514,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         private static final String OOME_MSG = "Required array size too large";
 
         
-        public final @Nullable Object[] toArray() {
+        public final Object[] toArray() {
             long sz = map.mappingCount();
             if (sz > MAX_ARRAY_SIZE)
                 throw new OutOfMemoryError(OOME_MSG);
@@ -4594,7 +4594,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return sb.append(']').toString();
         }
 
-        public final boolean containsAll(Collection<? extends  Object> c) {
+        public final boolean containsAll(Collection<?> c) {
             if (c != this) {
                 for (Object e : c) {
                     if (e == null || !contains(e))
@@ -4604,7 +4604,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return true;
         }
 
-        public boolean removeAll(Collection<?> c) {
+        public boolean removeAll(Collection<? extends Object> c) {
             if (c == null) throw new NullPointerException();
             boolean modified = false;
             // Use (c instanceof Set) as a hint that lookup in c is as
@@ -4654,7 +4654,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @since 1.8
      */
-    public static final class KeySetView<K,V> extends CollectionView<K,V,K>
+    public static final class KeySetView<K,V extends @Nullable Object> extends CollectionView<K,V,K>
         implements Set<K>, java.io.Serializable {
         private static final long serialVersionUID = 7249069246763182397L;
         /** @serial */
@@ -4749,7 +4749,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return h;
         }
 
-        public boolean equals(Object o) {
+        public boolean equals(@Nullable Object o) {
             Set<?> c;
             return ((o instanceof Set) &&
                     ((c = (Set<?>)o) == this ||
