@@ -185,9 +185,9 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * optimization.
      */
 
-    static final class Node<E extends @Nullable Object> {
+    static final class Node<E> {
         volatile E item;
-        volatile @Nullable Node<E> next;
+        volatile Node<E> next;
 
         /**
          * Constructs a node holding item.  Uses relaxed write because
@@ -428,7 +428,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * and the need to add a retry loop to deal with the possibility
      * of losing a race to a concurrent poll().
      */
-    @Nullable Node<E> first() {
+    Node<E> first() {
         restartFromHead: for (;;) {
             for (Node<E> h = head, p = h, q;; p = q) {
                 boolean hasItem = (p.item != null);
@@ -447,7 +447,6 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      *
      * @return {@code true} if this queue contains no elements
      */
-    
     public boolean isEmpty() {
         return first() == null;
     }
@@ -468,7 +467,6 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      *
      * @return the number of elements in this queue
      */
-    
     public int size() {
         restartFromHead: for (;;) {
             int count = 0;
@@ -491,7 +489,6 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * @param o object to be checked for containment in this queue
      * @return {@code true} if this queue contains the specified element
      */
-    
     public boolean contains(@Nullable Object o) {
         if (o == null) return false;
         restartFromHead: for (;;) {
@@ -678,7 +675,6 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    
     public Object[] toArray() {
         return toArrayInternal(null);
     }
@@ -718,7 +714,6 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      *         this queue
      * @throws NullPointerException if the specified array is null
      */
-    
     @SuppressWarnings("unchecked")
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         Objects.requireNonNull(a);
@@ -734,7 +729,6 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      *
      * @return an iterator over the elements in this queue in proper sequence
      */
-    
     public Iterator<E> iterator() {
         return new Itr();
     }
@@ -743,7 +737,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
         /**
          * Next node to return item for.
          */
-        private @Nullable Node<E> nextNode;
+        private Node<E> nextNode;
 
         /**
          * nextItem holds on to item fields because once we claim
@@ -961,7 +955,6 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      * @return a {@code Spliterator} over the elements in this queue
      * @since 1.8
      */
-    
     @Override
     public Spliterator<E> spliterator() {
         return new CLQSpliterator();

@@ -1,0 +1,21 @@
+version: 2
+updates:
+- package-ecosystem: "github-actions"
+  directory: "/"
+  schedule:
+    interval: "weekly"
+  cooldown:
+    default-days: 7
+  groups:
+    dependencies:
+      applies-to: version-updates
+      patterns:
+        - "*"
+  exclude-paths:
+    - ".github/workflows/build-alpine-linux.yml"
+    - ".github/workflows/build-cross-compile.yml"
+    - ".github/workflows/build-linux.yml"
+    - ".github/workflows/build-macos.yml"
+    - ".github/workflows/build-windows.yml"
+    - ".github/workflows/main.yml"
+    - ".github/workflows/test.yml"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -251,8 +251,7 @@ public interface AttributeSet {
      * @return {@code true} if the specified object is equal to this attribute
      *         set
      */
-    
-    
+    @Override
     public boolean equals(@Nullable Object object);
 
     /**
@@ -265,5 +264,6 @@ public interface AttributeSet {
      *
      * @return the hash code value for this attribute set
      */
+    @Override
     public int hashCode();
 }

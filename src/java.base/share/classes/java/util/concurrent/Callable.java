@@ -57,7 +57,6 @@ import org.jspecify.annotations.Nullable;
  * @author Doug Lea
  * @param <V> the result type of method {@code call}
  */
-
 @NullMarked
 @FunctionalInterface
 public interface Callable<V extends @Nullable Object> {

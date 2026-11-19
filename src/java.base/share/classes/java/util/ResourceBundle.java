@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Supplier;
 import java.util.jar.JarEntry;
 import java.util.spi.ResourceBundleControlProvider;
 import java.util.spi.ResourceBundleProvider;
@@ -70,6 +71,7 @@ import jdk.internal.reflect.Reflection;
 import jdk.internal.util.ReferencedKeyMap;
 import sun.util.locale.BaseLocale;
 import sun.util.resources.Bundles;
+
 
 /**
  *
@@ -399,7 +401,7 @@ public abstract class ResourceBundle {
                 }
 
                 @Override
-                public ResourceBundle getBundle( String baseName, Locale locale, Module module) {
+                public ResourceBundle getBundle(String baseName, Locale locale, Module module) {
                     // use the given module as the caller to bypass the access check
                     return getBundleImpl(module, module,
                                          baseName, locale,
@@ -455,7 +457,7 @@ public abstract class ResourceBundle {
      *
      * @since 1.8
      */
-    public String getBaseBundleName() {
+    public @Nullable String getBaseBundleName() {
         return name;
     }
 
@@ -464,7 +466,7 @@ public abstract class ResourceBundle {
      * The parent bundle is searched by {@link #getObject getObject}
      * when this bundle does not contain a particular resource.
      */
-    protected ResourceBundle parent = null;
+    protected @Nullable ResourceBundle parent = null;
 
     /**
      * The locale for this bundle.
@@ -490,7 +492,20 @@ public abstract class ResourceBundle {
     /**
      * A Set of the keys contained only in this ResourceBundle.
      */
-    private volatile Set<String> keySet;
+    private final LazyConstant<Set<String>> keySet = LazyConstant.of(
+            new Supplier<>() { public Set<String> get() { return keySet0(); }});
+
+    private Set<String> keySet0() {
+        final Set<String> keys = new HashSet<>();
+        final Enumeration<String> enumKeys = getKeys();
+        while (enumKeys.hasMoreElements()) {
+            final String key = enumKeys.nextElement();
+            if (handleGetObject(key) != null) {
+                keys.add(key);
+            }
+        }
+        return keys;
+    }
 
     /**
      * Sole constructor.  (For invocation by subclass constructors, typically
@@ -513,8 +528,7 @@ public abstract class ResourceBundle {
      * @throws    ClassCastException if the object found for the given key is not a string
      * @return the string for the given key
      */
-    
-    public final  String getString(  String key) {
+    public final String getString(String key) {
         return (String) getObject(key);
     }
 
@@ -532,7 +546,7 @@ public abstract class ResourceBundle {
      * @throws    ClassCastException if the object found for the given key is not a string array
      * @return the string array for the given key
      */
-    public final  String[] getStringArray(  String key) {
+    public final String[] getStringArray(String key) {
         return (String[]) getObject(key);
     }
 
@@ -549,7 +563,7 @@ public abstract class ResourceBundle {
      * @throws    MissingResourceException if no object for the given key can be found
      * @return the object for the given key
      */
-    public final  Object getObject(  String key) {
+    public final Object getObject(String key) {
         Object obj = handleGetObject(key);
         if (obj == null) {
             if (parent != null) {
@@ -598,7 +612,7 @@ public abstract class ResourceBundle {
      *
      * @param parent this bundle's parent bundle.
      */
-    protected void setParent(ResourceBundle parent) {
+    protected void setParent(@Nullable ResourceBundle parent) {
         assert parent != NONEXISTENT_BUNDLE;
         this.parent = parent;
     }
@@ -759,7 +773,7 @@ public abstract class ResourceBundle {
             }
         }
 
-        private @Nullable Throwable getCause() {
+        private Throwable getCause() {
             return cause;
         }
 
@@ -794,7 +808,7 @@ public abstract class ResourceBundle {
      * References to a CacheKey element as a WeakReference so that it can be
      * garbage collected when nobody else is using it.
      */
-    private static class KeyElementReference<T extends @Nullable Object> extends WeakReference<T>
+    private static class KeyElementReference<T> extends WeakReference<T>
                                                 implements CacheKeyReference {
         private final CacheKey cacheKey;
 
@@ -846,7 +860,7 @@ public abstract class ResourceBundle {
      * @see <a href="#resource-bundle-modules">Resource Bundles and Named Modules</a>
      */
     @CallerSensitive
-    public static final ResourceBundle getBundle( String baseName)
+    public static final ResourceBundle getBundle(String baseName)
     {
         Class<?> caller = Reflection.getCallerClass();
         return getBundleImpl(baseName, Locale.getDefault(),
@@ -889,7 +903,7 @@ public abstract class ResourceBundle {
      * @since 1.6
      */
     @CallerSensitive
-    public static final ResourceBundle getBundle( String baseName,
+    public static final ResourceBundle getBundle(String baseName,
                                                  Control control) {
         Class<?> caller = Reflection.getCallerClass();
         Locale targetLocale = Locale.getDefault();
@@ -918,7 +932,7 @@ public abstract class ResourceBundle {
      * @see <a href="#resource-bundle-modules">Resource Bundles and Named Modules</a>
      */
     @CallerSensitive
-    public static final ResourceBundle getBundle( String baseName,
+    public static final ResourceBundle getBundle(String baseName,
                                                  Locale locale)
     {
         Class<?> caller = Reflection.getCallerClass();
@@ -948,7 +962,7 @@ public abstract class ResourceBundle {
      * @see <a href="#resource-bundle-modules">Resource Bundles and Named Modules</a>
      */
     @CallerSensitive
-    public static ResourceBundle getBundle( String baseName, Module module) {
+    public static ResourceBundle getBundle(String baseName, Module module) {
         return getBundleFromModule(Reflection.getCallerClass(), module, baseName,
                                    Locale.getDefault(),
                                    getDefaultControl(module, baseName));
@@ -997,7 +1011,7 @@ public abstract class ResourceBundle {
      * @see <a href="#resource-bundle-modules">Resource Bundles and Named Modules</a>
      */
     @CallerSensitive
-    public static ResourceBundle getBundle( String baseName, Locale targetLocale, Module module) {
+    public static ResourceBundle getBundle(String baseName, Locale targetLocale, Module module) {
         return getBundleFromModule(Reflection.getCallerClass(), module, baseName, targetLocale,
                                    getDefaultControl(module, baseName));
     }
@@ -1042,7 +1056,7 @@ public abstract class ResourceBundle {
      * @since 1.6
      */
     @CallerSensitive
-    public static final ResourceBundle getBundle( String baseName, Locale targetLocale,
+    public static final ResourceBundle getBundle(String baseName, Locale targetLocale,
                                                  Control control) {
         Class<?> caller = Reflection.getCallerClass();
         checkNamedModule(caller);
@@ -1109,15 +1123,15 @@ public abstract class ResourceBundle {
      * sequence of bundle names generated by truncating the last underscore and
      * the part following it is inserted after a candidate bundle name with the
      * original variant.  For example, for a locale with language "en", script
-     * "Latn, country "US" and variant "WINDOWS_VISTA", and bundle base name
+     * "Latn", country "US" and variant "WINDOWS_WIN11", and bundle base name
      * "MyResource", the list of candidate bundle names below is generated:
      *
      * <pre>
-     * MyResource_en_Latn_US_WINDOWS_VISTA
+     * MyResource_en_Latn_US_WINDOWS_WIN11
      * MyResource_en_Latn_US_WINDOWS
      * MyResource_en_Latn_US
      * MyResource_en_Latn
-     * MyResource_en_US_WINDOWS_VISTA
+     * MyResource_en_US_WINDOWS_WIN11
      * MyResource_en_US_WINDOWS
      * MyResource_en_US
      * MyResource_en
@@ -1255,7 +1269,7 @@ public abstract class ResourceBundle {
      * @see <a href="#resource-bundle-modules">Resource Bundles and Named Modules</a>
      */
     @CallerSensitive
-    public static ResourceBundle getBundle( String baseName, Locale locale,
+    public static ResourceBundle getBundle(String baseName, Locale locale,
                                            ClassLoader loader)
     {
         if (loader == null) {
@@ -1478,7 +1492,7 @@ public abstract class ResourceBundle {
      * @since 1.6
      */
     @CallerSensitive
-    public static ResourceBundle getBundle( String baseName, Locale targetLocale,
+    public static ResourceBundle getBundle(String baseName, Locale targetLocale,
                                            ClassLoader loader, Control control) {
         if (loader == null || control == null) {
             throw new NullPointerException();
@@ -2233,7 +2247,7 @@ public abstract class ResourceBundle {
      * @throws    NullPointerException if {@code key} is {@code null}
      * @return the object for the given key, or null
      */
-    protected abstract Object handleGetObject(String key);
+    protected abstract @Nullable Object handleGetObject(String key);
 
     /**
      * Returns an enumeration of the keys.
@@ -2241,7 +2255,6 @@ public abstract class ResourceBundle {
      * @return an {@code Enumeration} of the keys contained in
      *         this {@code ResourceBundle} and its parent bundles.
      */
-    
     public abstract Enumeration<String> getKeys();
 
     /**
@@ -2257,8 +2270,6 @@ public abstract class ResourceBundle {
      *         if {@code key} is {@code null}
      * @since 1.6
      */
-    
-    
     public boolean containsKey(String key) {
         if (key == null) {
             throw new NullPointerException();
@@ -2279,8 +2290,7 @@ public abstract class ResourceBundle {
      *         {@code ResourceBundle} and its parent bundles.
      * @since 1.6
      */
-    
-    public Set<   String> keySet() {
+    public Set<String> keySet() {
         Set<String> keys = new HashSet<>();
         for (ResourceBundle rb = this; rb != null; rb = rb.parent) {
             keys.addAll(rb.handleKeySet());
@@ -2306,22 +2316,7 @@ public abstract class ResourceBundle {
      * @since 1.6
      */
     protected Set<String> handleKeySet() {
-        if (keySet == null) {
-            synchronized (this) {
-                if (keySet == null) {
-                    Set<String> keys = new HashSet<>();
-                    Enumeration<String> enumKeys = getKeys();
-                    while (enumKeys.hasMoreElements()) {
-                        String key = enumKeys.nextElement();
-                        if (handleGetObject(key) != null) {
-                            keys.add(key);
-                        }
-                    }
-                    keySet = keys;
-                }
-            }
-        }
-        return keySet;
+        return keySet.get();
     }
 
 
@@ -2851,7 +2846,7 @@ public abstract class ResourceBundle {
             boolean isNorwegianBokmal = false;
             boolean isNorwegianNynorsk = false;
             if (language.equals("no")) {
-                if (region.equals("NO") && variant.equals("NY")) {
+                if (region.equals("NO") && variant.equals("NY") && script.isEmpty()) {
                     variant = "";
                     isNorwegianNynorsk = true;
                 } else {
@@ -2989,7 +2984,7 @@ public abstract class ResourceBundle {
          *        if {@code baseName} or {@code locale}
          *        is {@code null}
          */
-        public Locale getFallbackLocale(String baseName, Locale locale) {
+        public @Nullable Locale getFallbackLocale(String baseName, Locale locale) {
             if (baseName == null) {
                 throw new NullPointerException();
             }
@@ -3061,8 +3056,8 @@ public abstract class ResourceBundle {
          * {@code IllegalArgumentException} is thrown.</li>
          *
          * <li>If the {@code locale}'s language is one of the
-         * <a href="./Locale.html#legacy_language_codes">Legacy language
-         * codes</a>, either old or new, then repeat the loading process
+         * {@linkplain Locale##legacy_language_codes Legacy language
+         * codes}, either old or new, then repeat the loading process
          * if needed, with the bundle name with the other language.
          * For example, "iw" for "he" and vice versa.
          *
@@ -3107,7 +3102,7 @@ public abstract class ResourceBundle {
          *        any I/O operations
          * @see java.util.spi.ResourceBundleProvider#getBundle(String, Locale)
          */
-        public ResourceBundle newBundle( String baseName, Locale locale, String format,
+        public @Nullable ResourceBundle newBundle(String baseName, Locale locale, String format,
                                         ClassLoader loader, boolean reload)
                     throws IllegalAccessException, InstantiationException, IOException {
             /*
@@ -3246,7 +3241,7 @@ public abstract class ResourceBundle {
          *        if {@code baseName} or {@code locale} is
          *        {@code null}
          */
-        public  long getTimeToLive(String baseName, Locale locale) {
+        public long getTimeToLive(String baseName, Locale locale) {
             if (baseName == null || locale == null) {
                 throw new NullPointerException();
             }
@@ -3302,7 +3297,7 @@ public abstract class ResourceBundle {
          *        {@code format}, {@code loader}, or
          *        {@code bundle} is {@code null}
          */
-        public boolean needsReload( String baseName, Locale locale,
+        public boolean needsReload(String baseName, Locale locale,
                                    String format, ClassLoader loader,
                                    ResourceBundle bundle, long loadTime) {
             if (bundle == null) {
@@ -3389,7 +3384,7 @@ public abstract class ResourceBundle {
          *        is {@code null}
          * @see java.util.spi.AbstractResourceBundleProvider#toBundleName(String, Locale)
          */
-        public  String toBundleName( String baseName, Locale locale) {
+        public String toBundleName(String baseName, Locale locale) {
             if (locale == Locale.ROOT) {
                 return baseName;
             }
@@ -3422,10 +3417,7 @@ public abstract class ResourceBundle {
                     sb.append(language);
                 }
             }
-            
-            @SuppressWarnings("signature")
-             String result = sb.toString();
-            return result;
+            return sb.toString();
 
         }
 
@@ -3522,7 +3514,6 @@ public abstract class ResourceBundle {
          */
         static ResourceBundle newResourceBundle(Class<? extends ResourceBundle> bundleClass) {
             try {
-                @SuppressWarnings("unchecked")
                 Constructor<? extends ResourceBundle> ctor =
                     bundleClass.getConstructor();
                 if (!Modifier.isPublic(ctor.getModifiers())) {
@@ -3665,8 +3656,7 @@ public abstract class ResourceBundle {
 
     }
 
-    private static final boolean TRACE_ON = Boolean.getBoolean(
-        System.getProperty("resource.bundle.debug", "false"));
+    private static final boolean TRACE_ON = Boolean.getBoolean("resource.bundle.debug");
 
     private static void trace(String format, Object... params) {
         if (TRACE_ON)

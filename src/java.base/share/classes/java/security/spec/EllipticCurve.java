@@ -100,7 +100,7 @@ public class EllipticCurve {
      * or {@code b} is not null and not in {@code field}.
      */
     public EllipticCurve(ECField field, BigInteger a,
-                         BigInteger b, byte[] seed) {
+                         BigInteger b, byte @Nullable [] seed) {
         if (field == null) {
             throw new NullPointerException("field is null");
         }
@@ -156,7 +156,7 @@ public class EllipticCurve {
      * @return the seeding bytes {@code seed}. A new
      * array is returned each time this method is called.
      */
-    public byte[] getSeed() {
+    public byte @Nullable [] getSeed() {
         if (seed == null) return null;
         else return seed.clone();
     }
@@ -168,8 +168,6 @@ public class EllipticCurve {
      * @return true if {@code obj} is an instance of
      * EllipticCurve and the field, A, and B match, false otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
 

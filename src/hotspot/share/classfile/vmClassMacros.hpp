@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,6 +75,7 @@
   do_klass(IllegalMonitorStateException_klass,          java_lang_IllegalMonitorStateException                ) \
   do_klass(Reference_klass,                             java_lang_ref_Reference                               ) \
   do_klass(IllegalCallerException_klass,                java_lang_IllegalCallerException                      ) \
+  do_klass(PreemptedException_klass,                    jdk_internal_vm_PreemptedException                    ) \
                                                                                                                 \
   /* ref klasses and set reference types */                                                                     \
   do_klass(SoftReference_klass,                         java_lang_ref_SoftReference                           ) \
@@ -114,6 +115,7 @@
   do_klass(VarHandle_klass,                             java_lang_invoke_VarHandle                            ) \
   do_klass(MemberName_klass,                            java_lang_invoke_MemberName                           ) \
   do_klass(ResolvedMethodName_klass,                    java_lang_invoke_ResolvedMethodName                   ) \
+  do_klass(MethodHandleImpl_klass,                      java_lang_invoke_MethodHandleImpl                     ) \
   do_klass(MethodHandleNatives_klass,                   java_lang_invoke_MethodHandleNatives                  ) \
   do_klass(LambdaForm_klass,                            java_lang_invoke_LambdaForm                           ) \
   do_klass(MethodType_klass,                            java_lang_invoke_MethodType                           ) \
@@ -123,9 +125,9 @@
   do_klass(ABIDescriptor_klass,                         jdk_internal_foreign_abi_ABIDescriptor                ) \
   do_klass(VMStorage_klass,                             jdk_internal_foreign_abi_VMStorage                    ) \
   do_klass(CallConv_klass,                              jdk_internal_foreign_abi_CallConv                     ) \
-  do_klass(Context_klass,                               java_lang_invoke_MethodHandleNatives_CallSiteContext  ) \
   do_klass(ConstantCallSite_klass,                      java_lang_invoke_ConstantCallSite                     ) \
   do_klass(MutableCallSite_klass,                       java_lang_invoke_MutableCallSite                      ) \
+  do_klass(ValueObjectMethods_klass,                    java_lang_runtime_ValueObjectMethods                  ) \
   do_klass(VolatileCallSite_klass,                      java_lang_invoke_VolatileCallSite                     ) \
                                                                                                                 \
   do_klass(AssertionStatusDirectives_klass,             java_lang_AssertionStatusDirectives                   ) \
@@ -136,9 +138,9 @@
   do_klass(module_Modules_klass,                        jdk_internal_module_Modules                           ) \
                                                                                                                 \
   /* support for CDS */                                                                                         \
+  do_klass(CDS_klass,                                   jdk_internal_misc_CDS                                 ) \
   do_klass(ByteArrayInputStream_klass,                  java_io_ByteArrayInputStream                          ) \
   do_klass(URL_klass,                                   java_net_URL                                          ) \
-  do_klass(URLClassLoader_klass,                        java_net_URLClassLoader                               ) \
   do_klass(Enum_klass,                                  java_lang_Enum                                        ) \
   do_klass(Jar_Manifest_klass,                          java_util_jar_Manifest                                ) \
   do_klass(jdk_internal_loader_BuiltinClassLoader_klass,jdk_internal_loader_BuiltinClassLoader                ) \
@@ -174,6 +176,30 @@
   do_klass(Long_klass,                                  java_lang_Long                                        ) \
   do_klass(Void_klass,                                  java_lang_Void                                        ) \
                                                                                                                 \
+  /* Other valhalla migrated klasses. */                                                                        \
+  do_klass(Number_klass,                                java_lang_Number                                      ) \
+  do_klass(Optional_klass,                              java_util_Optional                                    ) \
+  do_klass(OptionalInt_klass,                           java_util_OptionalInt                                 ) \
+  do_klass(OptionalLong_klass,                          java_util_OptionalLong                                ) \
+  do_klass(OptionalDouble_klass,                        java_util_OptionalDouble                              ) \
+  do_klass(LocalDate_klass,                             java_time_LocalDate                                   ) \
+  do_klass(LocalDateTime_klass,                         java_time_LocalDateTime                               ) \
+  do_klass(LocalTime_klass,                             java_time_LocalTime                                   ) \
+  do_klass(Duration_klass,                              java_time_Duration                                    ) \
+  do_klass(Instant_klass,                               java_time_Instant                                     ) \
+  do_klass(MonthDay_klass,                              java_time_MonthDay                                    ) \
+  do_klass(ZonedDateTime_klass,                         java_time_ZonedDateTime                               ) \
+  do_klass(OffsetDateTime_klass,                        java_time_OffsetDateTime                              ) \
+  do_klass(OffsetTime_klass,                            java_time_OffsetTime                                  ) \
+  do_klass(YearMonth_klass,                             java_time_YearMonth                                   ) \
+  do_klass(Year_klass,                                  java_time_Year                                        ) \
+  do_klass(Period_klass,                                java_time_Period                                      ) \
+  do_klass(chrono_ChronoLocalDateImpl_klass,            java_time_chrono_ChronoLocalDateImpl                  ) \
+  do_klass(chrono_MinguoDate_klass,                     java_time_chrono_MinguoDate                           ) \
+  do_klass(chrono_HijrahDate_klass,                     java_time_chrono_HijrahDate                           ) \
+  do_klass(chrono_JapaneseDate_klass,                   java_time_chrono_JapaneseDate                         ) \
+  do_klass(chrono_ThaiBuddhistDate_klass,               java_time_chrono_ThaiBuddhistDate                     ) \
+                                                                                                                \
   /* force inline of iterators */                                                                               \
   do_klass(Iterator_klass,                              java_util_Iterator                                    ) \
                                                                                                                 \
@@ -189,6 +215,9 @@
                                                                                                                 \
   /* GC support */                                                                                              \
   do_klass(FillerObject_klass,                          jdk_internal_vm_FillerObject                          ) \
+                                                                                                                \
+  /* Scoped Values */                                                                                           \
+  do_klass(ScopedValue_Carrier_klass,                   java_lang_ScopedValue_Carrier                         ) \
                                                                                                                 \
   /*end*/
 

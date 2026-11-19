@@ -578,8 +578,6 @@ public final class CommandAPDU implements java.io.Serializable {
      * @param obj the object to be compared for equality with this command APDU
      * @return true if the specified object is equal to this command APDU
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

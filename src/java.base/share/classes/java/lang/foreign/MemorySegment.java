@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,14 @@
 
 package java.lang.foreign;
 
+import jdk.internal.foreign.AbstractMemorySegmentImpl;
+import jdk.internal.foreign.MemorySessionImpl;
+import jdk.internal.foreign.SegmentBulkOperations;
+import jdk.internal.foreign.SegmentFactories;
+import jdk.internal.javac.Restricted;
+import jdk.internal.reflect.CallerSensitive;
+import jdk.internal.vm.annotation.ForceInline;
+
 import java.io.UncheckedIOException;
 import java.lang.foreign.ValueLayout.OfInt;
 import java.nio.Buffer;
@@ -41,13 +49,6 @@ import java.util.Optional;
 import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
-import jdk.internal.foreign.AbstractMemorySegmentImpl;
-import jdk.internal.foreign.MemorySessionImpl;
-import jdk.internal.foreign.SegmentBulkOperations;
-import jdk.internal.foreign.SegmentFactories;
-import jdk.internal.javac.Restricted;
-import jdk.internal.reflect.CallerSensitive;
-import jdk.internal.vm.annotation.ForceInline;
 
 /**
  * A memory segment provides access to a contiguous region of memory.
@@ -505,6 +506,17 @@ import jdk.internal.vm.annotation.ForceInline;
  * be used with caution: assigning a segment incorrect spatial and/or temporal bounds
  * could result in a VM crash when attempting to access the memory segment.
  *
+ * <h2 id="keep-alive">Keep-alive operations</h2>
+ *
+ * Some operations on memory segments keep the memory segment {@linkplain Scope#isAlive() alive}.
+ * For instance, if the segment has been obtained using a {@linkplain Arena#ofShared() shared arena},
+ * any attempt to {@linkplain Arena#close() close} the arena while such an operation is still
+ * executing will result in an {@link IllegalStateException}.
+ * <p>
+ * Examples of keep-alive operations are: passing a memory segment to a
+ * {@linkplain Linker#downcallHandle(FunctionDescriptor, Linker.Option...) downcall method handle},
+ * or calling one of the methods {@link #load()}, {@link #unload()}, {@link #force()}, or {@link #isLoaded()}.
+ *
  * @implSpec
  * Implementations of this interface are immutable, thread-safe and
  * <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>.
@@ -731,8 +743,8 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
     MemorySegment asSlice(long offset);
 
     /**
-     * Returns a new memory segment that has the same address and scope as this segment,
-     * but with the provided size.
+     * {@return a new memory segment that has the same address and scope as this segment,
+     *          but with the provided size}
      * <p>
      * If this segment is {@linkplain MemorySegment#isReadOnly() read-only},
      * the returned segment is also {@linkplain MemorySegment#isReadOnly() read-only}.
@@ -741,8 +753,6 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * Hence, no memory will be allocated or freed by this method.
      *
      * @param newSize the size of the returned segment
-     * @return a new memory segment that has the same address and scope as
-     *         this segment, but the new provided size
      * @throws IllegalArgumentException if {@code newSize < 0}
      * @throws UnsupportedOperationException if this segment is not a
      *         {@linkplain #isNative() native} segment
@@ -754,15 +764,17 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
     MemorySegment reinterpret(long newSize);
 
     /**
-     * Returns a new memory segment with the same address and size as this segment, but
-     * with the provided scope. As such, the returned segment cannot be accessed after
-     * the provided arena has been closed. Moreover, the returned segment can be
-     * accessed compatibly with the confinement restrictions associated with the provided
-     * arena: that is, if the provided arena is a {@linkplain Arena#ofConfined() confined arena},
+     * {@return a new memory segment with the same address and size as this segment, but
+     *          with the provided arena's scope}
+     * <p>
+     * As such, the returned segment cannot be accessed after the provided arena has been
+     * closed. Moreover, the returned segment can be accessed compatibly with
+     * the confinement restrictions associated with the provided arena: that is, if
+     * the provided arena is a {@linkplain Arena#ofConfined() confined arena},
      * the returned segment can only be accessed by the arena's owner thread, regardless
      * of the confinement restrictions associated with this segment. In other words, this
      * method returns a segment that can be used as any other segment allocated using the
-     * provided arena. However, The returned segment is backed by the same memory region
+     * provided arena. However, the returned segment is backed by the same memory region
      * as that of the original segment. As such, the region of memory backing the
      * returned segment is deallocated only when this segment's arena is closed.
      * This might lead to <em>use-after-free</em> issues, as the returned segment can be
@@ -770,15 +782,15 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * segment's arena.
      * <p>
      * Clients can specify an optional cleanup action that should be executed when the
-     * provided scope becomes invalid. This cleanup action receives a fresh memory
+     * provided arena's scope becomes invalid. This cleanup action receives a fresh memory
      * segment that is obtained from this segment as follows:
      * {@snippet lang=java :
      * MemorySegment cleanupSegment = MemorySegment.ofAddress(this.address())
      *                                             .reinterpret(byteSize());
      * }
      * That is, the cleanup action receives a segment that is associated with the global
-     * scope, and is accessible from any thread. The size of the segment accepted by the
-     * cleanup action is {@link #byteSize()}.
+     * arena's scope, and is accessible from any thread. The size of the segment accepted
+     * by the cleanup action is {@link #byteSize()}.
      * <p>
      * If this segment is {@linkplain MemorySegment#isReadOnly() read-only},
      * the returned segment is also {@linkplain MemorySegment#isReadOnly() read-only}.
@@ -789,8 +801,8 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * @apiNote The cleanup action (if present) should take care not to leak the received
      *          segment to external clients that might access the segment after its
      *          backing region of memory is no longer available. Furthermore, if the
-     *          provided scope is the scope of an {@linkplain Arena#ofAuto() automatic arena},
-     *          the cleanup action must not prevent the scope from becoming
+     *          provided arena is an {@linkplain Arena#ofAuto() automatic arena},
+     *          the cleanup action must not prevent the arena from becoming
      *          {@linkplain java.lang.ref##reachability unreachable}.
      *          A failure to do so will permanently prevent the regions of memory
      *          allocated by the automatic arena from being deallocated.
@@ -798,7 +810,6 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * @param arena the arena to be associated with the returned segment
      * @param cleanup the cleanup action that should be executed when the provided arena
      *                is closed (can be {@code null})
-     * @return a new memory segment with unbounded size
      * @throws IllegalStateException if {@code arena.scope().isAlive() == false}
      * @throws UnsupportedOperationException if this segment is not a
      *         {@linkplain #isNative() native} segment
@@ -810,15 +821,17 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
     MemorySegment reinterpret(Arena arena, Consumer<MemorySegment> cleanup);
 
     /**
-     * Returns a new segment with the same address as this segment, but with the provided
-     * size and scope. As such, the returned segment cannot be accessed after the
-     * provided arena has been closed. Moreover, if the returned segment can be accessed
-     * compatibly with the confinement restrictions associated with the provided arena:
-     * that is, if the provided arena is a {@linkplain Arena#ofConfined() confined arena},
+     * {@return a new segment with the same address as this segment, but with the provided
+     *          size and the provided arena's scope}
+     * <p>
+     * As such, the returned segment cannot be accessed after the provided arena has been
+     * closed. Moreover, if the returned segment can be accessed compatibly with
+     * the confinement restrictions associated with the provided arena: that is, if
+     * the provided arena is a {@linkplain Arena#ofConfined() confined arena},
      * the returned segment can only be accessed by the arena's owner thread, regardless
      * of the confinement restrictions associated with this segment. In other words, this
      * method returns a segment that can be used as any other segment allocated using the
-     * provided arena. However, The returned segment is backed by the same memory region
+     * provided arena. However, the returned segment is backed by the same memory region
      * as that of the original segment. As such, the region of memory backing the
      * returned segment is deallocated only when this segment's arena is closed.
      * This might lead to <em>use-after-free</em> issues, as the returned segment can be
@@ -826,15 +839,15 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * segment's arena.
      * <p>
      * Clients can specify an optional cleanup action that should be executed when the
-     * provided scope becomes invalid. This cleanup action receives a fresh memory
+     * provided arena's scope becomes invalid. This cleanup action receives a fresh memory
      * segment that is obtained from this segment as follows:
      * {@snippet lang=java :
      * MemorySegment cleanupSegment = MemorySegment.ofAddress(this.address())
      *                                             .reinterpret(newSize);
      * }
      * That is, the cleanup action receives a segment that is associated with the global
-     * scope, and is accessible from any thread. The size of the segment accepted by the
-     * cleanup action is {@code newSize}.
+     * arena's scope, and is accessible from any thread. The size of the segment accepted
+     * by the cleanup action is {@code newSize}.
      * <p>
      * If this segment is {@linkplain MemorySegment#isReadOnly() read-only},
      * the returned segment is also {@linkplain MemorySegment#isReadOnly() read-only}.
@@ -845,8 +858,8 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * @apiNote The cleanup action (if present) should take care not to leak the received
      *          segment to external clients that might access the segment after its
      *          backing region of memory is no longer available. Furthermore, if the
-     *          provided scope is the scope of an {@linkplain Arena#ofAuto() automatic arena},
-     *          the cleanup action must not prevent the scope from becoming
+     *          provided arena is an {@linkplain Arena#ofAuto() automatic arena},
+     *          the cleanup action must not prevent the arena from becoming
      *          {@linkplain java.lang.ref##reachability unreachable}.
      *          A failure to do so will permanently prevent the regions of memory
      *          allocated by the automatic arena from being deallocated.
@@ -855,8 +868,6 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * @param arena the arena to be associated with the returned segment
      * @param cleanup the cleanup action that should be executed when the provided arena
      *                is closed (can be {@code null}).
-     * @return a new segment that has the same address as this segment, but with the new
-     *         size and its scope set to that of the provided arena.
      * @throws UnsupportedOperationException if this segment is not a
      *         {@linkplain #isNative() native} segment
      * @throws IllegalArgumentException if {@code newSize < 0}
@@ -1007,17 +1018,20 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
     /**
      * Determines whether all the contents of this mapped segment are resident in physical
      * memory.
-     *
-     * <p> A return value of {@code true} implies that it is highly likely
+     * <p>
+     * A return value of {@code true} implies that it is highly likely
      * that all the data in this segment is resident in physical memory and
      * may therefore be accessed without incurring any virtual-memory page
      * faults or I/O operations. A return value of {@code false} does not
      * necessarily imply that this segment's contents are not resident in physical
      * memory.
-     *
-     * <p> The returned value is a hint, rather than a guarantee, because the
+     * <p>
+     * The returned value is a hint, rather than a guarantee, because the
      * underlying operating system may have paged out some of this segment's data
-     * by the time that an invocation of this method returns.  </p>
+     * by the time that an invocation of this method returns.
+     * <p>
+     * This memory segment is {@linkplain ##keep-alive kept alive}
+     * during the invocation of this method.
      *
      * @return  {@code true} if it is likely that the contents of this segment
      *          are resident in physical memory
@@ -1037,7 +1051,10 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * This method makes a best effort to ensure that, when it returns,
      * the contents of this segment are resident in physical memory.  Invoking this
      * method may cause some number of page faults and I/O operations to
-     * occur. </p>
+     * occur.
+     * <p>
+     * This memory segment is {@linkplain ##keep-alive kept alive}
+     * during the invocation of this method.
      *
      * @throws IllegalStateException if the {@linkplain #scope() scope} associated with
      *         this segment is not {@linkplain Scope#isAlive() alive}
@@ -1054,7 +1071,10 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * This method makes a best effort to ensure that the contents of this segment
      * are no longer resident in physical memory. Accessing this segment's contents
      * after invoking this method may cause some number of page faults and I/O operations
-     * to occur (as this segment's contents might need to be paged back in). </p>
+     * to occur (as this segment's contents might need to be paged back in).
+     * <p>
+     * This memory segment is {@linkplain ##keep-alive kept alive}
+     * during the invocation of this method.
      *
      * @throws IllegalStateException if the {@linkplain #scope() scope} associated with
      *         this segment is not {@linkplain Scope#isAlive() alive}
@@ -1082,6 +1102,9 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * method may have no effect. In particular, the method has no effect for segments
      * mapped in read-only or private mapping modes. This method may or may not have an
      * effect for implementation-specific mapping modes.
+     * <p>
+     * This memory segment is {@linkplain ##keep-alive kept alive}
+     * during the invocation of this method.
      *
      * @throws IllegalStateException if the {@linkplain #scope() scope} associated with this segment is not
      *         {@linkplain Scope#isAlive() alive}
@@ -1119,9 +1142,7 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * <p>
      * If this segment is {@linkplain #isAccessibleBy(Thread) accessible} from a single
      * thread, calling read/write I/O operations on the resulting buffer might result in
-     * unspecified exceptions being thrown. Examples of such problematic operations are
-     * {@link java.nio.channels.AsynchronousSocketChannel#read(ByteBuffer)} and
-     * {@link java.nio.channels.AsynchronousSocketChannel#write(ByteBuffer)}.
+     * unspecified exceptions being thrown.
      * <p>
      * Finally, the resulting buffer's byte order is
      * {@link java.nio.ByteOrder#BIG_ENDIAN}; this can be changed using
@@ -1297,12 +1318,7 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * over the decoding process is required.
      * <p>
      * Getting a string from a segment with a known byte offset and
-     * known byte length can be done like so:
-     * {@snippet lang=java :
-     *     byte[] bytes = new byte[length];
-     *     MemorySegment.copy(segment, JAVA_BYTE, offset, bytes, 0, length);
-     *     return new String(bytes, charset);
-     * }
+     * known byte length can be done using {@link #getString(long, Charset, long)}.
      *
      * @param offset  offset in bytes (relative to this segment address) at which this
      *                access operation will occur
@@ -1328,6 +1344,41 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      *         {@linkplain StandardCharsets standard charset}
      */
     String getString(long offset, Charset charset);
+
+    /**
+     * Reads a string from this segment at the given offset, using the provided length
+     * and charset.
+     * <p>
+     * This method always replaces malformed-input and unmappable-character
+     * sequences with this charset's default replacement string. The {@link
+     * java.nio.charset.CharsetDecoder} class should be used when more control
+     * over the decoding process is required.
+     * <p>
+     * If the string contains any {@code '\0'} characters, they will be read as well.
+     * This differs from {@link #getString(long, Charset)}, which will only read up
+     * to the first {@code '\0'}, resulting in truncation for string data that contains
+     * the {@code '\0'} character.
+     *
+     * @param offset  offset in bytes (relative to this segment address) at which this
+     *                access operation will occur
+     * @param charset the charset used to {@linkplain Charset#newDecoder() decode} the
+     *                string bytes
+     * @param byteLength length, in bytes, of the region of memory to read and decode into
+     *                a string
+     * @return a Java string constructed from the bytes read from the given starting
+     *         address up to the given length
+     * @throws IllegalArgumentException  if the size of the string is greater than the
+     *         largest string supported by the platform
+     * @throws IndexOutOfBoundsException if {@code offset < 0}
+     * @throws IndexOutOfBoundsException if {@code offset > byteSize() - byteLength}
+     * @throws IllegalStateException if the {@linkplain #scope() scope} associated with
+     *         this segment is not {@linkplain Scope#isAlive() alive}
+     * @throws WrongThreadException if this method is called from a thread {@code T},
+     *         such that {@code isAccessibleBy(T) == false}
+     * @throws IllegalArgumentException if {@code byteLength < 0}
+     * @since 27
+     */
+    String getString(long offset, Charset charset, long byteLength);
 
     /**
      * Writes the given string into this segment at the given offset, converting it to
@@ -1360,14 +1411,15 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * null-terminated byte sequence using the provided charset.
      * <p>
      * This method always replaces malformed-input and unmappable-character
-     * sequences with this charset's default replacement string. The {@link
-     * java.nio.charset.CharsetDecoder} class should be used when more control
-     * over the decoding process is required.
+     * sequences with this charset's default replacement byte array. The {@link
+     * java.nio.charset.CharsetEncoder} class should be used when more control
+     * over the encoding process is required.
      * <p>
      * If the given string contains any {@code '\0'} characters, they will be
      * copied as well. This means that, depending on the method used to read
      * the string, such as {@link MemorySegment#getString(long)}, the string
-     * will appear truncated when read again.
+     * will appear truncated when read again. The string can be read without
+     * truncation using {@link #getString(long, Charset, long)}.
      *
      * @param offset  offset in bytes (relative to this segment address) at which this
      *                access operation will occur, the final address of this write
@@ -1522,6 +1574,11 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
      * <p>
      * The {@linkplain MemorySegment#maxByteAlignment() maximum byte alignment} for
      * the {@code NULL} segment is of 2<sup>62</sup>.
+     *
+     * @apiNote Clients should avoid using {@code ==} to compare a segment with
+     *          {@code MemorySegment.NULL}. A segment with address {@code 0L} may be
+     *          {@linkplain #ofAddress(long) created independently} and may therefore
+     *          have a different identity.
      */
     MemorySegment NULL = MemorySegment.ofAddress(0L);
 
@@ -2605,6 +2662,51 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
         AbstractMemorySegmentImpl.copy(srcArray, srcIndex,
                 dstSegment, dstLayout, dstOffset,
                 elementCount);
+    }
+
+    /**
+     * Copies the byte sequence of the given string encoded using the provided charset
+     * to the destination segment.
+     * <p>
+     * This method always replaces malformed-input and unmappable-character
+     * sequences with this charset's default replacement byte array. The {@link
+     * java.nio.charset.CharsetEncoder} class should be used when more control
+     * over the encoding process is required.
+     * <p>
+     * If the given string contains any {@code '\0'} characters, they will be
+     * copied as well. This means that, depending on the method used to read
+     * the string, such as {@link MemorySegment#getString(long)}, the string
+     * will appear truncated when read again. The string can be read without
+     * truncation using {@link #getString(long, Charset, long)}.
+     *
+     * @param src      the Java string to be written into the destination segment
+     * @param dstEncoding the charset used to {@linkplain Charset#newEncoder() encode}
+     *                 the string bytes
+     * @param srcIndex the starting character index of the source string
+     * @param dst      the destination segment
+     * @param dstOffset the starting offset, in bytes, of the destination segment
+     * @param numChars the number of characters to be copied
+     * @throws IllegalStateException if the {@linkplain #scope() scope} associated with
+     *         {@code dst} is not {@linkplain Scope#isAlive() alive}
+     * @throws WrongThreadException if this method is called from a thread {@code T},
+     *         such that {@code dst.isAccessibleBy(T) == false}
+     * @throws IndexOutOfBoundsException if either {@code srcIndex}, {@code numChars}, or {@code dstOffset}
+     *         are {@code < 0}
+     * @throws IndexOutOfBoundsException if {@code srcIndex > src.length() - numChars}
+     * @throws IllegalArgumentException if {@code dst} is {@linkplain #isReadOnly() read-only}
+     * @throws IndexOutOfBoundsException if {@code dstOffset > dst.byteSize() - B} where {@code B} is the size,
+     *         in bytes, of {@code src.substring(srcIndex, srcIndex + numChars)} encoded using the given charset
+     * @return the number of copied bytes
+     * @since 27
+     */
+    @ForceInline
+    static long copy(String src, Charset dstEncoding, int srcIndex, MemorySegment dst, long dstOffset, int numChars) {
+        Objects.requireNonNull(src);
+        Objects.requireNonNull(dstEncoding);
+        Objects.requireNonNull(dst);
+        Objects.checkFromIndexSize(srcIndex, numChars, src.length());
+
+        return AbstractMemorySegmentImpl.copy(src, dstEncoding, srcIndex, dst, dstOffset, numChars);
     }
 
     /**

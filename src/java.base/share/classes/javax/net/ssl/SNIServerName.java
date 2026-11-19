@@ -118,8 +118,6 @@ public abstract class SNIServerName {
      *         encoded value as this server name.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object other) {
         if (this == other) {
             return true;

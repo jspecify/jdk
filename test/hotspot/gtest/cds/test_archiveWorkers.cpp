@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -22,22 +23,22 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "cds/archiveUtils.hpp"
+#include "runtime/atomic.hpp"
 #include "unittest.hpp"
 
 class TestArchiveWorkerTask : public ArchiveWorkerTask {
 private:
-  volatile int _sum;
-  int _max;
+  Atomic<int> _sum;
+  Atomic<int> _max;
 public:
   TestArchiveWorkerTask() : ArchiveWorkerTask("Test"), _sum(0), _max(0) {}
   void work(int chunk, int max_chunks) override {
-    Atomic::add(&_sum, chunk);
-    Atomic::store(&_max, max_chunks);
+    _sum.add_then_fetch(chunk);
+    _max.store_relaxed(max_chunks);
   }
-  int sum() { return Atomic::load(&_sum); }
-  int max() { return Atomic::load(&_max); }
+  int sum() { return _sum.load_relaxed(); }
+  int max() { return _max.load_relaxed(); }
 };
 
 // Test a repeated cycle of workers init/shutdown without task works.
@@ -66,4 +67,3 @@ TEST_VM_ASSERT_MSG(ArchiveWorkersTest, multiple_tasks, ".* Should be unused yet"
   workers.run_task(&task);
 }
 #endif // ASSERT
-

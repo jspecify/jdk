@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,6 +60,7 @@ import java.util.function.ToIntFunction;
 import java.util.function.ToLongFunction;
 
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 
 /**
  * Implementations of {@link Collector} that implement various useful reduction
@@ -107,6 +108,7 @@ import jdk.internal.access.SharedSecrets;
  * @since 1.8
  */
 @NullMarked
+@AOTSafeClassInitializer
 public final class Collectors {
 
     static final Set<Collector.Characteristics> CH_CONCURRENT_ID
@@ -151,7 +153,7 @@ public final class Collectors {
      * @param <M> type of the map
      * @return a merge function for two maps
      */
-    private static <K extends @Nullable Object, V extends @Nullable Object, M extends Map<K,V>>
+    private static <K, V, M extends Map<K,V>>
     BinaryOperator<M> uniqKeysMapMerger() {
         return (m1, m2) -> {
             for (Map.Entry<K,V> e : m2.entrySet()) {
@@ -176,7 +178,7 @@ public final class Collectors {
      * @param <V> type of map values
      * @return an accumulating consumer
      */
-    private static <T extends @Nullable Object, K extends @Nullable Object, V extends @Nullable Object>
+    private static <T, K, V>
     BiConsumer<Map<K, V>, T> uniqKeysMapAccumulator(Function<? super T, ? extends K> keyMapper,
                                                     Function<? super T, ? extends V> valueMapper) {
         return (map, element) -> {
@@ -188,7 +190,7 @@ public final class Collectors {
     }
 
     @SuppressWarnings("unchecked")
-    private static <I extends @Nullable Object, R extends @Nullable Object> Function<I, R> castingIdentity() {
+    private static <I, R> Function<I, R> castingIdentity() {
         return i -> (R) i;
     }
 
@@ -260,7 +262,7 @@ public final class Collectors {
      * <a href="../List.html#unmodifiable">unmodifiable List</a> in encounter order
      * @since 10
      */
-    public static <T extends @Nullable Object>
+    public static <T>
     Collector<T, ?, List<T>> toUnmodifiableList() {
         return new CollectorImpl<>(ArrayList::new, List::add,
                                    (left, right) -> { left.addAll(right); return left; },
@@ -318,7 +320,7 @@ public final class Collectors {
      * @since 10
      */
     @SuppressWarnings("unchecked")
-    public static <T extends @Nullable Object>
+    public static <T>
     Collector<T, ?, Set<T>> toUnmodifiableSet() {
         return new CollectorImpl<>(HashSet::new, Set::add,
                                    (left, right) -> {
@@ -395,7 +397,7 @@ public final class Collectors {
      * {@link Map#merge(Object, Object, BiFunction) Map.merge()}
      * @return a merge function for two maps
      */
-    private static <K extends @Nullable Object, V extends @Nullable Object, M extends Map<K,V>>
+    private static <K, V, M extends Map<K,V>>
     BinaryOperator<M> mapMerger(BinaryOperator<V> mergeFunction) {
         return (m1, m2) -> {
             for (Map.Entry<K,V> e : m2.entrySet())
@@ -837,7 +839,7 @@ public final class Collectors {
      * The {@code reducing()} collectors are most useful when used in a
      * multi-level reduction, downstream of {@code groupingBy} or
      * {@code partitioningBy}.  To perform a simple reduction on a stream,
-     * use {@link Stream#reduce(Object, BinaryOperator)}} instead.
+     * use {@link Stream#reduce(Object, BinaryOperator)} instead.
      *
      * @param <T> element type for the input and output of the reduction
      * @param identity the identity value for the reduction (also, the value
@@ -859,7 +861,7 @@ public final class Collectors {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends @Nullable Object> Supplier<T[]> boxSupplier(T identity) {
+    private static <T> Supplier<T[]> boxSupplier(T identity) {
         return () -> (T[]) new Object[] { identity };
     }
 
@@ -1980,7 +1982,7 @@ public final class Collectors {
     /**
      * Implementation class used by partitioningBy.
      */
-    private static final class Partition<T extends @Nullable Object>
+    private static final class Partition<T>
             extends AbstractMap<Boolean, T>
             implements Map<Boolean, T> {
         final T forTrue;
@@ -2031,7 +2033,6 @@ public final class Collectors {
                 }
 
                 @Override
-                
                 public int size() {
                     return 2;
                 }

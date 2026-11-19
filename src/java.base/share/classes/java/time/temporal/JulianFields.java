@@ -62,7 +62,6 @@
 package java.time.temporal;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import static java.time.temporal.ChronoField.EPOCH_DAY;
 import static java.time.temporal.ChronoUnit.DAYS;

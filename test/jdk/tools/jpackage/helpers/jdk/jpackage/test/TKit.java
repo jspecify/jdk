@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,35 @@
  */
 package jdk.jpackage.test;
 
-import java.io.Closeable;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.lang.reflect.InvocationTargetException;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardWatchEventKinds;
-import java.nio.file.StandardCopyOption;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+import static java.util.stream.Collectors.toSet;
+import static jdk.jpackage.internal.util.function.ThrowingBiFunction.toBiFunction;
+import static jdk.jpackage.internal.util.function.ThrowingFunction.toFunction;
+import static jdk.jpackage.internal.util.function.ThrowingSupplier.toSupplier;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.UncheckedIOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -57,16 +64,20 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import static java.util.stream.Collectors.toSet;
 import java.util.stream.Stream;
 import jdk.internal.util.OperatingSystem;
 import jdk.jpackage.internal.util.function.ExceptionBox;
 import jdk.jpackage.internal.util.function.ThrowingConsumer;
 import jdk.jpackage.internal.util.function.ThrowingRunnable;
 import jdk.jpackage.internal.util.function.ThrowingSupplier;
+import jdk.jpackage.internal.util.function.ThrowingUnaryOperator;
 
 public final class TKit {
+
+    private static final ScopedValue<State> STATE = ScopedValue.newInstance();
+    private static final State DEFAULT_STATE = State.build().initDefaults().mutable(false).create();
 
     public static final Path TEST_SRC_ROOT = Functional.identity(() -> {
         Path root = Path.of(System.getProperty("test.src"));
@@ -101,99 +112,155 @@ public final class TKit {
         throw throwUnknownPlatformError();
     }).get();
 
-    static void withExtraLogStream(ThrowingRunnable action) {
-        if (extraLogStream != null) {
-            ThrowingRunnable.toRunnable(action).run();
-        } else {
-            try (PrintStream logStream = openLogStream()) {
-                withExtraLogStream(action, logStream);
+    public static void withOutput(ThrowingRunnable<? extends Exception> action, PrintStream out, PrintStream err) {
+        Objects.requireNonNull(action);
+        Objects.requireNonNull(out);
+        Objects.requireNonNull(err);
+
+        try {
+            withState(action, stateBuilder -> {
+                stateBuilder.out(out).err(err);
+            });
+        } finally {
+            try {
+                out.flush();
+            } finally {
+                err.flush();
             }
         }
     }
 
-    static void withExtraLogStream(ThrowingRunnable action, PrintStream logStream) {
-        var oldExtraLogStream = extraLogStream;
-        try {
-            extraLogStream = logStream;
-            ThrowingRunnable.toRunnable(action).run();
-        } finally {
-            extraLogStream = oldExtraLogStream;
-        }
+    public static void withOperatingSystem(ThrowingRunnable<? extends Exception> action, OperatingSystem os) {
+        Objects.requireNonNull(action);
+        Objects.requireNonNull(os);
+
+        withState(action, stateBuilder -> {
+            stateBuilder.os(os);
+        });
+    }
+
+    public static void withState(ThrowingRunnable<? extends Exception> action, Consumer<State.Builder> stateBuilderMutator) {
+        Objects.requireNonNull(action);
+        Objects.requireNonNull(stateBuilderMutator);
+
+        var stateBuilder = state().buildCopy();
+        stateBuilderMutator.accept(stateBuilder);
+        withState(action, stateBuilder.create());
+    }
+
+    public static void withNewState(ThrowingRunnable<? extends Exception> action) {
+        withState(action, _ -> {});
+    }
+
+    public static void withState(ThrowingRunnable<? extends Exception> action, State state) {
+        Objects.requireNonNull(action);
+        Objects.requireNonNull(state);
+        ScopedValue.where(STATE, state).run(ThrowingRunnable.toRunnable(action));
+    }
+
+    public static State state() {
+        return STATE.orElse(DEFAULT_STATE);
+    }
+
+    enum RunTestMode {
+        FAIL_FAST;
+
+        static final Set<RunTestMode> DEFAULTS = Set.of();
     }
 
     static void runTests(List<TestInstance> tests) {
-        if (currentTest != null) {
-            throw new IllegalStateException(
-                    "Unexpected nested or concurrent Test.run() call");
+        runTests(tests, RunTestMode.DEFAULTS);
+    }
+
+    static void runTests(List<TestInstance> tests, Set<RunTestMode> modes) {
+        Objects.requireNonNull(tests);
+        Objects.requireNonNull(modes);
+        if (currentTest() != null) {
+            throw new IllegalStateException("Unexpected nested Test.run() call");
         }
 
-        withExtraLogStream(() -> {
-            tests.stream().forEach(test -> {
-                currentTest = test;
-                try {
+        tests.stream().forEach(test -> {
+            withState(() -> {
+                if (modes.contains(RunTestMode.FAIL_FAST)) {
+                    test.run();
+                } else {
                     ignoreExceptions(test).run();
-                } finally {
-                    currentTest = null;
-                    if (extraLogStream != null) {
-                        extraLogStream.flush();
-                    }
                 }
+            }, stateBuilder -> {
+                stateBuilder.currentTest(test);
             });
         });
     }
 
-    static Runnable ignoreExceptions(ThrowingRunnable action) {
+    static void runAdhocTest(ThrowingRunnable<? extends Exception> action) {
+        Objects.requireNonNull(action);
+
+        final Path workDir = toSupplier(() -> Files.createTempDirectory("jdk.jpackage-test")).get();
+
+        final TestInstance test;
+        if (action instanceof TestInstance ti) {
+            test = new TestInstance(ti, workDir);
+        } else {
+            test = new TestInstance(() -> {
+                try {
+                    action.run();
+                } finally {
+                    TKit.deleteDirectoryRecursive(workDir);
+                }
+            }, workDir);
+        }
+
+        runTests(List.of(test), Set.of(RunTestMode.FAIL_FAST));
+    }
+
+    static Runnable ignoreExceptions(ThrowingRunnable<? extends Exception> action) {
         return () -> {
             try {
                 try {
                     action.run();
-                } catch (Throwable ex) {
-                    unbox(ex);
+                } catch (Exception ex) {
+                    throw ExceptionBox.unbox(ex);
                 }
-            } catch (Throwable throwable) {
-                printStackTrace(throwable);
+            } catch (Exception | AssertionError t) {
+                printStackTrace(t);
             }
         };
     }
 
-    static void unbox(Throwable throwable) throws Throwable {
-        try {
-            throw throwable;
-        } catch (ExceptionBox | InvocationTargetException ex) {
-            unbox(ex.getCause());
-        }
-    }
-
     public static Path workDir() {
-        return currentTest.workDir();
+        return currentTest().workDir();
     }
 
     static String getCurrentDefaultAppName() {
         // Construct app name from swapping and joining test base name
         // and test function name.
         // Say the test name is `FooTest.testBasic`. Then app name would be `BasicFooTest`.
-        String appNamePrefix = currentTest.functionName();
+        String appNamePrefix = currentTest().functionName();
         if (appNamePrefix != null && appNamePrefix.startsWith("test")) {
             appNamePrefix = appNamePrefix.substring("test".length());
         }
-        return Stream.of(appNamePrefix, currentTest.baseName()).filter(
+        return Stream.of(appNamePrefix, currentTest().baseName()).filter(
                 v -> v != null && !v.isEmpty()).collect(Collectors.joining());
     }
 
     public static boolean isWindows() {
-        return OperatingSystem.isWindows();
+        return TKit.state().os == OperatingSystem.WINDOWS;
     }
 
     public static boolean isOSX() {
-        return OperatingSystem.isMacOS();
+        return TKit.state().os == OperatingSystem.MACOS;
     }
 
     public static boolean isLinux() {
-        return OperatingSystem.isLinux();
+        return TKit.state().os == OperatingSystem.LINUX;
     }
 
     public static boolean isLinuxAPT() {
         return isLinux() && Files.exists(Path.of("/usr/bin/apt-get"));
+    }
+
+    public static boolean isMockingOperatingSystem() {
+        return TKit.state().os != OperatingSystem.current();
     }
 
     private static String addTimestamp(String msg) {
@@ -204,10 +271,8 @@ public final class TKit {
 
     static void log(String v) {
         v = addTimestamp(v);
-        System.out.println(v);
-        if (extraLogStream != null) {
-            extraLogStream.println(v);
-        }
+        var state = state();
+        state.out.println(v);
     }
 
     static Path removeRootFromAbsolutePath(Path v) {
@@ -228,8 +293,11 @@ public final class TKit {
     public static void createTextFile(Path filename, Stream<String> lines) {
         trace(String.format("Create [%s] text file...",
                 filename.toAbsolutePath().normalize()));
-        ThrowingRunnable.toRunnable(() -> Files.write(filename,
-                lines.peek(TKit::trace).collect(Collectors.toList()))).run();
+        try {
+            Files.write(filename, lines.peek(TKit::trace).toList());
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
         trace("Done");
     }
 
@@ -237,22 +305,25 @@ public final class TKit {
             Collection<Map.Entry<String, String>> props) {
         trace(String.format("Create [%s] properties file...",
                 propsFilename.toAbsolutePath().normalize()));
-        ThrowingRunnable.toRunnable(() -> Files.write(propsFilename,
-                props.stream().map(e -> String.join("=", e.getKey(),
-                e.getValue())).peek(TKit::trace).collect(Collectors.toList()))).run();
+        try {
+            Files.write(propsFilename, props.stream().map(e -> {
+                return String.join("=", e.getKey(), e.getValue());
+            }).peek(TKit::trace).toList());
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
         trace("Done");
     }
 
-    public static void traceFileContents(Path path, String label) throws IOException {
+    public static void traceFileContents(Path path, String label) {
         assertFileExists(path);
         trace(String.format("Dump [%s] %s...", path, label));
-        Files.readAllLines(path).forEach(TKit::trace);
+        try {
+            Files.readAllLines(path).forEach(TKit::trace);
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
         trace("Done");
-    }
-
-    public static void createPropertiesFile(Path propsFilename,
-            Map.Entry<String, String>... props) {
-        createPropertiesFile(propsFilename, List.of(props));
     }
 
     public static void createPropertiesFile(Path propsFilename,
@@ -261,13 +332,13 @@ public final class TKit {
     }
 
     public static void trace(String v) {
-        if (TRACE) {
+        if (state().trace) {
             log("TRACE: " + v);
         }
     }
 
     private static void traceAssert(String v) {
-        if (TRACE_ASSERTS) {
+        if (state().traceAsserts) {
             log("TRACE: " + v);
         }
     }
@@ -293,9 +364,17 @@ public final class TKit {
         }
     }
 
-    private static final String TEMP_FILE_PREFIX = null;
+    static Path createUniquePath(Path pathTemplate) {
+        return createUniquePath(pathTemplate.getFileName().toString(), pathTemplate.getParent());
+    }
 
-    private static Path createUniqueFileName(String defaultName) {
+    private static Path createUniquePath(String defaultName, Path basedir) {
+        Objects.requireNonNull(defaultName);
+        Objects.requireNonNull(basedir);
+        if (defaultName.isEmpty()) {
+            throw new IllegalArgumentException();
+        }
+
         final String[] nameComponents;
 
         int separatorIdx = defaultName.lastIndexOf('.');
@@ -309,7 +388,6 @@ public final class TKit {
                 separatorIdx + 1)};
         }
 
-        final Path basedir = workDir();
         int i = 0;
         for (; i < 100; ++i) {
             Path path = basedir.resolve(String.join(".", nameComponents));
@@ -325,37 +403,45 @@ public final class TKit {
                 baseName, i));
     }
 
-    public static Path createTempDirectory(String role) throws IOException {
-        if (role == null) {
-            return Files.createTempDirectory(workDir(), TEMP_FILE_PREFIX);
+    public static Path createTempDirectory(String role) {
+        return createTempDirectory(Path.of(role));
+    }
+
+    public static Path createTempDirectory(Path role) {
+        return createTempPath(role, Files::createDirectory);
+    }
+
+    public static Path createTempFile(String role) {
+        return createTempFile(Path.of(role));
+    }
+
+    public static Path createTempFile(Path role) {
+        return createTempPath(role, Files::createFile);
+    }
+
+    private static Path createTempPath(Path templatePath, ThrowingUnaryOperator<Path, IOException> createPath) {
+        if (templatePath.isAbsolute()) {
+            throw new IllegalArgumentException();
         }
-        return Files.createDirectory(createUniqueFileName(role));
-    }
+        final Path basedir;
+        if (templatePath.getNameCount() > 1) {
+            basedir = workDir().resolve(templatePath.getParent());
+        } else {
+            basedir = workDir();
+        }
 
-    public static Path createTempFile(Path templateFile) throws
-            IOException {
-        return Files.createFile(createUniqueFileName(
-                templateFile.getFileName().toString()));
-    }
+        final var path = createUniquePath(templatePath.getFileName().toString(), basedir);
 
-    public static Path withTempFile(Path templateFile,
-            ThrowingConsumer<Path> action) {
-        final Path tempFile = ThrowingSupplier.toSupplier(() -> createTempFile(
-                templateFile)).get();
-        boolean keepIt = true;
         try {
-            ThrowingConsumer.toConsumer(action).accept(tempFile);
-            keepIt = false;
-            return tempFile;
-        } finally {
-            if (tempFile != null && !keepIt) {
-                ThrowingRunnable.toRunnable(() -> Files.deleteIfExists(tempFile)).run();
-            }
+            Files.createDirectories(path.getParent());
+            return createPath.apply(path);
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
         }
     }
 
     public static Path withTempDirectory(String role,
-            ThrowingConsumer<Path> action) {
+            ThrowingConsumer<Path, ? extends Exception> action) {
         final Path tempDir = ThrowingSupplier.toSupplier(
                 () -> createTempDirectory(role)).get();
         boolean keepIt = true;
@@ -503,86 +589,79 @@ public final class TKit {
     }
 
     public static RuntimeException throwSkippedException(String reason) {
-        trace("Skip the test: " + reason);
-        RuntimeException ex = ThrowingSupplier.toSupplier(
-                () -> (RuntimeException) Class.forName("jtreg.SkippedException").getConstructor(
-                        String.class).newInstance(reason)).get();
+        RuntimeException ex = ThrowingSupplier.toSupplier(() -> {
+            return JtregSkippedExceptionClass.INSTANCE.getConstructor(String.class).newInstance(reason);
+        }).get();
+        return throwSkippedException(ex);
+    }
 
-        currentTest.notifySkipped(ex);
+    public static RuntimeException throwSkippedException(RuntimeException ex) {
+        trace("Skip the test: " + ex.getMessage());
+        currentTest().notifySkipped(ex);
         throw ex;
     }
 
-    public static Path createRelativePathCopy(final Path file) {
-        Path fileCopy = ThrowingSupplier.toSupplier(() -> {
-            Path localPath = createTempFile(file);
-            Files.copy(file, localPath, StandardCopyOption.REPLACE_EXISTING);
-            return localPath;
-        }).get().toAbsolutePath().normalize();
-
-        final Path basePath = Path.of(".").toAbsolutePath().normalize();
-        try {
-            return basePath.relativize(fileCopy);
-        } catch (IllegalArgumentException ex) {
-            // May happen on Windows: java.lang.IllegalArgumentException: 'other' has different root
-            trace(String.format("Failed to relativize [%s] at [%s]", fileCopy,
-                    basePath));
-            printStackTrace(ex);
-        }
-        return file;
+    public static boolean isSkippedException(Throwable t) {
+        return JtregSkippedExceptionClass.INSTANCE.isInstance(t);
     }
 
-    static void waitForFileCreated(Path fileToWaitFor,
-            long timeoutSeconds) throws IOException {
+    public static void waitForFileCreated(Path fileToWaitFor,
+            Duration timeout, Duration afterCreatedTimeout) throws IOException {
+        waitForFileCreated(fileToWaitFor, timeout);
+        // Wait after the file has been created to ensure it is fully written.
+        ThrowingConsumer.<Duration>toConsumer(Thread::sleep).accept(afterCreatedTimeout);
+    }
+
+    private static void waitForFileCreated(Path fileToWaitFor, Duration timeout) throws IOException {
 
         trace(String.format("Wait for file [%s] to be available",
                                                 fileToWaitFor.toAbsolutePath()));
 
-        WatchService ws = FileSystems.getDefault().newWatchService();
+        try (var ws = FileSystems.getDefault().newWatchService()) {
 
-        Path watchDirectory = fileToWaitFor.toAbsolutePath().getParent();
-        watchDirectory.register(ws, ENTRY_CREATE, ENTRY_MODIFY);
+            Path watchDirectory = fileToWaitFor.toAbsolutePath().getParent();
+            watchDirectory.register(ws, ENTRY_CREATE, ENTRY_MODIFY);
 
-        long waitUntil = System.currentTimeMillis() + timeoutSeconds * 1000;
-        for (;;) {
-            long timeout = waitUntil - System.currentTimeMillis();
-            assertTrue(timeout > 0, String.format(
-                    "Check timeout value %d is positive", timeout));
+            var waitUntil = Instant.now().plus(timeout);
+            for (;;) {
+                var remainderTimeout = Instant.now().until(waitUntil);
+                assertTrue(remainderTimeout.isPositive(), String.format(
+                        "Check timeout value %dms is positive", remainderTimeout.toMillis()));
 
-            WatchKey key = ThrowingSupplier.toSupplier(() -> ws.poll(timeout,
-                    TimeUnit.MILLISECONDS)).get();
-            if (key == null) {
-                if (fileToWaitFor.toFile().exists()) {
-                    trace(String.format(
-                            "File [%s] is available after poll timeout expired",
-                            fileToWaitFor));
-                    return;
+                WatchKey key = ThrowingSupplier.toSupplier(() -> {
+                    return ws.poll(remainderTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                }).get();
+                if (key == null) {
+                    if (Files.exists(fileToWaitFor)) {
+                        trace(String.format(
+                                "File [%s] is available after poll timeout expired",
+                                fileToWaitFor));
+                        return;
+                    }
+                    assertUnexpected(String.format("Timeout %dms expired", remainderTimeout.toMillis()));
                 }
-                assertUnexpected(String.format("Timeout expired", timeout));
-            }
 
-            for (WatchEvent<?> event : key.pollEvents()) {
-                if (event.kind() == StandardWatchEventKinds.OVERFLOW) {
-                    continue;
+                for (WatchEvent<?> event : key.pollEvents()) {
+                    if (event.kind() == StandardWatchEventKinds.OVERFLOW) {
+                        continue;
+                    }
+                    Path contextPath = (Path) event.context();
+                    if (Files.exists(fileToWaitFor) && Files.isSameFile(watchDirectory.resolve(contextPath), fileToWaitFor)) {
+                        trace(String.format("File [%s] is available", fileToWaitFor));
+                        return;
+                    }
                 }
-                Path contextPath = (Path) event.context();
-                if (Files.isSameFile(watchDirectory.resolve(contextPath),
-                        fileToWaitFor)) {
-                    trace(String.format("File [%s] is available", fileToWaitFor));
-                    return;
-                }
-            }
 
-            if (!key.reset()) {
-                assertUnexpected("Watch key invalidated");
+                if (!key.reset()) {
+                    assertUnexpected("Watch key invalidated");
+                }
             }
         }
     }
 
     static void printStackTrace(Throwable throwable) {
-        if (extraLogStream != null) {
-            throwable.printStackTrace(extraLogStream);
-        }
-        throwable.printStackTrace();
+        var state = state();
+        throwable.printStackTrace(state.err);
     }
 
     private static String concatMessages(String msg, String msg2) {
@@ -593,7 +672,7 @@ public final class TKit {
     }
 
     public static void assertEquals(long expected, long actual, String msg) {
-        currentTest.notifyAssert();
+        currentTest().notifyAssert();
         if (expected != actual) {
             error(concatMessages(String.format(
                     "Expected [%d]. Actual [%d]", expected, actual),
@@ -604,7 +683,7 @@ public final class TKit {
     }
 
     public static void assertNotEquals(long expected, long actual, String msg) {
-        currentTest.notifyAssert();
+        currentTest().notifyAssert();
         if (expected == actual) {
             error(concatMessages(String.format("Unexpected [%d] value", actual),
                     msg));
@@ -614,8 +693,31 @@ public final class TKit {
                 actual), msg));
     }
 
-    public static void assertEquals(String expected, String actual, String msg) {
-        currentTest.notifyAssert();
+    public static void assertEquals(boolean expected, boolean actual, String msg) {
+        currentTest().notifyAssert();
+        if (expected != actual) {
+            error(concatMessages(String.format(
+                    "Expected [%s]. Actual [%s]", expected, actual),
+                    msg));
+        }
+
+        traceAssert(concatMessages(String.format("assertEquals(%s)", expected), msg));
+    }
+
+    public static void assertNotEquals(boolean expected, boolean actual, String msg) {
+        currentTest().notifyAssert();
+        if (expected == actual) {
+            error(concatMessages(String.format("Unexpected [%s] value", actual),
+                    msg));
+        }
+
+        traceAssert(concatMessages(String.format("assertNotEquals(%s, %s)", expected,
+                actual), msg));
+    }
+
+
+    public static void assertEquals(Object expected, Object actual, String msg) {
+        currentTest().notifyAssert();
         if ((actual != null && !actual.equals(expected))
                 || (expected != null && !expected.equals(actual))) {
             error(concatMessages(String.format(
@@ -626,8 +728,8 @@ public final class TKit {
         traceAssert(concatMessages(String.format("assertEquals(%s)", expected), msg));
     }
 
-    public static void assertNotEquals(String expected, String actual, String msg) {
-        currentTest.notifyAssert();
+    public static void assertNotEquals(Object expected, Object actual, String msg) {
+        currentTest().notifyAssert();
         if ((actual != null && !actual.equals(expected))
                 || (expected != null && !expected.equals(actual))) {
 
@@ -640,7 +742,7 @@ public final class TKit {
     }
 
     public static void assertNull(Object value, String msg) {
-        currentTest.notifyAssert();
+        currentTest().notifyAssert();
         if (value != null) {
             error(concatMessages(String.format("Unexpected not null value [%s]",
                     value), msg));
@@ -650,7 +752,7 @@ public final class TKit {
     }
 
     public static void assertNotNull(Object value, String msg) {
-        currentTest.notifyAssert();
+        currentTest().notifyAssert();
         if (value == null) {
             error(concatMessages("Unexpected null value", msg));
         }
@@ -667,7 +769,7 @@ public final class TKit {
     }
 
     public static void assertTrue(boolean actual, String msg, Runnable onFail) {
-        currentTest.notifyAssert();
+        currentTest().notifyAssert();
         if (!actual) {
             if (onFail != null) {
                 onFail.run();
@@ -679,7 +781,7 @@ public final class TKit {
     }
 
     public static void assertFalse(boolean actual, String msg, Runnable onFail) {
-        currentTest.notifyAssert();
+        currentTest().notifyAssert();
         if (actual) {
             if (onFail != null) {
                 onFail.run();
@@ -700,6 +802,35 @@ public final class TKit {
         }
     }
 
+    public static void assertMismatchFileContent(Path a, Path b) {
+        assertFilesMismatch(a, b, true, Optional.empty());
+    }
+
+    public static void assertMismatchFileContent(Path a, Path b, String msg) {
+        assertFilesMismatch(a, b, true, Optional.of(msg));
+    }
+
+    public static void assertSameFileContent(Path a, Path b) {
+        assertFilesMismatch(a, b, false, Optional.empty());
+    }
+
+    public static void assertSameFileContent(Path a, Path b, String msg) {
+        assertFilesMismatch(a, b, false, Optional.of(msg));
+    }
+
+    public static void assertFilesMismatch(Path a, Path b, boolean expectMismatch, Optional<String> msg) {
+        var mismatch = toBiFunction(Files::mismatch).apply(a, b) != -1;
+        if (expectMismatch) {
+            assertTrue(mismatch, msg.orElseGet(() -> {
+                return String.format("Check the content of [%s] and [%s] files mismatch", a, b);
+            }));
+        } else {
+            assertTrue(!mismatch, msg.orElseGet(() -> {
+                return String.format("Check the content of [%s] and [%s] files is the same", a, b);
+            }));
+        }
+    }
+
     public static void assertDirectoryNotEmpty(Path path) {
         assertDirectoryExists(path, Optional.of(false));
     }
@@ -708,7 +839,7 @@ public final class TKit {
         assertDirectoryExists(path, Optional.of(true));
     }
 
-    public static void assertDirectoryExists(Path path, Optional<Boolean> isEmptyCheck) {
+    private static void assertDirectoryExists(Path path, Optional<Boolean> isEmptyCheck) {
         assertPathExists(path, true);
         boolean isDirectory = Files.isDirectory(path);
         if (isEmptyCheck.isEmpty() || !isDirectory) {
@@ -718,9 +849,9 @@ public final class TKit {
                 try (var files = Files.list(path)) {
                     boolean actualIsEmpty = files.findFirst().isEmpty();
                     if (isEmptyCheck.get()) {
-                        TKit.assertTrue(actualIsEmpty, String.format("Check [%s] is not an empty directory", path));
+                        TKit.assertTrue(actualIsEmpty, String.format("Check [%s] is an empty directory", path));
                     } else {
-                        TKit.assertTrue(!actualIsEmpty, String.format("Check [%s] is an empty directory", path));
+                        TKit.assertTrue(!actualIsEmpty, String.format("Check [%s] is not an empty directory", path));
                     }
                 }
             }).run();
@@ -734,7 +865,14 @@ public final class TKit {
     public static void assertSymbolicLinkExists(Path path) {
         assertPathExists(path, true);
         assertTrue(Files.isSymbolicLink(path), String.format
-                ("Check [%s] is a symbolic link", path));
+                ("Check [%s] is a symbolic link", Objects.requireNonNull(path)));
+    }
+
+    public static void assertSymbolicLinkTarget(Path symlinkPath, Path expectedTargetPath) {
+        assertSymbolicLinkExists(symlinkPath);
+        var targetPath = toFunction(Files::readSymbolicLink).apply(symlinkPath);
+        assertEquals(expectedTargetPath, targetPath,
+                String.format("Check the target of the symbolic link [%s]", symlinkPath));
     }
 
     public static void assertFileExists(Path path) {
@@ -756,29 +894,33 @@ public final class TKit {
     }
 
     public static void assertUnexpected(String msg) {
-        currentTest.notifyAssert();
+        currentTest().notifyAssert();
         error(concatMessages("Unexpected", msg));
     }
 
     public static DirectoryContentVerifier assertDirectoryContent(Path dir) {
-        return new DirectoryContentVerifier(dir);
+        return new DirectoryContentVerifier(dir, ThrowingSupplier.toSupplier(() -> {
+            try (var files = Files.list(dir)) {
+                return files.map(Path::getFileName).collect(toSet());
+            }
+        }).get());
+    }
+
+    public static DirectoryContentVerifier assertDirectoryContentRecursive(Path dir) {
+        return new DirectoryContentVerifier(dir, ThrowingSupplier.toSupplier(() -> {
+            try (var files = Files.walk(dir).skip(1)) {
+                return files.map(dir::relativize).collect(toSet());
+            }
+        }).get());
     }
 
     public static final class DirectoryContentVerifier {
-        public DirectoryContentVerifier(Path baseDir) {
-            this(baseDir, ThrowingSupplier.toSupplier(() -> {
-                try (var files = Files.list(baseDir)) {
-                    return files.map(Path::getFileName).collect(toSet());
-                }
-            }).get());
-        }
-
         public void match(Path ... expected) {
             DirectoryContentVerifier.this.match(Set.of(expected));
         }
 
         public void match(Set<Path> expected) {
-            currentTest.notifyAssert();
+            currentTest().notifyAssert();
 
             var comm = Comm.compare(content, expected);
             if (!comm.unique1().isEmpty() && !comm.unique2().isEmpty()) {
@@ -805,7 +947,7 @@ public final class TKit {
         }
 
         public void contains(Set<Path> expected) {
-            currentTest.notifyAssert();
+            currentTest().notifyAssert();
 
             var comm = Comm.compare(content, expected);
             if (!comm.unique2().isEmpty()) {
@@ -850,7 +992,7 @@ public final class TKit {
 
     public static void assertStringListEquals(List<String> expected,
             List<String> actual, String msg) {
-        currentTest.notifyAssert();
+        currentTest().notifyAssert();
 
         traceAssert(concatMessages("assertStringListEquals()", msg));
 
@@ -898,12 +1040,13 @@ public final class TKit {
     }
 
     /**
-     * Creates a directory by creating all nonexistent parent directories first
-     * just like java.nio.file.Files#createDirectories() and returns
-     * java.io.Closeable that will delete all created nonexistent parent
+     * Creates a directory by creating all nonexistent parent directories first just
+     * like
+     * {@link Files#createDirectories(Path, java.nio.file.attribute.FileAttribute...)}
+     * and returns java.io.Closeable that will delete all created nonexistent parent
      * directories.
      */
-    public static Closeable createDirectories(Path dir) throws IOException {
+    public static Closeable createDirectories(Path dir) {
         Objects.requireNonNull(dir);
 
         Collection<Path> dirsToDelete = new ArrayList<>();
@@ -913,7 +1056,12 @@ public final class TKit {
             dirsToDelete.add(curDir);
             curDir = curDir.getParent();
         }
-        Files.createDirectories(dir);
+
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
 
         return new Closeable() {
             @Override
@@ -927,8 +1075,25 @@ public final class TKit {
 
     public static final class TextStreamVerifier {
         TextStreamVerifier(String value) {
-            this.value = value;
+            this.value = Objects.requireNonNull(value);
             predicate(String::contains);
+        }
+
+        TextStreamVerifier(Pattern value) {
+            this(Objects.requireNonNull(value).pattern());
+            predicate(value.asPredicate());
+        }
+
+        TextStreamVerifier(TextStreamVerifier other) {
+            predicate = other.predicate;
+            label = other.label;
+            negate = other.negate;
+            createException = other.createException;
+            value = other.value;
+        }
+
+        public TextStreamVerifier copy() {
+            return new TextStreamVerifier(this);
         }
 
         public TextStreamVerifier label(String v) {
@@ -937,8 +1102,15 @@ public final class TKit {
         }
 
         public TextStreamVerifier predicate(BiPredicate<String, String> v) {
-            predicate = v;
+            predicate = Objects.requireNonNull(v);
             return this;
+        }
+
+        public TextStreamVerifier predicate(Predicate<String> v) {
+            Objects.requireNonNull(v);
+            return predicate((str, _) -> {
+                return v.test(str);
+            });
         }
 
         public TextStreamVerifier negate() {
@@ -946,17 +1118,8 @@ public final class TKit {
             return this;
         }
 
-        public TextStreamVerifier andThen(Consumer<? super Stream<String>> anotherVerifier) {
-            this.anotherVerifier = anotherVerifier;
-            return this;
-        }
-
-        public TextStreamVerifier andThen(TextStreamVerifier anotherVerifier) {
-            this.anotherVerifier = anotherVerifier::apply;
-            return this;
-        }
-
         public TextStreamVerifier orElseThrow(RuntimeException v) {
+            Objects.requireNonNull(v);
             return orElseThrow(() -> v);
         }
 
@@ -965,22 +1128,27 @@ public final class TKit {
             return this;
         }
 
-        public void apply(Stream<String> lines) {
-            final String matchedStr;
+        public TextStreamVerifier mutate(Consumer<TextStreamVerifier> mutator) {
+            mutator.accept(this);
+            return this;
+        }
 
-            lines = lines.dropWhile(line -> !predicate.test(line, value));
-            if (anotherVerifier == null) {
-                matchedStr = lines.findFirst().orElse(null);
-            } else {
-                var tail = lines.toList();
-                if (tail.isEmpty()) {
-                    matchedStr = null;
-                } else {
-                    matchedStr = tail.get(0);
+        private String find(Iterator<String> lineIt) {
+            while (lineIt.hasNext()) {
+                final var line = lineIt.next();
+                if (predicate.test(line, value)) {
+                    return line;
                 }
-                lines = tail.stream().skip(1);
             }
+            return null;
+        }
 
+        public void apply(List<String> lines) {
+            apply(lines.iterator());
+        }
+
+        public void apply(Iterator<String> lineIt) {
+            final String matchedStr = find(lineIt);
             final String labelStr = Optional.ofNullable(label).orElse("output");
             if (negate) {
                 String msg = String.format(
@@ -1005,17 +1173,12 @@ public final class TKit {
                     }
                 }
             }
-
-            if (anotherVerifier != null) {
-                anotherVerifier.accept(lines);
-            }
         }
 
         private BiPredicate<String, String> predicate;
         private String label;
         private boolean negate;
         private Supplier<RuntimeException> createException;
-        private Consumer<? super Stream<String>> anotherVerifier;
         private final String value;
     }
 
@@ -1023,26 +1186,77 @@ public final class TKit {
         return new TextStreamVerifier(what);
     }
 
-    private static PrintStream openLogStream() {
-        if (LOG_FILE == null) {
-            return null;
-        }
-
-        return ThrowingSupplier.toSupplier(() -> new PrintStream(
-                new FileOutputStream(LOG_FILE.toFile(), true))).get();
+    public static TextStreamVerifier assertTextStream(Pattern what) {
+        return new TextStreamVerifier(what);
     }
 
-    private static TestInstance currentTest;
-    private static PrintStream extraLogStream;
+    public static Consumer<Iterator<String>> assertEndOfTextStream(String label) {
+        Objects.requireNonNull(label);
+        return it -> {
+            var tail = new ArrayList<String>();
+            it.forEachRemaining(tail::add);
+            assertStringListEquals(List.of(), tail, String.format("Check the end of %s", label));
+        };
+    }
 
-    private static final boolean TRACE;
-    private static final boolean TRACE_ASSERTS;
+    public record PathSnapshot(List<String> contentHashes) {
+        public PathSnapshot {
+            contentHashes.forEach(Objects::requireNonNull);
+        }
 
-    static final boolean VERBOSE_JPACKAGE;
-    static final boolean VERBOSE_TEST_SETUP;
+        public PathSnapshot(Path path) {
+            this(hashRecursive(path));
+        }
+
+        public void assertEquals(PathSnapshot other, String msg) {
+            assertStringListEquals(contentHashes(), other.contentHashes(), msg);
+        }
+
+        private static List<String> hashRecursive(Path path) {
+            try {
+                try (final var walk = Files.walk(path)) {
+                    return walk.sorted().map(p -> {
+                        final String hash;
+                        if (Files.isDirectory(p, LinkOption.NOFOLLOW_LINKS)) {
+                            hash = "";
+                        } else {
+                            hash = hashFile(p);
+                        }
+                        return String.format("%s#%s", path.relativize(p), hash);
+                    }).toList();
+                }
+            } catch (IOException ex) {
+                throw new UncheckedIOException(ex);
+            }
+        }
+
+        private static String hashFile(Path path) {
+            try {
+                final var time = Files.getLastModifiedTime(path, LinkOption.NOFOLLOW_LINKS);
+                return time.toString();
+            } catch (IOException ex) {
+                throw new UncheckedIOException(ex);
+            }
+        }
+    }
 
     static String getConfigProperty(String propertyName) {
         return System.getProperty(getConfigPropertyName(propertyName));
+    }
+
+    static Optional<Boolean> getConfigBooleanProperty(String propertyName) {
+        return Optional.ofNullable(getConfigProperty(propertyName))
+                .map(v -> {
+                    if (v.equalsIgnoreCase("true")) {
+                        return true;
+                    } else if (v.equalsIgnoreCase("false")) {
+                        return false;
+                    } else {
+                        throw new IllegalArgumentException(String.format(
+                                "Invalid value of property %s: %s. Expected: true or false",
+                                getConfigPropertyName(propertyName), v));
+                    }
+                });
     }
 
     static String getConfigPropertyName(String propertyName) {
@@ -1068,35 +1282,219 @@ public final class TKit {
         return tokens.stream().collect(Collectors.toSet());
     }
 
-    static final Path LOG_FILE = Functional.identity(() -> {
-        String val = getConfigProperty("logfile");
-        if (val == null) {
-            return null;
-        }
-        return Path.of(val);
-    }).get();
+    private static TestInstance currentTest() {
+        return state().currentTest;
+    }
 
-    static {
-        Set<String> logOptions = tokenizeConfigProperty("suppress-logging");
-        if (logOptions == null) {
-            TRACE = true;
-            TRACE_ASSERTS = true;
-            VERBOSE_JPACKAGE = true;
-            VERBOSE_TEST_SETUP = true;
-        } else if (logOptions.contains("all")) {
-            TRACE = false;
-            TRACE_ASSERTS = false;
-            VERBOSE_JPACKAGE = false;
-            VERBOSE_TEST_SETUP = false;
-        } else {
-            Predicate<Set<String>> isNonOf = options -> {
-                return Collections.disjoint(logOptions, options);
-            };
+    static boolean verboseTestSetup() {
+        return state().verboseTestSetup;
+    }
 
-            TRACE = isNonOf.test(Set.of("trace", "t"));
-            TRACE_ASSERTS = isNonOf.test(Set.of("assert", "a"));
-            VERBOSE_JPACKAGE = isNonOf.test(Set.of("jpackage", "jp"));
-            VERBOSE_TEST_SETUP = isNonOf.test(Set.of("init", "i"));
+
+    private static final class JtregSkippedExceptionClass extends ClassLoader {
+        @SuppressWarnings("unchecked")
+        JtregSkippedExceptionClass() {
+            super(TKit.class.getClassLoader());
+
+            final byte[] bytes = Base64.getDecoder().decode(
+                    // Base64-encoded "jtreg/SkippedException.class" file
+                    // emitted by jdk8's javac from "$OPEN_JDK/test/lib/jtreg/SkippedException.java"
+                    "yv66vgAAADQAFQoABAARCgAEABIHABMHABQBABBzZXJpYWxWZXJzaW9uVUlEAQABSgEADUNvbnN0"
+                    + "YW50VmFsdWUFErH6BHk+kr0BAAY8aW5pdD4BACooTGphdmEvbGFuZy9TdHJpbmc7TGphdmEvbGFu"
+                    + "Zy9UaHJvd2FibGU7KVYBAARDb2RlAQAPTGluZU51bWJlclRhYmxlAQAVKExqYXZhL2xhbmcvU3Ry"
+                    + "aW5nOylWAQAKU291cmNlRmlsZQEAFVNraXBwZWRFeGNlcHRpb24uamF2YQwACgALDAAKAA4BABZq"
+                    + "dHJlZy9Ta2lwcGVkRXhjZXB0aW9uAQAaamF2YS9sYW5nL1J1bnRpbWVFeGNlcHRpb24AMQADAAQA"
+                    + "AAABABoABQAGAAEABwAAAAIACAACAAEACgALAAEADAAAACMAAwADAAAAByorLLcAAbEAAAABAA0A"
+                    + "AAAKAAIAAAAiAAYAIwABAAoADgABAAwAAAAiAAIAAgAAAAYqK7cAArEAAAABAA0AAAAKAAIAAAAm"
+                    + "AAUAJwABAA8AAAACABA");
+
+            clazz = (Class<RuntimeException>)defineClass("jtreg.SkippedException", bytes, 0, bytes.length);
         }
+
+        private final Class<RuntimeException> clazz;
+
+        static final Class<RuntimeException> INSTANCE = new JtregSkippedExceptionClass().clazz;
+
+    }
+
+
+    public static final class State {
+
+        private State(
+                OperatingSystem os,
+                TestInstance currentTest,
+                PrintStream out,
+                PrintStream err,
+                Map<Object, Object> properties,
+                boolean trace,
+                boolean traceAsserts,
+                boolean verboseTestSetup) {
+
+            Objects.requireNonNull(os);
+            Objects.requireNonNull(out);
+            Objects.requireNonNull(err);
+            Objects.requireNonNull(properties);
+
+            this.os = os;
+            this.currentTest = currentTest;
+            this.out = out;
+            this.err = err;
+            this.properties = Collections.synchronizedMap(properties);
+
+            this.trace = trace;
+            this.traceAsserts = traceAsserts;
+
+            this.verboseTestSetup = verboseTestSetup;
+        }
+
+        Builder buildCopy() {
+            return build().initFrom(this);
+        }
+
+        PrintStream out() {
+            return out;
+        }
+
+        PrintStream err() {
+            return err;
+        }
+
+        Optional<Object> findProperty(Object key) {
+            return Optional.ofNullable(properties.get(Objects.requireNonNull(key)));
+        }
+
+        void setProperty(Object key, Object value) {
+            if (value == null) {
+                properties.remove(Objects.requireNonNull(key));
+            } else {
+                properties.put(Objects.requireNonNull(key), value);
+            }
+        }
+
+        static Builder build() {
+            return new Builder();
+        }
+
+
+        static final class Builder {
+
+            Builder initDefaults() {
+                os = null;
+                currentTest = null;
+                out = System.out;
+                err = System.err;
+
+                var logOptions = tokenizeConfigProperty("suppress-logging");
+                if (logOptions == null) {
+                    trace = true;
+                    traceAsserts = true;
+                    verboseTestSetup = true;
+                } else if (logOptions.contains("all")) {
+                    trace = false;
+                    traceAsserts = false;
+                    verboseTestSetup = false;
+                } else {
+                    Predicate<Set<String>> isNonOf = options -> {
+                        return Collections.disjoint(logOptions, options);
+                    };
+
+                    trace = isNonOf.test(Set.of("trace", "t"));
+                    traceAsserts = isNonOf.test(Set.of("assert", "a"));
+                    verboseTestSetup = isNonOf.test(Set.of("init", "i"));
+                }
+
+                mutable = true;
+
+                return this;
+            }
+
+            Builder initFrom(State state) {
+                os = state.os;
+                currentTest = state.currentTest;
+                out = state.out;
+                err = state.err;
+                properties.clear();
+                properties.putAll(state.properties);
+
+                trace = state.trace;
+                traceAsserts = state.traceAsserts;
+
+                verboseTestSetup = state.verboseTestSetup;
+
+                return this;
+            }
+
+            Builder os(OperatingSystem v) {
+                os = v;
+                return this;
+            }
+
+            Builder currentTest(TestInstance v) {
+                currentTest = v;
+                return this;
+            }
+
+            Builder out(PrintStream v) {
+                out = v;
+                return this;
+            }
+
+            Builder err(PrintStream v) {
+                err = v;
+                return this;
+            }
+
+            Builder property(Object key, Object value) {
+                if (value == null) {
+                    properties.remove(Objects.requireNonNull(key));
+                } else {
+                    properties.put(Objects.requireNonNull(key), value);
+                }
+                return this;
+            }
+
+            Builder mutable(boolean v) {
+                mutable = v;
+                return this;
+            }
+
+            State create() {
+                return new State(
+                        Optional.ofNullable(os).orElseGet(OperatingSystem::current),
+                        currentTest,
+                        out,
+                        err,
+                        mutable ? new HashMap<>(properties) : Map.copyOf(properties),
+                        trace,
+                        traceAsserts,
+                        verboseTestSetup);
+            }
+
+            private OperatingSystem os;
+            private TestInstance currentTest;
+            private PrintStream out;
+            private PrintStream err;
+            private Map<Object, Object> properties = new HashMap<>();
+
+            private boolean trace;
+            private boolean traceAsserts;
+
+            private boolean verboseTestSetup;
+
+            private boolean mutable = true;
+        }
+
+
+        private OperatingSystem os;
+        private final TestInstance currentTest;
+        private final PrintStream out;
+        private final PrintStream err;
+
+        private final Map<Object, Object> properties;
+
+        private final boolean trace;
+        private final boolean traceAsserts;
+
+        private final boolean verboseTestSetup;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -124,11 +124,18 @@ import java.util.Objects;
  * to be accurate will find the ISO-8601 approach unsuitable.
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
- * The {@code equals} method should be used for comparisons.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Year} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @implSpec
  * This class is immutable and thread-safe.
@@ -137,7 +144,8 @@ import java.util.Objects;
  */
 @NullMarked
 @jdk.internal.ValueBased
-public final class Year
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Year
         implements Temporal, TemporalAdjuster, Comparable<Year>, Serializable {
 
     /**
@@ -163,7 +171,7 @@ public final class Year
         .toFormatter();
 
     /**
-     * The year being represented.
+     * @serial The year being represented.
      */
     private final int year;
 
@@ -374,7 +382,7 @@ public final class Year
      * @return true if the field is supported on this year, false if not
      */
     @Override
-    public boolean isSupported(TemporalField field) {
+    public boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field == YEAR || field == YEAR_OF_ERA || field == ERA;
         }
@@ -408,7 +416,7 @@ public final class Year
      * @return true if the unit can be added/subtracted, false if not
      */
     @Override
-    public boolean isSupported(TemporalUnit unit) {
+    public boolean isSupported(@Nullable TemporalUnit unit) {
         if (unit instanceof ChronoUnit) {
             return unit == YEARS || unit == DECADES || unit == CENTURIES || unit == MILLENNIA || unit == ERAS;
         }
@@ -546,7 +554,7 @@ public final class Year
      * @param monthDay  the month-day to validate, null returns false
      * @return true if the month and day are valid for this year
      */
-    public boolean isValidMonthDay(MonthDay monthDay) {
+    public boolean isValidMonthDay(@Nullable MonthDay monthDay) {
         return monthDay != null && monthDay.isValidYear(year);
     }
 
@@ -1065,8 +1073,6 @@ public final class Year
      * @return true if this is equal to the other year
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;
@@ -1122,6 +1128,7 @@ public final class Year
      * @throws InvalidObjectException always
      */
     @java.io.Serial
+    @SuppressWarnings("serial") // this method is not invoked for value classes
     private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }

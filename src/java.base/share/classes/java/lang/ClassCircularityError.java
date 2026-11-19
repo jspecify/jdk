@@ -42,7 +42,6 @@ public class ClassCircularityError extends LinkageError {
     /**
      * Constructs a {@code ClassCircularityError} with no detail message.
      */
-    
     public ClassCircularityError() {
         super();
     }
@@ -54,7 +53,6 @@ public class ClassCircularityError extends LinkageError {
      * @param  s
      *         The detail message
      */
-    
     public ClassCircularityError(@Nullable String s) {
         super(s);
     }

@@ -1,9 +1,12 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8334488
+ * @library /tools/javac/lib
  * @summary Verify the error message generated for early access from inner class
- * @compile/fail/ref=EarlyInnerAccessErrorMessageTest.out -XDrawDiagnostics EarlyInnerAccessErrorMessageTest.java
+ * @modules jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.util
  * @enablePreview
+ * @compile/fail/ref=EarlyInnerAccessErrorMessageTest.out -XDrawDiagnostics EarlyInnerAccessErrorMessageTest.java
  */
 public class EarlyInnerAccessErrorMessageTest {
     int x;

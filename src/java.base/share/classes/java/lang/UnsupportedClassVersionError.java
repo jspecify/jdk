@@ -44,7 +44,6 @@ public class UnsupportedClassVersionError extends ClassFormatError {
      * Constructs a {@code UnsupportedClassVersionError}
      * with no detail message.
      */
-    
     public UnsupportedClassVersionError() {
         super();
     }
@@ -55,7 +54,6 @@ public class UnsupportedClassVersionError extends ClassFormatError {
      *
      * @param   s   the detail message.
      */
-    
     public UnsupportedClassVersionError(@Nullable String s) {
         super(s);
     }

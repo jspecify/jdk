@@ -27,6 +27,7 @@ package java.security.interfaces;
 
 import java.math.BigInteger;
 import java.security.spec.AlgorithmParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The interface to an RSA private key.
@@ -50,7 +51,6 @@ public interface RSAPrivateKey extends java.security.PrivateKey, RSAKey
      * ineffectual. Do not use; no replacement.
      */
     @Deprecated
-    @SuppressWarnings("serial")
     @java.io.Serial
     long serialVersionUID = 5187144804936595022L;
 
@@ -71,7 +71,7 @@ public interface RSAPrivateKey extends java.security.PrivateKey, RSAKey
      * @since 11
      */
     @Override
-    default AlgorithmParameterSpec getParams() {
+    default @Nullable AlgorithmParameterSpec getParams() {
         return null;
     }
 }

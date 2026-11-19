@@ -27,6 +27,7 @@ package javax.crypto.interfaces;
 
 import javax.crypto.spec.DHParameterSpec;
 import java.math.BigInteger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The interface to a Diffie-Hellman public key.
@@ -47,7 +48,6 @@ public interface DHPublicKey extends DHKey, java.security.PublicKey {
      * ineffectual. Do not use; no replacement.
      */
     @Deprecated
-    @SuppressWarnings("serial")
     @java.io.Serial
     long serialVersionUID = -6628103563352519193L;
 
@@ -67,7 +67,7 @@ public interface DHPublicKey extends DHKey, java.security.PublicKey {
      * @return {@inheritDoc java.security.AsymmetricKey}
      */
     @Override
-    default DHParameterSpec getParams() {
+    default @Nullable DHParameterSpec getParams() {
         return null;
     }
 }

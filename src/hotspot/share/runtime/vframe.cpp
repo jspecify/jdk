@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/javaThreadStatus.hpp"
 #include "classfile/vmClasses.hpp"
@@ -44,16 +43,15 @@
 #include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaThread.inline.hpp"
-#include "runtime/objectMonitor.hpp"
 #include "runtime/objectMonitor.inline.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/stackFrameStream.inline.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/synchronizer.inline.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/vframe.inline.hpp"
-#include "runtime/vframeArray.hpp"
 #include "runtime/vframe_hp.hpp"
+#include "runtime/vframeArray.hpp"
 
 vframe::vframe(const frame* fr, const RegisterMap* reg_map, JavaThread* thread)
 : _reg_map(reg_map), _thread(thread),
@@ -94,10 +92,11 @@ vframe* vframe::new_vframe(const frame* f, const RegisterMap* reg_map, JavaThrea
 }
 
 vframe* vframe::sender() const {
-  RegisterMap temp_map = *register_map();
   assert(is_top(), "just checking");
   if (_fr.is_empty()) return nullptr;
   if (_fr.is_entry_frame() && _fr.is_first_frame()) return nullptr;
+
+  RegisterMap temp_map = *register_map();
   frame s = _fr.real_sender(&temp_map);
   if (s.is_first_frame()) return nullptr;
   return vframe::new_vframe(&s, &temp_map, thread());
@@ -169,7 +168,7 @@ void javaVFrame::print_locked_object_class_name(outputStream* st, Handle obj, co
   }
 }
 
-void javaVFrame::print_lock_info_on(outputStream* st, int frame_count) {
+void javaVFrame::print_lock_info_on(outputStream* st, bool is_virtual, int frame_count) {
   Thread* current = Thread::current();
   ResourceMark rm(current);
   HandleMark hm(current);
@@ -204,8 +203,9 @@ void javaVFrame::print_lock_info_on(outputStream* st, int frame_count) {
       oop obj = thread()->current_park_blocker();
       Klass* k = obj->klass();
       st->print_cr("\t- %s <" INTPTR_FORMAT "> (a %s)", "parking to wait for ", p2i(obj), k->external_name());
-    }
-    else if (thread()->osthread()->get_state() == OBJECT_WAIT) {
+    } else if (thread()->osthread()->get_state() == OBJECT_WAIT &&
+        // If this is a carrier thread with mounted virtual thread this is reported for the virtual thread.
+        (is_virtual || !thread()->is_vthread_mounted())) {
       // We are waiting on an Object monitor but Object.wait() isn't the
       // top-frame, so we should be waiting on a Class initialization monitor.
       InstanceKlass* k = thread()->class_to_be_initialized();
@@ -248,7 +248,7 @@ void javaVFrame::print_lock_info_on(outputStream* st, int frame_count) {
           // The first stage of async deflation does not affect any field
           // used by this comparison so the ObjectMonitor* is usable here.
           if (mark.has_monitor()) {
-            ObjectMonitor* mon = ObjectSynchronizer::read_monitor(current, monitor->owner(), mark);
+            ObjectMonitor* mon = ObjectSynchronizer::read_monitor(monitor->owner());
             if (// if the monitor is null we must be in the process of locking
                 mon == nullptr ||
                 // we have marked ourself as pending on this monitor
@@ -318,13 +318,9 @@ static StackValue* create_stack_value_from_oop_map(const InterpreterOopMap& oop_
 static bool is_in_expression_stack(const frame& fr, const intptr_t* const addr) {
   assert(addr != nullptr, "invariant");
 
-  // Ensure to be 'inside' the expression stack (i.e., addr >= sp for Intel).
+  // Ensure to be 'inside' the expression stack (i.e., addr >= sp).
   // In case of exceptions, the expression stack is invalid and the sp
   // will be reset to express this condition.
-  if (frame::interpreter_frame_expression_stack_direction() > 0) {
-    return addr <= fr.interpreter_frame_tos_address();
-  }
-
   return addr >= fr.interpreter_frame_tos_address();
 }
 
@@ -493,10 +489,10 @@ void vframeStreamCommon::found_bad_method_frame() const {
 #endif
 
 vframeStream::vframeStream(JavaThread* thread, Handle continuation_scope, bool stop_at_java_call_stub)
- : vframeStreamCommon(RegisterMap(thread,
-                                  RegisterMap::UpdateMap::include,
-                                  RegisterMap::ProcessFrames::include,
-                                  RegisterMap::WalkContinuation::include)) {
+ : vframeStreamCommon(thread,
+                      RegisterMap::UpdateMap::include,
+                      RegisterMap::ProcessFrames::include,
+                      RegisterMap::WalkContinuation::include) {
 
   _stop_at_java_call_stub = stop_at_java_call_stub;
   _continuation_scope = continuation_scope;
@@ -514,7 +510,7 @@ vframeStream::vframeStream(JavaThread* thread, Handle continuation_scope, bool s
 }
 
 vframeStream::vframeStream(oop continuation, Handle continuation_scope)
- : vframeStreamCommon(RegisterMap(continuation, RegisterMap::UpdateMap::include)) {
+ : vframeStreamCommon(continuation) {
 
   _stop_at_java_call_stub = false;
   _continuation_scope = continuation_scope;
@@ -530,6 +526,10 @@ vframeStream::vframeStream(oop continuation, Handle continuation_scope)
   }
 }
 
+vframeStreamCommon::vframeStreamCommon(oop continuation)
+  : _reg_map(continuation, RegisterMap::UpdateMap::include), _cont_entry(nullptr) {
+  _thread = _reg_map.thread();
+}
 
 // Step back n frames, skip any pseudo frames in between.
 // This function is used in Class.forName, Class.newInstance, and Method.Invoke.
@@ -575,8 +575,11 @@ void vframeStreamCommon::skip_prefixed_method_and_wrappers() {
     }
     const char* name = method()->name()->as_C_string();
     size_t name_len = strlen(name);
+    if (name_len >= prefixed_name_len) {
+      break; // the name can't be the unprefixed version of prefixed_name
+    }
     size_t prefix_len = prefixed_name_len - name_len;
-    if (prefix_len <= 0 || strcmp(name, prefixed_name + prefix_len) != 0) {
+    if (strcmp(name, prefixed_name + prefix_len) != 0) {
       break; // prefixed name isn't prefixed version of method name, can't be a wrapper
     }
     for (; prefix_index >= 0; --prefix_index) {
@@ -646,7 +649,7 @@ void entryVFrame::print(outputStream* output) {
 static void print_stack_values(outputStream* output, const char* title, StackValueCollection* values) {
   if (values->is_empty()) return;
   output->print_cr("\t%s:", title);
-  values->print();
+  values->print_on(output);
 }
 
 
@@ -656,8 +659,8 @@ void javaVFrame::print(outputStream* output) {
   HandleMark hm(current_thread);
 
   vframe::print(output);
-  output->print("\t");
-  method()->print_value();
+  output->print_raw("\t");
+  method()->print_value_on(output);
   output->cr();
   output->print_cr("\tbci:    %d", bci());
 
@@ -669,25 +672,25 @@ void javaVFrame::print(outputStream* output) {
   output->print_cr("\tmonitor list:");
   for (int index = (list->length()-1); index >= 0; index--) {
     MonitorInfo* monitor = list->at(index);
-    output->print("\t  obj\t");
+    output->print("\t  obj ");
     if (monitor->owner_is_scalar_replaced()) {
       Klass* k = java_lang_Class::as_Klass(monitor->owner_klass());
-      output->print("( is scalar replaced %s)", k->external_name());
+      output->print("(is scalar replaced %s)", k->external_name());
     } else if (monitor->owner() == nullptr) {
-      output->print("( null )");
+      output->print("(null)");
     } else {
-      monitor->owner()->print_value();
+      monitor->owner()->print_value_on(output);
       output->print("(owner=" INTPTR_FORMAT ")", p2i(monitor->owner()));
     }
     if (monitor->eliminated()) {
       if(is_compiled_frame()) {
-        output->print(" ( lock is eliminated in compiled frame )");
+        output->print(" (lock is eliminated in compiled frame)");
       } else {
-        output->print(" ( lock is eliminated, frame not compiled )");
+        output->print(" (lock is eliminated, frame not compiled)");
       }
     }
     output->cr();
-    output->print("\t  ");
+    output->print_raw("\t");
     monitor->lock()->print_on(output, monitor->owner());
     output->cr();
   }
@@ -722,14 +725,14 @@ void javaVFrame::print_value(outputStream* output) const {
   }
 }
 
-void javaVFrame::print_activation(int index, outputStream* output) const {
+void javaVFrame::print_activation(outputStream* output, int index) const {
   // frame number and method
   output->print("%2d - ", index);
-  ((vframe*)this)->print_value();
+  ((vframe*)this)->print_value(output);
   output->cr();
 
   if (WizardMode) {
-    ((vframe*)this)->print();
+    ((vframe*)this)->print(output);
     output->cr();
   }
 }

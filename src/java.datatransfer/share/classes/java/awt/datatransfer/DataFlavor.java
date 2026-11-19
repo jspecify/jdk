@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,6 @@ import java.nio.CharBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
-
 
 import sun.datatransfer.DataFlavorUtil;
 
@@ -112,7 +111,6 @@ import sun.datatransfer.DataFlavorUtil;
  * @author Jeff Dunn
  * @since 1.1
  */
-
 public class DataFlavor implements Externalizable, Cloneable {
 
     /**
@@ -239,7 +237,7 @@ public class DataFlavor implements Externalizable, Cloneable {
      * identifies the Java type of an object returned as a reference from an
      * invocation {@code java.awt.datatransfer.getTransferData}.
      */
-    public static final  String javaSerializedObjectMimeType = "application/x-java-serialized-object";
+    public static final String javaSerializedObjectMimeType = "application/x-java-serialized-object";
 
     /**
      * To transfer a list of files to/from Java (and the underlying platform) a
@@ -260,7 +258,7 @@ public class DataFlavor implements Externalizable, Cloneable {
      * for a {@code DataFlavor} with this MIME Content-Type is required to be an
      * instance of the representation Class of the {@code DataFlavor}.
      */
-    public static final  String javaJVMLocalObjectMimeType = "application/x-java-jvm-local-objectref";
+    public static final String javaJVMLocalObjectMimeType = "application/x-java-jvm-local-objectref";
 
     /**
      * In order to pass a live link to a Remote object via a Drag and Drop
@@ -269,7 +267,7 @@ public class DataFlavor implements Externalizable, Cloneable {
      * class of the {@code DataFlavor} represents the type of the {@code Remote}
      * interface to be transferred.
      */
-    public static final  String javaRemoteObjectMimeType = "application/x-java-remote-object";
+    public static final String javaRemoteObjectMimeType = "application/x-java-remote-object";
 
     /**
      * Represents a piece of an HTML markup. The markup consists of the part
@@ -915,8 +913,6 @@ public class DataFlavor implements Externalizable, Cloneable {
      *         {@code DataFlavor}; {@code false} otherwise
      * @see #selectBestTextFlavor
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         return ((o instanceof DataFlavor) && equals((DataFlavor)o));
     }
@@ -1292,6 +1288,9 @@ public class DataFlavor implements Externalizable, Cloneable {
 
     /**
      * Serializes this {@code DataFlavor}.
+     *
+     * @serialData The {@code mimeType} field with the {@code humanPresentableName} parameter set,
+     * followed by the {@code representationClass} field
      */
    public synchronized void writeExternal(ObjectOutput os) throws IOException {
        if (mimeType != null) {

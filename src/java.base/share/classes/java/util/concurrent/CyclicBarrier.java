@@ -37,6 +37,7 @@ package java.util.concurrent;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A synchronization aid that allows a set of threads to all wait for
@@ -44,7 +45,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * useful in programs involving a fixed sized party of threads that
  * must occasionally wait for each other. The barrier is called
  * <em>cyclic</em> because it can be re-used after the waiting threads
- * are released.
+ * are released. If you need support for variable numbers of parties
+ * per cycle, alternate actions on exceptions, termination control,
+ * contention control, or status monitoring, use the more flexible
+ * {@link Phaser} class.
  *
  * <p>A {@code CyclicBarrier} supports an optional {@link Runnable} command
  * that is run once per barrier point, after the last thread in the party
@@ -276,7 +280,7 @@ public class CyclicBarrier {
      *        tripped, or {@code null} if there is no action
      * @throws IllegalArgumentException if {@code parties} is less than 1
      */
-    public CyclicBarrier(int parties, Runnable barrierAction) {
+    public CyclicBarrier(int parties, @Nullable Runnable barrierAction) {
         if (parties <= 0) throw new IllegalArgumentException();
         this.parties = parties;
         this.count = parties;

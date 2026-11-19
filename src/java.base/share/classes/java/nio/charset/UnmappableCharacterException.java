@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.nio.charset;
 
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Checked exception thrown when an input character (or byte) sequence
@@ -34,6 +35,7 @@ package java.nio.charset;
  * @since 1.4
  */
 
+@NullMarked
 public class UnmappableCharacterException
     extends CharacterCodingException
 {
@@ -42,7 +44,7 @@ public class UnmappableCharacterException
     private static final long serialVersionUID = -7026962371537706123L;
 
     /**
-     * The length of the input character (or byte) sequence.
+     * @serial The length of the input character (or byte) sequence.
      */
     private int inputLength;
 

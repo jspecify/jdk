@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Objects;

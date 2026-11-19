@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package java.security;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class specifies the parameters used by a DRBG (Deterministic
@@ -229,10 +230,11 @@ import java.util.Objects;
  *
  * @spec https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf
  *      Recommendation for Random Number Generation Using Deterministic Random Bit Generators
+ * @spec security/standard-names.html Java Security Standard Algorithm Names
  *
  * @since 9
  */
-public class DrbgParameters {
+public final class DrbgParameters {
 
     private DrbgParameters() {
         // This class should not be instantiated
@@ -381,7 +383,7 @@ public class DrbgParameters {
          * be returned in {@code getParameters} as a new copy, or {@code null}
          * if no personalization string is requested in {@code getInstance}.
          */
-        public byte[] getPersonalizationString() {
+        public byte @Nullable [] getPersonalizationString() {
             return (personalizationString == null) ?
                     null : personalizationString.clone();
         }
@@ -449,7 +451,7 @@ public class DrbgParameters {
          * requested. A new byte array is returned each time this method
          * is called.
          */
-        public byte[] getAdditionalInput() {
+        public byte @Nullable [] getAdditionalInput() {
             return additionalInput == null? null: additionalInput.clone();
         }
 
@@ -493,7 +495,7 @@ public class DrbgParameters {
          * not requested. A new byte array is returned each time this method
          * is called.
          */
-        public byte[] getAdditionalInput() {
+        public byte @Nullable [] getAdditionalInput() {
             return additionalInput == null ? null : additionalInput.clone();
         }
 

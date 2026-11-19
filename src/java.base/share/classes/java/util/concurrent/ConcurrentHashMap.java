@@ -74,6 +74,8 @@ import java.util.function.ToLongFunction;
 import java.util.stream.Stream;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.util.ArraysSupport;
+import jdk.internal.vm.annotation.AOTRuntimeSetup;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.Stable;
 
 /**
@@ -151,7 +153,7 @@ import jdk.internal.vm.annotation.Stable;
  * <p>Like {@link Hashtable} but unlike {@link HashMap}, this class
  * does <em>not</em> allow {@code null} to be used as a key or value.
  *
- * <p>ConcurrentHashMaps support a set of sequential and parallel bulk
+ * <p id="Bulk">ConcurrentHashMaps support a set of sequential and parallel bulk
  * operations that, unlike most {@link Stream} methods, are designed
  * to be safely, and often sensibly, applied even with maps that are
  * being concurrently updated by other threads; for example, when
@@ -268,6 +270,7 @@ import jdk.internal.vm.annotation.Stable;
  * @param <V> the type of mapped values
  */
 @NullMarked
+@AOTSafeClassInitializer
 public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     implements ConcurrentMap<K,V>, Serializable {
     private static final long serialVersionUID = 7249069246763182397L;
@@ -607,7 +610,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         runtimeSetup();
     }
 
-    // Called from JVM when loading an AOT cache.
+    @AOTRuntimeSetup
     private static void runtimeSetup() {
         NCPU = Runtime.getRuntime().availableProcessors();
     }
@@ -638,7 +641,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * are special, and contain null keys and values (but are never
      * exported).  Otherwise, keys and vals are never null.
      */
-    static class Node<K extends @Nullable Object,V extends @Nullable Object> implements Map.Entry<K,V> {
+    static class Node<K,V> implements Map.Entry<K,V> {
         final int hash;
         final K key;
         volatile V val;
@@ -749,7 +752,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Returns k.compareTo(x) if x matches kc (k's screened comparable
      * class), else 0.
      */
-    @SuppressWarnings({"rawtypes","unchecked"}) // for cast to Comparable
+    @SuppressWarnings("unchecked") // for cast to Comparable
     static int compareComparables(Class<?> kc, Object k, Object x) {
         return (x == null || x.getClass() != kc ? 0 :
                 ((Comparable)k).compareTo(x));
@@ -776,7 +779,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         return (Node<K,V>)U.getReferenceAcquire(tab, ((long)i << ASHIFT) + ABASE);
     }
 
-    static final <K extends @Nullable Object,V extends @Nullable Object> boolean casTabAt(Node<K,V>[] tab, int i,
+    static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,
                                         Node<K,V> c, Node<K,V> v) {
         return U.compareAndSetReference(tab, ((long)i << ASHIFT) + ABASE, c, v);
     }
@@ -923,7 +926,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * {@inheritDoc}
      */
-    
     public int size() {
         long n = sumCount();
         return ((n < 0L) ? 0 :
@@ -934,7 +936,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * {@inheritDoc}
      */
-    
     public boolean isEmpty() {
         return sumCount() <= 0L; // ignore transient negative values
     }
@@ -950,7 +951,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @throws NullPointerException if the specified key is null
      */
-    
     public @Nullable V get(Object key) {
         Node<K,V>[] tab; Node<K,V> e, p; int n, eh; K ek;
         int h = spread(key.hashCode());
@@ -980,8 +980,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *         {@code equals} method; {@code false} otherwise
      * @throws NullPointerException if the specified key is null
      */
-    
-    
     public boolean containsKey(Object key) {
         return get(key) != null;
     }
@@ -996,7 +994,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *         specified value
      * @throws NullPointerException if the specified value is null
      */
-    
     public boolean containsValue(Object value) {
         if (value == null)
             throw new NullPointerException();
@@ -1025,7 +1022,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *         {@code null} if there was no mapping for {@code key}
      * @throws NullPointerException if the specified key or value is null
      */
-    
     public @Nullable V put(K key, V value) {
         return putVal(key, value, false);
     }
@@ -1259,8 +1255,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @return the set view
      */
-    
-    public KeySetView< K,V> keySet() {
+    public KeySetView<K, @Nullable V> keySet() {
         KeySetView<K,V> ks;
         if ((ks = keySet) != null) return ks;
         return keySet = new KeySetView<K,V>(this, null);
@@ -1284,7 +1279,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @return the collection view
      */
-    
     public Collection<V> values() {
         ValuesView<K,V> vs;
         if ((vs = values) != null) return vs;
@@ -1308,8 +1302,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @return the set view
      */
-    
-    public Set<Map.Entry< K,V>> entrySet() {
+    public Set<Map.Entry<K,V>> entrySet() {
         EntrySetView<K,V> es;
         if ((es = entrySet) != null) return es;
         return entrySet = new EntrySetView<K,V>(this);
@@ -1376,8 +1369,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param o object to be compared for equality with this map
      * @return {@code true} if the specified object is equal to this map
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o != this) {
             if (!(o instanceof Map))
@@ -1386,12 +1377,20 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             Node<K,V>[] t;
             int f = (t = table) == null ? 0 : t.length;
             Traverser<K,V> it = new Traverser<K,V>(t, f, 0, f);
-            for (Node<K,V> p; (p = it.advance()) != null; ) {
-                V val = p.val;
-                Object v = m.get(p.key);
-                if (v == null || (v != val && !v.equals(val)))
-                    return false;
+
+            try {
+                for (Node<K,V> p; (p = it.advance()) != null; ) {
+                    V val = p.val;
+                    Object v = m.get(p.key);
+                    if (v == null || (v != val && !v.equals(val)))
+                        return false;
+                }
+            } catch (ClassCastException | NullPointerException _) {
+                // m.get(p.key) is contractually allowed to throw CCE or NPE
+                // but CHM doesn't allow null keys, so NPE shouldn't occur in practice
+                return false;
             }
+
             for (Map.Entry<?,?> e : m.entrySet()) {
                 Object mk, mv, v;
                 if ((mk = e.getKey()) == null ||
@@ -1408,7 +1407,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Stripped-down version of helper class used in previous version,
      * declared for the sake of serialization compatibility.
      */
-    static class Segment<K extends @Nullable Object,V extends @Nullable Object> extends ReentrantLock implements Serializable {
+    static class Segment<K,V> extends ReentrantLock implements Serializable {
         private static final long serialVersionUID = 2249069246763182397L;
         final float loadFactor;
         Segment(float lf) { this.loadFactor = lf; }
@@ -1568,7 +1567,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *         or {@code null} if there was no mapping for the key
      * @throws NullPointerException if the specified key or value is null
      */
-    
     public @Nullable V putIfAbsent(K key, V value) {
         return putVal(key, value, true);
     }
@@ -1579,7 +1577,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @throws NullPointerException if the specified key is null
      * @return {@inheritDoc ConcurrentMap}
      */
-    public boolean remove(Object key, Object value) {
+    public boolean remove(Object key, @Nullable Object value) {
         if (key == null)
             throw new NullPointerException();
         return value != null && replaceNode(key, null, value) != null;
@@ -2165,7 +2163,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *         {@code false} otherwise
      * @throws NullPointerException if the specified value is null
      */
-    
     public boolean contains(Object value) {
         return containsValue(value);
     }
@@ -2176,8 +2173,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @return an enumeration of the keys in this table
      * @see #keySet()
      */
-    
-    public Enumeration< K> keys() {
+    public Enumeration<K> keys() {
         Node<K,V>[] t;
         int f = (t = table) == null ? 0 : t.length;
         return new KeyIterator<K,V>(t, f, 0, f, this);
@@ -2189,7 +2185,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @return an enumeration of the values in this table
      * @see #values()
      */
-    
     public Enumeration<V> elements() {
         Node<K,V>[] t;
         int f = (t = table) == null ? 0 : t.length;
@@ -2221,7 +2216,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @return the new set
      * @since 1.8
      */
-    public static <K extends @Nullable Object> KeySetView<K,Boolean> newKeySet() {
+    public static <K> KeySetView<K,Boolean> newKeySet() {
         return new KeySetView<K,Boolean>
             (new ConcurrentHashMap<K,Boolean>(), Boolean.TRUE);
     }
@@ -2238,7 +2233,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * elements is negative
      * @since 1.8
      */
-    public static <K extends @Nullable Object> KeySetView<K,Boolean> newKeySet(int initialCapacity) {
+    public static <K> KeySetView<K,Boolean> newKeySet(int initialCapacity) {
         return new KeySetView<K,Boolean>
             (new ConcurrentHashMap<K,Boolean>(initialCapacity), Boolean.TRUE);
     }
@@ -2265,7 +2260,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * A node inserted at head of bins during transfer operations.
      */
-    static final class ForwardingNode<K extends @Nullable Object,V extends @Nullable Object> extends Node<K,V> {
+    static final class ForwardingNode<K,V> extends Node<K,V> {
         final Node<K,V>[] nextTable;
         ForwardingNode(Node<K,V>[] tab) {
             super(MOVED, null, null);
@@ -2302,7 +2297,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * A place-holder node used in computeIfAbsent and compute.
      */
-    static final class ReservationNode<K extends @Nullable Object,V extends @Nullable Object> extends Node<K,V> {
+    static final class ReservationNode<K,V> extends Node<K,V> {
         ReservationNode() {
             super(RESERVED, null, null);
         }
@@ -2404,7 +2399,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             int rs = resizeStamp(tab.length) << RESIZE_STAMP_SHIFT;
             while (nextTab == nextTable && table == tab &&
                    (sc = sizeCtl) < 0) {
-                if (sc == rs + MAX_RESIZERS || sc == rs + 1 ||
+                if ((sc >>> RESIZE_STAMP_SHIFT) != (rs >>> RESIZE_STAMP_SHIFT) ||
+                    sc == rs + MAX_RESIZERS || sc == rs + 1 ||
                     transferIndex <= 0)
                     break;
                 if (U.compareAndSetInt(this, SIZECTL, sc, sc + 1)) {
@@ -2728,7 +2724,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns a list of non-TreeNodes replacing those in given list.
      */
-    static <K extends @Nullable Object,V extends @Nullable Object> Node<K,V> untreeify(Node<K,V> b) {
+    static <K,V> Node<K,V> untreeify(Node<K,V> b) {
         Node<K,V> hd = null, tl = null;
         for (Node<K,V> q = b; q != null; q = q.next) {
             Node<K,V> p = new Node<K,V>(q.hash, q.key, q.val);
@@ -2746,7 +2742,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Nodes for use in TreeBins.
      */
-    static final class TreeNode<K extends @Nullable Object,V extends @Nullable Object> extends Node<K,V> {
+    static final class TreeNode<K,V> extends Node<K,V> {
         TreeNode<K,V> parent;  // red-black tree links
         TreeNode<K,V> left;
         TreeNode<K,V> right;
@@ -2806,7 +2802,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * forcing writers (who hold bin lock) to wait for readers (who do
      * not) to complete before tree restructuring operations.
      */
-    static final class TreeBin<K extends @Nullable Object,V extends @Nullable Object> extends Node<K,V> {
+    static final class TreeBin<K,V> extends Node<K,V> {
         TreeNode<K,V> root;
         volatile TreeNode<K,V> first;
         volatile Thread waiter;
@@ -3121,7 +3117,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         /* ------------------------------------------------------------ */
         // Red-black tree methods, all adapted from CLR
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
                                               TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
             if (p != null && (r = p.right) != null) {
@@ -3139,7 +3135,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return root;
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
                                                TreeNode<K,V> p) {
             TreeNode<K,V> l, pp, lr;
             if (p != null && (l = p.left) != null) {
@@ -3157,7 +3153,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return root;
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                                                     TreeNode<K,V> x) {
             x.red = true;
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
@@ -3212,7 +3208,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             }
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                                    TreeNode<K,V> x) {
             for (TreeNode<K,V> xp, xpl, xpr;;) {
                 if (x == null || x == root)
@@ -3307,7 +3303,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         /**
          * Checks invariants recursively for the tree of Nodes rooted at t.
          */
-        static <K extends @Nullable Object,V extends @Nullable Object> boolean checkInvariants(TreeNode<K,V> t) {
+        static <K,V> boolean checkInvariants(TreeNode<K,V> t) {
             TreeNode<K,V> tp = t.parent, tl = t.left, tr = t.right,
                 tb = t.prev, tn = (TreeNode<K,V>)t.next;
             if (tb != null && tb.next != t)
@@ -3320,7 +3316,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                 return false;
             if (tr != null && (tr.parent != t || tr.hash < t.hash))
                 return false;
-            if (t.red && tl != null && tl.red && tr != null && tr.red)
+            if (t.red && (tl != null && tl.red || tr != null && tr.red))
                 return false;
             if (tl != null && !checkInvariants(tl))
                 return false;
@@ -3342,7 +3338,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * traverser that must process a region of a forwarded table before
      * proceeding with current table.
      */
-    static final class TableStack<K extends @Nullable Object,V extends @Nullable Object> {
+    static final class TableStack<K,V> {
         int length;
         int index;
         Node<K,V>[] tab;
@@ -3370,7 +3366,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * across threads, iteration terminates if a bounds checks fails
      * for a table read.
      */
-    static class Traverser<K extends @Nullable Object,V extends @Nullable Object> {
+    static class Traverser<K,V> {
         Node<K,V>[] tab;        // current table; updated if resized
         Node<K,V> next;         // the next entry to use
         TableStack<K,V> stack, spare; // to save/restore on ForwardingNodes
@@ -3462,7 +3458,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Base of key, value, and entry Iterators. Adds fields to
      * Traverser to support iterator.remove.
      */
-    static class BaseIterator<K extends @Nullable Object,V extends @Nullable Object> extends Traverser<K,V> {
+    static class BaseIterator<K,V> extends Traverser<K,V> {
         final ConcurrentHashMap<K,V> map;
         Node<K,V> lastReturned;
         BaseIterator(Node<K,V>[] tab, int size, int index, int limit,
@@ -3484,7 +3480,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
     }
 
-    static final class KeyIterator<K extends @Nullable Object,V extends @Nullable Object> extends BaseIterator<K,V>
+    static final class KeyIterator<K,V> extends BaseIterator<K,V>
         implements Iterator<K>, Enumeration<K> {
         KeyIterator(Node<K,V>[] tab, int size, int index, int limit,
                     ConcurrentHashMap<K,V> map) {
@@ -3504,7 +3500,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         public final K nextElement() { return next(); }
     }
 
-    static final class ValueIterator<K extends @Nullable Object,V extends @Nullable Object> extends BaseIterator<K,V>
+    static final class ValueIterator<K,V> extends BaseIterator<K,V>
         implements Iterator<V>, Enumeration<V> {
         ValueIterator(Node<K,V>[] tab, int size, int index, int limit,
                       ConcurrentHashMap<K,V> map) {
@@ -3524,7 +3520,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         public final V nextElement() { return next(); }
     }
 
-    static final class EntryIterator<K extends @Nullable Object,V extends @Nullable Object> extends BaseIterator<K,V>
+    static final class EntryIterator<K,V> extends BaseIterator<K,V>
         implements Iterator<Map.Entry<K,V>> {
         EntryIterator(Node<K,V>[] tab, int size, int index, int limit,
                       ConcurrentHashMap<K,V> map) {
@@ -3546,7 +3542,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Exported Entry for EntryIterator.
      */
-    static final class MapEntry<K extends @Nullable Object,V extends @Nullable Object> implements Map.Entry<K,V> {
+    static final class MapEntry<K,V> implements Map.Entry<K,V> {
         final K key; // non-null
         V val;       // non-null
         final ConcurrentHashMap<K,V> map;
@@ -3588,7 +3584,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
     }
 
-    static final class KeySpliterator<K extends @Nullable Object,V extends @Nullable Object> extends Traverser<K,V>
+    static final class KeySpliterator<K,V> extends Traverser<K,V>
         implements Spliterator<K> {
         long est;               // size estimate
         KeySpliterator(Node<K,V>[] tab, int size, int index, int limit,
@@ -3627,7 +3623,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
     }
 
-    static final class ValueSpliterator<K extends @Nullable Object,V extends @Nullable Object> extends Traverser<K,V>
+    static final class ValueSpliterator<K,V> extends Traverser<K,V>
         implements Spliterator<V> {
         long est;               // size estimate
         ValueSpliterator(Node<K,V>[] tab, int size, int index, int limit,
@@ -3665,7 +3661,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
     }
 
-    static final class EntrySpliterator<K extends @Nullable Object,V extends @Nullable Object> extends Traverser<K,V>
+    static final class EntrySpliterator<K,V> extends Traverser<K,V>
         implements Spliterator<Map.Entry<K,V>> {
         final ConcurrentHashMap<K,V> map; // To export MapEntry
         long est;               // size estimate
@@ -3725,7 +3721,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Performs the given action for each (key, value).
+     * Performs the given {@linkplain ##Bulk bulk} action for each (key, value).
      *
      * @param parallelismThreshold the (estimated) number of elements
      * needed for this operation to be executed in parallel
@@ -3741,7 +3737,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Performs the given action for each non-null transformation
+     * Performs the given {@linkplain ##Bulk bulk} action for each non-null transformation
      * of each (key, value).
      *
      * @param parallelismThreshold the (estimated) number of elements
@@ -3769,7 +3765,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns a non-null result from applying the given search
+     * Returns a non-null result from applying the given {@linkplain ##Bulk bulk} search
      * function on each (key, value), or null if none.  Upon
      * success, further element processing is suppressed and the
      * results of any other parallel invocations of the search
@@ -3793,7 +3789,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of accumulating the given {@linkplain ##Bulk bulk} transformation
      * of all (key, value) pairs using the given reducer to
      * combine values, or null if none.
      *
@@ -3819,7 +3815,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of accumulating the given {@linkplain ##Bulk bulk} transformation
      * of all (key, value) pairs using the given reducer to
      * combine values, and the given basis as an identity value.
      *
@@ -3845,7 +3841,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of accumulating the given {@linkplain ##Bulk bulk} transformation
      * of all (key, value) pairs using the given reducer to
      * combine values, and the given basis as an identity value.
      *
@@ -3871,7 +3867,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of accumulating the given {@linkplain ##Bulk bulk} transformation
      * of all (key, value) pairs using the given reducer to
      * combine values, and the given basis as an identity value.
      *
@@ -3897,7 +3893,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Performs the given action for each key.
+     * Performs the given {@linkplain ##Bulk bulk} action for each key.
      *
      * @param parallelismThreshold the (estimated) number of elements
      * needed for this operation to be executed in parallel
@@ -3913,7 +3909,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Performs the given action for each non-null transformation
+     * Performs the given {@linkplain ##Bulk bulk} action for each non-null transformation
      * of each key.
      *
      * @param parallelismThreshold the (estimated) number of elements
@@ -3937,7 +3933,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns a non-null result from applying the given search
+     * Returns a non-null result from applying the given {@linkplain ##Bulk bulk} search
      * function on each key, or null if none. Upon success,
      * further element processing is suppressed and the results of
      * any other parallel invocations of the search function are
@@ -3961,7 +3957,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating all keys using the given
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating all keys using the given
      * reducer to combine values, or null if none.
      *
      * @param parallelismThreshold the (estimated) number of elements
@@ -3980,7 +3976,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all keys using the given reducer to combine values, or
      * null if none.
      *
@@ -4006,7 +4002,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all keys using the given reducer to combine values, and
      * the given basis as an identity value.
      *
@@ -4032,7 +4028,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all keys using the given reducer to combine values, and
      * the given basis as an identity value.
      *
@@ -4058,7 +4054,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all keys using the given reducer to combine values, and
      * the given basis as an identity value.
      *
@@ -4084,7 +4080,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Performs the given action for each value.
+     * Performs the given {@linkplain ##Bulk bulk} action for each value.
      *
      * @param parallelismThreshold the (estimated) number of elements
      * needed for this operation to be executed in parallel
@@ -4101,7 +4097,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Performs the given action for each non-null transformation
+     * Performs the given {@linkplain ##Bulk bulk} action for each non-null transformation
      * of each value.
      *
      * @param parallelismThreshold the (estimated) number of elements
@@ -4125,7 +4121,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns a non-null result from applying the given search
+     * Returns a non-null result from {@linkplain ##Bulk bulk} applying the given search
      * function on each value, or null if none.  Upon success,
      * further element processing is suppressed and the results of
      * any other parallel invocations of the search function are
@@ -4149,7 +4145,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating all values using the
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating all values using the
      * given reducer to combine values, or null if none.
      *
      * @param parallelismThreshold the (estimated) number of elements
@@ -4167,7 +4163,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all values using the given reducer to combine values, or
      * null if none.
      *
@@ -4193,7 +4189,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all values using the given reducer to combine values,
      * and the given basis as an identity value.
      *
@@ -4219,7 +4215,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all values using the given reducer to combine values,
      * and the given basis as an identity value.
      *
@@ -4245,7 +4241,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all values using the given reducer to combine values,
      * and the given basis as an identity value.
      *
@@ -4271,7 +4267,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Performs the given action for each entry.
+     * Performs the given {@linkplain ##Bulk bulk} action for each entry.
      *
      * @param parallelismThreshold the (estimated) number of elements
      * needed for this operation to be executed in parallel
@@ -4286,7 +4282,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Performs the given action for each non-null transformation
+     * Performs the given {@linkplain ##Bulk bulk} action for each non-null transformation
      * of each entry.
      *
      * @param parallelismThreshold the (estimated) number of elements
@@ -4310,7 +4306,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns a non-null result from applying the given search
+     * Returns a non-null result from {@linkplain ##Bulk bulk} applying the given search
      * function on each entry, or null if none.  Upon success,
      * further element processing is suppressed and the results of
      * any other parallel invocations of the search function are
@@ -4334,7 +4330,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating all entries using the
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating all entries using the
      * given reducer to combine values, or null if none.
      *
      * @param parallelismThreshold the (estimated) number of elements
@@ -4352,7 +4348,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all entries using the given reducer to combine values,
      * or null if none.
      *
@@ -4378,7 +4374,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all entries using the given reducer to combine values,
      * and the given basis as an identity value.
      *
@@ -4404,7 +4400,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all entries using the given reducer to combine values,
      * and the given basis as an identity value.
      *
@@ -4430,7 +4426,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the result of accumulating the given transformation
+     * Returns the result of {@linkplain ##Bulk bulk} accumulating the given transformation
      * of all entries using the given reducer to combine values,
      * and the given basis as an identity value.
      *
@@ -4461,7 +4457,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Base class for views.
      */
-    abstract static sealed class CollectionView<K extends @Nullable Object,V extends @Nullable Object,E extends @Nullable Object>
+    abstract static sealed class CollectionView<K,V extends @Nullable Object,E>
         implements Collection<E>, java.io.Serializable permits EntrySetView, KeySetView, ValuesView {
         private static final long serialVersionUID = 7249069246763182397L;
         final ConcurrentHashMap<K,V> map;
@@ -4472,16 +4468,14 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
          *
          * @return the map backing this view
          */
-        public ConcurrentHashMap<K,V> getMap() { return map; }
+        public ConcurrentHashMap<K, @NonNull V> getMap() { return map; }
 
         /**
          * Removes all of the elements from this view, by removing all
          * the mappings from the map backing this view.
          */
         public final void clear()      { map.clear(); }
-        
         public final int size()        { return map.size(); }
-        
         public final boolean isEmpty() { return map.isEmpty(); }
 
         // implementations below rely on concrete classes supplying these
@@ -4494,15 +4488,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
          *
          * @return an iterator over the elements in this collection
          */
-        
         public abstract Iterator<E> iterator();
         public abstract boolean contains(Object o);
         public abstract boolean remove(Object o);
 
         private static final String OOME_MSG = "Required array size too large";
 
-        
-        public final @Nullable Object[] toArray() {
+        public final Object[] toArray() {
             long sz = map.mappingCount();
             if (sz > MAX_ARRAY_SIZE)
                 throw new OutOfMemoryError(OOME_MSG);
@@ -4524,7 +4516,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return (i == n) ? r : Arrays.copyOf(r, i);
         }
 
-        
         @SuppressWarnings("unchecked")
         public final <T extends @Nullable Object> T[] toArray(T[] a) {
             long sz = map.mappingCount();
@@ -4582,7 +4573,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return sb.append(']').toString();
         }
 
-        public final boolean containsAll(Collection<? extends  Object> c) {
+        public final boolean containsAll(Collection<?> c) {
             if (c != this) {
                 for (Object e : c) {
                     if (e == null || !contains(e))
@@ -4592,7 +4583,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return true;
         }
 
-        public boolean removeAll(Collection<?> c) {
+        public boolean removeAll(Collection<? extends Object> c) {
             if (c == null) throw new NullPointerException();
             boolean modified = false;
             // Use (c instanceof Set) as a hint that lookup in c is as
@@ -4642,9 +4633,10 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @since 1.8
      */
-    public static final class KeySetView<K extends @Nullable Object,V extends @Nullable Object> extends CollectionView<K,V,K>
+    public static final class KeySetView<K,V extends @Nullable Object> extends CollectionView<K,V,K>
         implements Set<K>, java.io.Serializable {
         private static final long serialVersionUID = 7249069246763182397L;
+        /** @serial */
         @SuppressWarnings("serial") // Conditionally serializable
         private final V value;
         KeySetView(ConcurrentHashMap<K,V> map, V value) {  // non-public
@@ -4681,7 +4673,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         /**
          * @return an iterator over the keys of the backing map
          */
-        
         public Iterator<K> iterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
@@ -4736,14 +4727,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return h;
         }
 
-        public boolean equals(Object o) {
+        public boolean equals(@Nullable Object o) {
             Set<?> c;
             return ((o instanceof Set) &&
                     ((c = (Set<?>)o) == this ||
                      (containsAll(c) && c.containsAll(this))));
         }
 
-        
         public Spliterator<K> spliterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
@@ -4768,7 +4758,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * values, in which additions are disabled. This class cannot be
      * directly instantiated. See {@link #values()}.
      */
-    static final class ValuesView<K extends @Nullable Object,V extends @Nullable Object> extends CollectionView<K,V,V>
+    static final class ValuesView<K,V> extends CollectionView<K,V,V>
         implements Collection<V>, java.io.Serializable {
         private static final long serialVersionUID = 2249069246763182397L;
         ValuesView(ConcurrentHashMap<K,V> map) { super(map); }
@@ -4788,7 +4778,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return false;
         }
 
-        
         public final Iterator<V> iterator() {
             ConcurrentHashMap<K,V> m = map;
             Node<K,V>[] t;
@@ -4819,7 +4808,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return map.removeValueIf(filter);
         }
 
-        
         public Spliterator<V> spliterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
@@ -4844,7 +4832,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * entries.  This class cannot be directly instantiated. See
      * {@link #entrySet()}.
      */
-    static final class EntrySetView<K extends @Nullable Object,V extends @Nullable Object> extends CollectionView<K,V,Map.Entry<K,V>>
+    static final class EntrySetView<K,V> extends CollectionView<K,V,Map.Entry<K,V>>
         implements Set<Map.Entry<K,V>>, java.io.Serializable {
         private static final long serialVersionUID = 2249069246763182397L;
         EntrySetView(ConcurrentHashMap<K,V> map) { super(map); }
@@ -4869,7 +4857,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         /**
          * @return an iterator over the entries of the backing map
          */
-        
         public Iterator<Map.Entry<K,V>> iterator() {
             ConcurrentHashMap<K,V> m = map;
             Node<K,V>[] t;
@@ -4913,7 +4900,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                      (containsAll(c) && c.containsAll(this))));
         }
 
-        
         public Spliterator<Map.Entry<K,V>> spliterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
@@ -4941,7 +4927,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * class Traverser, because we need to subclass CountedCompleter.
      */
     @SuppressWarnings("serial")
-    abstract static class BulkTask<K extends @Nullable Object,V extends @Nullable Object,R extends @Nullable Object> extends CountedCompleter<R> {
+    abstract static class BulkTask<K,V,R> extends CountedCompleter<R> {
         Node<K,V>[] tab;        // same as Traverser
         Node<K,V> next;
         TableStack<K,V> stack, spare;
@@ -5036,7 +5022,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * simplest hoisted bypass to help avoid convoluted traps.
      */
     @SuppressWarnings("serial")
-    static final class ForEachKeyTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ForEachKeyTask<K,V>
         extends BulkTask<K,V,Void> {
         final Consumer<? super K> action;
         ForEachKeyTask
@@ -5063,7 +5049,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachValueTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ForEachValueTask<K,V>
         extends BulkTask<K,V,Void> {
         final Consumer<? super V> action;
         ForEachValueTask
@@ -5090,7 +5076,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachEntryTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ForEachEntryTask<K,V>
         extends BulkTask<K,V,Void> {
         final Consumer<? super Entry<K,V>> action;
         ForEachEntryTask
@@ -5117,7 +5103,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachMappingTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ForEachMappingTask<K,V>
         extends BulkTask<K,V,Void> {
         final BiConsumer<? super K, ? super V> action;
         ForEachMappingTask
@@ -5144,7 +5130,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachTransformedKeyTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class ForEachTransformedKeyTask<K,V,U>
         extends BulkTask<K,V,Void> {
         final Function<? super K, ? extends U> transformer;
         final Consumer<? super U> action;
@@ -5177,7 +5163,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachTransformedValueTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class ForEachTransformedValueTask<K,V,U>
         extends BulkTask<K,V,Void> {
         final Function<? super V, ? extends U> transformer;
         final Consumer<? super U> action;
@@ -5210,7 +5196,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachTransformedEntryTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class ForEachTransformedEntryTask<K,V,U>
         extends BulkTask<K,V,Void> {
         final Function<Map.Entry<K,V>, ? extends U> transformer;
         final Consumer<? super U> action;
@@ -5243,7 +5229,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ForEachTransformedMappingTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class ForEachTransformedMappingTask<K,V,U>
         extends BulkTask<K,V,Void> {
         final BiFunction<? super K, ? super V, ? extends U> transformer;
         final Consumer<? super U> action;
@@ -5277,7 +5263,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class SearchKeysTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class SearchKeysTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<? super K, ? extends U> searchFunction;
         final AtomicReference<U> result;
@@ -5321,7 +5307,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class SearchValuesTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class SearchValuesTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<? super V, ? extends U> searchFunction;
         final AtomicReference<U> result;
@@ -5365,7 +5351,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class SearchEntriesTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class SearchEntriesTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<Entry<K,V>, ? extends U> searchFunction;
         final AtomicReference<U> result;
@@ -5409,7 +5395,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class SearchMappingsTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class SearchMappingsTask<K,V,U>
         extends BulkTask<K,V,U> {
         final BiFunction<? super K, ? super V, ? extends U> searchFunction;
         final AtomicReference<U> result;
@@ -5453,7 +5439,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ReduceKeysTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ReduceKeysTask<K,V>
         extends BulkTask<K,V,K> {
         final BiFunction<? super K, ? super K, ? extends K> reducer;
         K result;
@@ -5501,7 +5487,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ReduceValuesTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ReduceValuesTask<K,V>
         extends BulkTask<K,V,V> {
         final BiFunction<? super V, ? super V, ? extends V> reducer;
         V result;
@@ -5549,7 +5535,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class ReduceEntriesTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ReduceEntriesTask<K,V>
         extends BulkTask<K,V,Map.Entry<K,V>> {
         final BiFunction<Map.Entry<K,V>, Map.Entry<K,V>, ? extends Map.Entry<K,V>> reducer;
         Map.Entry<K,V> result;
@@ -5595,7 +5581,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceKeysTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class MapReduceKeysTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<? super K, ? extends U> transformer;
         final BiFunction<? super U, ? super U, ? extends U> reducer;
@@ -5649,7 +5635,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceValuesTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class MapReduceValuesTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<? super V, ? extends U> transformer;
         final BiFunction<? super U, ? super U, ? extends U> reducer;
@@ -5703,7 +5689,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceEntriesTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class MapReduceEntriesTask<K,V,U>
         extends BulkTask<K,V,U> {
         final Function<Map.Entry<K,V>, ? extends U> transformer;
         final BiFunction<? super U, ? super U, ? extends U> reducer;
@@ -5757,7 +5743,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceMappingsTask<K extends @Nullable Object,V extends @Nullable Object,U extends @Nullable Object>
+    static final class MapReduceMappingsTask<K,V,U>
         extends BulkTask<K,V,U> {
         final BiFunction<? super K, ? super V, ? extends U> transformer;
         final BiFunction<? super U, ? super U, ? extends U> reducer;
@@ -5811,7 +5797,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceKeysToDoubleTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceKeysToDoubleTask<K,V>
         extends BulkTask<K,V,Double> {
         final ToDoubleFunction<? super K> transformer;
         final DoubleBinaryOperator reducer;
@@ -5861,7 +5847,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceValuesToDoubleTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceValuesToDoubleTask<K,V>
         extends BulkTask<K,V,Double> {
         final ToDoubleFunction<? super V> transformer;
         final DoubleBinaryOperator reducer;
@@ -5911,7 +5897,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceEntriesToDoubleTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceEntriesToDoubleTask<K,V>
         extends BulkTask<K,V,Double> {
         final ToDoubleFunction<Map.Entry<K,V>> transformer;
         final DoubleBinaryOperator reducer;
@@ -5961,7 +5947,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceMappingsToDoubleTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceMappingsToDoubleTask<K,V>
         extends BulkTask<K,V,Double> {
         final ToDoubleBiFunction<? super K, ? super V> transformer;
         final DoubleBinaryOperator reducer;
@@ -6011,7 +5997,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceKeysToLongTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceKeysToLongTask<K,V>
         extends BulkTask<K,V,Long> {
         final ToLongFunction<? super K> transformer;
         final LongBinaryOperator reducer;
@@ -6061,7 +6047,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceValuesToLongTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceValuesToLongTask<K,V>
         extends BulkTask<K,V,Long> {
         final ToLongFunction<? super V> transformer;
         final LongBinaryOperator reducer;
@@ -6111,7 +6097,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceEntriesToLongTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceEntriesToLongTask<K,V>
         extends BulkTask<K,V,Long> {
         final ToLongFunction<Map.Entry<K,V>> transformer;
         final LongBinaryOperator reducer;
@@ -6161,7 +6147,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceMappingsToLongTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceMappingsToLongTask<K,V>
         extends BulkTask<K,V,Long> {
         final ToLongBiFunction<? super K, ? super V> transformer;
         final LongBinaryOperator reducer;
@@ -6211,7 +6197,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceKeysToIntTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceKeysToIntTask<K,V>
         extends BulkTask<K,V,Integer> {
         final ToIntFunction<? super K> transformer;
         final IntBinaryOperator reducer;
@@ -6261,7 +6247,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceValuesToIntTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceValuesToIntTask<K,V>
         extends BulkTask<K,V,Integer> {
         final ToIntFunction<? super V> transformer;
         final IntBinaryOperator reducer;
@@ -6311,7 +6297,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceEntriesToIntTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceEntriesToIntTask<K,V>
         extends BulkTask<K,V,Integer> {
         final ToIntFunction<Map.Entry<K,V>> transformer;
         final IntBinaryOperator reducer;
@@ -6361,7 +6347,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     @SuppressWarnings("serial")
-    static final class MapReduceMappingsToIntTask<K extends @Nullable Object,V extends @Nullable Object>
+    static final class MapReduceMappingsToIntTask<K,V>
         extends BulkTask<K,V,Integer> {
         final ToIntBiFunction<? super K, ? super V> transformer;
         final IntBinaryOperator reducer;
@@ -6422,7 +6408,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         = U.objectFieldOffset(ConcurrentHashMap.class, "cellsBusy");
     private static final long CELLVALUE
         = U.objectFieldOffset(CounterCell.class, "value");
-    private static final int ABASE = U.arrayBaseOffset(Node[].class);
+    private static final long ABASE = U.arrayBaseOffset(Node[].class);
     private static final int ASHIFT;
 
     static {

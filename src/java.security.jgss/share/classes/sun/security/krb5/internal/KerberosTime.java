@@ -235,8 +235,6 @@ public class KerberosTime {
                     microSeconds > time.microSeconds;
     }
 
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

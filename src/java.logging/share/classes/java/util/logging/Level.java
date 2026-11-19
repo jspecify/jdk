@@ -78,7 +78,7 @@ import jdk.internal.access.SharedSecrets;
  */
 
 @NullMarked
-public  class Level implements java.io.Serializable {
+public class Level implements java.io.Serializable {
     private static final String defaultBundle =
         "sun.util.logging.resources.logging";
 
@@ -103,7 +103,7 @@ public  class Level implements java.io.Serializable {
     /**
      * @serial The resource bundle name to be used in localizing the level name.
      */
-    private final @Nullable  String resourceBundleName;
+    private final @Nullable String resourceBundleName;
 
     // localized level name
     private transient @Nullable String localizedLevelName;
@@ -216,7 +216,6 @@ public  class Level implements java.io.Serializable {
      * @param value an integer value for the level.
      * @throws NullPointerException if the name is null
      */
-    @SuppressWarnings("signature")
     protected Level(String name, int value) {
         this(name, value, null);
     }
@@ -232,15 +231,13 @@ public  class Level implements java.io.Serializable {
      *    or an empty string, it is ignored.
      * @throws NullPointerException if the name is null
      */
-    protected Level(String name, int value, @Nullable  String resourceBundleName) {
+    protected Level(String name, int value, @Nullable String resourceBundleName) {
         this(name, value, resourceBundleName, true);
     }
 
     // private constructor to specify whether this instance should be added
     // to the KnownLevel list from which Level.parse method does its look up
-    
-    @SuppressWarnings({"argument.type.incompatible"})
-    private Level(String name, int value, @Nullable  String resourceBundleName, boolean visible) {
+    private Level(String name, int value, @Nullable String resourceBundleName, boolean visible) {
         if (name == null) {
             throw new NullPointerException();
         }
@@ -260,7 +257,7 @@ public  class Level implements java.io.Serializable {
      *
      * @return localization resource bundle name
      */
-    public @Nullable  String getResourceBundleName() {
+    public @Nullable String getResourceBundleName() {
         return resourceBundleName;
     }
 
@@ -292,7 +289,6 @@ public  class Level implements java.io.Serializable {
         return this.name;
     }
 
-    
     private String computeLocalizedLevelName(Locale newLocale) {
         // Resource bundle should be loaded from the defining module
         // or its defining class loader, if it's unnamed module,
@@ -346,8 +342,6 @@ public  class Level implements java.io.Serializable {
         return null;
     }
 
-    
-    @SuppressWarnings({"contracts.precondition.not.satisfied"})
     final synchronized String getLocalizedLevelName() {
 
         // See if we have a cached localized name
@@ -379,8 +373,6 @@ public  class Level implements java.io.Serializable {
     // that overrides Level.getLocalizedName() to return a different string
     // than what's returned by the default implementation.
     //
-    
-    @SuppressWarnings({"dereference.of.nullable"})
     static @Nullable Level findLevel(String name) {
         if (name == null) {
             throw new NullPointerException();
@@ -493,8 +485,6 @@ public  class Level implements java.io.Serializable {
      * Passing an integer that does not (e.g., 1) will return a new level name
      * initialized to that value.
      */
-    
-    @SuppressWarnings({"dereference.of.nullable"})
     public static synchronized Level parse(String name) throws IllegalArgumentException {
         // Check that name is not null.
         name.length();
@@ -543,8 +533,6 @@ public  class Level implements java.io.Serializable {
      * Compare two objects for value equality.
      * @return true if and only if the two objects have the same level value.
      */
-    
-    @SuppressWarnings({"dereference.of.nullable"})
     @Override
     public boolean equals(@Nullable Object ox) {
         try {

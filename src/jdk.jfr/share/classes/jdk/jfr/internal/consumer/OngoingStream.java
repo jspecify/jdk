@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,12 @@ package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
 import jdk.jfr.internal.SecuritySupport;
-import jdk.jfr.internal.SecuritySupport.SafePath;
 import jdk.jfr.internal.management.EventByteStream;
 import jdk.jfr.internal.management.HiddenWait;
 import jdk.jfr.internal.management.ManagementSupport;
@@ -63,7 +63,7 @@ public final class OngoingStream extends EventByteStream {
         this.blockSize = blockSize;
         this.startTimeNanos = startTimeNanos;
         this.endTimeNanos = endTimeNanos;
-        this.repositoryFiles = new RepositoryFiles(SecuritySupport.PRIVILEGED, null, false);
+        this.repositoryFiles = new RepositoryFiles(null, false);
     }
 
     @Override
@@ -167,10 +167,11 @@ public final class OngoingStream extends EventByteStream {
         byte[] bytes = new byte[Math.max(HEADER_SIZE, size)];
         for (int attempts = 0; attempts < 25; attempts++) {
             // read twice and check files state to avoid simultaneous change by JVM
-            input.position(0);
-            input.readFully(bytes, 0, HEADER_SIZE);
-            input.position(0);
-            input.readFully(headerBytes);
+            input.positionPhysical(0);
+            input.readPhysicalFully(bytes, 0, HEADER_SIZE);
+            input.positionPhysical(0);
+            input.readPhysicalFully(headerBytes, 0, HEADER_SIZE);
+            input.position(HEADER_SIZE);
             if (bytes[HEADER_FILE_STATE_POSITION] != MODIFYING_STATE) {
                 if (bytes[HEADER_FILE_STATE_POSITION] == headerBytes[HEADER_FILE_STATE_POSITION]) {
                     ByteBuffer buffer = ByteBuffer.wrap(bytes);
@@ -206,10 +207,10 @@ public final class OngoingStream extends EventByteStream {
 
     private boolean ensureInput() throws IOException {
         if (input == null) {
-            if (SecuritySupport.getFileSize(new SafePath(path)) < HEADER_SIZE) {
+            if (Files.size(path) < HEADER_SIZE) {
                 return false;
             }
-            input = new RecordingInput(path.toFile(), SecuritySupport.PRIVILEGED);
+            input = new RecordingInput(path.toFile());
             input.setStreamed();
             header = new ChunkHeader(input);
         }

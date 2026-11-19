@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 
 package javax.security.auth;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.*;
 import java.io.IOException;
 import java.text.MessageFormat;
@@ -47,12 +49,13 @@ import sun.security.util.ResourcesMgr;
  *      CredentialClass {PrincipalClass "PrincipalName"}*
  * </pre>
  *
- * @apiNote
+ * @deprecated
  * This permission cannot be used for controlling access to resources
  * as the Security Manager is no longer supported.
  *
  * @since 1.4
  */
+@Deprecated(since="25", forRemoval=true)
 public final class PrivateCredentialPermission extends Permission {
 
     @java.io.Serial
@@ -247,7 +250,7 @@ public final class PrivateCredentialPermission extends Permission {
      *
      * @return null in all cases.
      */
-    public PermissionCollection newPermissionCollection() {
+    public @Nullable PermissionCollection newPermissionCollection() {
         return null;
     }
 

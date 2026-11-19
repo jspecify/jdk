@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,10 +23,10 @@
  *
  */
 
-#include "precompiled.hpp"
 #ifdef COMPILER2
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "code/aotCodeCache.hpp"
 #include "code/vmreg.hpp"
 #include "interpreter/interpreter.hpp"
 #include "opto/runtime.hpp"
@@ -58,11 +58,20 @@ public:
 #define __ masm->
 
 //------------------------------generate_uncommon_trap_blob--------------------
-void OptoRuntime::generate_uncommon_trap_blob() {
+UncommonTrapBlob* OptoRuntime::generate_uncommon_trap_blob() {
+  const char* name = OptoRuntime::stub_name(StubId::c2_uncommon_trap_id);
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::C2Blob, BlobId::c2_uncommon_trap_id);
+  if (blob != nullptr) {
+    return blob->as_uncommon_trap_blob();
+  }
+
   // Allocate space for the code
   ResourceMark rm;
   // Setup code generation tools
-  CodeBuffer buffer("uncommon_trap_blob", 2048, 1024);
+  CodeBuffer buffer(name, 2048, 1024);
+  if (buffer.blob() == nullptr) {
+    return nullptr;
+  }
   MacroAssembler* masm = new MacroAssembler(&buffer);
   assert_cond(masm != nullptr);
 
@@ -73,7 +82,7 @@ void OptoRuntime::generate_uncommon_trap_blob() {
   // Push self-frame.  We get here with a return address in RA
   // and sp should be 16 byte aligned
   // push fp and retaddr by hand
-  __ addi(sp, sp, -2 * wordSize);
+  __ subi(sp, sp, 2 * wordSize);
   __ sd(ra, Address(sp, wordSize));
   __ sd(fp, Address(sp, 0));
   // we don't expect an arg reg save area
@@ -82,7 +91,7 @@ void OptoRuntime::generate_uncommon_trap_blob() {
 #endif
   // compiler left unloaded_class_index in j_rarg0 move to where the
   // runtime expects it.
-  __ sign_extend(c_rarg1, j_rarg0, 32);
+  __ sext(c_rarg1, j_rarg0, 32);
 
   // we need to set the past SP to the stack pointer of the stub frame
   // and the pc to the address where this runtime call will return
@@ -140,7 +149,7 @@ void OptoRuntime::generate_uncommon_trap_blob() {
   __ lwu(x12, Address(x14,
                       Deoptimization::UnrollBlock::
                       size_of_deoptimized_frame_offset()));
-  __ sub(x12, x12, 2 * wordSize);
+  __ subi(x12, x12, 2 * wordSize);
   __ add(sp, sp, x12);
   __ ld(fp, Address(sp, 0));
   __ ld(ra, Address(sp, wordSize));
@@ -188,7 +197,7 @@ void OptoRuntime::generate_uncommon_trap_blob() {
   Label loop;
   __ bind(loop);
   __ ld(x11, Address(x15, 0));       // Load frame size
-  __ sub(x11, x11, 2 * wordSize);    // We'll push pc and fp by hand
+  __ subi(x11, x11, 2 * wordSize);   // We'll push pc and fp by hand
   __ ld(ra, Address(x12, 0));        // Save return address
   __ enter();                        // and old fp & set new fp
   __ sub(sp, sp, x11);               // Prolog
@@ -196,9 +205,9 @@ void OptoRuntime::generate_uncommon_trap_blob() {
   // This value is corrected by layout_activation_impl
   __ sd(zr, Address(fp, frame::interpreter_frame_last_sp_offset * wordSize));
   __ mv(sender_sp, sp);              // Pass sender_sp to next frame
-  __ add(x15, x15, wordSize);        // Bump array pointer (sizes)
-  __ add(x12, x12, wordSize);        // Bump array pointer (pcs)
-  __ subw(x13, x13, 1);              // Decrement counter
+  __ addi(x15, x15, wordSize);       // Bump array pointer (sizes)
+  __ addi(x12, x12, wordSize);       // Bump array pointer (pcs)
+  __ subiw(x13, x13, 1);             // Decrement counter
   __ bgtz(x13, loop);
   __ ld(ra, Address(x12, 0));        // save final return address
   // Re-push self-frame
@@ -237,17 +246,16 @@ void OptoRuntime::generate_uncommon_trap_blob() {
   // Jump to interpreter
   __ ret();
 
-  // Make sure all code is generated
-  masm->flush();
+  // Code will be copied. No ICache sync required.
 
-  _uncommon_trap_blob =  UncommonTrapBlob::create(&buffer, oop_maps,
-                                                  SimpleRuntimeFrame::framesize >> 1);
+  UncommonTrapBlob* ut_blob = UncommonTrapBlob::create(&buffer, oop_maps,
+                                                       SimpleRuntimeFrame::framesize >> 1);
+  AOTCodeCache::store_code_blob(*ut_blob, AOTCodeEntry::C2Blob, BlobId::c2_uncommon_trap_id);
+  return ut_blob;
 }
 
 //------------------------------generate_exception_blob---------------------------
 // creates exception blob at the end
-// Using exception blob, this code is jumped from a compiled method.
-// (see emit_exception_handler in riscv.ad file)
 //
 // Given an exception pc at a call we call into the runtime for the
 // handler in this method. This handler might merely restore state
@@ -270,17 +278,26 @@ void OptoRuntime::generate_uncommon_trap_blob() {
 //       Registers x10, x13, x12, x14, x15, t0 are not callee saved.
 //
 
-void OptoRuntime::generate_exception_blob() {
+ExceptionBlob* OptoRuntime::generate_exception_blob() {
   assert(!OptoRuntime::is_callee_saved_register(R13_num), "");
   assert(!OptoRuntime::is_callee_saved_register(R10_num), "");
   assert(!OptoRuntime::is_callee_saved_register(R12_num), "");
 
   assert(SimpleRuntimeFrame::framesize % 4 == 0, "sp not 16-byte aligned");
 
+  const char* name = OptoRuntime::stub_name(StubId::c2_exception_id);
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::C2Blob, BlobId::c2_exception_id);
+  if (blob != nullptr) {
+    return blob->as_exception_blob();
+  }
+
   // Allocate space for the code
   ResourceMark rm;
   // Setup code generation tools
-  CodeBuffer buffer("exception_blob", 2048, 1024);
+  CodeBuffer buffer(name, 2048, 1024);
+  if (buffer.blob() == nullptr) {
+    return nullptr;
+  }
   MacroAssembler* masm = new MacroAssembler(&buffer);
   assert_cond(masm != nullptr);
 
@@ -292,7 +309,7 @@ void OptoRuntime::generate_exception_blob() {
 
   // push fp and retaddr by hand
   // Exception pc is 'return address' for stack walker
-  __ addi(sp, sp, -2 * wordSize);
+  __ subi(sp, sp, 2 * wordSize);
   __ sd(ra, Address(sp, wordSize));
   __ sd(fp, Address(sp));
   // there are no callee save registers and we don't expect an
@@ -346,7 +363,7 @@ void OptoRuntime::generate_exception_blob() {
   // and we dont' expect an arg reg save area
   __ ld(fp, Address(sp));
   __ ld(x13, Address(sp, wordSize));
-  __ addi(sp, sp , 2 * wordSize);
+  __ addi(sp, sp, 2 * wordSize);
 
   // x10: exception handler
 
@@ -371,12 +388,11 @@ void OptoRuntime::generate_exception_blob() {
 
   __ jr(t1);
 
-  // Make sure all code is generated
-  masm->flush();
+  // Code will be copied. No ICache sync required.
 
   // Set exception blob
-  _exception_blob =  ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
+  ExceptionBlob* ex_blob = ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
+  AOTCodeCache::store_code_blob(*ex_blob, AOTCodeEntry::C2Blob, BlobId::c2_exception_id);
+  return ex_blob;
 }
 #endif // COMPILER2
-
-

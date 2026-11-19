@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package com.sun.crypto.provider;
 import java.security.*;
 import java.util.Arrays;
 import javax.crypto.DecapsulateException;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import sun.security.provider.SHA3.SHAKE256;
 import sun.security.provider.SHA3Parallel.Shake128Parallel;
@@ -45,14 +46,17 @@ public final class ML_KEM {
     private static final int XOF_PAD = 24;
     private static final int MONT_R_BITS = 20;
     private static final int MONT_Q = 3329;
-    private static final int MONT_R_SQUARE_MOD_Q = 152;
     private static final int MONT_Q_INV_MOD_R = 586497;
 
     // toMont((ML_KEM_N / 2)^-1 mod ML_KEM_Q) using R = 2^MONT_R_BITS
     private static final int MONT_DIM_HALF_INVERSE = 1534;
     private static final int BARRETT_MULTIPLIER = 20159;
+    private static final int BARRETT_ADDEND = 1665;
     private static final int BARRETT_SHIFT = 26;
-    private static final int[] MONT_ZETAS_FOR_NTT = new int[]{
+
+    // The values from Appendix A of the FIPS 203 standard converted to the
+    // Montgomery domain, i.e. toMont(zeta^ (bitrev_7(i)) for i = 0..127
+    private static final int[] MONT_ZETAS_FOR_NTT = new int[] {
             1188, 914, -969, 585, -551, 1263, -97, 593,
             -35, -1400, -417, -1253, 742, -281, 185, -819,
             -1226, 895, -530, 52, 25, 1000, 1249, -909,
@@ -71,23 +75,288 @@ public final class ML_KEM {
             -1599, -709, -789, -1317, -57, 1049, -584
     };
 
-    private static final int[] MONT_ZETAS_FOR_NTT_MULT = new int[]{
-            -1003, 1003, 222, -222, -1107, 1107, 172, -172,
-            -42, 42, 620, -620, 1497, -1497, -1649, 1649,
-            94, -94, -595, 595, -497, 497, -431, 431,
-            -1327, 1327, -702, 702, -1448, 1448, -184, 184,
-            -607, 607, -868, 868, -1430, 1430, 977, -977,
-            884, -884, 425, -425, 355, -355, 1259, -1259,
-            1192, -1192, 317, -317, -636, 636, -1074, 1074,
-            30, -30, -1394, 1394, 833, -833, -1200, 1200,
-            -244, 244, 907, -907, -339, 339, -227, 227,
-            1178, -1178, -586, 586, -137, 137, -514, 514,
-            534, -534, 1153, -1153, -486, 486, -1386, 1386,
-            -668, 668, 191, -191, 982, -982, 88, -88,
-            1014, -1014, -1177, 1177, -474, 474, -612, 612,
-            -857, 857, -348, 348, -604, 604, 990, -990,
-            1601, -1601, -1599, 1599, -709, 709, -789, 789,
-            -1317, 1317, -57, 57, 1049, -1049, -584, 584
+    private static final short[] montZetasForVectorNttArr = new short[] {
+            // level 0
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            -758, -758, -758, -758, -758, -758, -758, -758,
+            // level 1
+            -359, -359, -359, -359, -359, -359, -359, -359,
+            -359, -359, -359, -359, -359, -359, -359, -359,
+            -359, -359, -359, -359, -359, -359, -359, -359,
+            -359, -359, -359, -359, -359, -359, -359, -359,
+            -359, -359, -359, -359, -359, -359, -359, -359,
+            -359, -359, -359, -359, -359, -359, -359, -359,
+            -359, -359, -359, -359, -359, -359, -359, -359,
+            -359, -359, -359, -359, -359, -359, -359, -359,
+            -1517, -1517, -1517, -1517, -1517, -1517, -1517, -1517,
+            -1517, -1517, -1517, -1517, -1517, -1517, -1517, -1517,
+            -1517, -1517, -1517, -1517, -1517, -1517, -1517, -1517,
+            -1517, -1517, -1517, -1517, -1517, -1517, -1517, -1517,
+            -1517, -1517, -1517, -1517, -1517, -1517, -1517, -1517,
+            -1517, -1517, -1517, -1517, -1517, -1517, -1517, -1517,
+            -1517, -1517, -1517, -1517, -1517, -1517, -1517, -1517,
+            -1517, -1517, -1517, -1517, -1517, -1517, -1517, -1517,
+            // level 2
+            1493, 1493, 1493, 1493, 1493, 1493, 1493, 1493,
+            1493, 1493, 1493, 1493, 1493, 1493, 1493, 1493,
+            1493, 1493, 1493, 1493, 1493, 1493, 1493, 1493,
+            1493, 1493, 1493, 1493, 1493, 1493, 1493, 1493,
+            1422, 1422, 1422, 1422, 1422, 1422, 1422, 1422,
+            1422, 1422, 1422, 1422, 1422, 1422, 1422, 1422,
+            1422, 1422, 1422, 1422, 1422, 1422, 1422, 1422,
+            1422, 1422, 1422, 1422, 1422, 1422, 1422, 1422,
+            287, 287, 287, 287, 287, 287, 287, 287,
+            287, 287, 287, 287, 287, 287, 287, 287,
+            287, 287, 287, 287, 287, 287, 287, 287,
+            287, 287, 287, 287, 287, 287, 287, 287,
+            202, 202, 202, 202, 202, 202, 202, 202,
+            202, 202, 202, 202, 202, 202, 202, 202,
+            202, 202, 202, 202, 202, 202, 202, 202,
+            202, 202, 202, 202, 202, 202, 202, 202,
+            // level 3
+            -171, -171, -171, -171, -171, -171, -171, -171,
+            -171, -171, -171, -171, -171, -171, -171, -171,
+            622, 622, 622, 622, 622, 622, 622, 622,
+            622, 622, 622, 622, 622, 622, 622, 622,
+            1577, 1577, 1577, 1577, 1577, 1577, 1577, 1577,
+            1577, 1577, 1577, 1577, 1577, 1577, 1577, 1577,
+            182, 182, 182, 182, 182, 182, 182, 182,
+            182, 182, 182, 182, 182, 182, 182, 182,
+            962, 962, 962, 962, 962, 962, 962, 962,
+            962, 962, 962, 962, 962, 962, 962, 962,
+            -1202, -1202, -1202, -1202, -1202, -1202, -1202, -1202,
+            -1202, -1202, -1202, -1202, -1202, -1202, -1202, -1202,
+            -1474, -1474, -1474, -1474, -1474, -1474, -1474, -1474,
+            -1474, -1474, -1474, -1474, -1474, -1474, -1474, -1474,
+            1468, 1468, 1468, 1468, 1468, 1468, 1468, 1468,
+            1468, 1468, 1468, 1468, 1468, 1468, 1468, 1468,
+            // level 4
+            573, 573, 573, 573, 573, 573, 573, 573,
+            -1325, -1325, -1325, -1325, -1325, -1325, -1325, -1325,
+            264, 264, 264, 264, 264, 264, 264, 264,
+            383, 383, 383, 383, 383, 383, 383, 383,
+            -829, -829, -829, -829, -829, -829, -829, -829,
+            1458, 1458, 1458, 1458, 1458, 1458, 1458, 1458,
+            -1602, -1602, -1602, -1602, -1602, -1602, -1602, -1602,
+            -130, -130, -130, -130, -130, -130, -130, -130,
+            -681, -681, -681, -681, -681, -681, -681, -681,
+            1017, 1017, 1017, 1017, 1017, 1017, 1017, 1017,
+            732, 732, 732, 732, 732, 732, 732, 732,
+            608, 608, 608, 608, 608, 608, 608, 608,
+            -1542, -1542, -1542, -1542, -1542, -1542, -1542, -1542,
+            411, 411, 411, 411, 411, 411, 411, 411,
+            -205, -205, -205, -205, -205, -205, -205, -205,
+            -1571, -1571, -1571, -1571, -1571, -1571, -1571, -1571,
+            // level 5
+            1223, 1223, 1223, 1223, 652, 652, 652, 652,
+            -552, -552, -552, -552, 1015, 1015, 1015, 1015,
+            -1293, -1293, -1293, -1293, 1491, 1491, 1491, 1491,
+            -282, -282, -282, -282, -1544, -1544, -1544, -1544,
+            516, 516, 516, 516, -8, -8, -8, -8,
+            -320, -320, -320, -320, -666, -666, -666, -666,
+            1711, 1711, 1711, 1711, -1162, -1162, -1162, -1162,
+            126, 126, 126, 126, 1469, 1469, 1469, 1469,
+            -853, -853, -853, -853, -90, -90, -90, -90,
+            -271, -271, -271, -271, 830, 830, 830, 830,
+            107, 107, 107, 107, -1421, -1421, -1421, -1421,
+            -247, -247, -247, -247, -951, -951, -951, -951,
+            -398, -398, -398, -398, 961, 961, 961, 961,
+            -1508, -1508, -1508, -1508, -725, -725, -725, -725,
+            448, 448, 448, 448, -1065, -1065, -1065, -1065,
+            677, 677, 677, 677, -1275, -1275, -1275, -1275,
+            // level 6
+            -1103, -1103, 430, 430, 555, 555, 843, 843,
+            -1251, -1251, 871, 871, 1550, 1550, 105, 105,
+            422, 422, 587, 587, 177, 177, -235, -235,
+            -291, -291, -460, -460, 1574, 1574, 1653, 1653,
+            -246, -246, 778, 778, 1159, 1159, -147, -147,
+            -777, -777, 1483, 1483, -602, -602, 1119, 1119,
+            -1590, -1590, 644, 644, -872, -872, 349, 349,
+            418, 418, 329, 329, -156, -156, -75, -75,
+            817, 817, 1097, 1097, 603, 603, 610, 610,
+            1322, 1322, -1285, -1285, -1465, -1465, 384, 384,
+            -1215, -1215, -136, -136, 1218, 1218, -1335, -1335,
+            -874, -874, 220, 220, -1187, -1187, 1670, 1670,
+            -1185, -1185, -1530, -1530, -1278, -1278, 794, 794,
+            -1510, -1510, -854, -854, -870, -870, 478, 478,
+            -108, -108, -308, -308, 996, 996, 991, 991,
+            958, 958, -1460, -1460, 1522, 1522, 1628, 1628
+    };
+
+    private static final short[] montZetasForVectorInverseNttArr = new short[] {
+            // level 0
+            -1628, -1628, -1522, -1522, 1460, 1460, -958, -958,
+            -991, -991, -996, -996, 308, 308, 108, 108,
+            -478, -478, 870, 870, 854, 854, 1510, 1510,
+            -794, -794, 1278, 1278, 1530, 1530, 1185, 1185,
+            1659, 1659, 1187, 1187, -220, -220, 874, 874,
+            1335, 1335, -1218, -1218, 136, 136, 1215, 1215,
+            -384, -384, 1465, 1465, 1285, 1285, -1322, -1322,
+            -610, -610, -603, -603, -1097, -1097, -817, -817,
+            75, 75, 156, 156, -329, -329, -418, -418,
+            -349, -349, 872, 872, -644, -644, 1590, 1590,
+            -1119, -1119, 602, 602, -1483, -1483, 777, 777,
+            147, 147, -1159, -1159, -778, -778, 246, 246,
+            -1653, -1653, -1574, -1574, 460, 460, 291, 291,
+            235, 235, -177, -177, -587, -587, -422, -422,
+            -105, -105, -1550, -1550, -871, -871, 1251, 1251,
+            -843, -843, -555, -555, -430, -430, 1103, 1103,
+            // level 1
+            1275, 1275, 1275, 1275, -677, -677, -677, -677,
+            1065, 1065, 1065, 1065, -448, -448, -448, -448,
+            725, 725, 725, 725, 1508, 1508, 1508, 1508,
+            -961, -961, -961, -961, 398, 398, 398, 398,
+            951, 951, 951, 951, 247, 247, 247, 247,
+            1421, 1421, 1421, 1421, -107, -107, -107, -107,
+            -830, -830, -830, -830, 271, 271, 271, 271,
+            90, 90, 90, 90, 853, 853, 853, 853,
+            -1469, -1469, -1469, -1469, -126, -126, -126, -126,
+            1162, 1162, 1162, 1162, 1618, 1618, 1618, 1618,
+            666, 666, 666, 666, 320, 320, 320, 320,
+            8, 8, 8, 8, -516, -516, -516, -516,
+            1544, 1544, 1544, 1544, 282, 282, 282, 282,
+            -1491, -1491, -1491, -1491, 1293, 1293, 1293, 1293,
+            -1015, -1015, -1015, -1015, 552, 552, 552, 552,
+            -652, -652, -652, -652, -1223, -1223, -1223, -1223,
+            // level 2
+            1571, 1571, 1571, 1571, 1571, 1571, 1571, 1571,
+            205, 205, 205, 205, 205, 205, 205, 205,
+            -411, -411, -411, -411, -411, -411, -411, -411,
+            1542, 1542, 1542, 1542, 1542, 1542, 1542, 1542,
+            -608, -608, -608, -608, -608, -608, -608, -608,
+            -732, -732, -732, -732, -732, -732, -732, -732,
+            -1017, -1017, -1017, -1017, -1017, -1017, -1017, -1017,
+            681, 681, 681, 681, 681, 681, 681, 681,
+            130, 130, 130, 130, 130, 130, 130, 130,
+            1602, 1602, 1602, 1602, 1602, 1602, 1602, 1602,
+            -1458, -1458, -1458, -1458, -1458, -1458, -1458, -1458,
+            829, 829, 829, 829, 829, 829, 829, 829,
+            -383, -383, -383, -383, -383, -383, -383, -383,
+            -264, -264, -264, -264, -264, -264, -264, -264,
+            1325, 1325, 1325, 1325, 1325, 1325, 1325, 1325,
+            -573, -573, -573, -573, -573, -573, -573, -573,
+            // level 3
+            -1468, -1468, -1468, -1468, -1468, -1468, -1468, -1468,
+            -1468, -1468, -1468, -1468, -1468, -1468, -1468, -1468,
+            1474, 1474, 1474, 1474, 1474, 1474, 1474, 1474,
+            1474, 1474, 1474, 1474, 1474, 1474, 1474, 1474,
+            1202, 1202, 1202, 1202, 1202, 1202, 1202, 1202,
+            1202, 1202, 1202, 1202, 1202, 1202, 1202, 1202,
+            -962, -962, -962, -962, -962, -962, -962, -962,
+            -962, -962, -962, -962, -962, -962, -962, -962,
+            -182, -182, -182, -182, -182, -182, -182, -182,
+            -182, -182, -182, -182, -182, -182, -182, -182,
+            -1577, -1577, -1577, -1577, -1577, -1577, -1577, -1577,
+            -1577, -1577, -1577, -1577, -1577, -1577, -1577, -1577,
+            -622, -622, -622, -622, -622, -622, -622, -622,
+            -622, -622, -622, -622, -622, -622, -622, -622,
+            171, 171, 171, 171, 171, 171, 171, 171,
+            171, 171, 171, 171, 171, 171, 171, 171,
+            // level 4
+            -202, -202, -202, -202, -202, -202, -202, -202,
+            -202, -202, -202, -202, -202, -202, -202, -202,
+            -202, -202, -202, -202, -202, -202, -202, -202,
+            -202, -202, -202, -202, -202, -202, -202, -202,
+            -287, -287, -287, -287, -287, -287, -287, -287,
+            -287, -287, -287, -287, -287, -287, -287, -287,
+            -287, -287, -287, -287, -287, -287, -287, -287,
+            -287, -287, -287, -287, -287, -287, -287, -287,
+            -1422, -1422, -1422, -1422, -1422, -1422, -1422, -1422,
+            -1422, -1422, -1422, -1422, -1422, -1422, -1422, -1422,
+            -1422, -1422, -1422, -1422, -1422, -1422, -1422, -1422,
+            -1422, -1422, -1422, -1422, -1422, -1422, -1422, -1422,
+            -1493, -1493, -1493, -1493, -1493, -1493, -1493, -1493,
+            -1493, -1493, -1493, -1493, -1493, -1493, -1493, -1493,
+            -1493, -1493, -1493, -1493, -1493, -1493, -1493, -1493,
+            -1493, -1493, -1493, -1493, -1493, -1493, -1493, -1493,
+            // level 5
+            1517, 1517, 1517, 1517, 1517, 1517, 1517, 1517,
+            1517, 1517, 1517, 1517, 1517, 1517, 1517, 1517,
+            1517, 1517, 1517, 1517, 1517, 1517, 1517, 1517,
+            1517, 1517, 1517, 1517, 1517, 1517, 1517, 1517,
+            1517, 1517, 1517, 1517, 1517, 1517, 1517, 1517,
+            1517, 1517, 1517, 1517, 1517, 1517, 1517, 1517,
+            1517, 1517, 1517, 1517, 1517, 1517, 1517, 1517,
+            1517, 1517, 1517, 1517, 1517, 1517, 1517, 1517,
+            359, 359, 359, 359, 359, 359, 359, 359,
+            359, 359, 359, 359, 359, 359, 359, 359,
+            359, 359, 359, 359, 359, 359, 359, 359,
+            359, 359, 359, 359, 359, 359, 359, 359,
+            359, 359, 359, 359, 359, 359, 359, 359,
+            359, 359, 359, 359, 359, 359, 359, 359,
+            359, 359, 359, 359, 359, 359, 359, 359,
+            359, 359, 359, 359, 359, 359, 359, 359,
+            // level 6
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758,
+            758, 758, 758, 758, 758, 758, 758, 758
+    };
+
+    // modulo MLKEM_Q positive equivalents of the values listed for
+    // the MultiplyNTTs algorithm in the FIPS 203 standard
+    private static final int[] ZETAS_FOR_NTT_MULT = new int[] {
+            17, 3312, 2761, 568, 583, 2746, 2649, 680,
+            1637, 1692, 723, 2606, 2288, 1041, 1100, 2229,
+            1409, 1920, 2662, 667, 3281, 48, 233, 3096,
+            756, 2573, 2156, 1173, 3015, 314, 3050, 279,
+            1703, 1626, 1651, 1678, 2789, 540, 1789, 1540,
+            1847, 1482, 952, 2377, 1461, 1868, 2687, 642,
+            939, 2390, 2308, 1021, 2437, 892, 2388, 941,
+            733, 2596, 2337, 992, 268, 3061, 641, 2688,
+            1584, 1745, 2298, 1031, 2037, 1292, 3220, 109,
+            375, 2954, 2549, 780, 2090, 1239, 1645, 1684,
+            1063, 2266, 319, 3010, 2773, 556, 757, 2572,
+            2099, 1230, 561, 2768, 2466, 863, 2594, 735,
+            2804, 525, 1092, 2237, 403, 2926, 1026, 2303,
+            1143, 2186, 2150, 1179, 2775, 554, 886, 2443,
+            1722, 1607, 1212, 2117, 1874, 1455, 1029, 2300,
+            2110, 1219, 2935, 394, 885, 2444, 2154, 1175
+    };
+
+    private static final short[] montZetasForVectorNttMultArr = new short[] {
+            -1103, 1103, 430, -430, 555, -555, 843, -843,
+            -1251, 1251, 871, -871, 1550, -1550, 105, -105,
+            422, -422, 587, -587, 177, -177, -235, 235,
+            -291, 291, -460, 460, 1574, -1574, 1653, -1653,
+            -246, 246, 778, -778, 1159, -1159, -147, 147,
+            -777, 777, 1483, -1483, -602, 602, 1119, -1119,
+            -1590, 1590, 644, -644, -872, 872, 349, -349,
+            418, -418, 329, -329, -156, 156, -75, 75,
+            817, -817, 1097, -1097, 603, -603, 610, -610,
+            1322, -1322, -1285, 1285, -1465, 1465, 384, -384,
+            -1215, 1215, -136, 136, 1218, -1218, -1335, 1335,
+            -874, 874, 220, -220, -1187, 1187, 1670, 1659,
+            -1185, 1185, -1530, 1530, -1278, 1278, 794, -794,
+            -1510, 1510, -854, 854, -870, 870, 478, -478,
+            -108, 108, -308, 308, 996, -996, 991, -991,
+            958, -958, -1460, 1460, 1522, -1522, 1628, -1628
     };
 
     private final int mlKem_k;
@@ -217,7 +486,7 @@ public final class ML_KEM {
     /*
     Main internal algorithms from Section 6 of specification
      */
-    protected ML_KEM_KeyPair generateKemKeyPair(byte[] kem_d, byte[] kem_z) {
+    protected ML_KEM_KeyPair generateKemKeyPair(byte[] kem_d_z) {
         MessageDigest mlKemH;
         try {
             mlKemH = MessageDigest.getInstance(HASH_H_NAME);
@@ -227,7 +496,8 @@ public final class ML_KEM {
         }
 
         //Generate K-PKE keys
-        var kPkeKeyPair = generateK_PkeKeyPair(kem_d);
+        //The 1st 32-byte `d` is used in K-PKE key pair generation
+        var kPkeKeyPair = generateK_PkeKeyPair(kem_d_z);
         //encaps key = kPke encryption key
         byte[] encapsKey = kPkeKeyPair.publicKey.keyBytes;
 
@@ -245,13 +515,22 @@ public final class ML_KEM {
         } catch (DigestException e) {
             // This should never happen.
             throw new RuntimeException(e);
+        } finally {
+            mlKemH.reset();
         }
-        System.arraycopy(kem_z, 0, decapsKey,
+        // The 2nd 32-byte `z` is copied into decapsKey
+        System.arraycopy(kem_d_z, 32, decapsKey,
             kPkePrivateKey.length + encapsKey.length + 32, 32);
 
         return new ML_KEM_KeyPair(
             new ML_KEM_EncapsulationKey(encapsKey),
             new ML_KEM_DecapsulationKey(decapsKey));
+    }
+
+    public byte[] privKeyToPubKey(byte[] decapsKey) {
+        int pkLen = (mlKem_k * ML_KEM_N * 12) / 8 + 32 /* rho */;
+        int skLen = (mlKem_k * ML_KEM_N * 12) / 8;
+        return Arrays.copyOfRange(decapsKey, skLen, skLen + pkLen);
     }
 
     protected ML_KEM_EncapsulateResult encapsulate(
@@ -261,7 +540,7 @@ public final class ML_KEM {
         try {
             mlKemH = MessageDigest.getInstance(HASH_H_NAME);
             mlKemG = MessageDigest.getInstance(HASH_G_NAME);
-        } catch (NoSuchAlgorithmException e){
+        } catch (NoSuchAlgorithmException e) {
             // This should never happen.
             throw new RuntimeException(e);
         }
@@ -273,7 +552,6 @@ public final class ML_KEM {
         var randomCoins = Arrays.copyOfRange(kHatAndRandomCoins, 32, 64);
         var cipherText = kPkeEncrypt(new K_PKE_EncryptionKey(encapsulationKey.keyBytes),
                 randomMessage, randomCoins);
-        Arrays.fill(randomCoins, (byte) 0);
         byte[] sharedSecret = Arrays.copyOfRange(kHatAndRandomCoins, 0, 32);
         Arrays.fill(kHatAndRandomCoins, (byte) 0);
 
@@ -324,6 +602,7 @@ public final class ML_KEM {
         var fakeResult = mlKemJ.digest();
         var computedCipherText = kPkeEncrypt(
                 new K_PKE_EncryptionKey(encapsKeyBytes), mCandidate, coins);
+        Arrays.fill(mCandidate, (byte)0);
 
         // The rest of this method implements the following in constant time
         //
@@ -359,18 +638,22 @@ public final class ML_KEM {
 
         MessageDigest mlKemG;
         SHAKE256 mlKemJ;
+        int cbdInputLen = 64 * mlKem_eta1;
+        byte[] cbdInput = new byte[cbdInputLen];
         try {
             mlKemG = MessageDigest.getInstance(HASH_G_NAME);
-            mlKemJ = new SHAKE256(64 * mlKem_eta1);
+            mlKemJ = new SHAKE256(cbdInputLen);
         } catch (NoSuchAlgorithmException e) {
             // This should never happen.
             throw new RuntimeException(e);
         }
 
-        mlKemG.update(seed);
+        // Note: only the 1st 32-byte in the seed is used
+        mlKemG.update(seed, 0, 32);
         mlKemG.update((byte)mlKem_k);
 
         var rhoSigma = mlKemG.digest();
+        mlKemG.reset();
         var rho = Arrays.copyOfRange(rhoSigma, 0, 32);
         var sigma = Arrays.copyOfRange(rhoSigma, 32, 64);
         Arrays.fill(rhoSigma, (byte)0);
@@ -380,22 +663,26 @@ public final class ML_KEM {
         int keyGenN = 0;
         byte[] prfSeed = new byte[sigma.length + 1];
         System.arraycopy(sigma, 0, prfSeed, 0, sigma.length);
-        byte[] cbdInput;
         short[][] keyGenS = new short[mlKem_k][];
         short[][] keyGenE = new short[mlKem_k][];
-        for (int i = 0; i < mlKem_k; i++) {
-            prfSeed[sigma.length] = (byte) (keyGenN++);
-            mlKemJ.update(prfSeed);
-            cbdInput = mlKemJ.digest();
-            keyGenS[i] = centeredBinomialDistribution(mlKem_eta1, cbdInput);
-        }
-        for (int i = 0; i < mlKem_k; i++) {
-            prfSeed[sigma.length] = (byte) (keyGenN++);
-            mlKemJ.update(prfSeed);
-            cbdInput = mlKemJ.digest();
-            keyGenE[i] = centeredBinomialDistribution(mlKem_eta1, cbdInput);
+        try {
+            for (int i = 0; i < mlKem_k; i++) {
+                prfSeed[sigma.length] = (byte) (keyGenN++);
+                mlKemJ.update(prfSeed);
+                mlKemJ.digest(cbdInput, 0, cbdInputLen);
+                keyGenS[i] = centeredBinomialDistribution(mlKem_eta1, cbdInput);
+            }
+            for (int i = 0; i < mlKem_k; i++) {
+                prfSeed[sigma.length] = (byte) (keyGenN++);
+                mlKemJ.update(prfSeed);
+                mlKemJ.digest(cbdInput, 0, cbdInputLen);
+                keyGenE[i] = centeredBinomialDistribution(mlKem_eta1, cbdInput);
+            }
+        }  catch (DigestException e) {
+            throw new ProviderException("Internal error", e);
         }
         Arrays.fill(sigma, (byte)0);
+        Arrays.fill(cbdInput, (byte)0);
 
         short[][] keyGenSHat = mlKemVectorNTT(keyGenS);
         mlKemVectorReduce(keyGenSHat);
@@ -409,7 +696,6 @@ public final class ML_KEM {
         for (int i = 0; i < mlKem_k; i++) {
             encodePoly12(keyGenTHat[i], pkEncoded, i * ((ML_KEM_N * 12) / 8));
             encodePoly12(keyGenSHat[i], skEncoded, i * ((ML_KEM_N * 12) / 8));
-            Arrays.fill(keyGenEHat[i], (short) 0);
             Arrays.fill(keyGenSHat[i], (short) 0);
         }
         System.arraycopy(rho, 0,
@@ -422,7 +708,7 @@ public final class ML_KEM {
 
     private K_PKE_CipherText kPkeEncrypt(
             K_PKE_EncryptionKey publicKey, byte[] message, byte[] sigma) {
-        short[][] zeroes = new short[mlKem_k][ML_KEM_N];
+        short[][] zeroes = shortMatrixAlloc(mlKem_k, ML_KEM_N);
         byte[] pkBytes = publicKey.keyBytes;
         byte[] rho = Arrays.copyOfRange(pkBytes,
                 pkBytes.length - 32, pkBytes.length);
@@ -432,39 +718,61 @@ public final class ML_KEM {
         var encryptA = generateA(rho, true);
         short[][] encryptR = new short[mlKem_k][];
         short[][] encryptE1 = new short[mlKem_k][];
+        short[] encryptE2;
         int encryptN = 0;
         byte[] prfSeed = new byte[sigma.length + 1];
         System.arraycopy(sigma, 0, prfSeed, 0, sigma.length);
+        Arrays.fill(sigma, (byte)0);
 
-        var kPkePRFeta1 = new SHAKE256(64 * mlKem_eta1);
-        var kPkePRFeta2 = new SHAKE256(64 * mlKem_eta2);
-        for (int i = 0; i < mlKem_k; i++) {
-            prfSeed[sigma.length] = (byte) (encryptN++);
-            kPkePRFeta1.update(prfSeed);
-            byte[] cbdInput = kPkePRFeta1.digest();
-            encryptR[i] = centeredBinomialDistribution(mlKem_eta1, cbdInput);
-        }
-        for (int i = 0; i < mlKem_k; i++) {
-            prfSeed[sigma.length] = (byte) (encryptN++);
+        int cbdInput1Len = 64 * mlKem_eta1;
+        var kPkePRFeta1 = new SHAKE256(cbdInput1Len);
+        byte[] cbdInput1 = new byte[cbdInput1Len];
+        int cbdInput2Len = 64 * mlKem_eta2;
+        var kPkePRFeta2 = new SHAKE256(cbdInput2Len);
+        byte[] cbdInput2 = new byte[cbdInput2Len];
+        try {
+            for (int i = 0; i < mlKem_k; i++) {
+                prfSeed[sigma.length] = (byte) (encryptN++);
+                kPkePRFeta1.update(prfSeed);
+                kPkePRFeta1.digest(cbdInput1, 0, cbdInput1Len);
+                encryptR[i] = centeredBinomialDistribution(mlKem_eta1, cbdInput1);
+            }
+            for (int i = 0; i < mlKem_k; i++) {
+                prfSeed[sigma.length] = (byte) (encryptN++);
+                kPkePRFeta2.update(prfSeed);
+                kPkePRFeta2.digest(cbdInput2, 0, cbdInput2Len);
+                encryptE1[i] = centeredBinomialDistribution(mlKem_eta2, cbdInput2);
+            }
+            prfSeed[sigma.length] = (byte) encryptN;
             kPkePRFeta2.update(prfSeed);
-            byte[] cbdInput = kPkePRFeta2.digest();
-            encryptE1[i] = centeredBinomialDistribution(mlKem_eta2, cbdInput);
+            kPkePRFeta2.digest(cbdInput2, 0, cbdInput2Len);
+            encryptE2 = centeredBinomialDistribution(mlKem_eta2, cbdInput2);
+        } catch  (DigestException e) {
+            throw new ProviderException("Internal error", e);
+        } finally {
+            kPkePRFeta1.reset();
+            kPkePRFeta2.reset();
+            Arrays.fill(prfSeed, (byte)0);
+            Arrays.fill(cbdInput1, (byte)0);
+            Arrays.fill(cbdInput2, (byte)0);
         }
-        prfSeed[sigma.length] = (byte) encryptN;
-        kPkePRFeta2.reset();
-        kPkePRFeta2.update(prfSeed);
-        byte[] cbdInput = kPkePRFeta2.digest();
-        var encryptE2 = centeredBinomialDistribution(mlKem_eta2, cbdInput);
 
         var encryptRHat = mlKemVectorNTT(encryptR);
         var encryptUHat = mlKemMatrixVectorMuladd(encryptA, encryptRHat, zeroes);
         var encryptU = mlKemVectorInverseNTT(encryptUHat);
         encryptU = mlKemAddVec(encryptU, encryptE1);
+
+        for (int i = 0; i < mlKem_k; i++) {
+            Arrays.fill(encryptE1[i], (short)0);
+        }
+
         var encryptVHat = mlKemVectorScalarMult(encryptTHat, encryptRHat);
         var encryptV = mlKemInverseNTT(encryptVHat);
         encryptV = mlKemAddPoly(encryptV, encryptE2, decompressDecode(message));
         var encryptC1 = encodeVector(mlKem_du, compressVector10_11(encryptU, mlKem_du));
         var encryptC2 = encodePoly(mlKem_dv, compressPoly4_5(encryptV, mlKem_dv));
+        Arrays.fill(encryptE2, (short)0);
+        Arrays.fill(encryptV, (short)0);
 
         byte[] result = new byte[encryptC1.length + encryptC2.length];
         System.arraycopy(encryptC1, 0,
@@ -492,9 +800,11 @@ public final class ML_KEM {
             Arrays.fill(decryptSHat[i], (short) 0);
         }
         decryptV = mlKemSubtractPoly(decryptV, decryptSU);
+        var result = encodeCompress(decryptV);
         Arrays.fill(decryptSU, (short) 0);
+        Arrays.fill(decryptV, (short) 0);
 
-        return encodeCompress(decryptV);
+        return result;
     }
 
     /*
@@ -505,13 +815,13 @@ public final class ML_KEM {
     private short[][][] generateA(byte[] rho, Boolean transposed) {
         short[][][] a = new short[mlKem_k][mlKem_k][];
 
-        int nrPar = 2;
+        int nrPar = 4;
         int rhoLen = rho.length;
         byte[] seedBuf = new byte[XOF_BLOCK_LEN];
         System.arraycopy(rho, 0, seedBuf, 0, rho.length);
         seedBuf[rhoLen + 2] = 0x1F;
         seedBuf[XOF_BLOCK_LEN - 1] = (byte)0x80;
-        byte[][] xofBufArr = new byte[nrPar][XOF_BLOCK_LEN + XOF_PAD];
+        byte[][] xofBufArr = byteMatrixAlloc(nrPar, XOF_BLOCK_LEN + XOF_PAD);
         int[] iIndex = new int[nrPar];
         int[] jIndex = new int[nrPar];
 
@@ -527,7 +837,7 @@ public final class ML_KEM {
 
             for (int i = 0; i < mlKem_k; i++) {
                 for (int j = 0; j < mlKem_k; j++) {
-                    xofBufArr[parInd] = seedBuf.clone();
+                    System.arraycopy(seedBuf, 0, xofBufArr[parInd], 0, seedBuf.length);
                     if (transposed) {
                         xofBufArr[parInd][rhoLen] = (byte) i;
                         xofBufArr[parInd][rhoLen + 1] = (byte) j;
@@ -548,7 +858,7 @@ public final class ML_KEM {
                         allDone = false;
                         while (!allDone) {
                             allDone = true;
-                            parXof.squeezeBlock();
+                            parXof.squeezeBlock(parInd);
                             for (int k = 0; k < parInd; k++) {
                                 int parsedOfs = 0;
                                 int tmp;
@@ -707,9 +1017,13 @@ public final class ML_KEM {
         return vector;
     }
 
-    // The elements of poly should be in the range [-ML_KEM_Q, ML_KEM_Q]
-    // The elements of poly at return will be in the range of [0, ML_KEM_Q]
-    private void mlKemNTT(short[] poly) {
+    @IntrinsicCandidate
+    static int implKyberNtt(short[] poly, short[] ntt_zetas) {
+        implKyberNttJava(poly);
+        return 1;
+    }
+
+    static void implKyberNttJava(short[] poly) {
         int[] coeffs = new int[ML_KEM_N];
         for (int m = 0; m < ML_KEM_N; m++) {
             coeffs[m] = poly[m];
@@ -718,12 +1032,23 @@ public final class ML_KEM {
         for (int m = 0; m < ML_KEM_N; m++) {
             poly[m] = (short) coeffs[m];
         }
+    }
+
+    // The elements of poly should be in the range [-mlKem_q, mlKem_q]
+    // The elements of poly at return will be in the range of [0, mlKem_q]
+    private void mlKemNTT(short[] poly) {
+        assert poly.length == ML_KEM_N;
+        implKyberNtt(poly, montZetasForVectorNttArr);
         mlKemBarrettReduce(poly);
     }
 
-    // Works in place, but also returns its (modified) input so that it can
-    // be used in expressions
-    private short[] mlKemInverseNTT(short[] poly) {
+    @IntrinsicCandidate
+    static int implKyberInverseNtt(short[] poly, short[] zetas) {
+        implKyberInverseNttJava(poly);
+        return 1;
+    }
+
+    static void implKyberInverseNttJava(short[] poly) {
         int[] coeffs = new int[ML_KEM_N];
         for (int m = 0; m < ML_KEM_N; m++) {
             coeffs[m] = poly[m];
@@ -732,6 +1057,13 @@ public final class ML_KEM {
         for (int m = 0; m < ML_KEM_N; m++) {
             poly[m] = (short) coeffs[m];
         }
+    }
+
+    // Works in place, but also returns its (modified) input so that it can
+    // be used in expressions
+    private short[] mlKemInverseNTT(short[] poly) {
+        assert poly.length == ML_KEM_N;
+        implKyberInverseNtt(poly, montZetasForVectorInverseNttArr);
         return poly;
     }
 
@@ -822,21 +1154,38 @@ public final class ML_KEM {
         return result;
     }
 
+    @IntrinsicCandidate
+    static int implKyberNttMult(short[] result, short[] ntta, short[] nttb,
+                                short[] zetas) {
+        implKyberNttMultJava(result, ntta, nttb);
+        return 1;
+    }
+
+    static void implKyberNttMultJava(short[] result, short[] ntta, short[] nttb) {
+        for (int m = 0; m < ML_KEM_N; m += 2) {
+            int a0 = ntta[m];
+            int a1 = ntta[m + 1];
+            int b0 = nttb[m];
+            int b1 = nttb[m + 1];
+            long r = a1 * b1;
+            r -= ((r * BARRETT_MULTIPLIER) >> BARRETT_SHIFT) * ML_KEM_Q;
+            r *= ZETAS_FOR_NTT_MULT[m >> 1];
+            r += a0 * b0;
+            result[m] = (short) (r - (((r + BARRETT_ADDEND) *
+                    BARRETT_MULTIPLIER) >> BARRETT_SHIFT) * ML_KEM_Q);
+            long r1 = a0 * b1 + a1 * b0;
+            result[m + 1] = (short) (r1 - (((r1 + BARRETT_ADDEND) *
+                    BARRETT_MULTIPLIER) >> BARRETT_SHIFT) * ML_KEM_Q);
+        }
+    }
+
     // Multiplies two polynomials represented in the NTT domain.
     // The result is a representation of the product still in the NTT domain.
-    // The coefficients in the result are in the range (-ML_KEM_Q, ML_KEM_Q).
+    // The coefficients in the result are in the range (-mlKem_q, mlKem_q).
     private void nttMult(short[] result, short[] ntta, short[] nttb) {
-        for (int m = 0; m < ML_KEM_N / 2; m++) {
-            int a0 = ntta[2 * m];
-            int a1 = ntta[2 * m + 1];
-            int b0 = nttb[2 * m];
-            int b1 = nttb[2 * m + 1];
-            int r = montMul(a0, b0) +
-                    montMul(montMul(a1, b1), MONT_ZETAS_FOR_NTT_MULT[m]);
-            result[2 * m] = (short) montMul(r, MONT_R_SQUARE_MOD_Q);
-            result[2 * m + 1] = (short) montMul(
-                    (montMul(a0, b1) + montMul(a1, b0)), MONT_R_SQUARE_MOD_Q);
-        }
+        assert (result.length == ML_KEM_N) && (ntta.length == ML_KEM_N) &&
+                (nttb.length == ML_KEM_N);
+        implKyberNttMult(result, ntta, nttb, montZetasForVectorNttMultArr);
     }
 
     // Adds the vector of polynomials b to a in place, i.e. a will hold
@@ -853,15 +1202,40 @@ public final class ML_KEM {
         return a;
     }
 
+    @IntrinsicCandidate
+    static int implKyberAddPoly(short[] result, short[] a, short[] b) {
+        implKyberAddPolyJava(result, a, b);
+        return 1;
+    }
+
+    static void implKyberAddPolyJava(short[] result, short[] a, short[] b) {
+        for (int m = 0; m < ML_KEM_N; m++) {
+            int r = a[m] + b[m] + ML_KEM_Q; // This makes r > - ML_KEM_Q
+            a[m] = (short) r;
+        }
+    }
+
     // Adds the polynomial b to a in place, i.e. (the modified) a will hold
     // the result.
     // The coefficients are supposed be greater than -ML_KEM_Q in a and
     // greater than -ML_KEM_Q and less than ML_KEM_Q in b.
     // The coefficients in the result are greater than -ML_KEM_Q.
-    private void mlKemAddPoly(short[] a, short[] b) {
+    private short[] mlKemAddPoly(short[] a, short[] b) {
+        assert (a.length == ML_KEM_N) && (b.length == ML_KEM_N);
+        implKyberAddPoly(a, a, b);
+        return a;
+    }
+
+    @IntrinsicCandidate
+    static int implKyberAddPoly(short[] result, short[] a, short[] b, short[] c) {
+        implKyberAddPolyJava(result, a, b, c);
+        return 1;
+    }
+
+    static void implKyberAddPolyJava(short[] result, short[] a, short[] b, short[] c) {
         for (int m = 0; m < ML_KEM_N; m++) {
-            int r = a[m] + b[m] + ML_KEM_Q; // This makes r > -ML_KEM_Q
-            a[m] = (short) r;
+            int r = a[m] + b[m] + c[m] + 2 * ML_KEM_Q; // This makes r > - ML_KEM_Q
+            result[m] = (short) r;
         }
     }
 
@@ -871,10 +1245,9 @@ public final class ML_KEM {
     // greater than -ML_KEM_Q and less than ML_KEM_Q.
     // The coefficients in the result are nonnegative and less than ML_KEM_Q.
     private short[] mlKemAddPoly(short[] a, short[] b, short[] c) {
-        for (int m = 0; m < ML_KEM_N; m++) {
-            int r = a[m] + b[m] + c[m] + 2 * ML_KEM_Q; // This makes r > - ML_KEM_Q
-            a[m] = (short) r;
-        }
+        assert (a.length == ML_KEM_N) && (b.length == ML_KEM_N) &&
+                (c.length == ML_KEM_N);
+        implKyberAddPoly(a, a, b, c);
         mlKemBarrettReduce(a);
         return a;
     }
@@ -997,21 +1370,32 @@ public final class ML_KEM {
         return result;
     }
 
-    // The intrinsic implementations assume that the input and output buffers
-    // are such that condensed can be read in 192-byte chunks and
-    // parsed can be written in 128 shorts chunks. In other words,
-    // if (i - 1) * 128 < parsedLengths <= i * 128 then
-    // parsed.size should be at least i * 128 and
-    // condensed.size should be at least index + i * 192
-    private void twelve2Sixteen(byte[] condensed, int index,
-                                short[] parsed, int parsedLength) {
+    @IntrinsicCandidate
+    private static int implKyber12To16(byte[] condensed, int index, short[] parsed, int parsedLength) {
+        implKyber12To16Java(condensed, index, parsed, parsedLength);
+        return 1;
+    }
 
+    private static void implKyber12To16Java(byte[] condensed, int index, short[] parsed, int parsedLength) {
         for (int i = 0; i < parsedLength * 3 / 2; i += 3) {
             parsed[(i / 3) * 2] = (short) ((condensed[i + index] & 0xff) +
                     256 * (condensed[i + index + 1] & 0xf));
             parsed[(i / 3) * 2 + 1] = (short) (((condensed[i + index + 1] >>> 4) & 0xf) +
                     16 * (condensed[i + index + 2] & 0xff));
         }
+    }
+
+    // An intrinsic implementation assumes that the input and output buffers
+    // are such that condensed can be read in chunks of 192 bytes and
+    // parsed can be written in chunks of 128 shorts, so callers should allocate
+    // the condensed and parsed arrays accordingly, see the assert()
+    private void twelve2Sixteen(byte[] condensed, int index,
+                                short[] parsed, int parsedLength) {
+        int n = (parsedLength + 127) / 128;
+        assert ((parsed.length >= n * 128) &&
+                (condensed.length >= index + n * 192));
+
+        implKyber12To16(condensed, index, parsed, parsedLength);
     }
 
     private static void decodePoly5(byte[] condensed, int index, short[] parsed) {
@@ -1152,6 +1536,20 @@ public final class ML_KEM {
         return result;
     }
 
+    @IntrinsicCandidate
+    static int implKyberBarrettReduce(short[] coeffs) {
+        implKyberBarrettReduceJava(coeffs);
+        return 1;
+    }
+
+    static void implKyberBarrettReduceJava(short[] poly) {
+        int tmp = 0;
+        for (int m = 0; m < ML_KEM_N; m++) {
+            tmp = poly[m];
+            poly[m] = (short) (tmp - ((tmp * BARRETT_MULTIPLIER) >> BARRETT_SHIFT) * ML_KEM_Q);
+        }
+    }
+
     // The input elements can have any short value.
     // Modifies poly such that upon return poly[i] will be
     // in the range [0, ML_KEM_Q] and will be congruent with the original
@@ -1161,11 +1559,9 @@ public final class ML_KEM {
     // That means that if the original poly[i] > -ML_KEM_Q then at return it
     // will be in the range [0, ML_KEM_Q), i.e. it will be the canonical
     // representative of its residue class.
-    private void mlKemBarrettReduce(short[] poly) {
-        for (int m = 0; m < ML_KEM_N; m++) {
-            int tmp = ((int) poly[m] * BARRETT_MULTIPLIER) >> BARRETT_SHIFT;
-            poly[m] = (short) (poly[m] - tmp * ML_KEM_Q);
-        }
+    private static void mlKemBarrettReduce(short[] poly) {
+        assert poly.length == ML_KEM_N;
+        implKyberBarrettReduce(poly);
     }
 
     // Precondition: -(2^MONT_R_BITS -1) * MONT_Q <= b * c < (2^MONT_R_BITS - 1) * MONT_Q
@@ -1179,5 +1575,23 @@ public final class ML_KEM {
         int m = ((MONT_Q_INV_MOD_R * aLow) << (32 - MONT_R_BITS)) >> (32 - MONT_R_BITS);
 
         return (aHigh - ((m * MONT_Q) >> MONT_R_BITS)); // subtract signed high product
+    }
+
+    // For multidimensional array initialization, manually allocating each entry is
+    // faster than doing the entire initialization in one go
+    static short[][] shortMatrixAlloc(int first, int second) {
+        short[][] res = new short[first][];
+        for (int i = 0; i < first; i++) {
+            res[i] = new short[second];
+        }
+        return res;
+    }
+
+    static byte[][] byteMatrixAlloc(int first, int second) {
+        byte[][] res = new byte[first][];
+        for (int i = 0; i < first; i++) {
+            res[i] = new byte[second];
+        }
+        return res;
     }
 }

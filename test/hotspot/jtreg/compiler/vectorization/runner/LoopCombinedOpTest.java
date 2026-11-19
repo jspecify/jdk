@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, 2023, Arm Limited. All rights reserved.
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,33 +26,12 @@
  * @test
  * @summary Vectorization test on combined operations
  * @library /test/lib /
- *
- * @build jdk.test.whitebox.WhiteBox
- *        compiler.vectorization.runner.VectorizationTestRunner
- *
  * @requires vm.compiler2.enabled
  *
- * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- *
- * @run main/othervm -Xbootclasspath/a:.
- *                   -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI
- *                   compiler.vectorization.runner.LoopCombinedOpTest nCOH_nAV
- *
- * @run main/othervm -Xbootclasspath/a:.
- *                   -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI
- *                   compiler.vectorization.runner.LoopCombinedOpTest nCOH_yAV
- *
- * @run main/othervm -Xbootclasspath/a:.
- *                   -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI
- *                   compiler.vectorization.runner.LoopCombinedOpTest yCOH_nAV
- *
- * @run main/othervm -Xbootclasspath/a:.
- *                   -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI
- *                   compiler.vectorization.runner.LoopCombinedOpTest yCOH_yAV
+ * @run driver ${test.main.class} nCOH_nAV
+ * @run driver ${test.main.class} nCOH_yAV
+ * @run driver ${test.main.class} yCOH_nAV
+ * @run driver ${test.main.class} yCOH_yAV
  */
 
 package compiler.vectorization.runner;
@@ -67,10 +46,10 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     @Override
     protected String[] testVMFlags(String[] args) {
         return switch (args[0]) {
-            case "nCOH_nAV" -> new String[]{"-XX:+UnlockExperimentalVMOptions", "-XX:-UseCompactObjectHeaders", "-XX:-AlignVector"};
-            case "nCOH_yAV" -> new String[]{"-XX:+UnlockExperimentalVMOptions", "-XX:-UseCompactObjectHeaders", "-XX:+AlignVector"};
-            case "yCOH_nAV" -> new String[]{"-XX:+UnlockExperimentalVMOptions", "-XX:+UseCompactObjectHeaders", "-XX:-AlignVector"};
-            case "yCOH_yAV" -> new String[]{"-XX:+UnlockExperimentalVMOptions", "-XX:+UseCompactObjectHeaders", "-XX:+AlignVector"};
+            case "nCOH_nAV" -> new String[]{"-XX:-UseCompactObjectHeaders", "-XX:-AlignVector"};
+            case "nCOH_yAV" -> new String[]{"-XX:-UseCompactObjectHeaders", "-XX:+AlignVector"};
+            case "yCOH_nAV" -> new String[]{"-XX:+UseCompactObjectHeaders", "-XX:-AlignVector"};
+            case "yCOH_yAV" -> new String[]{"-XX:+UseCompactObjectHeaders", "-XX:+AlignVector"};
             default -> { throw new RuntimeException("Test argument not recognized: " + args[0]); }
         };
     }
@@ -111,7 +90,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true", "rvv", "true"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_I, "> 0"})
     public int[] opWithConstant() {
@@ -123,7 +102,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true", "rvv", "true"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_I, "> 0"})
     public int[] opWithLoopInvariant() {
@@ -135,7 +114,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true", "rvv", "true"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_I, "> 0"})
     public int[] opWithConstantAndLoopInvariant() {
@@ -147,7 +126,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true", "rvv", "true"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_I, "> 0"})
     public int[] multipleOps() {
@@ -159,7 +138,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true", "rvv", "true"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_I, "> 0"})
     public int[] multipleOpsWithMultipleConstants() {
@@ -171,7 +150,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true", "rvv", "true"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_I, "> 0"})
     // With sse2, the MulI does not vectorize. This means we have vectorized stores
@@ -190,7 +169,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true", "rvv", "true"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_I, "> 0"})
     public int[] multipleStoresWithCommonSubExpression() {
@@ -206,7 +185,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true", "rvv", "true"},
         applyIfOr = { "UseCompactObjectHeaders", "false", "AlignVector", "false"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_S, "> 0",
@@ -239,7 +218,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true", "rvv", "true"},
         applyIfOr = { "UseCompactObjectHeaders", "false", "AlignVector", "false"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_I, IRNode.VECTOR_SIZE_ANY, "> 0",
@@ -274,7 +253,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true", "rvv", "true"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_S, IRNode.VECTOR_SIZE_ANY, "> 0",
                   IRNode.LOAD_VECTOR_L,                         "> 0"})
@@ -289,7 +268,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse2", "true", "rvv", "true"},
         applyIfOr = { "UseCompactObjectHeaders", "false", "AlignVector", "false"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_S, "> 0",
@@ -322,7 +301,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true", "rvv", "true"},
         applyIfOr = { "UseCompactObjectHeaders", "false", "AlignVector", "false"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_S, "> 0",
@@ -355,7 +334,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true", "rvv", "true"},
         applyIfOr = { "UseCompactObjectHeaders", "false", "AlignVector", "false"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_S, "> 0",
@@ -372,7 +351,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse3", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse3", "true", "rvv", "true"},
         applyIfOr = { "UseCompactObjectHeaders", "false", "AlignVector", "false"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_S, "> 0",
@@ -446,7 +425,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true", "rvv", "true"},
         applyIfOr = { "UseCompactObjectHeaders", "false", "AlignVector", "false"},
         counts = {IRNode.STORE_VECTOR, ">0"})
     public int[] manuallyUnrolledStride2() {
@@ -468,7 +447,7 @@ public class LoopCombinedOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true", "rvv", "true"},
         counts = {IRNode.STORE_VECTOR, ">0",
                   IRNode.LOAD_VECTOR_I, "> 0"})
     public int partialVectorizableLoop() {

@@ -224,12 +224,12 @@ public class OutputStreamWriter extends Writer {
      *
      * @throws  IOException  If an I/O error occurs
      */
-    public void write(String str,  int off,   int len) throws IOException {
+    public void write(String str, int off, int len) throws IOException {
         se.write(str, off, len);
     }
 
     @Override
-    public Writer append(CharSequence csq, int start, int end) throws IOException {
+    public Writer append(@Nullable CharSequence csq, int start, int end) throws IOException {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }

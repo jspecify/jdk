@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,9 @@
  * questions.
  */
 package org.openjdk.bench.java.lang.foreign;
+
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -47,8 +50,9 @@ import java.util.concurrent.TimeUnit;
 public class ToJavaStringTest {
 
     private MemorySegment strSegment;
+    private int length;
 
-    @Param({"5", "20", "100", "200"})
+    @Param({"5", "20", "100", "200", "451"})
     int size;
 
     static {
@@ -58,17 +62,34 @@ public class ToJavaStringTest {
     @Setup
     public void setup() {
         var arena = Arena.ofAuto();
-        strSegment = arena.allocateFrom(LOREM.substring(0, size));
+        while (LOREM.length() < size) {
+            LOREM += LOREM;
+        }
+        var s = LOREM.substring(0, size);
+        strSegment = arena.allocateFrom(s);
+        length = s.getBytes(UTF_8).length;
     }
 
     @Benchmark
-    public String panama_readString() {
+    public String segment_getString() {
         return strSegment.getString(0);
+    }
+
+    @Benchmark
+    public String segment_getStringLength() {
+        return strSegment.getString(0, UTF_8, length);
     }
 
     @Benchmark
     public String jni_readString() {
         return readString(strSegment.address());
+    }
+
+    @Benchmark
+    public String segment_copyStringBytes() {
+        byte[] bytes = new byte[length];
+        MemorySegment.copy(strSegment, JAVA_BYTE, 0, bytes, 0, length);
+        return new String(bytes, UTF_8);
     }
 
     static native String readString(long addr);

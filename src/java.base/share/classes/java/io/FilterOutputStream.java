@@ -45,7 +45,6 @@ import java.util.Objects;
  * @author  Jonathan Payne
  * @since   1.0
  */
-
 @NullMarked
 public class FilterOutputStream extends OutputStream {
     /**
@@ -89,7 +88,7 @@ public class FilterOutputStream extends OutputStream {
      * @throws     IOException  if an I/O error occurs.
      */
     @Override
-    public void write( int b) throws IOException {
+    public void write(int b) throws IOException {
         out.write(b);
     }
 

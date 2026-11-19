@@ -27,6 +27,7 @@ package java.security.interfaces;
 import java.math.BigInteger;
 import java.security.PublicKey;
 import java.security.spec.AlgorithmParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An interface for an elliptic curve public key as defined by RFC 7748.
@@ -62,7 +63,7 @@ public interface XECPublicKey extends XECKey, PublicKey {
      * @return {@inheritDoc java.security.AsymmetricKey}
      */
     @Override
-    default AlgorithmParameterSpec getParams() {
+    default @Nullable AlgorithmParameterSpec getParams() {
         return null;
     }
 }

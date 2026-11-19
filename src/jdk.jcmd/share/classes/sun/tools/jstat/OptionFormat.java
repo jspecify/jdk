@@ -46,8 +46,6 @@ public class OptionFormat {
         this.children = new ArrayList<OptionFormat>();
     }
 
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this) {
             return true;

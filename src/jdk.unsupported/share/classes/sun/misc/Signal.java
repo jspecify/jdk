@@ -100,8 +100,6 @@ public final class Signal {
      * @param other the object to compare with.
      * @return whether two <code>Signal</code> objects are equal.
      */
-    
-    
     public boolean equals(@Nullable Object other) {
         if (this == other) {
             return true;

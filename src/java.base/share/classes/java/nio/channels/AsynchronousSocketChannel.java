@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 
 package java.nio.channels;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.nio.channels.spi.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Future;
@@ -32,6 +34,7 @@ import java.io.IOException;
 import java.net.SocketOption;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An asynchronous channel for stream-oriented connecting sockets.
@@ -166,7 +169,7 @@ public abstract class AsynchronousSocketChannel
      * @throws  IOException
      *          If an I/O error occurs
      */
-    public static AsynchronousSocketChannel open(AsynchronousChannelGroup group)
+    public static AsynchronousSocketChannel open(@Nullable AsynchronousChannelGroup group)
         throws IOException
     {
         AsynchronousChannelProvider provider = (group == null) ?
@@ -379,7 +382,8 @@ public abstract class AsynchronousSocketChannel
      *          The handler for consuming the result
      *
      * @throws  IllegalArgumentException
-     *          If the buffer is read-only
+     *          If the buffer is read-only or a view of a {@link MemorySegment}
+     *          allocated from a {@linkplain Arena#ofConfined() thread-confined arena}
      * @throws  ReadPendingException
      *          If a read operation is already in progress on this channel
      * @throws  NotYetConnectedException
@@ -488,7 +492,8 @@ public abstract class AsynchronousSocketChannel
      *          If the pre-conditions for the {@code offset}  and {@code length}
      *          parameter aren't met
      * @throws  IllegalArgumentException
-     *          If the buffer is read-only
+     *          If any of the buffers is read-only or a view of a {@link MemorySegment}
+     *          allocated from a {@linkplain Arena#ofConfined() thread-confined arena}
      * @throws  ReadPendingException
      *          If a read operation is already in progress on this channel
      * @throws  NotYetConnectedException
@@ -538,6 +543,9 @@ public abstract class AsynchronousSocketChannel
      * @param   handler
      *          The handler for consuming the result
      *
+     * @throws  IllegalArgumentException
+     *          If the buffer is a view of a {@link MemorySegment} allocated from
+     *          a {@linkplain Arena#ofConfined() thread-confined arena}
      * @throws  WritePendingException
      *          If a write operation is already in progress on this channel
      * @throws  NotYetConnectedException
@@ -552,6 +560,7 @@ public abstract class AsynchronousSocketChannel
                                    CompletionHandler<Integer,? super A> handler);
 
     /**
+     * @throws  IllegalArgumentException       {@inheritDoc}
      * @throws  WritePendingException          {@inheritDoc}
      * @throws  NotYetConnectedException
      *          If this channel is not yet connected
@@ -568,6 +577,7 @@ public abstract class AsynchronousSocketChannel
     }
 
     /**
+     * @throws  IllegalArgumentException    {@inheritDoc}
      * @throws  WritePendingException       {@inheritDoc}
      * @throws  NotYetConnectedException
      *          If this channel is not yet connected
@@ -638,6 +648,9 @@ public abstract class AsynchronousSocketChannel
      * @param   handler
      *          The handler for consuming the result
      *
+     * @throws  IllegalArgumentException
+     *          If any of the buffers is a view of a {@link MemorySegment}
+     *          allocated from a {@linkplain Arena#ofConfined() thread-confined arena}
      * @throws  IndexOutOfBoundsException
      *          If the pre-conditions for the {@code offset}  and {@code length}
      *          parameter aren't met

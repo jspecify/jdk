@@ -25,6 +25,8 @@
 
 package javax.security.auth.login;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Map;
 import java.util.HashMap;
 import java.security.Security;
@@ -384,8 +386,8 @@ public class LoginContext {
      *
      * @since 1.5
      */
-    public LoginContext(String name, Subject subject,
-                        CallbackHandler callbackHandler,
+    public LoginContext(String name, @Nullable Subject subject,
+                        @Nullable CallbackHandler callbackHandler,
                         Configuration config) throws LoginException {
         this.config = config;
 
@@ -510,7 +512,7 @@ public class LoginContext {
      *          If a Subject was not specified, and authentication fails or
      *          has not been attempted, this method returns null.
      */
-    public Subject getSubject() {
+    public @Nullable Subject getSubject() {
         if (!loginSucceeded && !subjectProvided)
             return null;
         return subject;

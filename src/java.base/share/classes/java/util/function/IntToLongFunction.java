@@ -25,7 +25,6 @@
 package java.util.function;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a function that accepts an int-valued argument and produces a

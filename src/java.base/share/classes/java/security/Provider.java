@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
  */
 
 package java.security;
+
+import org.jspecify.annotations.Nullable;
 
 import jdk.internal.event.SecurityProviderServiceEvent;
 
@@ -454,7 +456,7 @@ public abstract class Provider extends Properties {
      * @since 1.2
      */
     @Override
-    public synchronized Object put(Object key, Object value) {
+    public synchronized @Nullable Object put(Object key, Object value) {
         checkInitialized();
         if (debug != null) {
             debug.println("Set " + name + " provider property [" +
@@ -471,7 +473,7 @@ public abstract class Provider extends Properties {
      * @since 1.8
      */
     @Override
-    public synchronized Object putIfAbsent(Object key, Object value) {
+    public synchronized @Nullable Object putIfAbsent(Object key, Object value) {
         checkInitialized();
         if (debug != null) {
             debug.println("Set " + name + " provider property [" +
@@ -487,7 +489,7 @@ public abstract class Provider extends Properties {
      * @since 1.2
      */
     @Override
-    public synchronized Object remove(Object key) {
+    public synchronized @Nullable Object remove(Object key) {
         checkInitialized();
         if (debug != null) {
             debug.println("Remove " + name + " provider property " + key);
@@ -533,7 +535,7 @@ public abstract class Provider extends Properties {
      * @since 1.8
      */
     @Override
-    public synchronized Object replace(Object key, Object value) {
+    public synchronized @Nullable Object replace(Object key, Object value) {
         checkInitialized();
         if (debug != null) {
             debug.println("Replace " + name + " provider property " + key);
@@ -567,8 +569,8 @@ public abstract class Provider extends Properties {
      * @since 1.8
      */
     @Override
-    public synchronized Object compute(Object key, BiFunction<? super Object,
-            ? super Object, ? extends Object> remappingFunction) {
+    public synchronized @Nullable Object compute(Object key, BiFunction<? super Object,
+            ? super @Nullable Object, ?> remappingFunction) {
         checkInitialized();
         if (debug != null) {
             debug.println("Compute " + name + " provider property " + key);
@@ -602,8 +604,8 @@ public abstract class Provider extends Properties {
      * @since 1.8
      */
     @Override
-    public synchronized Object computeIfPresent(Object key,
-            BiFunction<? super Object, ? super Object, ? extends Object>
+    public synchronized @Nullable Object computeIfPresent(Object key,
+            BiFunction<? super Object, ? super Object, ?>
             remappingFunction) {
         checkInitialized();
         if (debug != null) {
@@ -623,8 +625,8 @@ public abstract class Provider extends Properties {
      * @since 1.8
      */
     @Override
-    public synchronized Object merge(Object key, Object value,
-            BiFunction<? super Object, ? super Object, ? extends Object>
+    public synchronized @Nullable Object merge(Object key, Object value,
+            BiFunction<? super Object, ? super Object, ?>
             remappingFunction) {
         checkInitialized();
         if (debug != null) {
@@ -635,7 +637,7 @@ public abstract class Provider extends Properties {
 
     // let javadoc show doc from superclass
     @Override
-    public Object get(Object key) {
+    public @Nullable Object get(Object key) {
         checkInitialized();
         return super.get(key);
     }
@@ -643,7 +645,7 @@ public abstract class Provider extends Properties {
      * @since 1.8
      */
     @Override
-    public synchronized Object getOrDefault(Object key, Object defaultValue) {
+    public synchronized @Nullable Object getOrDefault(Object key, @Nullable Object defaultValue) {
         checkInitialized();
         return super.getOrDefault(key, defaultValue);
     }
@@ -673,7 +675,7 @@ public abstract class Provider extends Properties {
     }
 
     // let javadoc show doc from superclass
-    public String getProperty(String key) {
+    public @Nullable String getProperty(String key) {
         checkInitialized();
         return super.getProperty(key);
     }
@@ -827,7 +829,7 @@ public abstract class Provider extends Properties {
         return o;
     }
 
-    @SuppressWarnings("unchecked") // Function must actually operate over strings
+    // Function must actually operate over strings
     private void implReplaceAll(BiFunction<? super Object, ? super Object,
             ? extends Object> function) {
 
@@ -847,7 +849,7 @@ public abstract class Provider extends Properties {
         }
     }
 
-    @SuppressWarnings("unchecked") // Function must actually operate over strings
+    // Function must actually operate over strings
     private Object implMerge(Object key, Object value,
             BiFunction<? super Object, ? super Object, ? extends Object>
             remappingFunction) {
@@ -864,7 +866,7 @@ public abstract class Provider extends Properties {
         return o;
     }
 
-    @SuppressWarnings("unchecked") // Function must actually operate over strings
+    // Function must actually operate over strings
     private Object implCompute(Object key, BiFunction<? super Object,
             ? super Object, ? extends Object> remappingFunction) {
 
@@ -881,7 +883,7 @@ public abstract class Provider extends Properties {
         return o;
     }
 
-    @SuppressWarnings("unchecked") // Function must actually operate over strings
+    // Function must actually operate over strings
     private Object implComputeIfAbsent(Object key, Function<? super Object,
             ? extends Object> mappingFunction) {
         if (!checkLegacy(key)) return null;
@@ -893,7 +895,7 @@ public abstract class Provider extends Properties {
         return o;
     }
 
-    @SuppressWarnings("unchecked") // Function must actually operate over strings
+    // Function must actually operate over strings
     private Object implComputeIfPresent(Object key, BiFunction<? super Object,
             ? super Object, ? extends Object> remappingFunction) {
         if (!checkLegacy(key)) return null;
@@ -1084,9 +1086,16 @@ public abstract class Provider extends Properties {
                 String stdAlg = attrString.substring(0, i).intern();
                 String attrName = attrString.substring(i + 1);
                 // kill additional spaces
-                while (attrName.startsWith(" ")) {
-                    attrName = attrName.substring(1);
+                int pos = 0;
+                for (; pos < attrName.length(); pos++) {
+                    if (attrName.charAt(pos) != ' ') {
+                        break;
+                    }
                 }
+                if (pos > 0) {
+                    attrName = attrName.substring(pos);
+                }
+
                 attrName = attrName.intern();
                 ServiceKey stdKey = new ServiceKey(type, stdAlg, true);
                 Service stdService = legacyMap.get(stdKey);
@@ -1133,7 +1142,7 @@ public abstract class Provider extends Properties {
      *
      * @since 1.5
      */
-    public Service getService(String type, String algorithm) {
+    public @Nullable Service getService(String type, String algorithm) {
         checkInitialized();
         // avoid allocating a new ServiceKey object if possible
         ServiceKey key = previousKey.get();
@@ -1147,6 +1156,7 @@ public abstract class Provider extends Properties {
             s = legacyMap.get(key);
             if (s != null && !s.isValid()) {
                 legacyMap.remove(key, s);
+                return null;
             }
         }
 
@@ -1597,8 +1607,8 @@ public abstract class Provider extends Properties {
          * className is {@code null}
          */
         public Service(Provider provider, String type, String algorithm,
-                String className, List<String> aliases,
-                Map<String,String> attributes) {
+                String className, @Nullable List<String> aliases,
+                @Nullable Map<String,String> attributes) {
             if ((provider == null) || (type == null) ||
                     (algorithm == null) || (className == null)) {
                 throw new NullPointerException();
@@ -1676,7 +1686,7 @@ public abstract class Provider extends Properties {
          *
          * @throws NullPointerException if name is {@code null}
          */
-        public final String getAttribute(String name) {
+        public final @Nullable String getAttribute(String name) {
             if (name == null) {
                 throw new NullPointerException();
             }
@@ -1709,7 +1719,7 @@ public abstract class Provider extends Properties {
          * @throws NoSuchAlgorithmException if instantiation failed for
          * any other reason.
          */
-        public Object newInstance(Object constructorParameter)
+        public Object newInstance(@Nullable Object constructorParameter)
                 throws NoSuchAlgorithmException {
             if (!registered) {
                 if (provider.getService(type, algorithm) != this) {
@@ -1884,7 +1894,7 @@ public abstract class Provider extends Properties {
          * invalid for this type of service or if this method cannot be
          * used with this type of service
          */
-        public boolean supportsParameter(Object parameter) {
+        public boolean supportsParameter(@Nullable Object parameter) {
             EngineDescription cap = engineDescription;
             if (cap == null) {
                 // unknown engine type, return true by default

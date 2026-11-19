@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "oops/method.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/os.hpp"
 #include "runtime/vmThread.hpp"
@@ -37,7 +38,6 @@
 #include "services/diagnosticFramework.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
-#include "oops/method.hpp"
 
 class HelpDCmd : public DCmdWithParser {
 protected:
@@ -92,6 +92,15 @@ public:
       return "Low";
     }
     virtual void execute(DCmdSource source, TRAPS);
+};
+
+class PrintSecurityPropertiesDCmd : public DCmd {
+public:
+  PrintSecurityPropertiesDCmd(outputStream* output, bool heap) : DCmd(output, heap) { }
+  static const char* name() { return "VM.security_properties"; }
+  static const char* description() { return "Print java.security.Security properties."; }
+  static const char* impact() { return "Low"; }
+  virtual void execute(DCmdSource source, TRAPS);
 };
 
 // See also: print_flag in attachListener.cpp
@@ -325,6 +334,41 @@ public:
   virtual void execute(DCmdSource source, TRAPS);
 };
 
+class ClassPrintLayoutDCmd : public DCmdWithParser {
+protected:
+  DCmdArgument<char*> _classname; // Class name whose layout should be printed.
+public:
+  ClassPrintLayoutDCmd(outputStream* output, bool heap);
+  static const char* name() {
+    return "VM.class_print_layout";
+  }
+  static const char* description() {
+    return "Print the layout of an instance of a class, including flat fields. "
+           "The name of each class is followed by the ClassLoaderData* of its ClassLoader, "
+           "or \"null\" if loaded by the bootstrap class loader.";
+  }
+  static const char* impact() {
+      return "Medium: Depends on number of loaded classes.";
+  }
+  static int num_arguments();
+  virtual void execute(DCmdSource source, TRAPS);
+};
+
+#if INCLUDE_CDS
+class AOTEndRecordingDCmd : public DCmd {
+public:
+  AOTEndRecordingDCmd(outputStream* output, bool heap) : DCmd(output, heap) { }
+    static const char* name() { return "AOT.end_recording"; }
+    static const char* description() {
+      return "End AOT recording.";
+    }
+    static const char* impact() {
+      return "Medium: Pause time depends on number of loaded classes";
+    }
+    virtual void execute(DCmdSource source, TRAPS);
+};
+#endif // INCLUDE_CDS
+
 #if INCLUDE_CDS
 class DumpSharedArchiveDCmd: public DCmdWithParser {
 protected:
@@ -356,7 +400,9 @@ public:
   ThreadDumpDCmd(outputStream* output, bool heap);
   static const char* name() { return "Thread.print"; }
   static const char* description() {
-    return "Print all threads with stacktraces.";
+    return "Print all platform threads, and mounted virtual threads, "
+           "with stack traces. The Thread.dump_to_file command will "
+           "print all threads to a file.";
   }
   static const char* impact() {
     return "Medium: Depends on the number of threads.";
@@ -628,17 +674,20 @@ public:
 //   VM.systemdictionary -verbose: for dumping the system dictionary table
 //
 class VM_DumpHashtable : public VM_Operation {
+public:
+  enum DumpKind {
+    DumpSymbols,
+    DumpStrings,
+    DumpSysDict
+  };
+
 private:
   outputStream* _out;
-  int _which;
+  DumpKind _which;
   bool _verbose;
+
 public:
-  enum {
-    DumpSymbols = 1 << 0,
-    DumpStrings = 1 << 1,
-    DumpSysDict = 1 << 2  // not implemented yet
-  };
-  VM_DumpHashtable(outputStream* out, int which, bool verbose) {
+  VM_DumpHashtable(outputStream* out, DumpKind which, bool verbose) {
     _out = out;
     _which = which;
     _verbose = verbose;
@@ -768,7 +817,8 @@ public:
     return "Thread.dump_to_file";
   }
   static const char *description() {
-    return "Dump threads, with stack traces, to a file in plain text or JSON format.";
+    return "Dump all threads, with stack traces, "
+           "to a file in plain text or JSON format.";
   }
   static const char* impact() {
     return "Medium: Depends on the number of threads.";
@@ -805,10 +855,11 @@ public:
 
 class CompilationMemoryStatisticDCmd: public DCmdWithParser {
 protected:
-  DCmdArgument<bool> _human_readable;
+  DCmdArgument<bool> _verbose;
+  DCmdArgument<bool> _legend;
   DCmdArgument<MemorySizeArgument> _minsize;
 public:
-  static int num_arguments() { return 2; }
+  static int num_arguments() { return 3; }
   CompilationMemoryStatisticDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "Compiler.memory";
@@ -822,14 +873,14 @@ public:
   virtual void execute(DCmdSource source, TRAPS);
 };
 
-#if defined(LINUX) || defined(_WIN64)
+#if defined(LINUX) || defined(_WIN64) || defined(__APPLE__)
 
 class SystemMapDCmd : public DCmd {
 public:
   SystemMapDCmd(outputStream* output, bool heap);
   static const char* name() { return "System.map"; }
   static const char* description() {
-    return "Prints an annotated process memory map of the VM process (linux and Windows only).";
+    return "Prints an annotated process memory map of the VM process (linux, Windows and MacOS only).";
   }
   static const char* impact() { return "Medium; can be high for very large java heaps."; }
   virtual void execute(DCmdSource source, TRAPS);
@@ -842,12 +893,12 @@ public:
   SystemDumpMapDCmd(outputStream* output, bool heap);
   static const char* name() { return "System.dump_map"; }
   static const char* description() {
-    return "Dumps an annotated process memory map to an output file (linux and Windows only).";
+    return "Dumps an annotated process memory map to an output file (linux, Windows and MacOS only).";
   }
   static const char* impact() { return "Medium; can be high for very large java heaps."; }
   virtual void execute(DCmdSource source, TRAPS);
 };
 
-#endif // LINUX or WINDOWS
+#endif // LINUX, WINDOWS or MACOS
 
 #endif // SHARE_SERVICES_DIAGNOSTICCOMMAND_HPP

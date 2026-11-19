@@ -183,8 +183,6 @@ public final class ImageGraphicAttribute extends GraphicAttribute {
      * {@code ImageGraphicAttribute} equals {@code rhs};
      * {@code false} otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object rhs) {
 
         try {

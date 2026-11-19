@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,13 @@
  *
  */
 
-#include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "classfile/classLoaderData.hpp"
+#include "code/aotCodeCache.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
+#include "gc/shared/barrierSetRuntime.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "memory/universe.hpp"
@@ -41,7 +43,7 @@
 #define __ masm->
 
 void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                  Register dst, Address src, Register tmp1, Register tmp_thread) {
+                                  Register dst, Address src, Register tmp1) {
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool in_native = (decorators & IN_NATIVE) != 0;
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
@@ -51,7 +53,6 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
   case T_OBJECT:
   case T_ARRAY: {
     if (in_heap) {
-#ifdef _LP64
       if (UseCompressedOops) {
         __ movl(dst, src);
         if (is_not_null) {
@@ -59,9 +60,7 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
         } else {
           __ decode_heap_oop(dst);
         }
-      } else
-#endif
-      {
+      } else {
         __ movptr(dst, src);
       }
     } else {
@@ -78,28 +77,15 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
   case T_ADDRESS: __ movptr(dst, src);              break;
   case T_FLOAT:
     assert(dst == noreg, "only to ftos");
-    __ load_float(src);
+    __ movflt(xmm0, src);
     break;
   case T_DOUBLE:
     assert(dst == noreg, "only to dtos");
-    __ load_double(src);
+    __ movdbl(xmm0, src);
     break;
   case T_LONG:
     assert(dst == noreg, "only to ltos");
-#ifdef _LP64
     __ movq(rax, src);
-#else
-    if (atomic) {
-      __ fild_d(src);               // Must load atomically
-      __ subptr(rsp,2*wordSize);    // Make space for store
-      __ fistp_d(Address(rsp,0));
-      __ pop(rax);
-      __ pop(rdx);
-    } else {
-      __ movl(rax, src);
-      __ movl(rdx, src.plus_disp(wordSize));
-    }
-#endif
     break;
   default: Unimplemented();
   }
@@ -118,17 +104,12 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
     if (in_heap) {
       if (val == noreg) {
         assert(!is_not_null, "inconsistent access");
-#ifdef _LP64
         if (UseCompressedOops) {
           __ movl(dst, NULL_WORD);
         } else {
           __ movslq(dst, NULL_WORD);
         }
-#else
-        __ movl(dst, NULL_WORD);
-#endif
       } else {
-#ifdef _LP64
         if (UseCompressedOops) {
           assert(!dst.uses(val), "not enough registers");
           if (is_not_null) {
@@ -137,9 +118,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
             __ encode_heap_oop(val);
           }
           __ movl(dst, val);
-        } else
-#endif
-        {
+        } else {
           __ movptr(dst, val);
         }
       }
@@ -168,33 +147,33 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
     break;
   case T_LONG:
     assert(val == noreg, "only tos");
-#ifdef _LP64
     __ movq(dst, rax);
-#else
-    if (atomic) {
-      __ push(rdx);
-      __ push(rax);                 // Must update atomically with FIST
-      __ fild_d(Address(rsp,0));    // So load into FPU register
-      __ fistp_d(dst);              // and put into memory atomically
-      __ addptr(rsp, 2*wordSize);
-    } else {
-      __ movptr(dst, rax);
-      __ movptr(dst.plus_disp(wordSize), rdx);
-    }
-#endif
     break;
   case T_FLOAT:
     assert(val == noreg, "only tos");
-    __ store_float(dst);
+    __ movflt(dst, xmm0);
     break;
   case T_DOUBLE:
     assert(val == noreg, "only tos");
-    __ store_double(dst);
+    __ movdbl(dst, xmm0);
     break;
   case T_ADDRESS:
     __ movptr(dst, val);
     break;
   default: Unimplemented();
+  }
+}
+
+void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
+                                          Register src, Register dst, Register value_field_layout_info) {
+  // flat_field_copy implementation is fairly complex, and there are not any
+  // "short-cuts" to be made from asm. What there is, appears to have the same
+  // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
+  // of hand-rolled instructions...
+  if (decorators & IS_DEST_UNINITIALIZED) {
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized), src, dst, value_field_layout_info);
+  } else {
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy), src, dst, value_field_layout_info);
   }
 }
 
@@ -217,20 +196,14 @@ void BarrierSetAssembler::copy_load_at(MacroAssembler* masm,
     __ movl(dst, src);
     break;
   case 8:
-#ifdef _LP64
     __ movq(dst, src);
-#else
-    fatal("No support for 8 bytes copy");
-#endif
     break;
   default:
     fatal("Unexpected size");
   }
-#ifdef _LP64
   if ((decorators & ARRAYCOPY_CHECKCAST) != 0 && UseCompressedOops) {
     __ decode_heap_oop(dst);
   }
-#endif
 }
 
 void BarrierSetAssembler::copy_store_at(MacroAssembler* masm,
@@ -240,11 +213,9 @@ void BarrierSetAssembler::copy_store_at(MacroAssembler* masm,
                                         Address dst,
                                         Register src,
                                         Register tmp) {
-#ifdef _LP64
   if ((decorators & ARRAYCOPY_CHECKCAST) != 0 && UseCompressedOops) {
     __ encode_heap_oop(src);
   }
-#endif
   assert(bytes <= 8, "can only deal with non-vector registers");
   switch (bytes) {
   case 1:
@@ -257,11 +228,7 @@ void BarrierSetAssembler::copy_store_at(MacroAssembler* masm,
     __ movl(dst, src);
     break;
   case 8:
-#ifdef _LP64
     __ movq(dst, src);
-#else
-    fatal("No support for 8 bytes copy");
-#endif
     break;
   default:
     fatal("Unexpected size");
@@ -312,7 +279,7 @@ void BarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm, Re
 }
 
 void BarrierSetAssembler::tlab_allocate(MacroAssembler* masm,
-                                        Register thread, Register obj,
+                                        Register obj,
                                         Register var_size_in_bytes,
                                         int con_size_in_bytes,
                                         Register t1,
@@ -321,15 +288,8 @@ void BarrierSetAssembler::tlab_allocate(MacroAssembler* masm,
   assert_different_registers(obj, t1, t2);
   assert_different_registers(obj, var_size_in_bytes, t1);
   Register end = t2;
-  if (!thread->is_valid()) {
-#ifdef _LP64
-    thread = r15_thread;
-#else
-    assert(t1->is_valid(), "need temp reg");
-    thread = t1;
-    __ get_thread(thread);
-#endif
-  }
+
+  const Register thread = r15_thread;
 
   __ verify_tlab();
 
@@ -352,12 +312,8 @@ void BarrierSetAssembler::tlab_allocate(MacroAssembler* masm,
   __ verify_tlab();
 }
 
-#ifdef _LP64
 void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm, Label* slow_path, Label* continuation) {
   BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (bs_nm == nullptr) {
-    return;
-  }
   Register thread = r15_thread;
   Address disarmed_addr(thread, in_bytes(bs_nm->thread_disarmed_guard_value_offset()));
   // The immediate is the last 4 bytes, so if we align the start of the cmp
@@ -379,44 +335,14 @@ void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm, Label* slo
     __ bind(done);
   }
 }
-#else
-void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm, Label*, Label*) {
-  BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (bs_nm == nullptr) {
-    return;
-  }
-
-  Label continuation;
-
-  Register tmp = rdi;
-  __ push(tmp);
-  __ movptr(tmp, (intptr_t)bs_nm->disarmed_guard_value_address());
-  Address disarmed_addr(tmp, 0);
-  __ align(4);
-  __ cmpl_imm32(disarmed_addr, 0);
-  __ pop(tmp);
-  __ jcc(Assembler::equal, continuation);
-  __ call(RuntimeAddress(StubRoutines::method_entry_barrier()));
-  __ bind(continuation);
-}
-#endif
 
 void BarrierSetAssembler::c2i_entry_barrier(MacroAssembler* masm) {
-  BarrierSetNMethod* bs = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (bs == nullptr) {
-    return;
-  }
-
   Label bad_call;
   __ cmpptr(rbx, 0); // rbx contains the incoming method for c2i adapters.
   __ jcc(Assembler::equal, bad_call);
 
-  Register tmp1 = LP64_ONLY( rscratch1 ) NOT_LP64( rax );
-  Register tmp2 = LP64_ONLY( rscratch2 ) NOT_LP64( rcx );
-#ifndef _LP64
-  __ push(tmp1);
-  __ push(tmp2);
-#endif // !_LP64
+  Register tmp1 = rscratch1;
+  Register tmp2 = rscratch2;
 
   // Pointer chase to the method holder to find out if the method is concurrently unloading.
   Label method_live;
@@ -432,39 +358,44 @@ void BarrierSetAssembler::c2i_entry_barrier(MacroAssembler* masm) {
   __ cmpptr(tmp1, 0);
   __ jcc(Assembler::notEqual, method_live);
 
-#ifndef _LP64
-  __ pop(tmp2);
-  __ pop(tmp1);
-#endif
-
   __ bind(bad_call);
   __ jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
   __ bind(method_live);
-
-#ifndef _LP64
-  __ pop(tmp2);
-  __ pop(tmp1);
-#endif
 }
 
 void BarrierSetAssembler::check_oop(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, Label& error) {
+  assert_different_registers(obj, tmp1, tmp2);
   // Check if the oop is in the right area of memory
   __ movptr(tmp1, obj);
-  __ movptr(tmp2, (intptr_t) Universe::verify_oop_mask());
-  __ andptr(tmp1, tmp2);
-  __ movptr(tmp2, (intptr_t) Universe::verify_oop_bits());
+#if INCLUDE_CDS
+  if (AOTCodeCache::is_on_for_dump()) {
+    __ lea(tmp2, ExternalAddress(AOTRuntimeConstants::verify_oop_mask_address()));
+    __ movptr(tmp2, Address(tmp2));
+    __ andptr(tmp1, tmp2);
+    __ lea(tmp2, ExternalAddress(AOTRuntimeConstants::verify_oop_bits_address()));
+    __ movptr(tmp2, Address(tmp2));
+  } else
+#endif
+  {
+    __ movptr(tmp2, (intptr_t) Universe::verify_oop_mask());
+    __ andptr(tmp1, tmp2);
+    __ movptr(tmp2, (intptr_t) Universe::verify_oop_bits());
+  }
   __ cmpptr(tmp1, tmp2);
   __ jcc(Assembler::notZero, error);
 
   // make sure klass is 'reasonable', which is not zero.
-  __ load_klass(obj, obj, tmp1);  // get klass
-  __ testptr(obj, obj);
+  __ load_narrow_klass(tmp1, obj); // get narrow Klass
+  __ testl(tmp1, tmp1);
   __ jcc(Assembler::zero, error); // if klass is null it is broken
 }
 
-#ifdef COMPILER2
+void BarrierSetAssembler::try_peek_weak_handle_in_nmethod(MacroAssembler* masm, Register weak_handle, Register obj, Label& slowpath) {
+  // Load the oop from the weak handle without barriers.
+  __ movptr(obj, Address(weak_handle));
+}
 
-#ifdef _LP64
+#ifdef COMPILER2
 
 OptoReg::Name BarrierSetAssembler::refine_register(const Node* node, OptoReg::Name opto_reg) {
   if (!OptoReg::is_reg(opto_reg)) {
@@ -573,33 +504,33 @@ void SaveLiveRegisters::initialize(BarrierStubC2* stub) {
   // Create mask of caller saved registers that need to
   // be saved/restored if live
   RegMask caller_saved;
-  caller_saved.Insert(OptoReg::as_OptoReg(rax->as_VMReg()));
-  caller_saved.Insert(OptoReg::as_OptoReg(rcx->as_VMReg()));
-  caller_saved.Insert(OptoReg::as_OptoReg(rdx->as_VMReg()));
-  caller_saved.Insert(OptoReg::as_OptoReg(rsi->as_VMReg()));
-  caller_saved.Insert(OptoReg::as_OptoReg(rdi->as_VMReg()));
-  caller_saved.Insert(OptoReg::as_OptoReg(r8->as_VMReg()));
-  caller_saved.Insert(OptoReg::as_OptoReg(r9->as_VMReg()));
-  caller_saved.Insert(OptoReg::as_OptoReg(r10->as_VMReg()));
-  caller_saved.Insert(OptoReg::as_OptoReg(r11->as_VMReg()));
+  caller_saved.insert(OptoReg::as_OptoReg(rax->as_VMReg()));
+  caller_saved.insert(OptoReg::as_OptoReg(rcx->as_VMReg()));
+  caller_saved.insert(OptoReg::as_OptoReg(rdx->as_VMReg()));
+  caller_saved.insert(OptoReg::as_OptoReg(rsi->as_VMReg()));
+  caller_saved.insert(OptoReg::as_OptoReg(rdi->as_VMReg()));
+  caller_saved.insert(OptoReg::as_OptoReg(r8->as_VMReg()));
+  caller_saved.insert(OptoReg::as_OptoReg(r9->as_VMReg()));
+  caller_saved.insert(OptoReg::as_OptoReg(r10->as_VMReg()));
+  caller_saved.insert(OptoReg::as_OptoReg(r11->as_VMReg()));
 
   if (UseAPX) {
-    caller_saved.Insert(OptoReg::as_OptoReg(r16->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r17->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r18->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r19->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r20->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r21->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r22->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r23->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r24->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r25->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r26->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r27->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r28->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r29->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r30->as_VMReg()));
-    caller_saved.Insert(OptoReg::as_OptoReg(r31->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r16->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r17->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r18->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r19->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r20->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r21->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r22->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r23->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r24->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r25->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r26->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r27->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r28->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r29->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r30->as_VMReg()));
+    caller_saved.insert(OptoReg::as_OptoReg(r31->as_VMReg()));
   }
 
   int gp_spill_size = 0;
@@ -613,7 +544,7 @@ void SaveLiveRegisters::initialize(BarrierStubC2* stub) {
     const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
 
     if (vm_reg->is_Register()) {
-      if (caller_saved.Member(opto_reg)) {
+      if (caller_saved.member(opto_reg)) {
         _gp_registers.append(vm_reg->as_Register());
         gp_spill_size += 8;
       }
@@ -740,13 +671,5 @@ SaveLiveRegisters::~SaveLiveRegisters() {
     __ addptr(rsp, _spill_size);
   }
 }
-
-#else // !_LP64
-
-OptoReg::Name BarrierSetAssembler::refine_register(const Node* node, OptoReg::Name opto_reg) {
-  Unimplemented(); // This must be implemented to support late barrier expansion.
-}
-
-#endif // _LP64
 
 #endif // COMPILER2

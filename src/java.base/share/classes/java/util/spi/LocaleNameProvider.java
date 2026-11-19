@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package java.util.spi;
 
 import java.util.Locale;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An abstract class for service providers that
@@ -45,7 +46,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
     }
 
     /**
-     * Returns a localized name for the given <a href="http://www.rfc-editor.org/rfc/bcp/bcp47.txt">
+     * Returns a localized name for the given <a href="https://www.rfc-editor.org/info/bcp47/">
      * IETF BCP47</a> language code and the given locale that is appropriate for
      * display to the user.
      * For example, if {@code languageCode} is "fr" and {@code locale}
@@ -70,7 +71,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
     public abstract String getDisplayLanguage(String languageCode, Locale locale);
 
     /**
-     * Returns a localized name for the given <a href="http://www.rfc-editor.org/rfc/bcp/bcp47.txt">
+     * Returns a localized name for the given <a href="https://www.rfc-editor.org/info/bcp47/">
      * IETF BCP47</a> script code and the given locale that is appropriate for
      * display to the user.
      * For example, if {@code scriptCode} is "Latn" and {@code locale}
@@ -95,12 +96,12 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
      * @see java.util.Locale#getDisplayScript(java.util.Locale)
      * @since 1.7
      */
-    public String getDisplayScript(String scriptCode, Locale locale) {
+    public @Nullable String getDisplayScript(String scriptCode, Locale locale) {
         return null;
     }
 
     /**
-     * Returns a localized name for the given <a href="http://www.rfc-editor.org/rfc/bcp/bcp47.txt">
+     * Returns a localized name for the given <a href="https://www.rfc-editor.org/info/bcp47/">
      * IETF BCP47</a> region code (either ISO 3166 country code or UN M.49 area
      * codes) and the given locale that is appropriate for display to the user.
      * For example, if {@code countryCode} is "FR" and {@code locale}
@@ -145,7 +146,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
 
     /**
      * Returns a localized name for the given
-     * <a href="../Locale.html#def_locale_extension">Unicode extension</a> key,
+     * {@linkplain Locale##def_locale_extension Unicode extension} key,
      * and the given locale that is appropriate for display to the user.
      * If the name returned cannot be localized according to {@code locale},
      * this method returns null.
@@ -161,7 +162,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
      *     getAvailableLocales()}.
      * @since 10
      */
-    public String getDisplayUnicodeExtensionKey(String key, Locale locale) {
+    public @Nullable String getDisplayUnicodeExtensionKey(String key, Locale locale) {
         Objects.requireNonNull(key);
         Objects.requireNonNull(locale);
         return null;
@@ -169,7 +170,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
 
     /**
      * Returns a localized name for the given
-     * <a href="../Locale.html#def_locale_extension">Unicode extension</a> type,
+     * {@linkplain Locale##def_locale_extension Unicode extension} type,
      * and the given locale that is appropriate for display to the user.
      * If the name returned cannot be localized according to {@code locale},
      * this method returns null.
@@ -186,7 +187,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
      *     getAvailableLocales()}.
      * @since 10
      */
-    public String getDisplayUnicodeExtensionType(String type, String key, Locale locale) {
+    public @Nullable String getDisplayUnicodeExtensionType(String type, String key, Locale locale) {
         Objects.requireNonNull(type);
         Objects.requireNonNull(key);
         Objects.requireNonNull(locale);

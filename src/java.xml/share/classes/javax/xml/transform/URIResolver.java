@@ -51,7 +51,6 @@ public interface URIResolver {
      * @throws TransformerException if an error occurs when trying to
      * resolve the URI.
      */
-    
     public @Nullable Source resolve(String href, @Nullable String base)
         throws TransformerException;
 }

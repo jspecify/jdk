@@ -40,8 +40,6 @@
 
 package sun.util.resources;
 
-import org.jspecify.annotations.Nullable;
-
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.util.Enumeration;
@@ -543,7 +541,7 @@ public abstract class Bundles {
             }
         }
 
-        private @Nullable Throwable getCause() {
+        private Throwable getCause() {
             return cause;
         }
 

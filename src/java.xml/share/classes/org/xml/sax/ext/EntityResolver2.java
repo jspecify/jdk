@@ -146,7 +146,6 @@ public interface EntityResolver2 extends EntityResolver
      * @throws IOException Probably indicating a failure to create
      *  a new InputStream or Reader, or an illegal URL.
      */
-    
     public @Nullable InputSource getExternalSubset (String name, @Nullable String baseURI)
     throws SAXException, IOException;
 
@@ -204,7 +203,6 @@ public interface EntityResolver2 extends EntityResolver
      * @throws IOException Probably indicating a failure to create
      *  a new InputStream or Reader, or an illegal URL.
      */
-    
     public @Nullable InputSource resolveEntity (
             String name,
             @Nullable String publicId,

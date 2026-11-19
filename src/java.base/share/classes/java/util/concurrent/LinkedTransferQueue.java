@@ -592,13 +592,15 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
             do {
                 m = p.item;
                 q = p.next;
-                if (p.isData != haveData && haveData != (m != null) &&
-                    p.cmpExItem(m, e) == m) {
-                    Thread w = p.waiter;    // matched complementary node
-                    if (p != h && h == cmpExHead(h, (q == null) ? p : q))
-                        h.next = h;         // advance head; self-link old
-                    LockSupport.unpark(w);
-                    return m;
+                if (p.isData != haveData && haveData != (m != null)) {
+                    if (p.cmpExItem(m, e) == m) {
+                        Thread w = p.waiter; // matched complementary node
+                        if (p != h && h == cmpExHead(h, (q == null) ? p : q))
+                            h.next = h;     // advance head; self-link old
+                        LockSupport.unpark(w);
+                        return m;
+                    }
+                    continue restart;
                 } else if (q == null) {
                     if (ns == 0L)           // try to append unless immediate
                         break restart;
@@ -1344,7 +1346,6 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      *
      * @return {@code true} if this queue contains no elements
      */
-    
     public boolean isEmpty() {
         return firstDataNode() == null;
     }
@@ -1378,7 +1379,6 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      *
      * @return the number of elements in this queue
      */
-    
     public int size() {
         return countOfMode(true);
     }

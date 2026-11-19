@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,6 +56,7 @@ import static java.util.Objects.*;
 
 import jdk.internal.module.Checks;
 import jdk.internal.module.ModuleInfo;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 
 
 /**
@@ -93,7 +94,8 @@ import jdk.internal.module.ModuleInfo;
  * @since 9
  */
 
-public class ModuleDescriptor
+@AOTSafeClassInitializer
+public final class ModuleDescriptor
     implements Comparable<ModuleDescriptor>
 {
 
@@ -1518,11 +1520,7 @@ public class ModuleDescriptor
     }
 
     /**
-     * Returns the set of packages in the module.
-     *
-     * <p> The set of packages includes all exported and open packages, as well
-     * as the packages of any service providers, and the package for the main
-     * class. </p>
+     * Returns the set of all packages in the module.
      *
      * @return A possibly-empty unmodifiable set of the packages in the module
      */
@@ -2022,7 +2020,7 @@ public class ModuleDescriptor
 
         /**
          * Provides a service with one or more implementations. The package for
-         * each {@link Provides#providers provider} (or provider factory) is
+         * each {@link Provides#providers() provider} (or provider factory) is
          * added to the module if not already added.
          *
          * @param  p
@@ -2312,8 +2310,6 @@ public class ModuleDescriptor
      *          descriptor that is equal to this module descriptor
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object ob) {
         if (ob == this)
             return true;

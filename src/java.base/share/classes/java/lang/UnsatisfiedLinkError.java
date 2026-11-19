@@ -43,7 +43,6 @@ public class UnsatisfiedLinkError extends LinkageError {
     /**
      * Constructs an {@code UnsatisfiedLinkError} with no detail message.
      */
-    
     public UnsatisfiedLinkError() {
         super();
     }
@@ -54,7 +53,6 @@ public class UnsatisfiedLinkError extends LinkageError {
      *
      * @param   s   the detail message.
      */
-    
     public UnsatisfiedLinkError(@Nullable String s) {
         super(s);
     }

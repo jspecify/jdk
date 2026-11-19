@@ -101,7 +101,6 @@ public interface Text extends CharacterData {
      * <code>Document.normalizeDocument()</code>.
      * @since 1.5, DOM Level 3
      */
-    
     public boolean isElementContentWhitespace();
 
     /**
@@ -130,7 +129,6 @@ public interface Text extends CharacterData {
      *
      * @since 1.5, DOM Level 3
      */
-    
     public String getWholeText();
 
     /**

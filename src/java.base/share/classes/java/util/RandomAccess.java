@@ -26,7 +26,6 @@
 package java.util;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Marker interface used by {@code List} implementations to indicate that

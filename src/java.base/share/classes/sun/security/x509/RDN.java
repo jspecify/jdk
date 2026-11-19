@@ -291,8 +291,6 @@ public class RDN {
         return assertion.length;
     }
 
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

@@ -38,7 +38,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.invoke.VarHandle;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -60,6 +59,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.util.ArraysSupport;
 
 /**
@@ -178,7 +178,6 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      *
      * @return the number of elements in this list
      */
-    
     public int size() {
         return getArray().length;
     }
@@ -188,7 +187,6 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      *
      * @return {@code true} if this list contains no elements
      */
-    
     public boolean isEmpty() {
         return size() == 0;
     }
@@ -202,7 +200,7 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      * @param to one past last index to search
      * @return index of element, or -1 if absent
      */
-    private static int indexOfRange(@Nullable Object o, Object[] es, int from, int to) {
+    private static int indexOfRange(Object o, Object[] es, int from, int to) {
         if (o == null) {
             for (int i = from; i < to; i++)
                 if (es[i] == null)
@@ -223,7 +221,7 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      * @param to one past last element of range, first element to search
      * @return index of element, or -1 if absent
      */
-    private static int lastIndexOfRange(@Nullable Object o, Object[] es, int from, int to) {
+    private static int lastIndexOfRange(Object o, Object[] es, int from, int to) {
         if (o == null) {
             for (int i = to - 1; i >= from; i--)
                 if (es[i] == null)
@@ -612,7 +610,7 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      * A version of remove(Object) using the strong hint that given
      * recent snapshot contains o at the given index.
      */
-    private boolean remove(@Nullable Object o, Object[] snapshot, int index) {
+    private boolean remove(Object o, Object[] snapshot, int index) {
         synchronized (lock) {
             Object[] current = getArray();
             int len = current.length;
@@ -1079,8 +1077,6 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
      * @param o the object to be compared for equality with this list
      * @return {@code true} if the specified object is equal to this list
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;
@@ -1339,7 +1335,7 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
         }
 
         @SuppressWarnings("unchecked")
-        public <T extends @Nullable Object> T[] toArray(T[] a) {
+        public <T> T[] toArray(T[] a) {
             final Object[] es;
             final int offset;
             final int size;
@@ -1359,7 +1355,7 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             }
         }
 
-        public int indexOf(@Nullable Object o) {
+        public int indexOf(Object o) {
             final Object[] es;
             final int offset;
             final int size;
@@ -1372,7 +1368,7 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             return (i == -1) ? -1 : i - offset;
         }
 
-        public int lastIndexOf(@Nullable Object o) {
+        public int lastIndexOf(Object o) {
             final Object[] es;
             final int offset;
             final int size;
@@ -1385,7 +1381,7 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             return (i == -1) ? -1 : i - offset;
         }
 
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return indexOf(o) >= 0;
         }
 
@@ -1404,7 +1400,6 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
             return true;
         }
 
-        
         public boolean isEmpty() {
             return size() == 0;
         }
@@ -1736,7 +1731,6 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public void forEachRemaining(Consumer<? super E> action) {
             Objects.requireNonNull(action);
             while (hasNext()) {
@@ -2105,12 +2099,11 @@ public class CopyOnWriteArrayList<E extends @Nullable Object>
 
     /** Initializes the lock; for use when deserializing or cloning. */
     private void resetLock() {
-        try {
-            Field lockField = CopyOnWriteArrayList.class.getDeclaredField("lock");
-            lockField.setAccessible(true);
-            lockField.set(this, new Object());
-        } catch (IllegalAccessException | NoSuchFieldException e) {
-            throw new Error(e);
-        }
+        final Unsafe U = Unsafe.getUnsafe();
+        U.putReference(
+            this,
+            U.objectFieldOffset(CopyOnWriteArrayList.class, "lock"),
+            new Object()
+        );
     }
 }

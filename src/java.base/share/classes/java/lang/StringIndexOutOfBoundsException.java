@@ -46,7 +46,6 @@ public class StringIndexOutOfBoundsException extends IndexOutOfBoundsException {
      * Constructs a {@code StringIndexOutOfBoundsException} with no detail
      * message.
      */
-    
     public StringIndexOutOfBoundsException() {
         super();
     }
@@ -57,7 +56,6 @@ public class StringIndexOutOfBoundsException extends IndexOutOfBoundsException {
      *
      * @param s the detail message.
      */
-    
     public StringIndexOutOfBoundsException(@Nullable String s) {
         super(s);
     }
@@ -71,7 +69,6 @@ public class StringIndexOutOfBoundsException extends IndexOutOfBoundsException {
      *
      * @param index the illegal index.
      */
-    
     public StringIndexOutOfBoundsException(int index) {
         super("String index out of range: " + index);
     }

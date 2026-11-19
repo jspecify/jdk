@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -53,7 +53,7 @@ static const size_t AllocationAlignmentWordSize = AllocationAlignmentByteSize / 
 // Returns the raw word size allocated for a given net allocation. This only matters on 32-bit, where
 // allocations have to be 64-bit aligned too and therefore must be 2-word-aligned.
 inline size_t get_raw_word_size_for_requested_word_size(size_t word_size) {
-  LP64_ONLY(STATIC_ASSERT(AllocationAlignmentWordSize == 1)); // rewrite if this does not hold true anymore
+  LP64_ONLY(static_assert(AllocationAlignmentWordSize == 1)); // rewrite if this does not hold true anymore
   return LP64_ONLY(word_size) // no-op on 64-bit
          NOT_LP64(align_up(word_size, AllocationAlignmentWordSize));
 }
@@ -80,8 +80,8 @@ void print_percentage(outputStream* st, size_t total, size_t part);
 #ifdef ASSERT
 #define assert_is_aligned(value, alignment)                  \
   assert(is_aligned((value), (alignment)),                   \
-         SIZE_FORMAT_X " is not aligned to "                 \
-         SIZE_FORMAT_X, (size_t)(uintptr_t)value, (size_t)(alignment))
+         "0x%zx is not aligned to 0x%zx",                    \
+         (size_t)(uintptr_t)value, (size_t)(alignment))
 #define assert_is_aligned_metaspace_pointer(p) \
   assert_is_aligned((p), metaspace::AllocationAlignmentByteSize)
 #else

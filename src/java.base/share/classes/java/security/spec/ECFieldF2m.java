@@ -27,6 +27,7 @@ package java.security.spec;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This immutable class defines an elliptic curve (EC)
@@ -200,7 +201,7 @@ public class ECFieldF2m implements ECField {
      * basis or null for normal basis. A new array is returned
      * each time this method is called.
      */
-    public int[] getMidTermsOfReductionPolynomial() {
+    public int @Nullable [] getMidTermsOfReductionPolynomial() {
         if (ks == null) {
             return null;
         } else {

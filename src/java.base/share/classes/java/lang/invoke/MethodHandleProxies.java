@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,12 +35,10 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -55,6 +53,8 @@ import jdk.internal.constant.ConstantUtils;
 import jdk.internal.loader.ClassLoaders;
 import jdk.internal.module.Modules;
 import jdk.internal.util.ClassFileDumper;
+import jdk.internal.util.ReferencedKeySet;
+import org.jspecify.annotations.Nullable;
 
 import static java.lang.constant.ConstantDescs.*;
 import static java.lang.invoke.MethodHandleStatics.*;
@@ -69,7 +69,7 @@ import static jdk.internal.constant.ConstantUtils.*;
  *
  * @since 1.7
  */
-public class MethodHandleProxies {
+public final class MethodHandleProxies {
 
     private MethodHandleProxies() { }  // do not instantiate
 
@@ -200,7 +200,7 @@ public class MethodHandleProxies {
     private static final ClassFileDumper DUMPER = ClassFileDumper.getInstance(
             "jdk.invoke.MethodHandleProxies.dumpClassFiles", "DUMP_MH_PROXY_CLASSFILES");
 
-    private static final Set<Class<?>> WRAPPER_TYPES = Collections.newSetFromMap(new WeakHashMap<>());
+    private static final Set<Class<?>> WRAPPER_TYPES = ReferencedKeySet.create(false, ReferencedKeySet.concurrentHashMapSupplier());
     private static final ClassValue<WeakReferenceHolder<Class<?>>> PROXIES = new ClassValue<>() {
         @Override
         protected WeakReferenceHolder<Class<?>> computeValue(Class<?> intfc) {
@@ -345,7 +345,7 @@ public class MethodHandleProxies {
                         ClassLoaders.platformClassLoader() : loader)))
                         .build(proxyDesc, clb -> {
             clb.withSuperclass(CD_Object)
-               .withFlags(ACC_FINAL | ACC_SYNTHETIC)
+               .withFlags(ACC_SUPER | ACC_FINAL | ACC_SYNTHETIC)
                .withInterfaceSymbols(ifaceDesc)
                // static and instance fields
                .withField(TYPE_NAME, CD_Class, ACC_PRIVATE | ACC_STATIC | ACC_FINAL)
@@ -363,10 +363,8 @@ public class MethodHandleProxies {
 
             // <init>(Lookup, MethodHandle target, MethodHandle callerBoundTarget)
             clb.withMethodBody(INIT_NAME, MTD_void_Lookup_MethodHandle_MethodHandle, 0, cob -> {
-                cob.aload(0)
-                   .invokespecial(CD_Object, INIT_NAME, MTD_void)
-                   // call ensureOriginalLookup to verify the given Lookup has access
-                   .aload(1)
+                // call ensureOriginalLookup to verify the given Lookup has access
+                cob.aload(1)
                    .invokestatic(proxyDesc, ENSURE_ORIGINAL_LOOKUP, MTD_void_Lookup)
                    // this.target = target;
                    .aload(0)
@@ -384,7 +382,9 @@ public class MethodHandleProxies {
                 }
 
                 // complete
-                cob.return_();
+                cob.aload(0)
+                   .invokespecial(CD_Object, INIT_NAME, MTD_void)
+                   .return_();
             });
 
             // private static void ensureOriginalLookup(Lookup) checks if the given Lookup
@@ -455,7 +455,7 @@ public class MethodHandleProxies {
      * @param x any reference
      * @return true if the reference is not null and points to an object produced by {@code asInterfaceInstance}
      */
-    public static boolean isWrapperInstance(Object x) {
+    public static boolean isWrapperInstance(@Nullable Object x) {
         return x != null && WRAPPER_TYPES.contains(x.getClass());
     }
 

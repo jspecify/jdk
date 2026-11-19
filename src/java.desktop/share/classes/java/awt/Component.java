@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ package java.awt;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.applet.Applet;
 import java.awt.dnd.DropTarget;
 import java.awt.event.ActionEvent;
 import java.awt.event.AdjustmentEvent;
@@ -92,7 +91,6 @@ import javax.swing.JComponent;
 import javax.swing.JRootPane;
 
 import sun.awt.AWTAccessor;
-import sun.awt.AppContext;
 import sun.awt.ComponentFactory;
 import sun.awt.ConstrainableGraphics;
 import sun.awt.EmbeddedFrame;
@@ -215,7 +213,7 @@ import static sun.java2d.pipe.hw.ExtendedBufferCapabilities.VSyncType.VSYNC_ON;
  * @author      Sami Shaio
  */
 @NullMarked
-public abstract   class Component implements ImageObserver, MenuContainer,
+public abstract class Component implements ImageObserver, MenuContainer,
                                            Serializable
 {
 
@@ -238,13 +236,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * for top-level components.
      * @see #getParent
      */
-    transient @Nullable Container parent;
-
-    /**
-     * The {@code AppContext} of the component. Applets/Plugin may
-     * change the AppContext.
-     */
-    transient AppContext appContext;
+    transient Container parent;
 
     /**
      * The x position of the component in the parent's coordinate system.
@@ -309,7 +301,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
     volatile Font font;
 
     /**
-     * The font which the peer is currently using.
+     * @serial The font which the peer is currently using.
      * ({@code null} if no peer exists.)
      */
     Font        peerFont;
@@ -406,7 +398,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see #setDropTarget
      * @see #getDropTarget
      */
-     DropTarget dropTarget;
+    DropTarget dropTarget;
 
     /**
      * @serial
@@ -512,7 +504,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
     Dimension minSize;
 
     /**
-     * Whether or not setMinimumSize has been invoked with a non-null value.
+     * @serial Whether or not setMinimumSize has been invoked with a non-null value.
      */
     boolean minSizeSet;
 
@@ -525,7 +517,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
     @Nullable Dimension prefSize;
 
     /**
-     * Whether or not setPreferredSize has been invoked with a non-null value.
+     * @serial Whether or not setPreferredSize has been invoked with a non-null value.
      */
     boolean prefSizeSet;
 
@@ -537,7 +529,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
     Dimension maxSize;
 
     /**
-     * Whether or not setMaximumSize has been invoked with a non-null value.
+     * @serial Whether or not setMaximumSize has been invoked with a non-null value.
      */
     boolean maxSizeSet;
 
@@ -702,12 +694,12 @@ public abstract   class Component implements ImageObserver, MenuContainer,
     }
 
     /**
-     * Whether the component is packed or not;
+     * @serial Whether the component is packed or not;
      */
     boolean isPacked = false;
 
     /**
-     * Pseudoparameter for direct Geometry API (setLocation, setBounds setSize
+     * @serial Pseudoparameter for direct Geometry API (setLocation, setBounds setSize
      * to signal setBounds what's changing. Should be used under TreeLock.
      * This is only needed due to the inability to change the cross-calling
      * order of public and deprecated methods.
@@ -883,12 +875,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
             {
                  Component.setRequestFocusController(requestController);
             }
-            public AppContext getAppContext(Component comp) {
-                 return comp.appContext;
-            }
-            public void setAppContext(Component comp, AppContext appContext) {
-                 comp.appContext = appContext;
-            }
             public Container getParent(Component comp) {
                 return comp.getParent_NoClientCode();
             }
@@ -981,7 +967,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * tree (for example, by a {@code Frame} object).
      */
     protected Component() {
-        appContext = AppContext.getAppContext();
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -993,7 +978,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * Constructs a name for this component.  Called by {@code getName}
      * when the name is {@code null}.
      */
-    @Nullable String constructComponentName() {
+    String constructComponentName() {
         return null; // For strict compliance with prior platform versions, a Component
                      // that doesn't set its name should return null from
                      // getName()
@@ -1005,7 +990,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see    #setName
      * @since 1.1
      */
-    public String getName() {
+    public @Nullable String getName() {
         if (name == null && !nameExplicitlySet) {
             synchronized(getObjectLock()) {
                 if (name == null && !nameExplicitlySet)
@@ -1022,7 +1007,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see #getName
      * @since 1.1
      */
-    public void setName(String name) {
+    public void setName(@Nullable String name) {
         String oldName;
         synchronized(getObjectLock()) {
             oldName = this.name;
@@ -3357,7 +3342,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see       #update(Graphics)
      * @since     1.0
      */
-    
     public void repaint() {
         repaint(0, 0, 0, width, height);
     }
@@ -3377,7 +3361,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see #update(Graphics)
      * @since 1.0
      */
-    
     public void repaint(long tm) {
         repaint(tm, 0, 0, width, height);
     }
@@ -3402,7 +3385,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see       #update(Graphics)
      * @since     1.0
      */
-    
     public void repaint(int x, int y, int width, int height) {
         repaint(0, x, y, width, height);
     }
@@ -3429,7 +3411,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see       #update(Graphics)
      * @since     1.0
      */
-    
     public void repaint(long tm, int x, int y, int width, int height) {
         if (this.peer instanceof LightweightPeer) {
             // Needs to be translated to parent coordinates since
@@ -3462,7 +3443,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
                 (width > 0) && (height > 0)) {
                 PaintEvent e = new PaintEvent(this, PaintEvent.UPDATE,
                                               new Rectangle(x, y, width, height));
-                SunToolkit.postEvent(SunToolkit.targetToAppContext(this), e);
+                SunToolkit.postEvent(e);
             }
         }
     }
@@ -3945,10 +3926,9 @@ public abstract   class Component implements ImageObserver, MenuContainer,
 
     /**
      * Inner class for flipping buffers on a component.  That component must
-     * be a {@code Canvas} or {@code Window} or {@code Applet}.
+     * be a {@code Canvas} or {@code Window}.
      * @see Canvas
      * @see Window
-     * @see Applet
      * @see java.awt.image.BufferStrategy
      * @author Michael Martak
      * @since 1.4
@@ -3996,11 +3976,9 @@ public abstract   class Component implements ImageObserver, MenuContainer,
 
         /**
          * Creates a new flipping buffer strategy for this component.
-         * The component must be a {@code Canvas} or {@code Window} or
-         * {@code Applet}.
+         * The component must be a {@code Canvas} or {@code Window}.
          * @see Canvas
          * @see Window
-         * @see Applet
          * @param numBuffers the number of buffers
          * @param caps the capabilities of the buffers
          * @throws AWTException if the capabilities supplied could not be
@@ -4013,16 +3991,14 @@ public abstract   class Component implements ImageObserver, MenuContainer,
          * {@code true}.
          * @see #createBuffers(int, BufferCapabilities)
          */
-        @SuppressWarnings("removal")
         protected FlipBufferStrategy(int numBuffers, BufferCapabilities caps)
             throws AWTException
         {
             if (!(Component.this instanceof Window) &&
-                !(Component.this instanceof Canvas) &&
-                !(Component.this instanceof Applet))
+                !(Component.this instanceof Canvas))
             {
                 throw new ClassCastException(
-                        "Component must be a Canvas or Window or Applet");
+                        "Component must be a Canvas or Window");
             }
             this.numBuffers = numBuffers;
             this.caps = caps;
@@ -4801,14 +4777,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
     @SuppressWarnings("deprecation")
     void dispatchEventImpl(AWTEvent e) {
         int id = e.getID();
-
-        // Check that this component belongs to this app-context
-        AppContext compContext = appContext;
-        if (compContext != null && !compContext.equals(AppContext.getAppContext())) {
-            if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
-                eventLog.fine("Event " + e + " is being dispatched on the wrong AppContext");
-            }
-        }
 
         if (eventLog.isLoggable(PlatformLogger.Level.FINEST)) {
             eventLog.finest("{0}", e);
@@ -6301,7 +6269,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * and paint (and update) events.
      * For mouse move events the last event is always returned, causing
      * intermediate moves to be discarded.  For paint events, the new
-     * event is coalesced into a complex {@code RepaintArea} in the peer.
+     * event is coalesced into a complex repaint area in the peer.
      * The new {@code AWTEvent} is always returned.
      *
      * @param  existingEvent  the event already on the {@code EventQueue}
@@ -7952,7 +7920,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
             (this, temporary, focusedWindowChangeAllowed, time, cause);
         if (!success) {
             KeyboardFocusManager.getCurrentKeyboardFocusManager
-                (appContext).dequeueKeyEvents(time, this);
+                ().dequeueKeyEvents(time, this);
             if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("Peer request failed");
             }
@@ -8143,7 +8111,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
         return res;
     }
 
-    @SuppressWarnings("removal")
     final Component getNextFocusCandidate() {
         Container rootAncestor = getTraversalRoot();
         Component comp = this;
@@ -8167,12 +8134,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
                 toFocus = policy.getDefaultComponent(rootAncestor);
                 if (focusLog.isLoggable(PlatformLogger.Level.FINER)) {
                     focusLog.finer("default component is " + toFocus);
-                }
-            }
-            if (toFocus == null) {
-                Applet applet = EmbeddedFrame.getAppletIfAncestorOf(this);
-                if (applet != null) {
-                    toFocus = applet;
                 }
             }
             candidate = toFocus;
@@ -8298,7 +8259,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
     }
 
     /**
-     * Used to disallow auto-focus-transfer on disposal of the focus owner
+     * @serial Used to disallow auto-focus-transfer on disposal of the focus owner
      * in the process of disposing its parent container.
      */
     private boolean autoFocusTransferOnDisposal = true;
@@ -8958,7 +8919,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
 
         s.defaultReadObject();
 
-        appContext = AppContext.getAppContext();
         coalescingEnabled = checkCoalescing();
         if (componentSerializedDataVersion < 4) {
             // These fields are non-transient and rely on default
@@ -9242,9 +9202,10 @@ public abstract   class Component implements ImageObserver, MenuContainer,
 
     /**
      * The {@code AccessibleContext} associated with this {@code Component}.
+     * @serial
      */
     @SuppressWarnings("serial") // Not statically typed as Serializable
-    protected AccessibleContext accessibleContext = null;
+    protected @Nullable AccessibleContext accessibleContext = null;
 
     /**
      * Gets the {@code AccessibleContext} associated
@@ -9298,6 +9259,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
         /**
          * A component listener to track show/hide/resize events
          * and convert them to PropertyChange events.
+         * @serial
          */
         @SuppressWarnings("serial") // Not statically typed as Serializable
         protected ComponentListener accessibleAWTComponentHandler = null;
@@ -9305,6 +9267,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
         /**
          * A listener to track focus events
          * and convert them to PropertyChange events.
+         * @serial
          */
         @SuppressWarnings("serial") // Not statically typed as Serializable
         protected FocusListener accessibleAWTFocusHandler = null;

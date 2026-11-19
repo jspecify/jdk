@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import jdk.internal.invoke.MhUtil;
 
 import java.lang.invoke.MethodHandles;
@@ -46,6 +48,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.Objects;
+import static java.util.concurrent.DelayScheduler.ScheduledForkJoinTask;
 
 /**
  * A {@link Future} that may be explicitly completed (setting its
@@ -69,18 +72,15 @@ import java.util.Objects;
  * a completion method.
  *
  * <li>All <em>async</em> methods without an explicit Executor
- * argument are performed using the {@link ForkJoinPool#commonPool()}
- * (unless it does not support a parallelism level of at least two, in
- * which case, a new Thread is created to run each task).  This may be
- * overridden for non-static methods in subclasses by defining method
- * {@link #defaultExecutor()}. To simplify monitoring, debugging,
- * and tracking, all generated asynchronous tasks are instances of the
- * marker interface {@link AsynchronousCompletionTask}.  Operations
- * with time-delays can use adapter methods defined in this class, for
- * example: {@code supplyAsync(supplier, delayedExecutor(timeout,
- * timeUnit))}.  To support methods with delays and timeouts, this
- * class maintains at most one daemon thread for triggering and
- * cancelling actions, not for running them.
+ * argument, as well as those involving delays are performed using the
+ * {@link ForkJoinPool#commonPool()}.  The default async Executor may
+ * be overridden for non-static methods in subclasses by defining
+ * method {@link #defaultExecutor()}. To simplify monitoring,
+ * debugging, and tracking, all generated asynchronous tasks are
+ * instances of the marker interface {@link
+ * AsynchronousCompletionTask}.  Operations with time-delays can use
+ * adapter methods defined in this class, for example: {@code
+ * supplyAsync(supplier, delayedExecutor(timeout, timeUnit))}.
  *
  * <li>All CompletionStage methods are implemented independently of
  * other public methods, so the behavior of one method is not impacted
@@ -143,7 +143,8 @@ import java.util.Objects;
  * and {@code get} methods
  * @since 1.8
  */
-public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
+@NullMarked
+public class CompletableFuture<T extends @Nullable Object> implements Future<T>, CompletionStage<T> {
 
     /*
      * Overview:
@@ -473,34 +474,11 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
     public static interface AsynchronousCompletionTask {
     }
 
-    private static final boolean USE_COMMON_POOL =
-        (ForkJoinPool.getCommonPoolParallelism() > 1);
-
     /**
-     * Default executor -- ForkJoinPool.commonPool() unless it cannot
-     * support parallelism.
+     * Default Executor
      */
-    private static final Executor ASYNC_POOL = USE_COMMON_POOL ?
-        ForkJoinPool.commonPool() : new ThreadPerTaskExecutor();
-
-    /** Fallback if ForkJoinPool.commonPool() cannot support parallelism */
-    private static final class ThreadPerTaskExecutor implements Executor {
-        public void execute(Runnable r) {
-            Objects.requireNonNull(r);
-            new Thread(r).start();
-        }
-    }
-
-    /**
-     * Null-checks user executor argument, and translates uses of
-     * commonPool to ASYNC_POOL in case parallelism disabled.
-     */
-    static Executor screenExecutor(Executor e) {
-        if (!USE_COMMON_POOL && e == ForkJoinPool.commonPool())
-            return ASYNC_POOL;
-        if (e == null) throw new NullPointerException();
-        return e;
-    }
+    private static final ForkJoinPool ASYNC_POOL =
+        ForkJoinPool.asyncCommonPool(); // ensures minimal parallelism
 
     // Modes for Completion.tryFire. Signedness matters.
     static final int SYNC   =  0;
@@ -702,8 +680,8 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 
     private <V> CompletableFuture<V> uniApplyStage(
         Executor e, Function<? super T,? extends V> f) {
-        if (f == null) throw new NullPointerException();
         Object r;
+        Objects.requireNonNull(f);
         if ((r = result) != null)
             return uniApplyNow(r, e, f);
         CompletableFuture<V> d = newIncompleteFuture();
@@ -775,8 +753,8 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 
     private CompletableFuture<Void> uniAcceptStage(Executor e,
                                                    Consumer<? super T> f) {
-        if (f == null) throw new NullPointerException();
         Object r;
+        Objects.requireNonNull(f);
         if ((r = result) != null)
             return uniAcceptNow(r, e, f);
         CompletableFuture<Void> d = newIncompleteFuture();
@@ -843,8 +821,8 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
     }
 
     private CompletableFuture<Void> uniRunStage(Executor e, Runnable f) {
-        if (f == null) throw new NullPointerException();
         Object r;
+        Objects.requireNonNull(f);
         if ((r = result) != null)
             return uniRunNow(r, e, f);
         CompletableFuture<Void> d = newIncompleteFuture();
@@ -924,7 +902,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 
     private CompletableFuture<T> uniWhenCompleteStage(
         Executor e, BiConsumer<? super T, ? super Throwable> f) {
-        if (f == null) throw new NullPointerException();
+        Objects.requireNonNull(f);
         CompletableFuture<T> d = newIncompleteFuture();
         Object r;
         if ((r = result) == null)
@@ -987,7 +965,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 
     private <V> CompletableFuture<V> uniHandleStage(
         Executor e, BiFunction<? super T, Throwable, ? extends V> f) {
-        if (f == null) throw new NullPointerException();
+        Objects.requireNonNull(f);
         CompletableFuture<V> d = newIncompleteFuture();
         Object r;
         if ((r = result) == null)
@@ -1045,7 +1023,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 
     private CompletableFuture<T> uniExceptionallyStage(
         Executor e, Function<Throwable, ? extends T> f) {
-        if (f == null) throw new NullPointerException();
+        Objects.requireNonNull(f);
         CompletableFuture<T> d = newIncompleteFuture();
         Object r;
         if ((r = result) == null)
@@ -1105,7 +1083,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 
     private CompletableFuture<T> uniComposeExceptionallyStage(
         Executor e, Function<Throwable, ? extends CompletionStage<T>> f) {
-        if (f == null) throw new NullPointerException();
+        Objects.requireNonNull(f);
         CompletableFuture<T> d = newIncompleteFuture();
         Object r, s; Throwable x;
         if ((r = result) == null)
@@ -1212,7 +1190,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 
     private <V> CompletableFuture<V> uniComposeStage(
         Executor e, Function<? super T, ? extends CompletionStage<V>> f) {
-        if (f == null) throw new NullPointerException();
+        Objects.requireNonNull(f);
         CompletableFuture<V> d = newIncompleteFuture();
         Object r, s; Throwable x;
         if ((r = result) == null)
@@ -1823,7 +1801,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 
     static <U> CompletableFuture<U> asyncSupplyStage(Executor e,
                                                      Supplier<U> f) {
-        if (f == null) throw new NullPointerException();
+        Objects.requireNonNull(f);
         CompletableFuture<U> d = new CompletableFuture<U>();
         e.execute(new AsyncSupply<U>(d, f));
         return d;
@@ -1859,7 +1837,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
     }
 
     static CompletableFuture<Void> asyncRunStage(Executor e, Runnable f) {
-        if (f == null) throw new NullPointerException();
+        Objects.requireNonNull(f);
         CompletableFuture<Void> d = new CompletableFuture<Void>();
         e.execute(new AsyncRun(d, f));
         return d;
@@ -1929,8 +1907,8 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
         while ((r = result) == null) {
             if (q == null) {
                 q = new Signaller(interruptible, 0L, 0L);
-                if (Thread.currentThread() instanceof ForkJoinWorkerThread)
-                    ForkJoinPool.helpAsyncBlocker(defaultExecutor(), q);
+                if (Thread.currentThread() instanceof ForkJoinWorkerThread wt)
+                    ForkJoinPool.helpAsyncBlocker(wt.pool, q);
             }
             else if (!queued)
                 queued = tryPushStack(q);
@@ -1975,8 +1953,8 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
                 break;
             else if (q == null) {
                 q = new Signaller(true, nanos, deadline);
-                if (Thread.currentThread() instanceof ForkJoinWorkerThread)
-                    ForkJoinPool.helpAsyncBlocker(defaultExecutor(), q);
+                if (Thread.currentThread() instanceof ForkJoinWorkerThread wt)
+                    ForkJoinPool.helpAsyncBlocker(wt.pool, q);
             }
             else if (!queued)
                 queued = tryPushStack(q);
@@ -2031,7 +2009,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletableFuture
      */
-    public static <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier) {
+    public static <U extends @Nullable Object> CompletableFuture<U> supplyAsync(Supplier<U> supplier) {
         return asyncSupplyStage(ASYNC_POOL, supplier);
     }
 
@@ -2046,9 +2024,9 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @param <U> the function's return type
      * @return the new CompletableFuture
      */
-    public static <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier,
+    public static <U extends @Nullable Object> CompletableFuture<U> supplyAsync(Supplier<U> supplier,
                                                        Executor executor) {
-        return asyncSupplyStage(screenExecutor(executor), supplier);
+        return asyncSupplyStage(Objects.requireNonNull(executor), supplier);
     }
 
     /**
@@ -2060,7 +2038,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * returned CompletableFuture
      * @return the new CompletableFuture
      */
-    public static CompletableFuture<Void> runAsync(Runnable runnable) {
+    public static CompletableFuture<@Nullable Void> runAsync(Runnable runnable) {
         return asyncRunStage(ASYNC_POOL, runnable);
     }
 
@@ -2074,9 +2052,9 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @param executor the executor to use for asynchronous execution
      * @return the new CompletableFuture
      */
-    public static CompletableFuture<Void> runAsync(Runnable runnable,
+    public static CompletableFuture<@Nullable Void> runAsync(Runnable runnable,
                                                    Executor executor) {
-        return asyncRunStage(screenExecutor(executor), runnable);
+        return asyncRunStage(Objects.requireNonNull(executor), runnable);
     }
 
     /**
@@ -2087,7 +2065,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @param <U> the type of the value
      * @return the completed CompletableFuture
      */
-    public static <U> CompletableFuture<U> completedFuture(U value) {
+    public static <U extends @Nullable Object> CompletableFuture<U> completedFuture(U value) {
         return new CompletableFuture<U>((value == null) ? NIL : value);
     }
 
@@ -2175,7 +2153,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * exceptionally or a completion computation threw an exception
      */
     @SuppressWarnings("unchecked")
-    public T getNow(T valueIfAbsent) {
+    public @Nullable T getNow(@Nullable T valueIfAbsent) {
         Object r;
         return ((r = result) == null) ? valueIfAbsent : (T) reportJoin(r, "getNow");
     }
@@ -2241,197 +2219,197 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * to transition to a completed state, else {@code false}
      */
     public boolean completeExceptionally(Throwable ex) {
-        if (ex == null) throw new NullPointerException();
+        Objects.requireNonNull(ex);
         boolean triggered = internalComplete(new AltResult(ex));
         postComplete();
         return triggered;
     }
 
-    public <U> CompletableFuture<U> thenApply(
+    public <U extends @Nullable Object> CompletableFuture<U> thenApply(
         Function<? super T,? extends U> fn) {
         return uniApplyStage(null, fn);
     }
 
-    public <U> CompletableFuture<U> thenApplyAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> thenApplyAsync(
         Function<? super T,? extends U> fn) {
         return uniApplyStage(defaultExecutor(), fn);
     }
 
-    public <U> CompletableFuture<U> thenApplyAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> thenApplyAsync(
         Function<? super T,? extends U> fn, Executor executor) {
-        return uniApplyStage(screenExecutor(executor), fn);
+        return uniApplyStage(Objects.requireNonNull(executor), fn);
     }
 
-    public CompletableFuture<Void> thenAccept(Consumer<? super T> action) {
+    public CompletableFuture<@Nullable Void> thenAccept(Consumer<? super T> action) {
         return uniAcceptStage(null, action);
     }
 
-    public CompletableFuture<Void> thenAcceptAsync(Consumer<? super T> action) {
+    public CompletableFuture<@Nullable Void> thenAcceptAsync(Consumer<? super T> action) {
         return uniAcceptStage(defaultExecutor(), action);
     }
 
-    public CompletableFuture<Void> thenAcceptAsync(Consumer<? super T> action,
+    public CompletableFuture<@Nullable Void> thenAcceptAsync(Consumer<? super T> action,
                                                    Executor executor) {
-        return uniAcceptStage(screenExecutor(executor), action);
+        return uniAcceptStage(Objects.requireNonNull(executor), action);
     }
 
-    public CompletableFuture<Void> thenRun(Runnable action) {
+    public CompletableFuture<@Nullable Void> thenRun(Runnable action) {
         return uniRunStage(null, action);
     }
 
-    public CompletableFuture<Void> thenRunAsync(Runnable action) {
+    public CompletableFuture<@Nullable Void> thenRunAsync(Runnable action) {
         return uniRunStage(defaultExecutor(), action);
     }
 
-    public CompletableFuture<Void> thenRunAsync(Runnable action,
+    public CompletableFuture<@Nullable Void> thenRunAsync(Runnable action,
                                                 Executor executor) {
-        return uniRunStage(screenExecutor(executor), action);
+        return uniRunStage(Objects.requireNonNull(executor), action);
     }
 
-    public <U,V> CompletableFuture<V> thenCombine(
+    public <U extends @Nullable Object,V extends @Nullable Object> CompletableFuture<V> thenCombine(
         CompletionStage<? extends U> other,
         BiFunction<? super T,? super U,? extends V> fn) {
         return biApplyStage(null, other, fn);
     }
 
-    public <U,V> CompletableFuture<V> thenCombineAsync(
+    public <U extends @Nullable Object,V extends @Nullable Object> CompletableFuture<V> thenCombineAsync(
         CompletionStage<? extends U> other,
         BiFunction<? super T,? super U,? extends V> fn) {
         return biApplyStage(defaultExecutor(), other, fn);
     }
 
-    public <U,V> CompletableFuture<V> thenCombineAsync(
+    public <U extends @Nullable Object,V extends @Nullable Object> CompletableFuture<V> thenCombineAsync(
         CompletionStage<? extends U> other,
         BiFunction<? super T,? super U,? extends V> fn, Executor executor) {
-        return biApplyStage(screenExecutor(executor), other, fn);
+        return biApplyStage(Objects.requireNonNull(executor), other, fn);
     }
 
-    public <U> CompletableFuture<Void> thenAcceptBoth(
+    public <U extends @Nullable Object> CompletableFuture<@Nullable Void> thenAcceptBoth(
         CompletionStage<? extends U> other,
         BiConsumer<? super T, ? super U> action) {
         return biAcceptStage(null, other, action);
     }
 
-    public <U> CompletableFuture<Void> thenAcceptBothAsync(
+    public <U extends @Nullable Object> CompletableFuture<@Nullable Void> thenAcceptBothAsync(
         CompletionStage<? extends U> other,
         BiConsumer<? super T, ? super U> action) {
         return biAcceptStage(defaultExecutor(), other, action);
     }
 
-    public <U> CompletableFuture<Void> thenAcceptBothAsync(
+    public <U extends @Nullable Object> CompletableFuture<@Nullable Void> thenAcceptBothAsync(
         CompletionStage<? extends U> other,
         BiConsumer<? super T, ? super U> action, Executor executor) {
-        return biAcceptStage(screenExecutor(executor), other, action);
+        return biAcceptStage(Objects.requireNonNull(executor), other, action);
     }
 
-    public CompletableFuture<Void> runAfterBoth(CompletionStage<?> other,
+    public CompletableFuture<@Nullable Void> runAfterBoth(CompletionStage<?> other,
                                                 Runnable action) {
         return biRunStage(null, other, action);
     }
 
-    public CompletableFuture<Void> runAfterBothAsync(CompletionStage<?> other,
+    public CompletableFuture<@Nullable Void> runAfterBothAsync(CompletionStage<?> other,
                                                      Runnable action) {
         return biRunStage(defaultExecutor(), other, action);
     }
 
-    public CompletableFuture<Void> runAfterBothAsync(CompletionStage<?> other,
+    public CompletableFuture<@Nullable Void> runAfterBothAsync(CompletionStage<?> other,
                                                      Runnable action,
                                                      Executor executor) {
-        return biRunStage(screenExecutor(executor), other, action);
+        return biRunStage(Objects.requireNonNull(executor), other, action);
     }
 
-    public <U> CompletableFuture<U> applyToEither(
+    public <U extends @Nullable Object> CompletableFuture<U> applyToEither(
         CompletionStage<? extends T> other, Function<? super T, U> fn) {
         return orApplyStage(null, other, fn);
     }
 
-    public <U> CompletableFuture<U> applyToEitherAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> applyToEitherAsync(
         CompletionStage<? extends T> other, Function<? super T, U> fn) {
         return orApplyStage(defaultExecutor(), other, fn);
     }
 
-    public <U> CompletableFuture<U> applyToEitherAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> applyToEitherAsync(
         CompletionStage<? extends T> other, Function<? super T, U> fn,
         Executor executor) {
-        return orApplyStage(screenExecutor(executor), other, fn);
+        return orApplyStage(Objects.requireNonNull(executor), other, fn);
     }
 
-    public CompletableFuture<Void> acceptEither(
+    public CompletableFuture<@Nullable Void> acceptEither(
         CompletionStage<? extends T> other, Consumer<? super T> action) {
         return orAcceptStage(null, other, action);
     }
 
-    public CompletableFuture<Void> acceptEitherAsync(
+    public CompletableFuture<@Nullable Void> acceptEitherAsync(
         CompletionStage<? extends T> other, Consumer<? super T> action) {
         return orAcceptStage(defaultExecutor(), other, action);
     }
 
-    public CompletableFuture<Void> acceptEitherAsync(
+    public CompletableFuture<@Nullable Void> acceptEitherAsync(
         CompletionStage<? extends T> other, Consumer<? super T> action,
         Executor executor) {
-        return orAcceptStage(screenExecutor(executor), other, action);
+        return orAcceptStage(Objects.requireNonNull(executor), other, action);
     }
 
-    public CompletableFuture<Void> runAfterEither(CompletionStage<?> other,
+    public CompletableFuture<@Nullable Void> runAfterEither(CompletionStage<?> other,
                                                   Runnable action) {
         return orRunStage(null, other, action);
     }
 
-    public CompletableFuture<Void> runAfterEitherAsync(CompletionStage<?> other,
+    public CompletableFuture<@Nullable Void> runAfterEitherAsync(CompletionStage<?> other,
                                                        Runnable action) {
         return orRunStage(defaultExecutor(), other, action);
     }
 
-    public CompletableFuture<Void> runAfterEitherAsync(CompletionStage<?> other,
+    public CompletableFuture<@Nullable Void> runAfterEitherAsync(CompletionStage<?> other,
                                                        Runnable action,
                                                        Executor executor) {
-        return orRunStage(screenExecutor(executor), other, action);
+        return orRunStage(Objects.requireNonNull(executor), other, action);
     }
 
-    public <U> CompletableFuture<U> thenCompose(
+    public <U extends @Nullable Object> CompletableFuture<U> thenCompose(
         Function<? super T, ? extends CompletionStage<U>> fn) {
         return uniComposeStage(null, fn);
     }
 
-    public <U> CompletableFuture<U> thenComposeAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> thenComposeAsync(
         Function<? super T, ? extends CompletionStage<U>> fn) {
         return uniComposeStage(defaultExecutor(), fn);
     }
 
-    public <U> CompletableFuture<U> thenComposeAsync(
+    public <U extends @Nullable Object> CompletableFuture<U> thenComposeAsync(
         Function<? super T, ? extends CompletionStage<U>> fn,
         Executor executor) {
-        return uniComposeStage(screenExecutor(executor), fn);
+        return uniComposeStage(Objects.requireNonNull(executor), fn);
     }
 
     public CompletableFuture<T> whenComplete(
-        BiConsumer<? super T, ? super Throwable> action) {
+        BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action) {
         return uniWhenCompleteStage(null, action);
     }
 
     public CompletableFuture<T> whenCompleteAsync(
-        BiConsumer<? super T, ? super Throwable> action) {
+        BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action) {
         return uniWhenCompleteStage(defaultExecutor(), action);
     }
 
     public CompletableFuture<T> whenCompleteAsync(
-        BiConsumer<? super T, ? super Throwable> action, Executor executor) {
-        return uniWhenCompleteStage(screenExecutor(executor), action);
+        BiConsumer<? super @Nullable T, ? super @Nullable Throwable> action, Executor executor) {
+        return uniWhenCompleteStage(Objects.requireNonNull(executor), action);
     }
 
-    public <U> CompletableFuture<U> handle(
-        BiFunction<? super T, Throwable, ? extends U> fn) {
+    public <U extends @Nullable Object> CompletableFuture<U> handle(
+        BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn) {
         return uniHandleStage(null, fn);
     }
 
-    public <U> CompletableFuture<U> handleAsync(
-        BiFunction<? super T, Throwable, ? extends U> fn) {
+    public <U extends @Nullable Object> CompletableFuture<U> handleAsync(
+        BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn) {
         return uniHandleStage(defaultExecutor(), fn);
     }
 
-    public <U> CompletableFuture<U> handleAsync(
-        BiFunction<? super T, Throwable, ? extends U> fn, Executor executor) {
-        return uniHandleStage(screenExecutor(executor), fn);
+    public <U extends @Nullable Object> CompletableFuture<U> handleAsync(
+        BiFunction<? super @Nullable T, @Nullable Throwable, ? extends U> fn, Executor executor) {
+        return uniHandleStage(Objects.requireNonNull(executor), fn);
     }
 
     /**
@@ -2461,7 +2439,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      */
     public CompletableFuture<T> exceptionallyAsync(
         Function<Throwable, ? extends T> fn, Executor executor) {
-        return uniExceptionallyStage(screenExecutor(executor), fn);
+        return uniExceptionallyStage(Objects.requireNonNull(executor), fn);
     }
 
     /**
@@ -2486,7 +2464,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
     public CompletableFuture<T> exceptionallyComposeAsync(
         Function<Throwable, ? extends CompletionStage<T>> fn,
         Executor executor) {
-        return uniComposeExceptionallyStage(screenExecutor(executor), fn);
+        return uniComposeExceptionallyStage(Objects.requireNonNull(executor), fn);
     }
 
     /* ------------- Arbitrary-arity constructions -------------- */
@@ -2514,7 +2492,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @throws NullPointerException if the array or any of its elements are
      * {@code null}
      */
-    public static CompletableFuture<Void> allOf(CompletableFuture<?>... cfs) {
+    public static CompletableFuture<@Nullable Void> allOf(CompletableFuture<?>... cfs) {
         return andTree(cfs, 0, cfs.length - 1);
     }
 
@@ -2533,7 +2511,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @throws NullPointerException if the array or any of its elements are
      * {@code null}
      */
-    public static CompletableFuture<Object> anyOf(CompletableFuture<?>... cfs) {
+    public static CompletableFuture<@Nullable Object> anyOf(CompletableFuture<?>... cfs) {
         int n; Object r;
         if ((n = cfs.length) <= 1)
             return (n == 0)
@@ -2652,8 +2630,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @throws NullPointerException if the exception is null
      */
     public void obtrudeException(Throwable ex) {
-        if (ex == null) throw new NullPointerException();
-        result = new AltResult(ex);
+        result = new AltResult(Objects.requireNonNull(ex));
         postComplete();
     }
 
@@ -2710,7 +2687,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @return a new CompletableFuture
      * @since 9
      */
-    public <U> CompletableFuture<U> newIncompleteFuture() {
+    public <U extends @Nullable Object> CompletableFuture<U> newIncompleteFuture() {
         return new CompletableFuture<U>();
     }
 
@@ -2784,9 +2761,8 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      */
     public CompletableFuture<T> completeAsync(Supplier<? extends T> supplier,
                                               Executor executor) {
-        if (supplier == null || executor == null)
-            throw new NullPointerException();
-        executor.execute(new AsyncSupply<T>(this, supplier));
+        executor.execute(new AsyncSupply<T>(
+                             this, Objects.requireNonNull(supplier)));
         return this;
     }
 
@@ -2817,11 +2793,8 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @since 9
      */
     public CompletableFuture<T> orTimeout(long timeout, TimeUnit unit) {
-        if (unit == null)
-            throw new NullPointerException();
-        if (result == null)
-            whenComplete(new Canceller(Delayer.delay(new Timeout(this),
-                                                     timeout, unit)));
+        arrangeTimeout(unit.toNanos(timeout), // Implicit null-check of unit
+                       new Timeout<T>(this, null, true));
         return this;
     }
 
@@ -2839,13 +2812,51 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      */
     public CompletableFuture<T> completeOnTimeout(T value, long timeout,
                                                   TimeUnit unit) {
-        if (unit == null)
-            throw new NullPointerException();
-        if (result == null)
-            whenComplete(new Canceller(Delayer.delay(
-                                           new DelayedCompleter<T>(this, value),
-                                           timeout, unit)));
+        arrangeTimeout(unit.toNanos(timeout),
+                       new Timeout<T>(this, value, false));
         return this;
+    }
+
+    /** Action to complete (possibly exceptionally) on timeout */
+    static final class Timeout<U> implements Runnable {
+        final CompletableFuture<U> f;
+        final U value;
+        final boolean exceptional;
+        Timeout(CompletableFuture<U> f, U value, boolean exceptional) {
+            this.f = f; this.value = value; this.exceptional = exceptional;
+        }
+        public void run() {
+            if (f != null && !f.isDone()) {
+                if (exceptional)
+                    f.completeExceptionally(new TimeoutException());
+                else
+                    f.complete(value);
+            }
+        }
+    }
+
+    /** Action to cancel unneeded timeouts */
+    static final class Canceller implements BiConsumer<Object, Throwable> {
+        final Future<?> f;
+        Canceller(Future<?> f) { this.f = f; }
+        public void accept(Object ignore, Throwable ex) {
+            if (f != null) // currently never null
+                f.cancel(false);
+        }
+    }
+
+    /**
+     * Schedules a timeout action, as well as whenComplete handling to
+     * cancel the action if not needed.
+     */
+    private <U> void arrangeTimeout(long nanoDelay, Timeout<U> onTimeout) {
+        ForkJoinPool e = ASYNC_POOL;
+        if (result == null) {
+            ScheduledForkJoinTask<Void> t =  new ScheduledForkJoinTask<Void>(
+                nanoDelay, 0L, true, onTimeout, null, e);
+            whenComplete(new Canceller(t));
+            e.scheduleDelayedTask(t);
+        }
     }
 
     /**
@@ -2863,9 +2874,8 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      */
     public static Executor delayedExecutor(long delay, TimeUnit unit,
                                            Executor executor) {
-        if (unit == null || executor == null)
-            throw new NullPointerException();
-        return new DelayedExecutor(delay, unit, executor);
+        return new DelayedExecutor(unit.toNanos(delay), // implicit null check
+                                   Objects.requireNonNull(executor));
     }
 
     /**
@@ -2881,9 +2891,8 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @since 9
      */
     public static Executor delayedExecutor(long delay, TimeUnit unit) {
-        if (unit == null)
-            throw new NullPointerException();
-        return new DelayedExecutor(delay, unit, ASYNC_POOL);
+        return new DelayedExecutor(unit.toNanos(delay), // implicit null check
+                                   ASYNC_POOL);
     }
 
     /**
@@ -2896,7 +2905,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @return the completed CompletionStage
      * @since 9
      */
-    public static <U> CompletionStage<U> completedStage(U value) {
+    public static <U extends @Nullable Object> CompletionStage<U> completedStage(U value) {
         return new MinimalStage<U>((value == null) ? NIL : value);
     }
 
@@ -2909,9 +2918,8 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @return the exceptionally completed CompletableFuture
      * @since 9
      */
-    public static <U> CompletableFuture<U> failedFuture(Throwable ex) {
-        if (ex == null) throw new NullPointerException();
-        return new CompletableFuture<U>(new AltResult(ex));
+    public static <U extends @Nullable Object> CompletableFuture<U> failedFuture(Throwable ex) {
+        return new CompletableFuture<U>(new AltResult(Objects.requireNonNull(ex)));
     }
 
     /**
@@ -2924,49 +2932,24 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
      * @return the exceptionally completed CompletionStage
      * @since 9
      */
-    public static <U> CompletionStage<U> failedStage(Throwable ex) {
-        if (ex == null) throw new NullPointerException();
-        return new MinimalStage<U>(new AltResult(ex));
-    }
-
-    /**
-     * Singleton delay scheduler, used only for starting and
-     * cancelling tasks.
-     */
-    static final class Delayer {
-        static ScheduledFuture<?> delay(Runnable command, long delay,
-                                        TimeUnit unit) {
-            return delayer.schedule(command, delay, unit);
-        }
-
-        static final class DaemonThreadFactory implements ThreadFactory {
-            public Thread newThread(Runnable r) {
-                Thread t = new Thread(r);
-                t.setDaemon(true);
-                t.setName("CompletableFutureDelayScheduler");
-                return t;
-            }
-        }
-
-        static final ScheduledThreadPoolExecutor delayer;
-        static {
-            (delayer = new ScheduledThreadPoolExecutor(
-                1, new DaemonThreadFactory())).
-                setRemoveOnCancelPolicy(true);
-        }
+    public static <U extends @Nullable Object> CompletionStage<U> failedStage(Throwable ex) {
+        return new MinimalStage<U>(new AltResult(Objects.requireNonNull(ex)));
     }
 
     // Little class-ified lambdas to better support monitoring
 
     static final class DelayedExecutor implements Executor {
-        final long delay;
-        final TimeUnit unit;
+        final long nanoDelay;
         final Executor executor;
-        DelayedExecutor(long delay, TimeUnit unit, Executor executor) {
-            this.delay = delay; this.unit = unit; this.executor = executor;
+        DelayedExecutor(long nanoDelay, Executor executor) {
+            this.nanoDelay = nanoDelay; this.executor = executor;
         }
         public void execute(Runnable r) {
-            Delayer.delay(new TaskSubmitter(executor, r), delay, unit);
+            ForkJoinPool e = ASYNC_POOL;  // Use immediate mode to relay task
+            e.scheduleDelayedTask(
+                new ScheduledForkJoinTask<Void>(
+                    nanoDelay, 0L, true,
+                    new TaskSubmitter(executor, r), null, e));
         }
     }
 
@@ -2979,37 +2962,6 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
             this.action = action;
         }
         public void run() { executor.execute(action); }
-    }
-
-    /** Action to completeExceptionally on timeout */
-    static final class Timeout implements Runnable {
-        final CompletableFuture<?> f;
-        Timeout(CompletableFuture<?> f) { this.f = f; }
-        public void run() {
-            if (f != null && !f.isDone())
-                f.completeExceptionally(new TimeoutException());
-        }
-    }
-
-    /** Action to complete on timeout */
-    static final class DelayedCompleter<U> implements Runnable {
-        final CompletableFuture<U> f;
-        final U u;
-        DelayedCompleter(CompletableFuture<U> f, U u) { this.f = f; this.u = u; }
-        public void run() {
-            if (f != null)
-                f.complete(u);
-        }
-    }
-
-    /** Action to cancel unneeded timeouts */
-    static final class Canceller implements BiConsumer<Object, Throwable> {
-        final Future<?> f;
-        Canceller(Future<?> f) { this.f = f; }
-        public void accept(Object ignore, Throwable ex) {
-            if (f != null && !f.isDone())
-                f.cancel(false);
-        }
     }
 
     /**

@@ -590,7 +590,6 @@ public interface Deque<E extends @Nullable Object> extends Queue<E>, SequencedCo
      *         deque does not permit null elements
      *         ({@linkplain Collection##optional-restrictions optional})
      */
-    
     boolean contains(@Nullable Object o);
 
     /**
@@ -598,8 +597,7 @@ public interface Deque<E extends @Nullable Object> extends Queue<E>, SequencedCo
      *
      * @return the number of elements in this deque
      */
-    
-     int size();
+    int size();
 
     /**
      * Returns an iterator over the elements in this deque in proper sequence.
@@ -607,7 +605,6 @@ public interface Deque<E extends @Nullable Object> extends Queue<E>, SequencedCo
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
-    
     Iterator<E> iterator();
 
     /**

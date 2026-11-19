@@ -252,7 +252,7 @@ public enum DayOfWeek implements TemporalAccessor, TemporalAdjuster {
      * @return true if the field is supported on this day-of-week, false if not
      */
     @Override
-    public boolean isSupported(TemporalField field) {
+    public boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field == DAY_OF_WEEK;
         }

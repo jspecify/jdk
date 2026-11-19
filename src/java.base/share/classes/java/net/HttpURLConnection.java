@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.security.Permission;
 import java.util.Date;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A URLConnection with support for HTTP-specific features. See
@@ -148,7 +149,7 @@ public abstract class HttpURLConnection extends URLConnection {
      * @return  the key for the {@code n}<sup>th</sup> header field,
      *          or {@code null} if the key does not exist.
      */
-    public String getHeaderFieldKey (int n) {
+    public @Nullable String getHeaderFieldKey (int n) {
         return null;
     }
 
@@ -302,7 +303,7 @@ public abstract class HttpURLConnection extends URLConnection {
      *          or {@code null} if the value does not exist.
      * @see     java.net.HttpURLConnection#getHeaderFieldKey(int)
      */
-    public String getHeaderField(int n) {
+    public @Nullable String getHeaderField(int n) {
         return null;
     }
 
@@ -321,7 +322,7 @@ public abstract class HttpURLConnection extends URLConnection {
     /**
      * The HTTP response message.
      */
-    protected String responseMessage = null;
+    protected @Nullable String responseMessage = null;
 
     /* static variables */
 
@@ -534,7 +535,7 @@ public abstract class HttpURLConnection extends URLConnection {
 
                 try {
                     responseCode = Integer.parseInt
-                            (statusLine.substring(codePos+1, phrasePos));
+                            (statusLine, codePos+1, phrasePos, 10);
                     return responseCode;
                 } catch (NumberFormatException e) { }
             }
@@ -556,6 +557,10 @@ public abstract class HttpURLConnection extends URLConnection {
      * @return the HTTP response message, or {@code null}
      */
     public String getResponseMessage() throws IOException {
+        // If the responseMessage is already set then return it
+        if (responseMessage != null) {
+            return responseMessage;
+        }
         getResponseCode();
         return responseMessage;
     }
@@ -606,7 +611,13 @@ public abstract class HttpURLConnection extends URLConnection {
      * @return a {@code SocketPermission} object representing the
      *         permission necessary to connect to the destination
      *         host and port.
+     *
+     * @deprecated
+     * Permissions can no longer be used for controlling access to resources
+     * as the Security Manager is no longer supported.
      */
+    @Deprecated(since = "25", forRemoval = true)
+    @SuppressWarnings("removal")
     public Permission getPermission() throws IOException {
         int port = url.getPort();
         port = port < 0 ? 80 : port;
@@ -633,7 +644,7 @@ public abstract class HttpURLConnection extends URLConnection {
     * errors, the connection is not connected or the server sent no
     * useful data.
     */
-    public InputStream getErrorStream() {
+    public @Nullable InputStream getErrorStream() {
         return null;
     }
 

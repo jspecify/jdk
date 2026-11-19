@@ -48,7 +48,6 @@ public class NoClassDefFoundError extends LinkageError {
     /**
      * Constructs a {@code NoClassDefFoundError} with no detail message.
      */
-    
     public NoClassDefFoundError() {
         super();
     }
@@ -59,7 +58,6 @@ public class NoClassDefFoundError extends LinkageError {
      *
      * @param   s   the detail message.
      */
-    
     public NoClassDefFoundError(@Nullable String s) {
         super(s);
     }

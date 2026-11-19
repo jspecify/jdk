@@ -21,7 +21,6 @@
  * questions.
  */
 
-#include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "classfile/javaClasses.hpp"
 #include "logging/logStream.hpp"
@@ -158,7 +157,6 @@ address UpcallLinker::make_upcall_stub(jobject receiver, Symbol* signature,
 #ifndef PRODUCT
   LogTarget(Trace, foreign, upcall) lt;
   if (lt.is_enabled()) {
-    ResourceMark rm;
     LogStream ls(lt);
     arg_shuffle.print_on(&ls);
   }
@@ -222,8 +220,12 @@ address UpcallLinker::make_upcall_stub(jobject receiver, Symbol* signature,
   __ call(call_target_address); // load taget Method* into Z_method
   __ block_comment("} load_target");
 
+  __ push_cont_fastpath();
+
   __ z_lg(call_target_address, Address(Z_method, in_bytes(Method::from_compiled_offset())));
   __ call(call_target_address);
+
+  __ pop_cont_fastpath();
 
   // return value shuffle
   assert(!needs_return_buffer, "unexpected needs_return_buffer");
@@ -269,7 +271,7 @@ address UpcallLinker::make_upcall_stub(jobject receiver, Symbol* signature,
 
   //////////////////////////////////////////////////////////////////////////////
 
-  _masm->flush();
+  // Code will be copied. No ICache sync required.
 
 #ifndef PRODUCT
   stringStream ss;
@@ -291,7 +293,6 @@ address UpcallLinker::make_upcall_stub(jobject receiver, Symbol* signature,
 
 #ifndef PRODUCT
   if (lt.is_enabled()) {
-    ResourceMark rm;
     LogStream ls(lt);
     blob->print_on(&ls);
   }

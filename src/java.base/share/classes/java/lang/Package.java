@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,7 +117,7 @@ import jdk.internal.reflect.Reflection;
  * @since 1.2
  */
 @NullMarked
-public  class Package extends NamedPackage implements java.lang.reflect.AnnotatedElement {
+public final class Package extends NamedPackage implements java.lang.reflect.AnnotatedElement {
     /**
      * Return the name of this package.
      *
@@ -125,7 +125,7 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
      *          <cite>The Java Language Specification</cite>,
      *          for example, {@code java.lang}
      */
-    public  String getName() {
+    public String getName() {
         return packageName();
     }
 
@@ -230,7 +230,6 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
      * @return true if the package is sealed, false otherwise
      *
      */
-    
     public boolean isSealed() {
         return module().isNamed() || versionInfo.sealBase != null;
     }
@@ -249,8 +248,7 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
      * @param  url the code source URL
      * @return true if this package is sealed with respect to the given {@code url}
      */
-    
-    public boolean isSealed( URL url) {
+    public boolean isSealed(URL url) {
         Objects.requireNonNull(url);
 
         URL sealBase = null;
@@ -288,7 +286,6 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
      * @throws NumberFormatException if the current version is not known or
      *         the desired or current version is not of the correct dotted form.
      */
-    
     public boolean isCompatibleWith(String desired)
         throws NumberFormatException
     {
@@ -358,11 +355,9 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
      *
      * @see ClassLoader#getDefinedPackage
      */
-    
     @CallerSensitive
     @Deprecated(since="9")
-    @SuppressWarnings("deprecation")
-    public static @Nullable Package getPackage( String name) {
+    public static @Nullable Package getPackage(String name) {
         ClassLoader l = ClassLoader.getClassLoader(Reflection.getCallerClass());
         return l != null ? l.getPackage(name) : BootLoader.getDefinedPackage(name);
     }
@@ -381,7 +376,6 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
      *
      * @see ClassLoader#getDefinedPackages
      */
-    
     @CallerSensitive
     public static Package[] getPackages() {
         ClassLoader cl = ClassLoader.getClassLoader(Reflection.getCallerClass());
@@ -392,7 +386,6 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
      * Return the hash code computed from the package name.
      * @return the hash code computed from the package name.
      */
-    
     @Override
     public int hashCode(){
         return packageName().hashCode();
@@ -405,7 +398,6 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
      * If the package version is defined it is appended.
      * @return the string representation of the package.
      */
-    
     @Override
     public String toString() {
         String spec = versionInfo.specTitle;
@@ -463,9 +455,8 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
      * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
-    
     @Override
-    public boolean isAnnotationPresent( Class<? extends Annotation> annotationClass) {
+    public boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
         return AnnotatedElement.super.isAnnotationPresent(annotationClass);
     }
 
@@ -543,7 +534,7 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
      * @param sealbase code source where this Package comes from
      * @param loader defining class loader
      */
-    Package( String name,
+    Package(String name,
             String spectitle, String specversion, String specvendor,
             String impltitle, String implversion, String implvendor,
             URL sealbase, ClassLoader loader)
@@ -558,7 +549,7 @@ public  class Package extends NamedPackage implements java.lang.reflect.Annotate
                                                    sealbase);
     }
 
-    Package( String name, Module module) {
+    Package(String name, Module module) {
         super(name, module);
         this.versionInfo = VersionInfo.NULL_VERSION_INFO;
     }

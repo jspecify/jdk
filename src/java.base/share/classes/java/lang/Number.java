@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * The abstract class {@code Number} is the superclass of platform
@@ -49,6 +48,16 @@ import org.jspecify.annotations.Nullable;
  * See the documentation of a given {@code Number} implementation for
  * conversion details.
  *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Number} is
+ *          an abstract {@linkplain Class#isValue value class}.
+ *          Subclasses of {@code Number} can be either value classes
+ *          or identity classes.
+ *          See The Java Language Specification {@jls value-objects-8.1.1.5 Value Classes}.
+ *      </div>
+ * </div>
+ *
  * @author      Lee Boynton
  * @author      Arthur van Hoff
  * @jls 5.1.2 Widening Primitive Conversion
@@ -56,7 +65,8 @@ import org.jspecify.annotations.Nullable;
  * @since   1.0
  */
 @NullMarked
-public abstract class Number implements java.io.Serializable {
+// See doc/value-class-preview.md for an overview of value class generation
+public abstract /*value*/ class Number implements java.io.Serializable {
     /**
      * Constructor for subclasses to call.
      */
@@ -68,8 +78,7 @@ public abstract class Number implements java.io.Serializable {
      * @return  the numeric value represented by this object after conversion
      *          to type {@code int}.
      */
-    
-    public abstract  int intValue();
+    public abstract int intValue();
 
     /**
      * Returns the value of the specified number as a {@code long}.
@@ -77,8 +86,7 @@ public abstract class Number implements java.io.Serializable {
      * @return  the numeric value represented by this object after conversion
      *          to type {@code long}.
      */
-    
-    public abstract  long longValue();
+    public abstract long longValue();
 
     /**
      * Returns the value of the specified number as a {@code float}.
@@ -86,8 +94,7 @@ public abstract class Number implements java.io.Serializable {
      * @return  the numeric value represented by this object after conversion
      *          to type {@code float}.
      */
-    
-    public abstract  float floatValue();
+    public abstract float floatValue();
 
     /**
      * Returns the value of the specified number as a {@code double}.
@@ -95,8 +102,7 @@ public abstract class Number implements java.io.Serializable {
      * @return  the numeric value represented by this object after conversion
      *          to type {@code double}.
      */
-    
-    public abstract  double doubleValue();
+    public abstract double doubleValue();
 
     /**
      * Returns the value of the specified number as a {@code byte}.
@@ -109,8 +115,7 @@ public abstract class Number implements java.io.Serializable {
      *          to type {@code byte}.
      * @since   1.1
      */
-    
-    public  byte byteValue() {
+    public byte byteValue() {
         return (byte)intValue();
     }
 
@@ -125,8 +130,7 @@ public abstract class Number implements java.io.Serializable {
      *          to type {@code short}.
      * @since   1.1
      */
-    
-    public  short shortValue() {
+    public short shortValue() {
         return (short)intValue();
     }
 

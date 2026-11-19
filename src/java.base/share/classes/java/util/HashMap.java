@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -283,7 +283,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * Basic hash bin node, used for most entries.  (See below for
      * TreeNode subclass, and in LinkedHashMap for its Entry subclass.)
      */
-    static class Node<K extends @Nullable Object,V extends @Nullable Object> implements Map.Entry<K,V> {
+    static class Node<K,V> implements Map.Entry<K,V> {
         final int hash;
         final K key;
         V value;
@@ -338,7 +338,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * to incorporate impact of the highest bits that would otherwise
      * never be used in index calculations because of table bounds.
      */
-    static final int hash(@Nullable Object key) {
+    static final int hash(Object key) {
         int h;
         return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
     }
@@ -370,7 +370,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * Returns k.compareTo(x) if x matches kc (k's screened comparable
      * class), else 0.
      */
-    @SuppressWarnings({"rawtypes","unchecked"}) // for cast to Comparable
+    @SuppressWarnings("unchecked") // for cast to Comparable
     static int compareComparables(Class<?> kc, Object k, Object x) {
         return (x == null || x.getClass() != kc ? 0 :
                 ((Comparable)k).compareTo(x));
@@ -447,7 +447,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * @throws IllegalArgumentException if the initial capacity is negative
      *         or the load factor is nonpositive
      */
-    public HashMap( int initialCapacity, float loadFactor) {
+    public HashMap(int initialCapacity, float loadFactor) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal initial capacity: " +
                                                initialCapacity);
@@ -471,7 +471,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * @param  initialCapacity the initial capacity.
      * @throws IllegalArgumentException if the initial capacity is negative.
      */
-    public HashMap( int initialCapacity) {
+    public HashMap(int initialCapacity) {
         this(initialCapacity, DEFAULT_LOAD_FACTOR);
     }
 
@@ -498,6 +498,21 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         putMapEntries(m, false);
     }
 
+    // Fast path for HashMap-to-HashMap copying. Eliminates megamorphic
+    // call sites described in JDK-8368292 by walking the source table.
+    // Also reuses pre-computed hash codes, avoiding redundant
+    // hashCode() calls.
+    private void putHashMapEntries(HashMap<? extends K, ? extends V> src, boolean evict) {
+        Node<? extends K, ? extends V>[] tab;
+        if (src.size > 0 && (tab = src.table) != null) {
+            for (Node<? extends K, ? extends V> e : tab) {
+                for (; e != null; e = e.next) {
+                    putVal(e.hash, e.key, e.value, false, evict);
+                }
+            }
+        }
+    }
+
     /**
      * Implements Map.putAll and Map constructor.
      *
@@ -522,6 +537,16 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
                     resize();
             }
 
+            // Fast path when source is a HashMap, or an UnmodifiableMap
+            // wrapping a HashMap. See JDK-8368292.
+            Map<? extends K, ? extends V> hm;
+            if ((hm = m).getClass() == HashMap.class
+                || m instanceof Collections.UnmodifiableMap<? extends K, ? extends V> umap
+                   && (hm = umap.m).getClass() == HashMap.class) {
+                putHashMapEntries((HashMap<? extends K, ? extends V>) hm, evict);
+                return;
+            }
+
             for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
                 K key = e.getKey();
                 V value = e.getValue();
@@ -535,8 +560,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      *
      * @return the number of key-value mappings in this map
      */
-    
-    public  int size() {
+    public int size() {
         return size;
     }
 
@@ -545,7 +569,6 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      *
      * @return {@code true} if this map contains no key-value mappings
      */
-    
     public boolean isEmpty() {
         return size == 0;
     }
@@ -567,7 +590,6 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      *
      * @see #put(Object, Object)
      */
-    
     public @Nullable V get(@Nullable Object key) {
         Node<K,V> e;
         return (e = getNode(key)) == null ? null : e.value;
@@ -623,7 +645,6 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      *         (A {@code null} return can also indicate that the map
      *         previously associated {@code null} with {@code key}.)
      */
-    
     public @Nullable V put(K key, V value) {
         return putVal(hash(key), key, value, false, true);
     }
@@ -690,7 +711,6 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      *
      * @return the table
      */
-    @SuppressWarnings("cast.unsafe") // https://github.com/typetools/checker-framework/issues/2731
     final Node<K,V>[] resize() {
         Node<K,V>[] oldTab = table;
         int oldCap = (oldTab == null) ? 0 : oldTab.length;
@@ -827,7 +847,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * @param movable if false do not move other nodes while removing
      * @return the node, or null if none
      */
-    final Node<K,V> removeNode(int hash, @Nullable Object key, @Nullable Object value,
+    final Node<K,V> removeNode(int hash, Object key, Object value,
                                boolean matchValue, boolean movable) {
         Node<K,V>[] tab; Node<K,V> p; int n, index;
         if ((tab = table) != null && (n = tab.length) > 0 &&
@@ -890,7 +910,6 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * @return {@code true} if this map maps one or more keys to the
      *         specified value
      */
-    
     public boolean containsValue(@Nullable Object value) {
         Node<K,V>[] tab; V v;
         if ((tab = table) != null && size > 0) {
@@ -920,8 +939,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      *
      * @return a set view of the keys contained in this map
      */
-    
-    public Set< K> keySet() {
+    public Set<K> keySet() {
         Set<K> ks = keySet;
         if (ks == null) {
             ks = new KeySet();
@@ -999,16 +1017,13 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
     }
 
     final class KeySet extends AbstractSet<K> {
-        
-        public final  int size()                 { return size; }
+        public final int size()                 { return size; }
         public final void clear()               { HashMap.this.clear(); }
-        
         public final Iterator<K> iterator()     { return new KeyIterator(); }
-        public final boolean contains(@Nullable Object o) { return containsKey(o); }
-        public final boolean remove(@Nullable Object key) {
+        public final boolean contains(Object o) { return containsKey(o); }
+        public final boolean remove(Object key) {
             return removeNode(hash(key), key, null, false, true) != null;
         }
-        
         public final Spliterator<K> spliterator() {
             return new KeySpliterator<>(HashMap.this, 0, -1, 0, 0);
         }
@@ -1052,7 +1067,6 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      *
      * @return a view of the values contained in this map
      */
-    
     public Collection<V> values() {
         Collection<V> vs = values;
         if (vs == null) {
@@ -1063,13 +1077,10 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
     }
 
     final class Values extends AbstractCollection<V> {
-        
-        public final  int size()                 { return size; }
+        public final int size()                 { return size; }
         public final void clear()               { HashMap.this.clear(); }
-        
         public final Iterator<V> iterator()     { return new ValueIterator(); }
-        public final boolean contains(@Nullable Object o) { return containsValue(o); }
-        
+        public final boolean contains(Object o) { return containsValue(o); }
         public final Spliterator<V> spliterator() {
             return new ValueSpliterator<>(HashMap.this, 0, -1, 0, 0);
         }
@@ -1114,17 +1125,14 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      *
      * @return a set view of the mappings contained in this map
      */
-    
-    public Set<Map.Entry< K,V>> entrySet() {
+    public Set<Map.Entry<K,V>> entrySet() {
         Set<Map.Entry<K,V>> es;
         return (es = entrySet) == null ? (entrySet = new EntrySet()) : es;
     }
 
     final class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        
-        public final  int size()                 { return size; }
+        public final int size()                 { return size; }
         public final void clear()               { HashMap.this.clear(); }
-        
         public final Iterator<Map.Entry<K,V>> iterator() {
             return new EntryIterator();
         }
@@ -1143,7 +1151,6 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
             }
             return false;
         }
-        
         public final Spliterator<Map.Entry<K,V>> spliterator() {
             return new EntrySpliterator<>(HashMap.this, 0, -1, 0, 0);
         }
@@ -1171,7 +1178,6 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         return (e = getNode(key)) == null ? defaultValue : e.value;
     }
 
-    
     @Override
     public @Nullable V putIfAbsent(K key, V value) {
         return putVal(hash(key), key, value, true, true);
@@ -1484,7 +1490,6 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      *
      * @return a shallow copy of this map
      */
-    
     @SuppressWarnings("unchecked")
     @Override
     public Object clone() {
@@ -1667,7 +1672,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
     /* ------------------------------------------------------------ */
     // spliterators
 
-    static class HashMapSpliterator<K extends @Nullable Object,V extends @Nullable Object> {
+    static class HashMapSpliterator<K,V> {
         final HashMap<K,V> map;
         Node<K,V> current;          // current node
         int index;                  // current index, modified on advance/split
@@ -1703,7 +1708,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         }
     }
 
-    static final class KeySpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class KeySpliterator<K,V>
         extends HashMapSpliterator<K,V>
         implements Spliterator<K> {
         KeySpliterator(HashMap<K,V> m, int origin, int fence, int est,
@@ -1775,7 +1780,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         }
     }
 
-    static final class ValueSpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class ValueSpliterator<K,V>
         extends HashMapSpliterator<K,V>
         implements Spliterator<V> {
         ValueSpliterator(HashMap<K,V> m, int origin, int fence, int est,
@@ -1846,7 +1851,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         }
     }
 
-    static final class EntrySpliterator<K extends @Nullable Object,V extends @Nullable Object>
+    static final class EntrySpliterator<K,V>
         extends HashMapSpliterator<K,V>
         implements Spliterator<Map.Entry<K,V>> {
         EntrySpliterator(HashMap<K,V> m, int origin, int fence, int est,
@@ -1989,7 +1994,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
      * extends Node) so can be used as extension of either regular or
      * linked node.
      */
-    static final class TreeNode<K extends @Nullable Object,V extends @Nullable Object> extends LinkedHashMap.Entry<K,V> {
+    static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V> {
         TreeNode<K,V> parent;  // red-black tree links
         TreeNode<K,V> left;
         TreeNode<K,V> right;
@@ -2013,7 +2018,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         /**
          * Ensures that the given root is the first node of its bin.
          */
-        static <K extends @Nullable Object,V extends @Nullable Object> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root) {
+        static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root) {
             int n;
             if (root != null && tab != null && (n = tab.length) > 0) {
                 int index = (n - 1) & root.hash;
@@ -2370,7 +2375,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         /* ------------------------------------------------------------ */
         // Red-black tree methods, all adapted from CLR
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
                                               TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
             if (p != null && (r = p.right) != null) {
@@ -2388,7 +2393,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
             return root;
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
                                                TreeNode<K,V> p) {
             TreeNode<K,V> l, pp, lr;
             if (p != null && (l = p.left) != null) {
@@ -2406,7 +2411,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
             return root;
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                                                     TreeNode<K,V> x) {
             x.red = true;
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
@@ -2461,7 +2466,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
             }
         }
 
-        static <K extends @Nullable Object,V extends @Nullable Object> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
+        static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                                    TreeNode<K,V> x) {
             for (TreeNode<K,V> xp, xpl, xpr;;) {
                 if (x == null || x == root)
@@ -2556,7 +2561,7 @@ public class HashMap<K extends @Nullable Object,V extends @Nullable Object> exte
         /**
          * Recursive invariant check
          */
-        static <K extends @Nullable Object,V extends @Nullable Object> boolean checkInvariants(TreeNode<K,V> t) {
+        static <K,V> boolean checkInvariants(TreeNode<K,V> t) {
             TreeNode<K,V> tp = t.parent, tl = t.left, tr = t.right,
                 tb = t.prev, tn = (TreeNode<K,V>)t.next;
             if (tb != null && tb.next != t)

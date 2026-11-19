@@ -1224,7 +1224,7 @@ public class ObjectName implements Comparable<ObjectName>, QueryExp {
     public static ObjectName getInstance(ObjectName name) {
         if (name.getClass().equals(ObjectName.class))
             return name;
-        return Util.newObjectName(name.getSerializedNameString());
+        return sun.management.Util.newObjectName(name.getSerializedNameString());
     }
 
     /**
@@ -1668,8 +1668,6 @@ public class ObjectName implements Comparable<ObjectName>, QueryExp {
      * canonical form is equal to that of this ObjectName.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object object)  {
 
         // same object case
@@ -1817,7 +1815,7 @@ public class ObjectName implements Comparable<ObjectName>, QueryExp {
      *
      * @since 1.6
      */
-    public static final ObjectName WILDCARD = Util.newObjectName("*:*");
+    public static final ObjectName WILDCARD = sun.management.Util.newObjectName("*:*");
 
     // Category : Utilities <===================================
 

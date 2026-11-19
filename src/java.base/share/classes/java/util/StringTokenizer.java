@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -335,7 +335,7 @@ public class StringTokenizer implements Enumeration<Object> {
      * @throws     NoSuchElementException  if there are no more tokens in this
      *               tokenizer's string.
      */
-    public  String nextToken() {
+    public String nextToken() {
         /*
          * If next position already computed in hasMoreElements() and
          * delimiters have changed between the computation and this invocation,
@@ -371,7 +371,9 @@ public class StringTokenizer implements Enumeration<Object> {
      *               tokenizer's string.
      * @throws    NullPointerException if delim is {@code null}
      */
-    public  String nextToken(String delim) {
+    public String nextToken(String delim) {
+        Objects.requireNonNull(delim);
+
         delimiters = delim;
 
         /* delimiter string specified, so set the appropriate flag. */
@@ -420,7 +422,7 @@ public class StringTokenizer implements Enumeration<Object> {
      *          delimiter set.
      * @see     java.util.StringTokenizer#nextToken()
      */
-    public  int countTokens() {
+    public int countTokens() {
         int count = 0;
         int currpos = currentPosition;
         while (currpos < maxPosition) {

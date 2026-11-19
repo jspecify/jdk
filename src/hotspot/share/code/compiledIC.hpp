@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@
 #include "code/nativeInst.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "runtime/safepointVerifiers.hpp"
-#include "opto/c2_MacroAssembler.hpp"
 
 //-----------------------------------------------------------------------------
 // The CompiledIC represents a compiled inline cache.
@@ -51,7 +50,7 @@ class CompiledICLocker: public StackObj {
 public:
   CompiledICLocker(nmethod* method);
   ~CompiledICLocker();
-  static bool is_safe(nmethod* method);
+  static bool is_safe(nmethod* nm);
   static bool is_safe(address code);
 };
 
@@ -62,7 +61,6 @@ public:
 
 class CompiledICData : public CHeapObj<mtCode> {
   friend class VMStructs;
-  friend class JVMCIVMStructs;
 
   Method*   volatile _speculated_method;
   uintptr_t volatile _speculated_klass;
@@ -110,8 +108,8 @@ private:
   bool is_speculated_klass(Klass* receiver_klass);
 
   // Inline cache states
-  void set_to_monomorphic();
-  void set_to_megamorphic(CallInfo* call_info);
+  void set_to_monomorphic(bool caller_is_c1);
+  void set_to_megamorphic(CallInfo* call_info, bool caller_is_c1);
 
 public:
   // conversion (machine PC to CompiledIC*)
@@ -132,7 +130,7 @@ public:
   // MT-safe patching of inline caches. Note: Only safe to call is_xxx when holding the CompiledICLocker
   // so you are guaranteed that no patching takes place. The same goes for verify.
   void set_to_clean();
-  void update(CallInfo* call_info, Klass* receiver_klass);
+  void update(CallInfo* call_info, Klass* receiver_klass, bool caller_is_c1);
 
   // GC support
   void clean_metadata();
@@ -159,7 +157,7 @@ CompiledIC* CompiledIC_at(RelocIterator* reloc_iter);
 //           -----<----- Clean ----->-----
 //          /                             \
 //         /                               \
-//    compilled code <------------> interpreted code
+//    compiled code <------------> interpreted code
 //
 //  Clean:            Calls directly to runtime method for fixup
 //  Compiled code:    Calls directly to compiled code
@@ -193,13 +191,13 @@ private:
 
   static inline CompiledDirectCall* before(address return_addr) {
     CompiledDirectCall* st = new CompiledDirectCall(nativeCall_before(return_addr));
-    st->verify();
+    if (VerifyInlineCaches) st->verify();
     return st;
   }
 
   static inline CompiledDirectCall* at(address native_call) {
     CompiledDirectCall* st = new CompiledDirectCall(nativeCall_at(native_call));
-    st->verify();
+    if (VerifyInlineCaches) st->verify();
     return st;
   }
 
@@ -214,7 +212,7 @@ private:
   // Clean static call (will force resolving on next use)
   void set_to_clean();
 
-  void set(const methodHandle& callee_method);
+  void set(const methodHandle& callee_method, bool caller_is_c1);
 
   // State
   bool is_clean() const;

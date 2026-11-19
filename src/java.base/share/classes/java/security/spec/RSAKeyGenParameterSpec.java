@@ -26,6 +26,7 @@
 package java.security.spec;
 
 import java.math.BigInteger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class specifies the set of parameters used to generate an RSA
@@ -75,7 +76,7 @@ public class RSAKeyGenParameterSpec implements AlgorithmParameterSpec {
      * @since 11
      */
     public RSAKeyGenParameterSpec(int keysize, BigInteger publicExponent,
-            AlgorithmParameterSpec keyParams) {
+            @Nullable AlgorithmParameterSpec keyParams) {
         this.keysize = keysize;
         this.publicExponent = publicExponent;
         this.keyParams = keyParams;

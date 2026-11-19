@@ -212,8 +212,6 @@ public final class ShapeGraphicAttribute extends GraphicAttribute {
      * {@code ShapeGraphicAttribute} equals {@code rhs};
      * {@code false} otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object rhs) {
 
         try {

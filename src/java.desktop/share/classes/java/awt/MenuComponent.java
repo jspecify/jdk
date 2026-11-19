@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,6 @@ import javax.accessibility.AccessibleState;
 import javax.accessibility.AccessibleStateSet;
 
 import sun.awt.AWTAccessor;
-import sun.awt.AppContext;
 import sun.awt.ComponentFactory;
 
 /**
@@ -59,12 +58,6 @@ public abstract class MenuComponent implements java.io.Serializable {
 
     transient volatile MenuComponentPeer peer;
     transient volatile MenuContainer parent;
-
-    /**
-     * The {@code AppContext} of the {@code MenuComponent}.
-     * This is set in the constructor and never changes.
-     */
-    private transient volatile AppContext appContext;
 
     /**
      * The menu component's font. This value can be
@@ -117,15 +110,6 @@ public abstract class MenuComponent implements java.io.Serializable {
         AWTAccessor.setMenuComponentAccessor(
             new AWTAccessor.MenuComponentAccessor() {
                 @Override
-                public AppContext getAppContext(MenuComponent menuComp) {
-                    return menuComp.appContext;
-                }
-                @Override
-                public void setAppContext(MenuComponent menuComp,
-                                          AppContext appContext) {
-                    menuComp.appContext = appContext;
-                }
-                @Override
                 @SuppressWarnings("unchecked")
                 public <T extends MenuComponentPeer> T getPeer(MenuComponent menuComp) {
                     return (T) menuComp.peer;
@@ -154,7 +138,6 @@ public abstract class MenuComponent implements java.io.Serializable {
      */
     public MenuComponent() throws HeadlessException {
         GraphicsEnvironment.checkHeadless();
-        appContext = AppContext.getAppContext();
     }
 
     /**
@@ -428,15 +411,13 @@ public abstract class MenuComponent implements java.io.Serializable {
         GraphicsEnvironment.checkHeadless();
 
         s.defaultReadObject();
-
-        appContext = AppContext.getAppContext();
     }
 
     /*
      * --- Accessibility Support ---
      */
     /**
-     * MenuComponent will contain all of the methods in interface Accessible,
+     * @serial MenuComponent will contain all of the methods in interface Accessible,
      * though it won't actually implement the interface - that will be up
      * to the individual objects which extend MenuComponent.
      */

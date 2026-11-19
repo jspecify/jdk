@@ -52,7 +52,6 @@ public class InstantiationException extends ReflectiveOperationException {
     /**
      * Constructs an {@code InstantiationException} with no detail message.
      */
-    
     public InstantiationException() {
         super();
     }
@@ -63,7 +62,6 @@ public class InstantiationException extends ReflectiveOperationException {
      *
      * @param   s   the detail message.
      */
-    
     public InstantiationException(@Nullable String s) {
         super(s);
     }

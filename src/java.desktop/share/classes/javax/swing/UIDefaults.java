@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,6 @@ package javax.swing;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import javax.swing.plaf.ComponentUI;
-
-
 import javax.swing.border.*;
 import javax.swing.event.SwingPropertyChangeSupport;
 
@@ -1174,9 +1172,9 @@ public class UIDefaults extends Hashtable<Object,Object>
          */
         private Class<?>[] getClassArray(Object[] args) {
             Class<?>[] types = null;
-            if (args!=null) {
+            if (args != null) {
                 types = new Class<?>[args.length];
-                for (int i = 0; i< args.length; i++) {
+                for (int i = 0; i < args.length; i++) {
                     /* PENDING(ges): At present only the primitive types
                        used are handled correctly; this should eventually
                        handle all primitive types */
@@ -1204,7 +1202,7 @@ public class UIDefaults extends Hashtable<Object,Object>
 
         private String printArgs(Object[] array) {
             String s = "{";
-            if (array !=null) {
+            if (array != null) {
                 for (int i = 0 ; i < array.length-1; i++) {
                     s = s.concat(array[i] + ",");
                 }

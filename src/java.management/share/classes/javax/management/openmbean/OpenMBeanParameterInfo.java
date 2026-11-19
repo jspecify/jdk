@@ -181,8 +181,6 @@ public interface OpenMBeanParameterInfo {
      *
      * @return  {@code true} if the specified object is equal to this {@code OpenMBeanParameterInfo} instance.
      */
-    
-    
     public boolean equals(@Nullable Object obj);
 
     /**

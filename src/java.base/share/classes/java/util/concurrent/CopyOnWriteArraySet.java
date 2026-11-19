@@ -38,6 +38,13 @@ package java.util.concurrent;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import jdk.internal.misc.Unsafe;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectStreamException;
+import java.io.Serial;
+import java.io.StreamCorruptedException;
 import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Iterator;
@@ -103,6 +110,7 @@ public class CopyOnWriteArraySet<E extends @Nullable Object> extends AbstractSet
         implements java.io.Serializable {
     private static final long serialVersionUID = 5457747651344034263L;
 
+    /** @serial */
     private final CopyOnWriteArrayList<E> al;
 
     /**
@@ -136,7 +144,6 @@ public class CopyOnWriteArraySet<E extends @Nullable Object> extends AbstractSet
      *
      * @return the number of elements in this set
      */
-    
     public int size() {
         return al.size();
     }
@@ -146,7 +153,6 @@ public class CopyOnWriteArraySet<E extends @Nullable Object> extends AbstractSet
      *
      * @return {@code true} if this set contains no elements
      */
-    
     public boolean isEmpty() {
         return al.isEmpty();
     }
@@ -411,8 +417,6 @@ public class CopyOnWriteArraySet<E extends @Nullable Object> extends AbstractSet
      * @param o object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         return (o == this)
             || ((o instanceof Set)
@@ -451,5 +455,39 @@ public class CopyOnWriteArraySet<E extends @Nullable Object> extends AbstractSet
     public Spliterator<E> spliterator() {
         return Spliterators.spliterator
             (al.getArray(), Spliterator.IMMUTABLE | Spliterator.DISTINCT);
+    }
+
+    /**
+     * De-serialization without data not supported for this class.
+     */
+    @Serial
+    private void readObjectNoData() throws ObjectStreamException {
+        throw new StreamCorruptedException("Deserialized CopyOnWriteArraySet requires data");
+    }
+
+    /**
+     * Reconstitutes the {@code CopyOnWriteArraySet} instance from a stream
+     * (that is, deserializes it).
+     * @throws StreamCorruptedException if the object read from the stream is invalid.
+     */
+    @Serial
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        CopyOnWriteArrayList<E> newAl; // Set during the duplicate check
+
+        @SuppressWarnings("unchecked")
+        CopyOnWriteArrayList<E> inAl = (CopyOnWriteArrayList<E>) in.readFields().get("al", null);
+
+        if (inAl == null
+                || inAl.getClass() != CopyOnWriteArrayList.class
+                || (newAl = new CopyOnWriteArrayList<>()).addAllAbsent(inAl) != inAl.size()) {
+            throw new StreamCorruptedException("Content is invalid");
+        }
+
+        final Unsafe U = Unsafe.getUnsafe();
+        U.putReference(
+                this,
+                U.objectFieldOffset(CopyOnWriteArraySet.class, "al"),
+                newAl
+        );
     }
 }

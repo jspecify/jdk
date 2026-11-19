@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,27 +28,36 @@ package java.lang.ref;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import jdk.internal.misc.Unsafe;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.access.JavaLangRefAccess;
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.ref.Cleaner;
+
+import java.util.Objects;
 
 /**
  * Abstract base class for reference objects.  This class defines the
  * operations common to all reference objects.  Because reference objects are
  * implemented in close cooperation with the garbage collector, this class may
  * not be subclassed directly.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          The referent must have {@linkplain Objects#hasIdentity(Object) object identity}.
+ *          When preview features are enabled, attempts to create a reference
+ *          to a {@linkplain Class#isValue value object} result in an {@link IdentityException}.
+ *      </div>
+ * </div>
  * @param <T> the type of the referent
  *
  * @author   Mark Reinhold
  * @since    1.2
  * @sealedGraph
  */
-
 @NullMarked
-public abstract sealed class Reference<T>
+@AOTSafeClassInitializer
+public abstract sealed class Reference<@jdk.internal.RequiresIdentity T>
     permits PhantomReference, SoftReference, WeakReference, FinalReference {
 
     /* The state of a Reference object is characterized by two attributes.  It
@@ -80,10 +89,10 @@ public abstract sealed class Reference<T>
      *   indicate end of list.
      *
      *   Dequeued: Added to the associated queue and then removed.
-     *   queue = ReferenceQueue.NULL; next = this.
+     *   queue = ReferenceQueue.NULL_QUEUE; next = this.
      *
      *   Unregistered: Not associated with a queue when created.
-     *   queue = ReferenceQueue.NULL.
+     *   queue = ReferenceQueue.NULL_QUEUE.
      *
      * The collector only needs to examine the referent field and the
      * discovered field to determine whether a (non-FinalReference) Reference
@@ -165,8 +174,8 @@ public abstract sealed class Reference<T>
      *
      * When registered: the queue with which this reference is registered.
      *        enqueued: ReferenceQueue.ENQUEUE
-     *        dequeued: ReferenceQueue.NULL
-     *    unregistered: ReferenceQueue.NULL
+     *        dequeued: ReferenceQueue.NULL_QUEUE
+     *    unregistered: ReferenceQueue.NULL_QUEUE
      */
     volatile ReferenceQueue<? super T> queue;
 
@@ -202,13 +211,7 @@ public abstract sealed class Reference<T>
             super(g, null, name, 0, false);
         }
 
-        @SuppressWarnings({"unchecked"})
         public void run() {
-            // pre-load and initialize Cleaner class so that we don't
-            // get into trouble later in the run loop if there's
-            // memory shortage while loading/initializing it lazily.
-            Unsafe.getUnsafe().ensureClassInitialized(Cleaner.class);
-
             while (true) {
                 processPendingReferences();
             }
@@ -237,7 +240,7 @@ public abstract sealed class Reference<T>
      */
     private void enqueueFromPending() {
         var q = queue;
-        if (q != ReferenceQueue.NULL) q.enqueue(this);
+        if (q != ReferenceQueue.NULL_QUEUE) q.enqueue(this);
     }
 
     private static final Object processPendingLock = new Object();
@@ -258,18 +261,7 @@ public abstract sealed class Reference<T>
             Reference<?> ref = pendingList;
             pendingList = ref.discovered;
             ref.discovered = null;
-
-            if (ref instanceof Cleaner) {
-                ((Cleaner)ref).clean();
-                // Notify any waiters that progress has been made.
-                // This improves latency for nio.Bits waiters, which
-                // are the only important ones.
-                synchronized (processPendingLock) {
-                    processPendingLock.notifyAll();
-                }
-            } else {
-                ref.enqueueFromPending();
-            }
+            ref.enqueueFromPending();
         }
         // Notify any waiters of completion of current round.
         synchronized (processPendingLock) {
@@ -357,10 +349,17 @@ public abstract sealed class Reference<T>
      *           {@code null} if this reference object has been cleared
      * @see #refersTo
      */
-    @IntrinsicCandidate
     public @Nullable T get() {
-        return this.referent;
+        return get0();
     }
+
+    /* Implementation of get().  This method exists to avoid making get() all
+     * of virtual, native, and intrinsic candidate. That could have the
+     * undesirable effect of having the native method used instead of the
+     * intrinsic when devirtualization fails.
+     */
+    @IntrinsicCandidate
+    private native T get0();
 
     /**
      * Tests if the referent of this reference object is {@code obj}.
@@ -543,10 +542,12 @@ public abstract sealed class Reference<T>
         this(referent, null);
     }
 
-    @SuppressWarnings({"unchecked"})
     Reference(T referent, ReferenceQueue<? super T> queue) {
+        if (referent != null) {
+            Objects.requireIdentity(referent);
+        }
         this.referent = referent;
-        this.queue = (queue == null) ? ReferenceQueue.NULL : queue;
+        this.queue = (queue == null) ? ReferenceQueue.NULL_QUEUE : queue;
     }
 
     /**
@@ -660,12 +661,9 @@ public abstract sealed class Reference<T>
      * {@code null}, this method has no effect.
      * @since 9
      */
-    @ForceInline
+    @IntrinsicCandidate
     public static void reachabilityFence(@Nullable Object ref) {
-        // Does nothing. This method is annotated with @ForceInline to eliminate
-        // most of the overhead that using @DontInline would cause with the
-        // HotSpot JVM, when this fence is used in a wide variety of situations.
-        // HotSpot JVM retains the ref and does not GC it before a call to
-        // this method, because the JIT-compilers do not have GC-only safepoints.
+        // Does nothing. HotSpot JVM retains the ref and does not GC it before a call to this method.
+        // Using an intrinsic allows JIT-compilers to further optimize it while retaining the correct semantics.
     }
 }

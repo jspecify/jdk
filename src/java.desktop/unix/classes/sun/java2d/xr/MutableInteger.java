@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,19 +33,19 @@ import org.jspecify.annotations.Nullable;
  * @author Clemens Eisserer
  */
 
-public class MutableInteger {
+public final class MutableInteger {
     private int value;
 
     public MutableInteger(int value) {
         this.setValue(value);
     }
 
+    @Override
     public int hashCode() {
         return getValue();
     }
 
-    
-    
+    @Override
     public boolean equals(@Nullable Object o) {
         return (o instanceof MutableInteger) &&
                (((MutableInteger) o).getValue() == getValue());

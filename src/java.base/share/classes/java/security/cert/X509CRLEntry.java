@@ -25,6 +25,8 @@
 
 package java.security.cert;
 
+import org.jspecify.annotations.Nullable;
+
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Date;
@@ -144,7 +146,7 @@ public abstract class X509CRLEntry implements X509Extension {
      *
      * @since 1.5
      */
-    public X500Principal getCertificateIssuer() {
+    public @Nullable X500Principal getCertificateIssuer() {
         return null;
     }
 
@@ -179,7 +181,7 @@ public abstract class X509CRLEntry implements X509Extension {
      *    a Reason Code extension
      * @since 1.7
      */
-    public CRLReason getRevocationReason() {
+    public @Nullable CRLReason getRevocationReason() {
         if (!hasExtensions()) {
             return null;
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,15 +34,15 @@
  * @library ../pkcs11
  * @library ../pkcs11/ec
  * @library ../pkcs11/sslecc
- * @library ../../../java/security/testlibrary
  * @library ../../../javax/net/ssl/TLSCommon
  * @modules jdk.crypto.cryptoki/sun.security.pkcs11.wrapper
- * @run main/othervm -Djdk.tls.namedGroups="secp256r1" TestEC
+ * @run main/othervm -Dtest.debug=true -Djdk.tls.namedGroups="secp256r1" TestEC
  */
 
 import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.Security;
+import jdk.test.lib.security.ProvidersSnapshot;
 
 /*
  * Leverage the collection of EC tests used by PKCS11
@@ -62,7 +62,7 @@ public class TestEC {
     /*
      * Turn on SSL debugging
      */
-    private static final boolean debug = true;
+    private static final boolean debug = Boolean.getBoolean("test.debug");
 
     public static void main(String[] args) throws Exception {
         // reset security properties to make sure that the algorithms

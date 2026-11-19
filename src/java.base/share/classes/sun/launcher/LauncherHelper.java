@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,7 +73,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jdk.internal.misc.MethodFinder;
-import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.module.ModuleBootstrap;
 import jdk.internal.module.Modules;
@@ -99,11 +98,14 @@ public final class LauncherHelper {
             "javafx.application.Application";
     private static final String JAVAFX_FXHELPER_CLASS_NAME_SUFFIX =
             "sun.launcher.LauncherHelper$FXHelper";
+    private static final String JAVAFX_GRAPHICS_MODULE_NAME =
+            "javafx.graphics";
     private static final String LAUNCHER_AGENT_CLASS = "Launcher-Agent-Class";
     private static final String MAIN_CLASS = "Main-Class";
     private static final String ADD_EXPORTS = "Add-Exports";
     private static final String ADD_OPENS = "Add-Opens";
     private static final String ENABLE_NATIVE_ACCESS = "Enable-Native-Access";
+    private static final String ENABLE_FINAL_FIELD_MUTATION = "Enable-Final-Field-Mutation";
 
     private static StringBuilder outBuf = new StringBuilder();
 
@@ -156,7 +158,6 @@ public final class LauncherHelper {
      *    this code determine this value, using a suitable method or omit the
      *    line entirely.
      */
-    @SuppressWarnings("fallthrough")
     static void showSettings(boolean printToStderr, String optionFlag,
             long initialHeapSize, long maxHeapSize, long stackSize) {
 
@@ -187,7 +188,7 @@ public final class LauncherHelper {
             return Option.DEFAULT;
         }
 
-        if (optionFlag.equals("-XshowSetings:")) {
+        if (optionFlag.equals("-XshowSettings:")) {
             abort(null, "java.launcher.bad.option", ":");
         }
 
@@ -649,12 +650,24 @@ public final class LauncherHelper {
         if (opens != null) {
             addExportsOrOpens(opens, true);
         }
+
+        // Enable-Native-Access
         String enableNativeAccess = mainAttrs.getValue(ENABLE_NATIVE_ACCESS);
         if (enableNativeAccess != null) {
             if (!enableNativeAccess.equals("ALL-UNNAMED")) {
                 abort(null, "java.launcher.jar.error.illegal.ena.value", enableNativeAccess);
             }
             Modules.addEnableNativeAccessToAllUnnamed();
+        }
+
+        // Enable-Final-Field-Mutation
+        String enableFinalFieldMutation = mainAttrs.getValue(ENABLE_FINAL_FIELD_MUTATION);
+        if (enableFinalFieldMutation != null) {
+            if (!enableFinalFieldMutation.equals("ALL-UNNAMED")) {
+                abort(null, "java.launcher.jar.error.illegal.effm.value",
+                        enableFinalFieldMutation);
+            }
+            Modules.addEnableFinalMutationToAllUnnamed();
         }
 
         /*
@@ -733,7 +746,6 @@ public final class LauncherHelper {
      *
      * @return the application's main class
      */
-    @SuppressWarnings("fallthrough")
     public static Class<?> checkAndLoadMain(boolean printToStderr,
                                             int mode,
                                             String what) {
@@ -758,8 +770,9 @@ public final class LauncherHelper {
          * the main class may or may not have a main method, so do this before
          * validating the main class.
          */
-        if (JAVAFX_FXHELPER_CLASS_NAME_SUFFIX.equals(mainClass.getName()) ||
-            doesExtendFXApplication(mainClass)) {
+        if ((JAVAFX_FXHELPER_CLASS_NAME_SUFFIX.equals(mainClass.getName()) ||
+                doesExtendFXApplication(mainClass)) &&
+                ModuleLayer.boot().findModule(JAVAFX_GRAPHICS_MODULE_NAME).isPresent()) {
             // Will abort() if there are problems with FX runtime
             FXHelper.setFXLaunchParameters(what, mode);
             mainClass = FXHelper.class;
@@ -947,19 +960,13 @@ public final class LauncherHelper {
 
         int mods = mainMethod.getModifiers();
         isStaticMain = Modifier.isStatic(mods);
-        boolean isPublic = Modifier.isPublic(mods);
         noArgMain = mainMethod.getParameterCount() == 0;
-
-        if (!PreviewFeatures.isEnabled()) {
-            if (!isStaticMain || !isPublic || noArgMain) {
-                  abort(null, "java.launcher.cls.error2", mainClass.getName(),
-                       JAVAFX_APPLICATION_CLASS_NAME);
-            }
-            return;
-        }
 
         if (!isStaticMain) {
             String className = mainMethod.getDeclaringClass().getName();
+            if (Modifier.isAbstract(mainClass.getModifiers())) {
+                abort(null, "java.launcher.cls.error8", className);
+            }
             if (mainClass.isMemberClass() && !Modifier.isStatic(mainClass.getModifiers())) {
                 abort(null, "java.launcher.cls.error7", className);
             }
@@ -1077,9 +1084,6 @@ public final class LauncherHelper {
     }
 
     static final class FXHelper {
-
-        private static final String JAVAFX_GRAPHICS_MODULE_NAME =
-                "javafx.graphics";
 
         private static final String JAVAFX_LAUNCHER_CLASS_NAME =
                 "com.sun.javafx.application.LauncherImpl";

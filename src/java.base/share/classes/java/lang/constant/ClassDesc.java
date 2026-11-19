@@ -31,6 +31,7 @@ import jdk.internal.constant.ArrayClassDescImpl;
 import jdk.internal.constant.ConstantUtils;
 import jdk.internal.constant.PrimitiveClassDescImpl;
 import jdk.internal.constant.ClassOrInterfaceDescImpl;
+import org.jspecify.annotations.Nullable;
 
 import static jdk.internal.constant.ConstantUtils.*;
 
@@ -259,7 +260,7 @@ public sealed interface ClassDesc
      * @return a {@linkplain ClassDesc} describing the component type, or {@code null}
      * if this descriptor does not describe an array type
      */
-    default ClassDesc componentType() {
+    default @Nullable ClassDesc componentType() {
         return null;
     }
 

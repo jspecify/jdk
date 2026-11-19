@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  *
  */
 
-#include "precompiled.hpp"
+#include "cds/aotMetaspace.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/javaThread.hpp"
@@ -44,6 +44,11 @@ void* GrowableArrayArenaAllocator::allocate(int max, int element_size, Arena* ar
 
 void* GrowableArrayCHeapAllocator::allocate(int max, int element_size, MemTag mem_tag) {
   assert(max >= 0, "integer overflow");
+
+  if (max == 0) {
+    return nullptr;
+  }
+
   size_t byte_size = element_size * (size_t) max;
 
   // memory tag has to be specified for C heap allocation
@@ -52,7 +57,9 @@ void* GrowableArrayCHeapAllocator::allocate(int max, int element_size, MemTag me
 }
 
 void GrowableArrayCHeapAllocator::deallocate(void* elements) {
-  FreeHeap(elements);
+  if (!MetaspaceObj::is_pointer_in_aot_cache(elements)) {
+    FreeHeap(elements);
+  }
 }
 
 #ifdef ASSERT

@@ -85,7 +85,6 @@ public class InputSource {
      * @see #setCharacterStream
      * @see #setEncoding
      */
-    
     public InputSource ()
     {
     }
@@ -108,8 +107,7 @@ public class InputSource {
      * @see #setEncoding
      * @see #setCharacterStream
      */
-    
-    public InputSource (String systemId)
+    public InputSource (@Nullable String systemId)
     {
         setSystemId(systemId);
     }
@@ -130,8 +128,7 @@ public class InputSource {
      * @see #setByteStream
      * @see #setCharacterStream
      */
-    
-    public InputSource (InputStream byteStream)
+    public InputSource (@Nullable InputStream byteStream)
     {
         setByteStream(byteStream);
     }
@@ -152,8 +149,7 @@ public class InputSource {
      * @see #setByteStream
      * @see #setCharacterStream
      */
-    
-    public InputSource (Reader characterStream)
+    public InputSource (@Nullable Reader characterStream)
     {
         setCharacterStream(characterStream);
     }
@@ -183,7 +179,6 @@ public class InputSource {
      * @return The public identifier, or null if none was supplied.
      * @see #setPublicId
      */
-    
     public @Nullable String getPublicId ()
     {
         return publicId;
@@ -231,7 +226,6 @@ public class InputSource {
      * @see #setSystemId
      * @see #getEncoding
      */
-    
     public @Nullable String getSystemId ()
     {
         return systemId;
@@ -271,7 +265,6 @@ public class InputSource {
      * @see #getEncoding
      * @see #setByteStream
      */
-    
     public @Nullable InputStream getByteStream ()
     {
         return byteStream;
@@ -309,7 +302,6 @@ public class InputSource {
      * @see #getSystemId
      * @see #getByteStream
      */
-    
     public @Nullable String getEncoding ()
     {
         return encoding;
@@ -340,7 +332,6 @@ public class InputSource {
      * @return The character stream, or null if none was supplied.
      * @see #setCharacterStream
      */
-    
     public @Nullable Reader getCharacterStream ()
     {
         return characterStream;

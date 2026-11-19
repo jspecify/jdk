@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -115,7 +115,7 @@ import jdk.internal.event.ThrowableTracer;
  * @since 1.0
  */
 @NullMarked
-public  class Throwable implements Serializable {
+public class Throwable implements Serializable {
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
     @java.io.Serial
     private static final long serialVersionUID = -3042686055658047285L;
@@ -124,7 +124,7 @@ public  class Throwable implements Serializable {
      * Flag set by jdk.internal.event.JFRTracing to indicate if
      * exceptions should be traced by JFR.
      */
-    static volatile boolean jfrTracing;
+    static boolean jfrTracing;
 
     /**
      * The JVM saves some indication of the stack backtrace in this slot.
@@ -409,7 +409,6 @@ public  class Throwable implements Serializable {
      * @return  the detail message string of this {@code Throwable} instance
      *          (which may be {@code null}).
      */
-    
     public @Nullable String getMessage() {
         return detailMessage;
     }
@@ -424,7 +423,6 @@ public  class Throwable implements Serializable {
      * @return  The localized description of this throwable.
      * @since   1.1
      */
-    
     public @Nullable String getLocalizedMessage() {
         return getMessage();
     }
@@ -449,7 +447,6 @@ public  class Throwable implements Serializable {
      *          cause is nonexistent or unknown.
      * @since 1.4
      */
-    
     public synchronized @Nullable Throwable getCause() {
         return (cause==this ? null : cause);
     }
@@ -490,7 +487,7 @@ public  class Throwable implements Serializable {
      *         been called on this throwable.
      * @since  1.4
      */
-    public synchronized  Throwable initCause(@Nullable Throwable cause) {
+    public synchronized Throwable initCause(@Nullable Throwable cause) {
         if (this.cause != this)
             throw new IllegalStateException("Can't overwrite cause with " +
                                             Objects.toString(cause, "a null"), this);
@@ -524,7 +521,6 @@ public  class Throwable implements Serializable {
      *
      * @return a string representation of this throwable.
      */
-    
     public String toString() {
         String s = getClass().getName();
         String message = getLocalizedMessage();

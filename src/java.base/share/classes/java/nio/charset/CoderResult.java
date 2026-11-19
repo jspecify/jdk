@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * A description of the result state of a coder.
@@ -81,7 +82,8 @@ import java.util.Map;
  * @since 1.4
  */
 
-public class CoderResult {
+@NullMarked
+public final class CoderResult {
 
     private static final int CR_UNDERFLOW  = 0;
     private static final int CR_OVERFLOW   = 1;

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, 2023 SAP SE. All rights reserved.
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/metaspaceSettings.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
@@ -184,8 +183,8 @@ class ChunkManagerRandomChunkAllocTest {
   }
 
   // adjust test if we change levels
-  STATIC_ASSERT(HIGHEST_CHUNK_LEVEL == CHUNK_LEVEL_1K);
-  STATIC_ASSERT(LOWEST_CHUNK_LEVEL == CHUNK_LEVEL_16M);
+  static_assert(HIGHEST_CHUNK_LEVEL == CHUNK_LEVEL_1K);
+  static_assert(LOWEST_CHUNK_LEVEL == CHUNK_LEVEL_16M);
 
   void one_test() {
 

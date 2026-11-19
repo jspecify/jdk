@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.security;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 
@@ -52,6 +53,7 @@ import sun.security.util.IOUtils;
  * @since 1.2
  */
 
+@NullMarked
 public class CodeSource implements java.io.Serializable {
 
     @java.io.Serial
@@ -75,6 +77,7 @@ public class CodeSource implements java.io.Serializable {
     private transient java.security.cert.Certificate[] certs = null;
 
     // cached SocketPermission used for matchLocation
+    @SuppressWarnings("removal")
     private transient SocketPermission sp;
 
     // for generating cert paths
@@ -97,7 +100,7 @@ public class CodeSource implements java.io.Serializable {
      * @param certs the certificate(s). It may be {@code null}. The contents
      * of the array are copied to protect against subsequent modification.
      */
-    public CodeSource(URL url, java.security.cert.Certificate[] certs) {
+    public CodeSource(@Nullable URL url, java.security.cert.Certificate @Nullable [] certs) {
         this.location = url;
         if (url != null) {
             this.locationNoFragString = URLUtil.urlNoFragString(url);
@@ -119,7 +122,7 @@ public class CodeSource implements java.io.Serializable {
      *
      * @since 1.5
      */
-    public CodeSource(URL url, CodeSigner[] signers) {
+    public CodeSource(@Nullable URL url, CodeSigner @Nullable [] signers) {
         this.location = url;
         if (url != null) {
             this.locationNoFragString = URLUtil.urlNoFragString(url);
@@ -152,8 +155,6 @@ public class CodeSource implements java.io.Serializable {
      * {@code false} otherwise.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;
@@ -170,7 +171,7 @@ public class CodeSource implements java.io.Serializable {
      * @return the location (URL), or {@code null} if no URL was supplied
      * during construction.
      */
-    public final URL getLocation() {
+    public final @Nullable URL getLocation() {
         /* since URL is practically immutable, returning itself is not
            a security problem */
         return this.location;
@@ -199,7 +200,7 @@ public class CodeSource implements java.io.Serializable {
      * @return a copy of the certificate array, or {@code null} if there
      * is none.
      */
-    public final java.security.cert.Certificate[] getCertificates() {
+    public final java.security.cert.Certificate @Nullable [] getCertificates() {
         if (certs != null) {
             return certs.clone();
 
@@ -234,14 +235,19 @@ public class CodeSource implements java.io.Serializable {
      *
      * @since 1.5
      */
-    public final CodeSigner[] getCodeSigners() {
+    public final CodeSigner @Nullable [] getCodeSigners() {
         if (signers != null) {
             return signers.clone();
 
         } else if (certs != null) {
             // Convert the certs to code signers
             signers = convertCertArrayToSignerArray(certs);
-            return signers.clone();
+            if (signers != null) {
+                return signers.clone();
+
+            } else {
+                return new CodeSigner[0];
+            }
 
         } else {
             return null;
@@ -273,9 +279,22 @@ public class CodeSource implements java.io.Serializable {
      *           equal to <i>codesource</i>'s protocol, ignoring case.
      *
      *     <li>  If this object's host (getLocation().getHost()) is not null,
-     *           then the SocketPermission
-     *           constructed with this object's host must imply the
-     *           SocketPermission constructed with <i>codesource</i>'s host.
+     *           then the following checks are made in order:
+     *           <ul>
+     *           <li> If this object's host was initialized with a single IP
+     *           address then one of <i>codesource</i>'s IP addresses must be
+     *           equal to this object's IP address.
+     *           <li> If this object's host is a wildcard domain (such as
+     *           *.example.com), then <i>codesource</i>'s canonical host name
+     *           (the name without any preceding *) must end with this object's
+     *           canonical host name. For example, *.example.com implies
+     *           *.foo.example.com.
+     *           <li> If this object's host was not initialized with a single
+     *           IP address, then one of this object's IP addresses must equal
+     *           one of <i>codesource</i>'s IP addresses or this object's
+     *           canonical host name must equal <i>codesource</i>'s canonical
+     *           host name.
+     *           </ul>
      *
      *     <li>  If this object's port (getLocation().getPort()) is not
      *           equal to -1 (that is, if a port is specified), it must equal
@@ -320,7 +339,7 @@ public class CodeSource implements java.io.Serializable {
      * @return {@code true} if the specified codesource is implied by this
      * codesource, {@code false} if not.
      */
-    public boolean implies(CodeSource codesource)
+    public boolean implies(@Nullable CodeSource codesource)
     {
         if (codesource == null)
             return false;
@@ -391,6 +410,7 @@ public class CodeSource implements java.io.Serializable {
      *
      * @param that {@code CodeSource} to compare against
      */
+    @SuppressWarnings("removal")
     private boolean matchLocation(CodeSource that) {
         if (location == null)
             return true;

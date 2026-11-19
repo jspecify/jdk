@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 
 package java.security;
 
+import org.jspecify.annotations.Nullable;
+
 import sun.security.util.IOUtils;
 
 import java.io.IOException;
@@ -49,8 +51,12 @@ import java.util.Objects;
  *
  * @author Roland Schemers
  * @since 1.2
+ *
+ * @deprecated This permission cannot be used for controlling access to
+ *       resources as the Security Manager is no longer supported.
  */
 
+@Deprecated(since="25", forRemoval=true)
 public final class UnresolvedPermission extends Permission
 implements java.io.Serializable
 {
@@ -106,7 +112,7 @@ implements java.io.Serializable
     public UnresolvedPermission(String type,
                                 String name,
                                 String actions,
-                                java.security.cert.Certificate[] certs)
+                                java.security.cert.Certificate @Nullable [] certs)
     {
         super(type);
 
@@ -417,7 +423,7 @@ implements java.io.Serializable
      *
      * @since 1.5
      */
-    public java.security.cert.Certificate[] getUnresolvedCerts() {
+    public java.security.cert.Certificate @Nullable [] getUnresolvedCerts() {
         return (certs == null) ? null : certs.clone();
     }
 

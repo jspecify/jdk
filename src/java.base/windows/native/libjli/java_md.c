@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 #include <wtypes.h>
 #include <commctrl.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include <jni.h>
 #include "java.h"
@@ -155,10 +156,14 @@ CreateExecutionEnvironment(int *pargc, char ***pargv,
                            char *jdkroot, jint so_jdkroot,
                            char *jvmpath, jint so_jvmpath,
                            char *jvmcfg,  jint so_jvmcfg) {
+    if (JLI_IsStaticallyLinked()) {
+        // With static builds, all JDK and VM natives are statically linked
+        // with the launcher executable. The 'jrepath', 'jvmpath' and
+        // 'jvmcfg' are not used by the caller for static builds. Simply return.
+        return;
+    }
 
     char *jvmtype;
-    int i = 0;
-    char** argv = *pargv;
 
     /* Find out where the JDK is that we will be using. */
     if (!GetJDKInstallRoot(jdkroot, so_jdkroot)) {
@@ -190,8 +195,8 @@ CreateExecutionEnvironment(int *pargc, char ***pargv,
 
     /* Check if we need preload AWT */
 #ifdef ENABLE_AWT_PRELOAD
-    argv = *pargv;
-    for (i = 0; i < *pargc ; i++) {
+    char** argv = *pargv;
+    for (int i = 0; i < *pargc ; i++) {
         /* Tests the "turn on" parameter only if not set yet. */
         if (awtPreloadD3D < 0) {
             if (GetBoolParamValue(PARAM_PRELOAD_D3D, argv[i]) == 1) {
@@ -222,6 +227,12 @@ LoadMSVCRT()
     char crtpath[MAXPATHLEN];
 
     if (!loaded) {
+        if (JLI_IsStaticallyLinked()) {
+          // For statically linked builds, we rely on the system msvcrt dlls
+          loaded = 1;
+          return JNI_TRUE;
+        }
+
         /*
          * The Microsoft C Runtime Library needs to be loaded first. A copy is
          * assumed to be present in the "bin" directory of the JDK installation root.
@@ -365,10 +376,14 @@ LoadJavaVM(const char *jvmpath, InvocationFunctions *ifn)
      */
     LoadMSVCRT();
 
-    /* Load the Java VM DLL */
-    if ((handle = LoadLibrary(jvmpath)) == 0) {
-        JLI_ReportErrorMessage(DLL_ERROR4, (char *)jvmpath);
-        return JNI_FALSE;
+    if (JLI_IsStaticallyLinked()) {
+      handle = GetModuleHandle(NULL);
+    } else {
+        /* Load the Java VM DLL */
+        if ((handle = LoadLibrary(jvmpath)) == 0) {
+            JLI_ReportErrorMessage(DLL_ERROR4, (char *)jvmpath);
+            return JNI_FALSE;
+        }
     }
 
     /* Now get the function addresses */
@@ -456,30 +471,24 @@ jlong CurrentTimeMicros()
     return (jlong)(count.QuadPart * 1000 * 1000 / counterFrequency.QuadPart);
 }
 
-static errno_t convert_to_unicode(const char* path, const wchar_t* prefix, wchar_t** wpath) {
-    int unicode_path_len;
-    size_t prefix_len, wpath_len;
-
+static errno_t convert_to_unicode(const char* path, wchar_t** wpath) {
     /*
      * Get required buffer size to convert to Unicode.
      * The return value includes the terminating null character.
      */
-    unicode_path_len = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
-                                           path, -1, NULL, 0);
+    int unicode_path_len = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
+                                               path, -1, NULL, 0);
     if (unicode_path_len == 0) {
         return EINVAL;
     }
 
-    prefix_len = wcslen(prefix);
-    wpath_len = prefix_len + unicode_path_len;
-    *wpath = (wchar_t*)JLI_MemAlloc(wpath_len * sizeof(wchar_t));
+    *wpath = (wchar_t*)JLI_MemAlloc(unicode_path_len * sizeof(wchar_t));
     if (*wpath == NULL) {
         return ENOMEM;
     }
 
-    wcsncpy(*wpath, prefix, prefix_len);
     if (MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
-                            path, -1, &((*wpath)[prefix_len]), (int)wpath_len) == 0) {
+                            path, -1, *wpath, unicode_path_len) == 0) {
         JLI_MemFree(*wpath);
         *wpath = NULL;
         return EINVAL;
@@ -488,45 +497,224 @@ static errno_t convert_to_unicode(const char* path, const wchar_t* prefix, wchar
     return ERROR_SUCCESS;
 }
 
-/* taken from hotspot and slightly adjusted for jli lib;
- * creates a UNC/ELP path from input 'path'
- * the return buffer is allocated in C heap and needs to be freed using
- * JLI_MemFree by the caller.
- */
-static wchar_t* create_unc_path(const char* path, errno_t* err) {
-    wchar_t* wpath = NULL;
-    if (path[0] == '\\' && path[1] == '\\') {
-        if (path[2] == '?' && path[3] == '\\') {
-            /* if it already has a \\?\ don't do the prefix */
-            *err = convert_to_unicode(path, L"", &wpath);
+static errno_t get_full_path(LPCWSTR unicode_path, LPWSTR stack_buf,
+                             DWORD stack_buf_len, LPWSTR* full_path,
+                             int* needs_free) {
+    DWORD full_path_len = GetFullPathNameW(unicode_path, stack_buf_len, stack_buf, NULL);
+    if (full_path_len == 0) {
+        return EINVAL;
+    }
+
+    if (full_path_len < stack_buf_len) {
+        *full_path = stack_buf;
+        *needs_free = 0;
+        return ERROR_SUCCESS;
+    }
+
+    *full_path = (LPWSTR)JLI_MemAlloc(full_path_len * sizeof(WCHAR));
+    if (*full_path == NULL) {
+        return ENOMEM;
+    }
+
+    if (GetFullPathNameW(unicode_path, full_path_len, *full_path, NULL) == 0) {
+        JLI_MemFree(*full_path);
+        *full_path = NULL;
+        return EINVAL;
+    }
+
+    *needs_free = 1;
+    return ERROR_SUCCESS;
+}
+
+static void set_path_prefix(const char* buf, const wchar_t** prefix,
+                            int* prefix_off, int* needs_fullpath) {
+    *prefix_off = 0;
+    *needs_fullpath = 1;
+
+    if (isalpha((unsigned char)buf[0]) && !IsDBCSLeadByte(buf[0])
+            && buf[1] == ':' && buf[2] == '\\') {
+        *prefix = L"\\\\?\\";
+    } else if (buf[0] == '\\' && buf[1] == '\\') {
+        /*
+         * Paths with \\?\ or \\.\ are already extended-length paths, so
+         * we do not treat them as UNC.
+         */
+        if ((buf[2] == '?' || buf[2] == '.') && buf[3] == '\\') {
+            *prefix = L"";
+            *needs_fullpath = 0;
         } else {
-            /* only UNC pathname includes double slashes here */
-            *err = convert_to_unicode(path, L"\\\\?\\UNC", &wpath);
+            *prefix = L"\\\\?\\UNC";
+            /* Overwrite the first char with the prefix, so \\share\path becomes
+             * \\?\UNC\share\path */
+            *prefix_off = 1;
         }
     } else {
-        *err = convert_to_unicode(path, L"\\\\?\\", &wpath);
+        *prefix = L"\\\\?\\";
     }
-    return wpath;
+}
+
+/* Adapted from HotSpot's os::native_path() in os_windows.cpp. */
+static char* native_path(char *path) {
+    char *src = path, *dst = path, *end = path;
+    char *colon = NULL;
+
+    /* Assumption: '/', '\\', ':', and drive letters are never lead bytes */
+    assert(((!IsDBCSLeadByte('/')) && (!IsDBCSLeadByte('\\'))
+            && (!IsDBCSLeadByte(':'))) && "Illegal lead byte");
+
+    /* Check for leading separators */
+#define isfilesep(c) ((c) == '/' || (c) == '\\')
+    while (isfilesep(*src)) {
+        src++;
+    }
+
+    if (isalpha((unsigned char)*src) && !IsDBCSLeadByte(*src) && src[1] == ':') {
+        /* Remove leading separators if followed by drive specifier. */
+        *dst++ = *src++;
+        colon = dst;
+        *dst++ = ':';
+        src++;
+    } else {
+        src = path;
+        if (isfilesep(src[0]) && isfilesep(src[1])) {
+            /* UNC pathname: Retain first separator; leave src pointed at
+             * second separator so that further separators will be collapsed. */
+            src = dst = path + 1;
+            path[0] = '\\';
+        }
+    }
+
+    end = dst;
+
+    /* Remove redundant separators from remainder of path, forcing all
+     * separators to be '\\' rather than '/'. Also, single byte space
+     * characters are removed from the end of the path. */
+    while (*src != '\0') {
+        if (isfilesep(*src)) {
+            *dst++ = '\\'; src++;
+            while (isfilesep(*src)) src++;
+            if (*src == '\0') {
+                end = dst;
+                if (colon == dst - 2) break;           /* "z:\\" */
+                if (dst == path + 1) break;            /* "\\" */
+                if (dst == path + 2 && isfilesep(path[0])) {
+                    break;
+                }
+                end = --dst;
+                break;
+            }
+            end = dst;
+        } else {
+            if (IsDBCSLeadByte(*src)) {
+                *dst++ = *src++;
+                if (*src) *dst++ = *src++;
+                end = dst;
+            } else {
+                char c = *src++;
+                *dst++ = c;
+                if (c != ' ') end = dst;
+            }
+        }
+    }
+
+    *end = '\0';
+
+    /* For "z:", add "." to work around a bug in the C runtime library */
+    if (colon == dst - 1) {
+        path[2] = '.';
+        path[3] = '\0';
+    }
+
+#undef isfilesep
+
+    return path;
+}
+
+/* Adapted from HotSpot's wide_abs_unc_path() in os_windows.cpp. */
+static wchar_t* convert_to_absolute_path(const char* path, errno_t* err) {
+    *err = ERROR_SUCCESS;
+    if (path == NULL || path[0] == '\0') {
+        *err = ENOENT;
+        return NULL;
+    }
+
+    size_t buf_len = 1 + (strlen(path) < 3 ? 3 : strlen(path));
+    char* npath = JLI_MemAlloc(buf_len);
+    if (npath == NULL) {
+        *err = ENOMEM;
+        return NULL;
+    }
+    strncpy(npath, path, buf_len);
+    native_path(npath);
+
+    int prefix_off = 0;
+    int needs_fullpath = 1;
+    const wchar_t* prefix = NULL;
+    set_path_prefix(npath, &prefix, &prefix_off, &needs_fullpath);
+
+    wchar_t* unicode_path = NULL;
+    *err = convert_to_unicode(npath, &unicode_path);
+    JLI_MemFree(npath);
+    if (*err != ERROR_SUCCESS) {
+        return NULL;
+    }
+
+    int free_full_path = 0;
+    wchar_t* full_path = NULL;
+    WCHAR full_path_buf[MAX_PATH];
+
+    if (needs_fullpath) {
+        *err = get_full_path(unicode_path, full_path_buf, MAX_PATH,
+                             &full_path, &free_full_path);
+        if (*err != ERROR_SUCCESS) {
+            JLI_MemFree(unicode_path);
+            return NULL;
+        }
+    } else {
+        full_path = unicode_path;
+    }
+
+    wchar_t* result = NULL;
+    size_t prefix_len = wcslen(prefix);
+    size_t result_len = prefix_len - prefix_off + wcslen(full_path) + 1;
+    result = (wchar_t*)JLI_MemAlloc(result_len * sizeof(wchar_t));
+    if (result == NULL) {
+        *err = ENOMEM;
+    } else {
+        _snwprintf(result, result_len, L"%s%s", prefix, &full_path[prefix_off]);
+
+        /*
+         * Remove trailing pathsep (not for \\?\<DRIVE>:\, since it would make
+         * it relative)
+         */
+        result_len = wcslen(result);
+        if ((result_len > 0) && result[result_len - 1] == L'\\' &&
+                !(result_len == 7 && iswalpha(result[4]) && result[5] == L':')) {
+            result[result_len - 1] = L'\0';
+        }
+    }
+
+    if (free_full_path != 0) {
+        JLI_MemFree(full_path);
+    }
+
+    JLI_MemFree(unicode_path);
+    return result;
 }
 
 int JLI_Open(const char* name, int flags) {
     int fd;
-    if (strlen(name) < MAX_PATH) {
-        fd = _open(name, flags);
-    } else {
-        errno_t err = ERROR_SUCCESS;
-        wchar_t* wpath = create_unc_path(name, &err);
-        if (err != ERROR_SUCCESS) {
-            if (wpath != NULL) JLI_MemFree(wpath);
-            errno = err;
-            return -1;
+    errno_t err = ERROR_SUCCESS;
+    wchar_t* wpath = convert_to_absolute_path(name, &err);
+    if (err != ERROR_SUCCESS) {
+        errno = err;
+        if (wpath != NULL) {
+          JLI_MemFree(wpath);
         }
-        fd = _wopen(wpath, flags);
-        if (fd == -1) {
-            errno = GetLastError();
-        }
-        JLI_MemFree(wpath);
+        return -1;
     }
+    fd = _wopen(wpath, flags);
+    JLI_MemFree(wpath);
     return fd;
 }
 
@@ -550,75 +738,6 @@ JLI_ReportErrorMessage(const char* fmt, ...) {
     } else {
         vfprintf(stderr, fmt, vl);
         fprintf(stderr, "\n");
-    }
-    va_end(vl);
-}
-
-/*
- * Just like JLI_ReportErrorMessage, except that it concatenates the system
- * error message if any, it's up to the calling routine to correctly
- * format the separation of the messages.
- */
-JNIEXPORT void JNICALL
-JLI_ReportErrorMessageSys(const char *fmt, ...)
-{
-    va_list vl;
-
-    int save_errno = errno;
-    DWORD       errval;
-    jboolean freeit = JNI_FALSE;
-    char  *errtext = NULL;
-
-    va_start(vl, fmt);
-
-    if ((errval = GetLastError()) != 0) {               /* Platform SDK / DOS Error */
-        int n = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|
-            FORMAT_MESSAGE_IGNORE_INSERTS|FORMAT_MESSAGE_ALLOCATE_BUFFER,
-            NULL, errval, 0, (LPTSTR)&errtext, 0, NULL);
-        if (errtext == NULL || n == 0) {                /* Paranoia check */
-            errtext = "";
-            n = 0;
-        } else {
-            freeit = JNI_TRUE;
-            if (n > 2) {                                /* Drop final CR, LF */
-                if (errtext[n - 1] == '\n') n--;
-                if (errtext[n - 1] == '\r') n--;
-                errtext[n] = '\0';
-            }
-        }
-    } else {   /* C runtime error that has no corresponding DOS error code */
-        errtext = strerror(save_errno);
-    }
-
-    if (IsJavaw()) {
-        char *message;
-        int mlen;
-        /* get the length of the string we need */
-        int len = mlen =  _vscprintf(fmt, vl) + 1;
-        if (freeit) {
-           mlen += (int)JLI_StrLen(errtext);
-        }
-
-        message = (char *)JLI_MemAlloc(mlen);
-        _vsnprintf(message, len, fmt, vl);
-        message[len]='\0';
-
-        if (freeit) {
-           JLI_StrCat(message, errtext);
-        }
-
-        MessageBox(NULL, message, "Java Virtual Machine Launcher",
-            (MB_OK|MB_ICONSTOP|MB_APPLMODAL));
-
-        JLI_MemFree(message);
-    } else {
-        vfprintf(stderr, fmt, vl);
-        if (freeit) {
-           fprintf(stderr, "%s", errtext);
-        }
-    }
-    if (freeit) {
-        (void)LocalFree((HLOCAL)errtext);
     }
     va_end(vl);
 }
@@ -781,7 +900,11 @@ jclass FindBootStrapClass(JNIEnv *env, const char *classname)
    HMODULE hJvm;
 
    if (findBootClass == NULL) {
-       hJvm = GetModuleHandle(JVM_DLL);
+       if (JLI_IsStaticallyLinked()) {
+           hJvm = GetModuleHandle(NULL);
+       } else {
+           hJvm = GetModuleHandle(JVM_DLL);
+       }
        if (hJvm == NULL) return NULL;
        /* need to use the demangled entry point */
        findBootClass = (FindClassFromBootLoader_t *)GetProcAddress(hJvm,

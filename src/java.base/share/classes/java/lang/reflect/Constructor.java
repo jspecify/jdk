@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,9 +67,7 @@ import java.util.StringJoiner;
  * @author      Nakul Saraiya
  * @since 1.1
  */
-
 @NullMarked
-
 public final class Constructor<T> extends Executable {
     private final Class<T>            clazz;
     private final int                 slot;
@@ -246,7 +244,7 @@ public final class Constructor<T> extends Executable {
      * @since 1.5
      */
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     public TypeVariable<Constructor<T>>[] getTypeParameters() {
       if (getSignature() != null) {
         return (TypeVariable<Constructor<T>>[])getGenericInfo().getTypeParameters();
@@ -331,7 +329,6 @@ public final class Constructor<T> extends Executable {
      * the same as the hashcode for the underlying constructor's
      * declaring class name.
      */
-    
     public int hashCode() {
         return getDeclaringClass().getName().hashCode();
     }
@@ -360,12 +357,14 @@ public final class Constructor<T> extends Executable {
      * @jls 8.8.3 Constructor Modifiers
      * @jls 8.9.2 Enum Body Declarations
      */
-    
     public String toString() {
-        return sharedToString(Modifier.constructorModifiers(),
-                              false,
-                              parameterTypes,
+        return sharedToString(parameterTypes,
                               exceptionTypes);
+    }
+
+    @Override
+    void appendModifiers(StringBuilder sb) {
+        Reflection.appendAccessControlModifiers(sb, getModifiers());
     }
 
     @Override
@@ -425,7 +424,7 @@ public final class Constructor<T> extends Executable {
      */
     @Override
     public String toGenericString() {
-        return sharedToGenericString(Modifier.constructorModifiers(), false);
+        return super.toGenericString();
     }
 
     @Override
@@ -483,7 +482,7 @@ public final class Constructor<T> extends Executable {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public  T newInstance(@Nullable Object @Nullable ... initargs)
+    public T newInstance(@Nullable Object @Nullable ... initargs)
         throws InstantiationException, IllegalAccessException,
                IllegalArgumentException, InvocationTargetException
     {
@@ -513,7 +512,6 @@ public final class Constructor<T> extends Executable {
      * @since 1.5
      * @jls 8.4.1 Formal Parameters
      */
-    
     @Override
     public boolean isVarArgs() {
         return super.isVarArgs();
@@ -528,7 +526,6 @@ public final class Constructor<T> extends Executable {
      * href="{@docRoot}/java.base/java/lang/reflect/package-summary.html#LanguageJvmModel">Java
      * programming language and JVM modeling in core reflection</a>
      */
-    
     @Override
     public boolean isSynthetic() {
         return super.isSynthetic();

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2023 SAP SE. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "compiler/oopMap.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
@@ -121,7 +120,15 @@ bool frame::safe_for_sender(JavaThread *thread) {
     intptr_t* sender_sp = (intptr_t*) fp;
     address   sender_pc = (address) sender_abi->lr;
 
+    DEBUG_ONLY(nmethod* nm = _cb->as_nmethod_or_null());
+    assert(nm == nullptr || !nm->needs_stack_repair(), "unsupported");
+
     if (Continuation::is_return_barrier_entry(sender_pc)) {
+      // sender_pc might be invalid so check that the frame
+      // actually belongs to a Continuation.
+      if (!Continuation::is_frame_in_continuation(thread, *this)) {
+        return false;
+      }
       // If our sender_pc is the return barrier, then our "real" sender is the continuation entry
       frame s = Continuation::continuation_bottom_sender(thread, *this, sender_sp);
       sender_sp = s.sp();
@@ -188,6 +195,22 @@ bool frame::safe_for_sender(JavaThread *thread) {
   // linkages it must be safe
 
   if (!fp_safe) {
+    return false;
+  }
+
+  // sender_fp must be within the stack and above (but not equal) to
+  // current frame's fp.
+  address sender_fp = (address)this->link();
+  if (!thread->is_in_stack_range_excl(sender_fp, fp)) {
+    return false;
+  }
+
+  if (sender_pc() == nullptr) {
+    // Likely the return pc was not yet stored to stack. We rather discard this
+    // sample also because we would hit an assertion in frame::setup(). We can
+    // find any other random value if the return pc was not yet stored to
+    // stack. We rely on consistency checks to handle this (see
+    // e.g. find_initial_Java_frame())
     return false;
   }
 
@@ -287,7 +310,7 @@ void frame::patch_pc(Thread* thread, address pc) {
                   p2i(&((address*) _sp)[-1]), p2i(((address*) _sp)[-1]), p2i(pc));
   }
   assert(!Continuation::is_return_barrier_entry(*pc_addr), "return barrier");
-  assert(_pc == *pc_addr || pc == *pc_addr || 0 == *pc_addr,
+  assert(_pc == *pc_addr || pc == *pc_addr || nullptr == *pc_addr,
          "must be (pc: " INTPTR_FORMAT " _pc: " INTPTR_FORMAT " pc_addr: " INTPTR_FORMAT
          " *pc_addr: " INTPTR_FORMAT  " sp: " INTPTR_FORMAT ")",
          p2i(pc), p2i(_pc), p2i(pc_addr), p2i(*pc_addr), p2i(sp()));
@@ -306,7 +329,7 @@ void frame::patch_pc(Thread* thread, address pc) {
 
 #ifdef ASSERT
   {
-    frame f(this->sp(), pc, this->unextended_sp());
+    frame f(sp(), unextended_sp(), fp(), pc, cb(), oop_map(), is_heap_frame());
     assert(f.is_deoptimized_frame() == this->is_deoptimized_frame() && f.pc() == this->pc() && f.raw_pc() == this->raw_pc(),
            "must be (f.is_deoptimized_frame(): %d this->is_deoptimized_frame(): %d "
            "f.pc(): " INTPTR_FORMAT " this->pc(): " INTPTR_FORMAT " f.raw_pc(): " INTPTR_FORMAT " this->raw_pc(): " INTPTR_FORMAT ")",
@@ -318,10 +341,10 @@ void frame::patch_pc(Thread* thread, address pc) {
 bool frame::is_interpreted_frame_valid(JavaThread* thread) const {
   assert(is_interpreted_frame(), "Not an interpreted frame");
   // These are reasonable sanity checks
-  if (fp() == 0 || (intptr_t(fp()) & (wordSize-1)) != 0) {
+  if (fp() == nullptr || (intptr_t(fp()) & (wordSize-1)) != 0) {
     return false;
   }
-  if (sp() == 0 || (intptr_t(sp()) & (wordSize-1)) != 0) {
+  if (sp() == nullptr || (intptr_t(sp()) & (wordSize-1)) != 0) {
     return false;
   }
   int min_frame_slots = (parent_ijava_frame_abi_size + ijava_state_size) / sizeof(intptr_t);
@@ -445,6 +468,8 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
   }
 
   if (is_java_frame() || Continuation::is_continuation_enterSpecial(*this)) {
+    DEBUG_ONLY(nmethod* nm = _cb->as_nmethod_or_null());
+    assert(nm == nullptr || !nm->needs_stack_repair(), "unsupported");
     intptr_t* ret_pc_loc = (intptr_t*)&own_abi()->lr;
     address ret_pc = *(address*)ret_pc_loc;
     values.describe(frame_no, ret_pc_loc,
@@ -478,4 +503,19 @@ BasicObjectLock* frame::interpreter_frame_monitor_end() const {
 
 intptr_t* frame::interpreter_frame_tos_at(jint offset) const {
   return &interpreter_frame_tos_address()[offset];
+}
+
+intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr) {
+  assert(nm != nullptr && nm->needs_stack_repair(), "");
+  Unimplemented();
+  return nullptr;
+}
+
+bool frame::was_augmented_on_entry(int& real_size) const {
+  assert(_cb != nullptr && _cb->is_nmethod(), "");
+  if (_cb->as_nmethod()->needs_stack_repair()) {
+    Unimplemented();
+  }
+  real_size = _cb->frame_size();
+  return false;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package javax.crypto.spec;
 
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Arrays;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class specifies the parameters used with the
@@ -106,9 +107,9 @@ public class RC5ParameterSpec implements AlgorithmParameterSpec {
      * bytes of the buffer beginning at {@code offset}
      * inclusive are copied to protect against subsequent modification.
      * @param offset the offset in {@code iv} where the IV starts.
-     * @exception IllegalArgumentException if {@code iv} is
-     * {@code null} or
-     * {@code (iv.length - offset < 2 * (wordSize / 8))}
+     * @exception ArrayIndexOutOfBoundsException if {@code offset} is negative.
+     * @exception IllegalArgumentException if {@code iv} is {@code null}
+     * or {@code (iv.length - offset < 2 * (wordSize / 8))}
      */
     public RC5ParameterSpec(int version, int rounds, int wordSize,
                             byte[] iv, int offset) {
@@ -162,7 +163,7 @@ public class RC5ParameterSpec implements AlgorithmParameterSpec {
      * @return the IV or null if this parameter set does not contain an IV.
      * Returns a new array each time this method is called.
      */
-    public byte[] getIV() {
+    public byte @Nullable [] getIV() {
         return (iv == null? null:iv.clone());
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -387,7 +387,7 @@ public interface ChronoLocalDate
      * @return true if the field can be queried, false if not
      */
     @Override
-    default boolean isSupported(TemporalField field) {
+    default boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field.isDateBased();
         }
@@ -413,7 +413,7 @@ public interface ChronoLocalDate
      * @return true if the unit can be added/subtracted, false if not
      */
     @Override
-    default boolean isSupported(TemporalUnit unit) {
+    default boolean isSupported(@Nullable TemporalUnit unit) {
         if (unit instanceof ChronoUnit) {
             return unit.isDateBased();
         }
@@ -459,6 +459,7 @@ public interface ChronoLocalDate
     /**
      * {@inheritDoc}
      * @throws DateTimeException {@inheritDoc}
+     * @throws UnsupportedTemporalTypeException {@inheritDoc}
      * @throws ArithmeticException {@inheritDoc}
      */
     @Override
@@ -656,7 +657,6 @@ public interface ChronoLocalDate
      * @param localTime  the local time to use, not null
      * @return the local date-time formed from this date and the specified time, not null
      */
-    @SuppressWarnings("unchecked")
     default ChronoLocalDateTime<?> atTime(LocalTime localTime) {
         return ChronoLocalDateTimeImpl.of(this, localTime);
     }

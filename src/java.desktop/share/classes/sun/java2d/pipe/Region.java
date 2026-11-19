@@ -1371,8 +1371,6 @@ public final class Region {
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object o) {
         if (this == o) {
             return true;

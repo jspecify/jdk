@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,11 +23,9 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "logging/log.hpp"
 #include "memory/classLoaderMetaspace.hpp"
 #include "memory/metaspace.hpp"
-#include "memory/metaspaceUtils.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internalStats.hpp"
 #include "memory/metaspace/metablock.hpp"
@@ -39,6 +37,7 @@
 #include "memory/metaspace/metaspaceStatistics.hpp"
 #include "memory/metaspace/runningCounters.hpp"
 #include "memory/metaspaceTracer.hpp"
+#include "memory/metaspaceUtils.hpp"
 #include "oops/klass.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
@@ -148,8 +147,8 @@ MetaWord* ClassLoaderMetaspace::expand_and_allocate(size_t word_size, Metaspace:
     Metaspace::tracer()->report_gc_threshold(before, after,
                                   MetaspaceGCThresholdUpdater::ExpandAndAllocate);
     // Keeping both for now until I am sure the old variant (gc + metaspace) is not needed anymore
-    log_trace(gc, metaspace)("Increase capacity to GC from " SIZE_FORMAT " to " SIZE_FORMAT, before, after);
-    UL2(info, "GC threshold increased: " SIZE_FORMAT "->" SIZE_FORMAT ".", before, after);
+    log_trace(gc, metaspace)("Increase capacity to GC from %zu to %zu", before, after);
+    UL2(info, "GC threshold increased: %zu->%zu.", before, after);
   }
 
   return res;
@@ -163,10 +162,12 @@ void ClassLoaderMetaspace::deallocate(MetaWord* ptr, size_t word_size) {
   MetaBlock bl(ptr, word_size);
   // Add to class arena only if block is usable for encodable Klass storage.
   MetaspaceArena* receiving_arena = non_class_space_arena();
-  if (Metaspace::using_class_space() && Metaspace::is_in_class_space(ptr) &&
+#if INCLUDE_CLASS_SPACE
+  if (Metaspace::is_in_class_space(ptr) &&
       is_aligned(ptr, class_space_arena()->allocation_alignment_bytes())) {
     receiving_arena = class_space_arena();
   }
+#endif
   receiving_arena->deallocate(bl);
   DEBUG_ONLY(InternalStats::inc_num_deallocs();)
 }

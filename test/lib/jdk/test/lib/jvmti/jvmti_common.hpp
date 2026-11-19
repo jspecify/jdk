@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -121,6 +121,12 @@ char* julong_to_string(julong value, char *string) {
     *pstr = '\0';
 
     return string;
+}
+
+static void
+fatal(const char* msg) {
+  LOG("FATAL ERROR: %s\n", msg);
+  abort();
 }
 
 static void
@@ -273,6 +279,15 @@ get_frame_count(jvmtiEnv *jvmti, JNIEnv* jni, jthread thread) {
   return frame_count;
 }
 
+static jmethodID
+get_frame_method(jvmtiEnv *jvmti, JNIEnv* jni, jthread thread, jint depth) {
+  jmethodID method;
+  jlocation loc;
+  jvmtiError err = jvmti->GetFrameLocation(thread, depth, &method, &loc);
+  check_jvmti_status(jni, err, "get_frame_method: error in JVMTI GetFrameLocation");
+  return method;
+}
+
 static jvmtiThreadInfo
 get_thread_info(jvmtiEnv *jvmti, JNIEnv* jni, jthread thread) {
   jvmtiThreadInfo thr_info;
@@ -283,7 +298,7 @@ get_thread_info(jvmtiEnv *jvmti, JNIEnv* jni, jthread thread) {
 
 static jint
 get_thread_state(jvmtiEnv *jvmti, JNIEnv* jni, jthread thread) {
-  jint thread_state;
+  jint thread_state = 0;
   jvmtiError err = jvmti->GetThreadState(thread, &thread_state);
   check_jvmti_status(jni, err, "get_thread_state: error in JVMTI GetThreadState call");
   return thread_state;
@@ -314,6 +329,17 @@ get_thread_name(jvmtiEnv *jvmti, JNIEnv* jni, jthread thread) {
 }
 
 static char*
+get_method_name(jvmtiEnv *jvmti, jmethodID method) {
+  char*  mname = nullptr;
+  jvmtiError err;
+
+  err = jvmti->GetMethodName(method, &mname, nullptr, nullptr);
+  check_jvmti_error(err, "get_method_name: error in JVMTI GetMethodName call");
+
+  return mname;
+}
+
+static char*
 get_method_name(jvmtiEnv *jvmti, JNIEnv* jni, jmethodID method) {
   char*  mname = nullptr;
   jvmtiError err;
@@ -322,6 +348,24 @@ get_method_name(jvmtiEnv *jvmti, JNIEnv* jni, jmethodID method) {
   check_jvmti_status(jni, err, "get_method_name: error in JVMTI GetMethodName call");
 
   return mname;
+}
+
+static char*
+get_field_name(jvmtiEnv *jvmti, JNIEnv* jni, jclass field_class, jfieldID field) {
+  char* name = nullptr;
+  jvmtiError err = jvmti->GetFieldName(field_class, field, &name, nullptr, nullptr);
+  check_jvmti_status(jni, err, "get_field_name: error in JVMTI GetFieldName call");
+  return name;
+}
+
+static char*
+get_object_class_name(jvmtiEnv *jvmti, JNIEnv* jni, jobject object) {
+  char *obj_class_name = nullptr;
+  jclass object_class = jni->GetObjectClass(object);
+  jvmtiError err = jvmti->GetClassSignature(object_class, &obj_class_name, nullptr);
+  check_jvmti_error(err, "GetClassSignature");
+  jni->DeleteLocalRef(object_class);
+  return obj_class_name;
 }
 
 static jclass
@@ -378,6 +422,46 @@ find_method(jvmtiEnv *jvmti, JNIEnv *jni, jclass klass, const char* mname) {
   }
   deallocate(jvmti, jni, (void*)methods);
   return method;
+}
+
+static void
+log_object_class(jvmtiEnv *jvmti, JNIEnv *jni, jobject obj) {
+  jclass cls = jni->GetObjectClass(obj);
+  if (cls == nullptr) {
+    fatal(jni, "log_object_class: class is nullptr\n");
+    return;
+  }
+  char* sig = nullptr;
+  check_jvmti_error(jvmti->GetClassSignature(cls, &sig, nullptr), "GetClassSignature");
+
+  LOG(" - got an object of class: %s\n", sig);
+  jvmti->Deallocate((unsigned char *)sig);
+}
+
+static jobject
+get_local_object(jvmtiEnv *jvmti, JNIEnv *jni, jthread thread, jint depth, jint slot) {
+  LOG("GetLocalObject: depth: %d slot %d\n", (int)depth, (int)slot);
+  jobject obj = nullptr;
+  check_jvmti_error(jvmti->GetLocalObject(thread, depth, slot, &obj), "GetLocalObject");
+
+  log_object_class(jvmti, jni, obj);
+  return obj;
+}
+
+static jobject
+get_local_instance(jvmtiEnv *jvmti, JNIEnv *jni, jthread thread, jint depth) {
+  LOG("GetLocalInstance: depth: %d\n", (int)depth);
+  jobject obj = nullptr;
+  check_jvmti_error(jvmti->GetLocalInstance(thread, depth, &obj), "GetLocalInstance");
+
+  log_object_class(jvmti, jni, obj);
+  return obj;
+}
+
+static void
+set_local_object(jvmtiEnv *jvmti, jthread thread, jint depth, jint slot, jobject obj) {
+  LOG("SetLocalObject for slot %d\n", (int)slot);
+  check_jvmti_error(jvmti->SetLocalObject(thread, depth, slot, obj), "SetLocalObject");
 }
 
 // Wait for target thread to reach the required JVMTI thread state.
@@ -447,7 +531,27 @@ static jthread get_current_thread(jvmtiEnv *jvmti, JNIEnv* jni) {
   return thread;
 }
 
+/* Used in a couple of nsk/jvmti/scenarios tests to convert jbyteArray to a JVMTI allocated */
+static unsigned char* jni_array_to_jvmti_allocated(jvmtiEnv *jvmti, JNIEnv *jni, jbyteArray arr, jint* len_ptr) {
+    unsigned char* new_arr = nullptr;
 
+    jint len = jni->GetArrayLength(arr);
+    if (len <= 0) {
+      fatal(jni, "JNI GetArrayLength returned a non-positive value");
+    }
+    jbyte* jni_arr = jni->GetByteArrayElements(arr, nullptr);
+    if (jni_arr == nullptr) {
+      fatal(jni, "JNI GetByteArrayElements returned nullptr");
+    }
+    jvmtiError err = jvmti->Allocate(len, &new_arr);
+    check_jvmti_status(jni, err, "JVMTI Allocate returned an error code");
+
+    memcpy(new_arr, jni_arr, (size_t)len);
+    jni->ReleaseByteArrayElements(arr, jni_arr, JNI_ABORT);
+
+    *len_ptr = len;
+    return new_arr;
+}
 
 /* Commonly used helper functions */
 const char*
@@ -743,11 +847,6 @@ int
 isThreadExpected(jvmtiEnv *jvmti, jthread thread) {
   static const char *vm_jfr_buffer_thread_name = "VM JFR Buffer Thread";
   static const char *jfr_request_timer_thread_name = "JFR request timer";
-  static const char *graal_management_bean_registration_thread_name =
-                        "HotSpotGraalManagement Bean Registration";
-  static const char *graal_compiler_thread_name_prefix = "JVMCI CompilerThread";
-  static const size_t graal_prefix_length = strlen(graal_compiler_thread_name_prefix);
-
   static const char *unparker_thread_name_prefix = "VirtualThread-unparker";
   static const size_t unparker_prefix_length = strlen(unparker_thread_name_prefix);
 
@@ -761,13 +860,6 @@ isThreadExpected(jvmtiEnv *jvmti, jthread thread) {
     return 0;
   }
   if (strcmp(threadinfo.name, jfr_request_timer_thread_name) == 0) {
-    return 0;
-  }
-  if (strcmp(threadinfo.name, graal_management_bean_registration_thread_name) == 0)
-    return 0;
-
-  if ((strlen(threadinfo.name) > graal_prefix_length) &&
-      strncmp(threadinfo.name, graal_compiler_thread_name_prefix, graal_prefix_length) == 0) {
     return 0;
   }
   if (strncmp(threadinfo.name, unparker_thread_name_prefix, unparker_prefix_length) == 0) {

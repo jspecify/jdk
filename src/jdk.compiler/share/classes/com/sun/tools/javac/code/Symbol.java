@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@ import java.lang.annotation.Inherited;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -404,8 +403,20 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
              name != name.table.names._this;
     }
 
+    public boolean isStrict() {
+        return (flags() & STRICT) != 0;
+    }
+
+    public boolean isSynthetic() {
+        return (flags() & SYNTHETIC) != 0;
+    }
+
+    public boolean isStrictInstance() {
+        return (flags() & STRICT) != 0 && (flags() & STATIC) == 0;
+    }
+
     public boolean isInterface() {
-        return (flags() & INTERFACE) != 0;
+        return (flags_field & INTERFACE) != 0;
     }
 
     public boolean isAbstract() {
@@ -414,6 +425,14 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
     public boolean isPrivate() {
         return (flags_field & Flags.AccessFlags) == PRIVATE;
+    }
+
+    public boolean isValueClass() {
+        return (flags_field & VALUE_CLASS) != 0;
+    }
+
+    public boolean isIdentityClass() {
+        return !isInterface() && (flags_field & IDENTITY_TYPE) != 0;
     }
 
     public boolean isPublic() {
@@ -969,7 +988,8 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             boolean isCurrentSymbolsAnnotation(Attribute.TypeCompound anno, int index) {
                 return (anno.position.type == TargetType.CLASS_TYPE_PARAMETER ||
                         anno.position.type == TargetType.METHOD_TYPE_PARAMETER) &&
-                        anno.position.parameter_index == index;
+                        anno.position.parameter_index == index &&
+                        anno.type.tsym.flatName() != name.table.names.requiresIdentityInternal;
             }
 
 
@@ -1353,8 +1373,8 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             int index = Collections.binarySearch(permitted, element, java.util.Comparator.comparing(PermittedClassWithPos::pos));
             if (index < 0) {
                 index = -index - 1;
+                permitted.add(index, element);
             }
-            permitted.add(index, element);
         }
 
         public boolean isPermittedSubclass(Symbol csym) {
@@ -1694,7 +1714,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
     /** A class for variable symbols
      */
-    @SuppressWarnings("preview")
     public static class VarSymbol extends Symbol implements VariableElement {
 
         /** The variable's declaration position.
@@ -1789,10 +1808,11 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
 
         public void setLazyConstValue(final Env<AttrContext> env,
+                                      final Env<AttrContext> enclosingEnv,
                                       final Attr attr,
                                       final JCVariableDecl variable)
         {
-            setData((Callable<Object>)() -> attr.attribLazyConstantValue(env, variable, type));
+            setData((Callable<Object>)() -> attr.attribLazyConstantValue(env, enclosingEnv, variable, type));
         }
 
         /**

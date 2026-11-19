@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -380,34 +380,34 @@ public class JOptionPane extends JComponent implements Accessible
     public static final int   PLAIN_MESSAGE = -1;
 
     /** Bound property name for <code>icon</code>. */
-    public static final  String      ICON_PROPERTY = "icon";
+    public static final String      ICON_PROPERTY = "icon";
     /** Bound property name for <code>message</code>. */
-    public static final  String      MESSAGE_PROPERTY = "message";
+    public static final String      MESSAGE_PROPERTY = "message";
     /** Bound property name for <code>value</code>. */
-    public static final  String      VALUE_PROPERTY = "value";
+    public static final String      VALUE_PROPERTY = "value";
     /** Bound property name for <code>option</code>. */
-    public static final  String      OPTIONS_PROPERTY = "options";
+    public static final String      OPTIONS_PROPERTY = "options";
     /** Bound property name for <code>initialValue</code>. */
-    public static final  String      INITIAL_VALUE_PROPERTY = "initialValue";
+    public static final String      INITIAL_VALUE_PROPERTY = "initialValue";
     /** Bound property name for <code>type</code>. */
-    public static final  String      MESSAGE_TYPE_PROPERTY = "messageType";
+    public static final String      MESSAGE_TYPE_PROPERTY = "messageType";
     /** Bound property name for <code>optionType</code>. */
-    public static final  String      OPTION_TYPE_PROPERTY = "optionType";
+    public static final String      OPTION_TYPE_PROPERTY = "optionType";
     /** Bound property name for <code>selectionValues</code>. */
-    public static final  String      SELECTION_VALUES_PROPERTY = "selectionValues";
+    public static final String      SELECTION_VALUES_PROPERTY = "selectionValues";
     /** Bound property name for <code>initialSelectionValue</code>. */
-    public static final  String      INITIAL_SELECTION_VALUE_PROPERTY = "initialSelectionValue";
+    public static final String      INITIAL_SELECTION_VALUE_PROPERTY = "initialSelectionValue";
     /** Bound property name for <code>inputValue</code>. */
-    public static final  String      INPUT_VALUE_PROPERTY = "inputValue";
+    public static final String      INPUT_VALUE_PROPERTY = "inputValue";
     /** Bound property name for <code>wantsInput</code>. */
-    public static final  String      WANTS_INPUT_PROPERTY = "wantsInput";
+    public static final String      WANTS_INPUT_PROPERTY = "wantsInput";
 
     /** Icon used in pane. */
     protected transient @Nullable Icon                  icon;
     /** Message to display. */
     protected transient @Nullable Object                message;
     /** Options to display to the user. */
-    protected transient @Nullable Object[]              options;
+    protected transient Object @Nullable []              options;
     /** Value that should be initially selected in <code>options</code>. */
     protected transient @Nullable Object                initialValue;
     /** Message type. */
@@ -424,7 +424,7 @@ public class JOptionPane extends JComponent implements Accessible
     protected transient @Nullable Object                value;
     /** Array of values the user can choose from. Look and feel will
      * provide the UI component to choose this from. */
-    protected transient @Nullable Object[]              selectionValues;
+    protected transient Object @Nullable []              selectionValues;
     /** Value the user has input. */
     protected transient @Nullable Object                inputValue;
     /** Initial value to select in <code>selectionValues</code>. */
@@ -578,7 +578,7 @@ public class JOptionPane extends JComponent implements Accessible
     @SuppressWarnings("deprecation")
     public static Object showInputDialog(@Nullable Component parentComponent,
         @Nullable Object message, @Nullable String title, int messageType, @Nullable Icon icon,
-        @Nullable Object[] selectionValues, @Nullable Object initialSelectionValue)
+        Object @Nullable [] selectionValues, @Nullable Object initialSelectionValue)
         throws HeadlessException {
         JOptionPane    pane = new JOptionPane(message, messageType,
                                               OK_CANCEL_OPTION, icon,
@@ -700,7 +700,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
     public static int showConfirmDialog(@Nullable Component parentComponent,
-    		@Nullable Object message) throws HeadlessException {
+        @Nullable Object message) throws HeadlessException {
         return showConfirmDialog(parentComponent, message,
                                  UIManager.getString("OptionPane.titleText"),
                                  YES_NO_CANCEL_OPTION);
@@ -728,7 +728,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
     public static int showConfirmDialog(@Nullable Component parentComponent,
-    		@Nullable Object message, @Nullable String title, int optionType)
+        @Nullable Object message, @Nullable String title, int optionType)
         throws HeadlessException {
         return showConfirmDialog(parentComponent, message, title, optionType,
                                  QUESTION_MESSAGE);
@@ -767,7 +767,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
     public static int showConfirmDialog(@Nullable Component parentComponent,
-    		@Nullable Object message, @Nullable String title, int optionType, int messageType)
+        @Nullable Object message, @Nullable String title, int optionType, int messageType)
         throws HeadlessException {
         return showConfirmDialog(parentComponent, message, title, optionType,
                                 messageType, null);
@@ -805,7 +805,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
     public static int showConfirmDialog(@Nullable Component parentComponent,
-    		@Nullable Object message, @Nullable String title, int optionType,
+        @Nullable Object message, @Nullable String title, int optionType,
         int messageType, @Nullable Icon icon) throws HeadlessException {
         return showOptionDialog(parentComponent, message, title, optionType,
                                 messageType, icon, null, null);
@@ -867,8 +867,8 @@ public class JOptionPane extends JComponent implements Accessible
      */
     @SuppressWarnings("deprecation")
     public static int showOptionDialog(@Nullable Component parentComponent,
-    		@Nullable Object message, @Nullable String title, int optionType, int messageType,
-    		@Nullable Icon icon, @Nullable Object[] options, @Nullable Object initialValue)
+        @Nullable Object message, @Nullable String title, int optionType, int messageType,
+        @Nullable Icon icon, Object @Nullable [] options, @Nullable Object initialValue)
         throws HeadlessException {
         JOptionPane             pane = new JOptionPane(message, messageType,
                                                        optionType, icon,
@@ -1064,7 +1064,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @param message   the object to display
      */
     public static void showInternalMessageDialog(@Nullable Component parentComponent,
-    		@Nullable Object message) {
+                                                 @Nullable Object message) {
         showInternalMessageDialog(parentComponent, message, UIManager.
                                  getString("OptionPane.messageDialogTitle",
                                  parentComponent), INFORMATION_MESSAGE);
@@ -1089,7 +1089,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  or <code>PLAIN_MESSAGE</code>
      */
     public static void showInternalMessageDialog(@Nullable Component parentComponent,
-    											 @Nullable Object message, @Nullable String title,
+                                                 @Nullable Object message, @Nullable String title,
                                                  int messageType) {
         showInternalMessageDialog(parentComponent, message, title, messageType,null);
     }
@@ -1114,7 +1114,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  identify the kind of message that is being displayed
      */
     public static void showInternalMessageDialog(@Nullable Component parentComponent,
-    									 @Nullable Object message,
+                                         @Nullable Object message,
                                          @Nullable String title, int messageType,
                                          @Nullable Icon icon){
         showInternalOptionDialog(parentComponent, message, title, DEFAULT_OPTION,
@@ -1133,7 +1133,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @return an integer indicating the option selected by the user
      */
     public static int showInternalConfirmDialog(@Nullable Component parentComponent,
-    											@Nullable Object message) {
+                                                @Nullable Object message) {
         return showInternalConfirmDialog(parentComponent, message,
                                  UIManager.getString("OptionPane.titleText"),
                                  YES_NO_CANCEL_OPTION);
@@ -1160,7 +1160,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @return an integer indicating the option selected by the user
      */
     public static int showInternalConfirmDialog(@Nullable Component parentComponent,
-    											@Nullable Object message, @Nullable String title,
+                                                @Nullable Object message, @Nullable String title,
                                                 int optionType) {
         return showInternalConfirmDialog(parentComponent, message, title, optionType,
                                          QUESTION_MESSAGE);
@@ -1196,8 +1196,8 @@ public class JOptionPane extends JComponent implements Accessible
      * @return an integer indicating the option selected by the user
      */
     public static int showInternalConfirmDialog(@Nullable Component parentComponent,
-    											@Nullable Object message,
-    											@Nullable String title, int optionType,
+                                        @Nullable Object message,
+                                        @Nullable String title, int optionType,
                                         int messageType) {
         return showInternalConfirmDialog(parentComponent, message, title, optionType,
                                          messageType, null);
@@ -1235,8 +1235,8 @@ public class JOptionPane extends JComponent implements Accessible
      * @return an integer indicating the option selected by the user
      */
     public static int showInternalConfirmDialog(@Nullable Component parentComponent,
-    									@Nullable Object message,
-    									@Nullable String title, int optionType,
+                                        @Nullable Object message,
+                                        @Nullable String title, int optionType,
                                         int messageType, @Nullable Icon icon) {
         return showInternalOptionDialog(parentComponent, message, title, optionType,
                                         messageType, icon, null, null);
@@ -1300,10 +1300,10 @@ public class JOptionPane extends JComponent implements Accessible
      *          or <code>CLOSED_OPTION</code> if the user closed the Dialog
      */
     public static int showInternalOptionDialog(@Nullable Component parentComponent,
-    								   @Nullable Object message,
-    								   @Nullable String title, int optionType,
-                                       int messageType, Icon icon,
-                                       @Nullable Object[] options, @Nullable Object initialValue) {
+                                       @Nullable Object message,
+                                       @Nullable String title, int optionType,
+                                       int messageType, @Nullable Icon icon,
+                                       Object @Nullable [] options, @Nullable Object initialValue) {
         JOptionPane pane = new JOptionPane(message, messageType,
                 optionType, icon, options, initialValue);
         pane.putClientProperty(PopupFactory_FORCE_HEAVYWEIGHT_POPUP,
@@ -1320,11 +1320,7 @@ public class JOptionPane extends JComponent implements Accessible
 
             /* Since all input will be blocked until this dialog is dismissed,
              * make sure its parent containers are visible first (this component
-             * is tested below).  This is necessary for JApplets, because
-             * because an applet normally isn't made visible until after its
-             * start() method returns -- if this method is called from start(),
-             * the applet will appear to hang while an invisible modal frame
-             * waits for input.
+             * is tested below).
              */
             if (dialog.isVisible() && !dialog.isShowing()) {
                 Container parent = dialog.getParent();
@@ -1387,7 +1383,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @return user's input
      */
     public static String showInternalInputDialog(@Nullable Component parentComponent,
-    											 @Nullable Object message) {
+                                                 @Nullable Object message) {
         return showInternalInputDialog(parentComponent, message, UIManager.
                getString("OptionPane.inputDialogTitle", parentComponent),
                QUESTION_MESSAGE);
@@ -1408,7 +1404,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @return user's input
      */
     public static String showInternalInputDialog(@Nullable Component parentComponent,
-    											 @Nullable Object message, @Nullable String title, int messageType) {
+                             @Nullable Object message, @Nullable String title, int messageType) {
         return (String)showInternalInputDialog(parentComponent, message, title,
                                        messageType, null, null, null);
     }
@@ -1443,8 +1439,8 @@ public class JOptionPane extends JComponent implements Accessible
      *          canceled the input
      */
     public static Object showInternalInputDialog(@Nullable Component parentComponent,
-    		@Nullable Object message, @Nullable String title, int messageType, @Nullable Icon icon,
-    		@Nullable Object[] selectionValues, @Nullable Object initialSelectionValue) {
+            @Nullable Object message, @Nullable String title, int messageType, @Nullable Icon icon,
+            Object @Nullable [] selectionValues, @Nullable Object initialSelectionValue) {
         JOptionPane pane = new JOptionPane(message, messageType,
                 OK_CANCEL_OPTION, icon, null, null);
         pane.putClientProperty(PopupFactory_FORCE_HEAVYWEIGHT_POPUP,
@@ -1464,11 +1460,7 @@ public class JOptionPane extends JComponent implements Accessible
 
         /* Since all input will be blocked until this dialog is dismissed,
          * make sure its parent containers are visible first (this component
-         * is tested below).  This is necessary for JApplets, because
-         * because an applet normally isn't made visible until after its
-         * start() method returns -- if this method is called from start(),
-         * the applet will appear to hang while an invisible modal frame
-         * waits for input.
+         * is tested below).
          */
         if (dialog.isVisible() && !dialog.isShowing()) {
             Container parent = dialog.getParent();
@@ -1521,7 +1513,7 @@ public class JOptionPane extends JComponent implements Accessible
      *          not have a valid parent
      */
     public JInternalFrame createInternalFrame(@Nullable Component parentComponent,
-    										  @Nullable String title) {
+                                 @Nullable String title) {
         Container parent =
                 JOptionPane.getDesktopPaneForComponent(parentComponent);
 
@@ -1668,7 +1660,7 @@ public class JOptionPane extends JComponent implements Accessible
         return getDesktopPaneForComponent(parentComponent.getParent());
     }
 
-    private static final Object sharedFrameKey = JOptionPane.class;
+    private static volatile Frame sharedRootFrame;
 
     /**
      * Sets the frame to use for class methods in which a frame is
@@ -1680,11 +1672,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @param newRootFrame the default <code>Frame</code> to use
      */
     public static void setRootFrame(@Nullable Frame newRootFrame) {
-        if (newRootFrame != null) {
-            SwingUtilities.appContextPut(sharedFrameKey, newRootFrame);
-        } else {
-            SwingUtilities.appContextRemove(sharedFrameKey);
-        }
+        sharedRootFrame = newRootFrame;
     }
 
     /**
@@ -1699,13 +1687,10 @@ public class JOptionPane extends JComponent implements Accessible
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
     public static Frame getRootFrame() throws HeadlessException {
-        Frame sharedFrame =
-            (Frame)SwingUtilities.appContextGet(sharedFrameKey);
-        if (sharedFrame == null) {
-            sharedFrame = SwingUtilities.getSharedOwnerFrame();
-            SwingUtilities.appContextPut(sharedFrameKey, sharedFrame);
+        if (sharedRootFrame == null) {
+            sharedRootFrame = SwingUtilities.getSharedOwnerFrame();
         }
-        return sharedFrame;
+        return sharedRootFrame;
     }
 
     /**
@@ -1781,7 +1766,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @param icon the <code>Icon</code> image to display
      */
     public JOptionPane(@Nullable Object message, int messageType, int optionType,
-    				   @Nullable Icon icon) {
+                       @Nullable Icon icon) {
         this(message, messageType, optionType, icon, null);
     }
 
@@ -1813,7 +1798,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @param options  the choices the user can select
      */
     public JOptionPane(@Nullable Object message, int messageType, int optionType,
-    				   @Nullable Icon icon, @Nullable Object[] options) {
+                       @Nullable Icon icon, Object @Nullable [] options) {
         this(message, messageType, optionType, icon, options, null);
     }
 
@@ -1841,7 +1826,7 @@ public class JOptionPane extends JComponent implements Accessible
      *                  only meaningful if <code>options</code> is used
      */
     public JOptionPane(@Nullable Object message, int messageType, int optionType,
-    				   @Nullable Icon icon, @Nullable Object[] options, @Nullable Object initialValue) {
+                       @Nullable Icon icon, Object @Nullable [] options, @Nullable Object initialValue) {
 
         this.message = message;
         this.options = options == null ? null : Arrays.copyOf(options, options.length);
@@ -2001,7 +1986,7 @@ public class JOptionPane extends JComponent implements Accessible
      */
     @BeanProperty(description
             = "The option pane's options objects.")
-    public void setOptions(@Nullable Object[] newOptions) {
+    public void setOptions(Object @Nullable [] newOptions) {
         Object[]           oldOptions = options;
 
         options = newOptions == null
@@ -2016,7 +2001,7 @@ public class JOptionPane extends JComponent implements Accessible
      *
      * @see #setOptions
      */
-    public @Nullable Object[] getOptions() {
+    public Object @Nullable [] getOptions() {
         return options == null ? null : Arrays.copyOf(options, options.length);
     }
 
@@ -2163,7 +2148,7 @@ public class JOptionPane extends JComponent implements Accessible
      */
     @BeanProperty(description
             = "The option pane's selection values.")
-    public void setSelectionValues(@Nullable Object[] newValues) {
+    public void setSelectionValues(Object @Nullable [] newValues) {
         Object[]           oldValues = selectionValues;
 
         selectionValues = newValues == null
@@ -2180,7 +2165,7 @@ public class JOptionPane extends JComponent implements Accessible
      * @return the array of <code>Objects</code> the user can select
      * @see #setSelectionValues
      */
-    public @Nullable Object[] getSelectionValues() {
+    public Object @Nullable [] getSelectionValues() {
         return selectionValues == null
                 ? null
                 : Arrays.copyOf(selectionValues, selectionValues.length);

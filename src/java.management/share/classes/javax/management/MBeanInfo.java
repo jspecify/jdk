@@ -486,8 +486,6 @@ public class MBeanInfo implements Cloneable, Serializable, DescriptorRead {
      * to this one according to the rules above.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.net.SocketOption;
 import java.net.SocketAddress;
 import java.util.concurrent.Future;
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An asynchronous channel for stream-oriented listening sockets.
@@ -142,7 +143,7 @@ public abstract class AsynchronousServerSocketChannel
      * @throws  IOException
      *          If an I/O error occurs
      */
-    public static AsynchronousServerSocketChannel open(AsynchronousChannelGroup group)
+    public static AsynchronousServerSocketChannel open(@Nullable AsynchronousChannelGroup group)
         throws IOException
     {
         AsynchronousChannelProvider provider = (group == null) ?
@@ -208,7 +209,7 @@ public abstract class AsynchronousServerSocketChannel
      * <p> The {@code backlog} parameter is the maximum number of pending
      * connections on the socket. Its exact semantics are implementation specific.
      * In particular, an implementation may impose a maximum length or may choose
-     * to ignore the parameter altogther. If the {@code backlog} parameter has
+     * to ignore the parameter altogether. If the {@code backlog} parameter has
      * the value {@code 0}, or a negative value, then an implementation specific
      * default is used.
      *

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -436,8 +436,8 @@ public class PSStreamPrintJob implements CancelablePrintJob {
         /* add the user name to the job */
         String userName = System.getProperty("user.name");
         if (userName == null || userName.isEmpty()) {
-            RequestingUserName ruName =
-                (RequestingUserName)reqSet.get(RequestingUserName.class);
+            RequestingUserName ruName = (reqSet != null) ?
+                (RequestingUserName)reqSet.get(RequestingUserName.class) : null;
             if (ruName != null) {
                 jobAttrSet.add(
                     new JobOriginatingUserName(ruName.getValue(),

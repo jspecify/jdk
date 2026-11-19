@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -370,7 +370,7 @@ public class GregorianCalendar extends Calendar {
      *
      * @see #ERA
      */
-    public static final  int BC = 0;
+    public static final int BC = 0;
 
     /**
      * Value of the {@link #ERA} field indicating
@@ -388,7 +388,7 @@ public class GregorianCalendar extends Calendar {
      *
      * @see #ERA
      */
-    public static final  int AD = 1;
+    public static final int AD = 1;
 
     /**
      * Value of the {@link #ERA} field indicating
@@ -830,7 +830,6 @@ public class GregorianCalendar extends Calendar {
      * @param year the given year.
      * @return {@code true} if the given year is a leap year; {@code false} otherwise.
      */
-    
     public boolean isLeapYear(int year) {
         if ((year & 3) != 0) {
             return false;
@@ -882,9 +881,8 @@ public class GregorianCalendar extends Calendar {
      * {@code false} otherwise.
      * @see Calendar#compareTo(Calendar)
      */
-    
     @Override
-    public boolean equals( @Nullable Object obj) {
+    public boolean equals(@Nullable Object obj) {
         return obj instanceof GregorianCalendar &&
             super.equals(obj) &&
             gregorianCutover == ((GregorianCalendar)obj).gregorianCutover;
@@ -893,7 +891,6 @@ public class GregorianCalendar extends Calendar {
     /**
      * Generates the hash code for this {@code GregorianCalendar} object.
      */
-    
     @Override
     public int hashCode() {
         return super.hashCode() ^ (int)gregorianCutoverDate;
@@ -1221,8 +1218,10 @@ public class GregorianCalendar extends Calendar {
                 d.setHours(hourOfDay);
                 time = calsys.getTime(d);
 
-                // If we stay on the same wall-clock time, try the next or previous hour.
-                if (internalGet(HOUR_OF_DAY) == d.getHours()) {
+                // If the rolled amount is not a full HOUR/HOUR_OF_DAY (12/24-hour) cycle and
+                // if we stay on the same wall-clock time, try the next or previous hour.
+                if (((field == HOUR_OF_DAY && amount % 24 != 0) || (field == HOUR && amount % 12 != 0))
+                        && internalGet(HOUR_OF_DAY) == d.getHours()) {
                     hourOfDay = getRolledValue(rolledValue, amount > 0 ? +1 : -1, min, max);
                     if (field == HOUR && internalGet(AM_PM) == PM) {
                         hourOfDay += 12;
@@ -1985,7 +1984,6 @@ public class GregorianCalendar extends Calendar {
             (internalGet(ZONE_OFFSET) + internalGet(DST_OFFSET));
     }
 
-    
     @Override
     public Object clone()
     {

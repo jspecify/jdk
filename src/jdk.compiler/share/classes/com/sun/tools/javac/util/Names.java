@@ -114,6 +114,7 @@ public class Names {
     public final Name java_lang_Cloneable;
     public final Name java_lang_Enum;
     public final Name java_lang_Object;
+    public final Name java_lang_System;
 
     // names of builtin classes
     public final Name Array;
@@ -127,6 +128,7 @@ public class Names {
 
     // module names
     public final Name java_base;
+    public final Name java_se;
     public final Name jdk_unsupported;
 
     // attribute names
@@ -151,6 +153,7 @@ public class Names {
     public final Name ModuleResolution;
     public final Name NestHost;
     public final Name NestMembers;
+    public final Name LoadableDescriptors;
     public final Name Record;
     public final Name RuntimeInvisibleAnnotations;
     public final Name RuntimeInvisibleParameterAnnotations;
@@ -205,6 +208,10 @@ public class Names {
     public final Name makeConcat;
     public final Name makeConcatWithConstants;
 
+    // values
+    public final Name dollarValue;
+
+
     // record related
     // members of java.lang.runtime.ObjectMethods
     public final Name bootstrap;
@@ -226,6 +233,9 @@ public class Names {
     public final Name typeSwitch;
     public final Name enumSwitch;
     public final Name enumConstant;
+
+    // special annotation names
+    public final Name requiresIdentityInternal;
 
     public final Name.Table table;
 
@@ -302,6 +312,7 @@ public class Names {
         java_lang_Cloneable = fromString("java.lang.Cloneable");
         java_lang_Enum = fromString("java.lang.Enum");
         java_lang_Object = fromString("java.lang.Object");
+        java_lang_System = fromString("java.lang.System");
 
         // names of builtin classes
         Array = fromString("Array");
@@ -315,6 +326,7 @@ public class Names {
 
         // module names
         java_base = fromString("java.base");
+        java_se = fromString("java.se");
         jdk_unsupported = fromString("jdk.unsupported");
 
         // attribute names
@@ -339,6 +351,7 @@ public class Names {
         ModuleResolution = fromString("ModuleResolution");
         NestHost = fromString("NestHost");
         NestMembers = fromString("NestMembers");
+        LoadableDescriptors = fromString("LoadableDescriptors");
         Record = fromString("Record");
         RuntimeInvisibleAnnotations = fromString("RuntimeInvisibleAnnotations");
         RuntimeInvisibleParameterAnnotations = fromString("RuntimeInvisibleParameterAnnotations");
@@ -392,6 +405,8 @@ public class Names {
         makeConcat = fromString("makeConcat");
         makeConcatWithConstants = fromString("makeConcatWithConstants");
 
+        dollarValue = fromString("$value");
+
         bootstrap = fromString("bootstrap");
         record = fromString("record");
         non = fromString("non");
@@ -410,6 +425,9 @@ public class Names {
         typeSwitch = fromString("typeSwitch");
         enumSwitch = fromString("enumSwitch");
         enumConstant = fromString("enumConstant");
+
+        // special annotations:
+        requiresIdentityInternal = fromString("jdk.internal.RequiresIdentity+Annotation");
     }
 
     protected Name.Table createTable(Options options) {
@@ -433,6 +451,10 @@ public class Names {
 
     public UnsharedNameTable newUnsharedNameTable() {
         return UnsharedNameTable.create(this);
+    }
+
+    public boolean isInit(Name name) {
+        return name == init;
     }
 
     public void dispose() {

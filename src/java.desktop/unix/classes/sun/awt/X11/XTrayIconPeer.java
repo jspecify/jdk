@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import java.awt.image.*;
 import java.lang.reflect.InvocationTargetException;
 import sun.util.logging.PlatformLogger;
 
-public class XTrayIconPeer implements TrayIconPeer,
+public final class XTrayIconPeer implements TrayIconPeer,
        InfoWindow.Balloon.LiveArguments,
        InfoWindow.Tooltip.LiveArguments
 {
@@ -267,8 +267,9 @@ public class XTrayIconPeer implements TrayIconPeer,
         addListeners();
     }
 
+    @Override
     public void dispose() {
-        if (SunToolkit.isDispatchThreadForAppContext(target)) {
+        if (EventQueue.isDispatchThread()) {
             disposeOnEDT();
         } else {
             try {
@@ -310,14 +311,17 @@ public class XTrayIconPeer implements TrayIconPeer,
         AWTAccessor.getWindowAccessor().setTrayIconWindow(w, true);
     }
 
+    @Override
     public void setToolTip(String tooltip) {
         tooltipString = tooltip;
     }
 
+    @Override
     public String getTooltipString() {
         return tooltipString;
     }
 
+    @Override
     public void updateImage() {
         Runnable r = new Runnable() {
                 public void run() {
@@ -325,13 +329,14 @@ public class XTrayIconPeer implements TrayIconPeer,
                 }
             };
 
-        if (!SunToolkit.isDispatchThreadForAppContext(target)) {
+        if (!EventQueue.isDispatchThread()) {
             SunToolkit.executeOnEventHandlerThread(target, r);
         } else {
             r.run();
         }
     }
 
+    @Override
     public void displayMessage(String caption, String text, String messageType) {
         Point loc = getLocationOnScreen();
         Rectangle screen = eframe.getGraphicsConfiguration().getBounds();
@@ -345,11 +350,12 @@ public class XTrayIconPeer implements TrayIconPeer,
     }
 
     // It's synchronized with disposal by EDT.
+    @Override
     public void showPopupMenu(int x, int y) {
         if (isDisposed())
             return;
 
-        assert SunToolkit.isDispatchThreadForAppContext(target);
+        assert EventQueue.isDispatchThread();
 
         PopupMenu newPopup = target.getPopupMenu();
         if (popup != newPopup) {
@@ -405,6 +411,7 @@ public class XTrayIconPeer implements TrayIconPeer,
         return eframe.getLocationOnScreen();
     }
 
+    @Override
     public Rectangle getBounds() {
         Point loc = getLocationOnScreen();
         return new Rectangle(loc.x, loc.y, loc.x + TRAY_ICON_WIDTH, loc.y + TRAY_ICON_HEIGHT);
@@ -427,15 +434,17 @@ public class XTrayIconPeer implements TrayIconPeer,
                           .<XEmbeddedFramePeer>getPeer(eframe).getWindow();
     }
 
+    @Override
     public boolean isDisposed() {
         return isDisposed;
     }
 
+    @Override
     public String getActionCommand() {
         return target.getActionCommand();
     }
 
-    static class TrayIconEventProxy implements MouseListener, MouseMotionListener {
+    static final class TrayIconEventProxy implements MouseListener, MouseMotionListener {
         XTrayIconPeer xtiPeer;
 
         TrayIconEventProxy(XTrayIconPeer xtiPeer) {
@@ -467,8 +476,9 @@ public class XTrayIconPeer implements TrayIconPeer,
             // other class tries to cast source field to Component).
             // We already filter DRAG events out (CR 6565779).
             e.setSource(xtiPeer.target);
-            XToolkit.postEvent(XToolkit.targetToAppContext(e.getSource()), e);
+            XToolkit.postEvent(e);
         }
+        @Override
         @SuppressWarnings("deprecation")
         public void mouseClicked(MouseEvent e) {
             if ((e.getClickCount() == 1 || xtiPeer.balloon.isVisible()) &&
@@ -477,30 +487,36 @@ public class XTrayIconPeer implements TrayIconPeer,
                 ActionEvent aev = new ActionEvent(xtiPeer.target, ActionEvent.ACTION_PERFORMED,
                                                   xtiPeer.target.getActionCommand(), e.getWhen(),
                                                   e.getModifiers());
-                XToolkit.postEvent(XToolkit.targetToAppContext(aev.getSource()), aev);
+                XToolkit.postEvent(aev);
             }
             if (xtiPeer.balloon.isVisible()) {
                 xtiPeer.balloon.hide();
             }
             handleEvent(e);
         }
+        @Override
         public void mouseEntered(MouseEvent e) {
             xtiPeer.tooltip.enter();
             handleEvent(e);
         }
+        @Override
         public void mouseExited(MouseEvent e) {
             xtiPeer.tooltip.exit();
             handleEvent(e);
         }
+        @Override
         public void mousePressed(MouseEvent e) {
             handleEvent(e);
         }
+        @Override
         public void mouseReleased(MouseEvent e) {
             handleEvent(e);
         }
+        @Override
         public void mouseDragged(MouseEvent e) {
             handleEvent(e);
         }
+        @Override
         public void mouseMoved(MouseEvent e) {
             handleEvent(e);
         }
@@ -511,20 +527,23 @@ public class XTrayIconPeer implements TrayIconPeer,
     // ***************************************
 
     @SuppressWarnings("serial") // JDK-implementation class
-    private static class XTrayIconEmbeddedFrame extends XEmbeddedFrame {
+    private static final class XTrayIconEmbeddedFrame extends XEmbeddedFrame {
         public XTrayIconEmbeddedFrame(){
             super(XToolkit.getDefaultRootWindow(), true, true);
         }
 
+        @Override
         public boolean isUndecorated() {
             return true;
         }
 
+        @Override
         public boolean isResizable() {
             return false;
         }
 
         // embedded frame for tray icon shouldn't be disposed by anyone except tray icon
+        @Override
         public void dispose(){
         }
 
@@ -538,7 +557,7 @@ public class XTrayIconPeer implements TrayIconPeer,
     // ***************************************
 
     @SuppressWarnings("serial") // JDK-implementation class
-    static class TrayIconCanvas extends IconCanvas {
+    static final class TrayIconCanvas extends IconCanvas {
         TrayIcon target;
         boolean autosize;
 
@@ -548,6 +567,7 @@ public class XTrayIconPeer implements TrayIconPeer,
         }
 
         // Invoke on EDT.
+        @Override
         protected void repaintImage(boolean doClear) {
             boolean old_autosize = autosize;
             autosize = target.isImageAutoSize();
@@ -558,6 +578,7 @@ public class XTrayIconPeer implements TrayIconPeer,
             super.repaintImage(doClear || (old_autosize != autosize));
         }
 
+        @Override
         public void dispose() {
             super.dispose();
             target = null;
@@ -608,6 +629,7 @@ public class XTrayIconPeer implements TrayIconPeer,
         }
 
         // Invoke on EDT.
+        @Override
         public void paint(Graphics g) {
             if (g != null && curW > 0 && curH > 0) {
                 BufferedImage bufImage = new BufferedImage(curW, curH, BufferedImage.TYPE_INT_ARGB);
@@ -627,7 +649,8 @@ public class XTrayIconPeer implements TrayIconPeer,
             }
         }
 
-        class IconObserver implements ImageObserver {
+        final class IconObserver implements ImageObserver {
+            @Override
             public boolean imageUpdate(final Image image, final int flags, int x, int y, int width, int height) {
                 if (image != IconCanvas.this.image || // if the image has been changed
                     !IconCanvas.this.isVisible())

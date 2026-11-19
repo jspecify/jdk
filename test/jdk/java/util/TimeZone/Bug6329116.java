@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,16 @@
  * @test
  * @bug 6329116 6756569 6757131 6758988 6764308 6796489 6834474 6609737 6507067
  *      7039469 7090843 7103108 7103405 7158483 8008577 8059206 8064560 8072042
- *      8077685 8151876 8166875 8169191 8170316 8176044 8174269
+ *      8077685 8151876 8166875 8169191 8170316 8176044 8174269 8347841 8347955
+ *      8388214
  * @summary Make sure that timezone short display names are identical to Olson's data.
  * @run junit Bug6329116
  */
 
 import java.io.*;
+import java.time.ZoneId;
 import java.util.*;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,12 +42,22 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public class Bug6329116 {
 
+    // As of CLDR v48.2, CLDR provides these short names for zones with explicit DST offsets.
+    private static final Map<String, String> CLDR_SHORT_NAMES = Map.of(
+            "America/Edmonton", "MST",
+            "Canada/Mountain", "MST",
+            "America/Yellowknife", "MST",
+            "America/Vancouver", "PST",
+            "Canada/Pacific", "PST");
+
     // Do not test all locales, as some locales have localized
     // short names in CLDR. Test only for the US locale
 
     // static Locale[] locales = Locale.getAvailableLocales();
     static Locale[] locales = {Locale.US};
-    static String[] timezones = TimeZone.getAvailableIDs();
+    static String[] timezones = TimeZone.availableIDs()
+            .filter(Predicate.not(ZoneId.SHORT_IDS::containsKey))
+            .toArray(String[]::new);
 
     @Test
     public void bug6329116() throws IOException {
@@ -101,6 +114,9 @@ public class Bug6329116 {
                 tzs[0] = timezoneID;
 
                 for (int j = 0; j < tzs.length; j++) {
+                    if (ZoneId.SHORT_IDS.containsKey(tzs[j])) {
+                        continue;
+                    }
                     tz = TimeZone.getTimeZone(tzs[j]);
 
                     if (!tzs[j].equals(tz.getID())) {
@@ -241,6 +257,11 @@ public class Bug6329116 {
         // If we get a TimeZone with GMT+hh:mm format, we can ignore the offset value
         if (tz.getDisplayName(Locale.ENGLISH).startsWith("GMT+") || tz.getDisplayName(Locale.ENGLISH).startsWith("GMT-")) {
             return tz.getDisplayName().substring(0, 3).equals(got.substring(0, 3));
+        }
+
+        // Some zones use CLDR short names even when the tzdata FORMAT changed.
+        if (!inDST) {
+            return CLDR_SHORT_NAMES.getOrDefault(tz.getID(), "").equals(got);
         }
 
         return false;

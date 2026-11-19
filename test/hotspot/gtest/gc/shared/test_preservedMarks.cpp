@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,14 +21,13 @@
  * questions.
  */
 
-#include "precompiled.hpp"
 #include "gc/shared/preservedMarks.inline.hpp"
 #include "gc/shared/fullGCForwarding.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "unittest.hpp"
 
 static markWord originalMark() { return markWord(markWord::lock_mask_in_place); }
-static markWord changedMark()  { return markWord(0x4711); }
+static markWord changedMark()  { return markWord().copy_set_hash(0x4711); }
 
 #define ASSERT_MARK_WORD_EQ(a, b) ASSERT_EQ((a).value(), (b).value())
 

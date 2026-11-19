@@ -1,9 +1,12 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8325805
+ * @library /tools/javac/lib
  * @summary Verify local class in early construction context has no outer instance
- * @compile/fail/ref=EarlyLocalClass.out -XDrawDiagnostics EarlyLocalClass.java
+ * @modules jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.util
  * @enablePreview
+ * @compile/fail/ref=EarlyLocalClass.out -XDrawDiagnostics EarlyLocalClass.java
  */
 public class EarlyLocalClass {
     EarlyLocalClass() {

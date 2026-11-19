@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,6 @@
 package java.time.temporal;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.time.DateTimeException;
 import java.time.Duration;
@@ -149,9 +148,9 @@ public interface TemporalAmount {
      * <pre>
      *   // These two lines are equivalent, but the second approach is recommended
      *   dateTime = amount.addTo(dateTime);
-     *   dateTime = dateTime.plus(adder);
+     *   dateTime = dateTime.plus(amount);
      * </pre>
-     * It is recommended to use the second approach, {@code plus(TemporalAmount)},
+     * It is recommended to use the second approach, {@code plus(amount)},
      * as it is a lot clearer to read in code.
      *
      * @implSpec
@@ -193,7 +192,7 @@ public interface TemporalAmount {
      *   dateTime = amount.subtractFrom(dateTime);
      *   dateTime = dateTime.minus(amount);
      * </pre>
-     * It is recommended to use the second approach, {@code minus(TemporalAmount)},
+     * It is recommended to use the second approach, {@code minus(amount)},
      * as it is a lot clearer to read in code.
      *
      * @implSpec

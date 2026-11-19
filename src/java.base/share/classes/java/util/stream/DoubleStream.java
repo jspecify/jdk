@@ -493,7 +493,6 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      *
      * @return an array containing the elements of this stream
      */
-    
     double[] toArray();
 
     /**
@@ -935,11 +934,9 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
     @Override
     DoubleStream parallel();
 
-    
     @Override
     PrimitiveIterator.OfDouble iterator();
 
-    
     @Override
     Spliterator.OfDouble spliterator();
 

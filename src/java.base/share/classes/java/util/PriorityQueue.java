@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,7 +86,6 @@ import jdk.internal.util.ArraysSupport;
  * @author Josh Bloch, Doug Lea
  * @param <E> the type of elements held in this queue
  */
-
 @NullMarked
 @SuppressWarnings("unchecked")
 public class PriorityQueue<E> extends AbstractQueue<E>
@@ -108,12 +107,12 @@ public class PriorityQueue<E> extends AbstractQueue<E>
     transient Object[] queue; // non-private to simplify nested class access
 
     /**
-     * The number of elements in the priority queue.
+     * @serial The number of elements in the priority queue.
      */
     int size;
 
     /**
-     * The comparator, or null if priority queue uses elements'
+     * @serial The comparator, or null if priority queue uses elements'
      * natural ordering.
      */
     @SuppressWarnings("serial") // Conditionally serializable
@@ -143,7 +142,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @throws IllegalArgumentException if {@code initialCapacity} is less
      *         than 1
      */
-    public PriorityQueue( int initialCapacity) {
+    public PriorityQueue(int initialCapacity) {
         this(initialCapacity, null);
     }
 
@@ -171,7 +170,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @throws IllegalArgumentException if {@code initialCapacity} is
      *         less than 1
      */
-    public PriorityQueue( int initialCapacity,
+    public PriorityQueue(int initialCapacity,
                          @Nullable Comparator<? super E> comparator) {
         // Note: This restriction of at least one is not actually needed,
         // but continues for 1.5 compatibility
@@ -210,6 +209,32 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         }
         else {
             this.comparator = null;
+            initFromCollection(c);
+        }
+    }
+
+    /**
+     * Creates a {@code PriorityQueue} containing the elements in the
+     * specified collection. The elements of the new {@code PriorityQueue}
+     * will be ordered according to the specified comparator.
+     *
+     * @param  c the collection whose elements are to be placed
+     *         into this priority queue
+     * @param  comparator the comparator that will be used to order this
+     *         priority queue.  If {@code null}, the {@linkplain Comparable
+     *         natural ordering} of the elements will be used.
+     * @throws NullPointerException if the specified collection or any
+     *         of its elements are null
+     * @since 28
+     */
+    public PriorityQueue(Collection<? extends E> c,
+                         @Nullable Comparator<? super E> comparator) {
+        this.comparator = comparator;
+        if (c instanceof SortedSet<? extends E> ss && comparator == ss.comparator()) {
+            initElementsFromCollection(ss);
+        } else if (c instanceof PriorityQueue<? extends E> pq && comparator == pq.comparator()) {
+            initFromPriorityQueue(pq);
+        } else {
             initFromCollection(c);
         }
     }
@@ -341,7 +366,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         return (E) queue[0];
     }
 
-    private int indexOf(@Nullable Object o) {
+    private int indexOf(Object o) {
         if (o != null) {
             final Object[] es = queue;
             for (int i = 0, n = size; i < n; i++)
@@ -395,7 +420,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @param o object to be checked for containment in this queue
      * @return {@code true} if this queue contains the specified element
      */
-    
     public boolean contains(@Nullable Object o) {
         return indexOf(o) >= 0;
     }
@@ -413,7 +437,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    
     public Object[] toArray() {
         return Arrays.copyOf(queue, size);
     }
@@ -454,7 +477,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      *         this queue
      * @throws NullPointerException if the specified array is null
      */
-    
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         final int size = this.size;
         if (a.length < size)
@@ -472,7 +494,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      *
      * @return an iterator over the elements in this queue
      */
-    
     public Iterator<E> iterator() {
         return new Itr();
     }
@@ -561,8 +582,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         }
     }
 
-    
-    public  int size() {
+    public int size() {
         return size;
     }
 
@@ -649,7 +669,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
             siftUpComparable(k, x, queue);
     }
 
-    private static <T extends @Nullable Object> void siftUpComparable(int k, T x, Object[] es) {
+    private static <T> void siftUpComparable(int k, T x, Object[] es) {
         Comparable<? super T> key = (Comparable<? super T>) x;
         while (k > 0) {
             int parent = (k - 1) >>> 1;
@@ -662,7 +682,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         es[k] = key;
     }
 
-    private static <T extends @Nullable Object> void siftUpUsingComparator(
+    private static <T> void siftUpUsingComparator(
         int k, T x, Object[] es, Comparator<? super T> cmp) {
         while (k > 0) {
             int parent = (k - 1) >>> 1;
@@ -690,7 +710,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
             siftDownComparable(k, x, queue, size);
     }
 
-    private static <T extends @Nullable Object> void siftDownComparable(int k, T x, Object[] es, int n) {
+    private static <T> void siftDownComparable(int k, T x, Object[] es, int n) {
         // assert n > 0;
         Comparable<? super T> key = (Comparable<? super T>)x;
         int half = n >>> 1;           // loop while a non-leaf
@@ -709,7 +729,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         es[k] = key;
     }
 
-    private static <T extends @Nullable Object> void siftDownUsingComparator(
+    private static <T> void siftDownUsingComparator(
         int k, T x, Object[] es, int n, Comparator<? super T> cmp) {
         // assert n > 0;
         int half = n >>> 1;
@@ -753,7 +773,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      *         {@code null} if this queue is sorted according to the
      *         natural ordering of its elements
      */
-    
     public @Nullable Comparator<? super E> comparator() {
         return comparator;
     }

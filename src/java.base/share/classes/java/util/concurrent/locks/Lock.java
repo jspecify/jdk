@@ -36,6 +36,7 @@
 package java.util.concurrent.locks;
 
 import java.util.concurrent.TimeUnit;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * {@code Lock} implementations provide more extensive locking
@@ -166,6 +167,7 @@ import java.util.concurrent.TimeUnit;
  * @since 1.5
  * @author Doug Lea
  */
+@NullMarked
 public interface Lock {
 
     /**

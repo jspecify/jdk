@@ -90,7 +90,6 @@ import org.jspecify.annotations.Nullable;
  * @param <E> the type of elements maintained by this set
  * @since 1.6
  */
-
 @NullMarked
 public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
     /**
@@ -176,7 +175,6 @@ public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
      *
      * @return an iterator over the elements in this set, in ascending order
      */
-    
     Iterator<E> iterator();
 
     /**
@@ -239,9 +237,8 @@ public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
      *         has a restricted range, and {@code fromElement} or
      *         {@code toElement} lies outside the bounds of the range.
      */
-    
-    NavigableSet<E> subSet( E fromElement, boolean fromInclusive,
-                            E toElement,   boolean toInclusive);
+    NavigableSet<E> subSet(E fromElement, boolean fromInclusive,
+                           E toElement,   boolean toInclusive);
 
     /**
      * Returns a view of the portion of this set whose elements are less than
@@ -270,8 +267,7 @@ public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
      *         restricted range, and {@code toElement} lies outside the
      *         bounds of the range
      */
-    
-    NavigableSet<E> headSet( E toElement, boolean inclusive);
+    NavigableSet<E> headSet(E toElement, boolean inclusive);
 
     /**
      * Returns a view of the portion of this set whose elements are greater
@@ -300,8 +296,7 @@ public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
      *         restricted range, and {@code fromElement} lies outside the
      *         bounds of the range
      */
-    
-    NavigableSet<E> tailSet( E fromElement, boolean inclusive);
+    NavigableSet<E> tailSet(E fromElement, boolean inclusive);
 
     /**
      * {@inheritDoc}
@@ -312,8 +307,7 @@ public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
      * @throws NullPointerException     {@inheritDoc}
      * @throws IllegalArgumentException {@inheritDoc}
      */
-    
-    SortedSet<E> subSet( E fromElement,  E toElement);
+    SortedSet<E> subSet(E fromElement, E toElement);
 
     /**
      * {@inheritDoc}
@@ -324,7 +318,6 @@ public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
      * @throws NullPointerException     {@inheritDoc}
      * @throws IllegalArgumentException {@inheritDoc}
      */
-    
     SortedSet<E> headSet(E toElement);
 
     /**
@@ -336,7 +329,6 @@ public interface NavigableSet<E extends @Nullable Object> extends SortedSet<E> {
      * @throws NullPointerException     {@inheritDoc}
      * @throws IllegalArgumentException {@inheritDoc}
      */
-    
     SortedSet<E> tailSet(E fromElement);
 
     /**

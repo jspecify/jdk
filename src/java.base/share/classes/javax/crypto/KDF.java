@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package javax.crypto;
 
-import jdk.internal.javac.PreviewFeature;
 import sun.security.jca.GetInstance;
 import sun.security.jca.GetInstance.Instance;
 import sun.security.util.Debug;
@@ -39,6 +38,7 @@ import java.security.Provider.Service;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Iterator;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class provides the functionality of a Key Derivation Function (KDF),
@@ -98,9 +98,8 @@ import java.util.Objects;
  *
  * @see KDFParameters
  * @see SecretKey
- * @since 24
+ * @since 25
  */
-@PreviewFeature(feature = PreviewFeature.Feature.KEY_DERIVATION)
 public final class KDF {
 
     private static final Debug pdebug = Debug.getInstance("provider",
@@ -222,6 +221,7 @@ public final class KDF {
      *         Java Security Standard Algorithm Names Specification</a> for
      *         information about standard KDF algorithm names.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code KDF} object
      *
      * @throws NoSuchAlgorithmException
@@ -256,6 +256,7 @@ public final class KDF {
      * @param provider
      *         the provider to use for this key derivation
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code KDF} object
      *
      * @throws NoSuchAlgorithmException
@@ -291,6 +292,7 @@ public final class KDF {
      * @param provider
      *         the provider to use for this key derivation
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code KDF} object
      *
      * @throws NoSuchAlgorithmException
@@ -332,6 +334,7 @@ public final class KDF {
      *         the {@code KDFParameters} used to configure the derivation
      *         algorithm or {@code null} if no parameters are provided
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code KDF} object
      *
      * @throws NoSuchAlgorithmException
@@ -347,7 +350,7 @@ public final class KDF {
      *         Selection</a>
      */
     public static KDF getInstance(String algorithm,
-                                  KDFParameters kdfParameters)
+                                  @Nullable KDFParameters kdfParameters)
             throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
         Objects.requireNonNull(algorithm, "algorithm must not be null");
         // make sure there is at least one service from a signed provider
@@ -375,6 +378,7 @@ public final class KDF {
      * @param provider
      *         the provider to use for this key derivation
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code KDF} object
      *
      * @throws NoSuchAlgorithmException
@@ -390,7 +394,7 @@ public final class KDF {
      *         if {@code algorithm} or {@code provider} is {@code null}
      */
     public static KDF getInstance(String algorithm,
-                                  KDFParameters kdfParameters,
+                                  @Nullable KDFParameters kdfParameters,
                                   String provider)
             throws NoSuchAlgorithmException, NoSuchProviderException,
                    InvalidAlgorithmParameterException {
@@ -428,6 +432,7 @@ public final class KDF {
      * @param provider
      *         the provider to use for this key derivation
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code KDF} object
      *
      * @throws NoSuchAlgorithmException
@@ -440,7 +445,7 @@ public final class KDF {
      *         if {@code algorithm} or {@code provider} is {@code null}
      */
     public static KDF getInstance(String algorithm,
-                                  KDFParameters kdfParameters,
+                                  @Nullable KDFParameters kdfParameters,
                                   Provider provider)
             throws NoSuchAlgorithmException,
                    InvalidAlgorithmParameterException {
@@ -473,11 +478,34 @@ public final class KDF {
         throw e;
     }
 
+    // Rethrows the IAPE thrown by an implementation, adding an explanation
+    // for the situation in which it fails.
+    private void rethrow(InvalidAlgorithmParameterException e)
+            throws InvalidAlgorithmParameterException {
+        var source = serviceIterator == null
+                ? "specified" : "previously selected";
+        if (!skipDebug && pdebug != null) {
+            pdebug.println("A " + this.getAlgorithm()
+                    + " derivation cannot be performed "
+                    + "using the supplied derivation "
+                    + "inputs with the " + source + " "
+                    + theOne.provider().getName()
+                    + " provider.");
+        }
+        throw new InvalidAlgorithmParameterException(
+                "The " + source + " " + theOne.provider.getName()
+                + " provider does not support this input", e);
+    }
+
     /**
      * Derives a key, returned as a {@code SecretKey} object.
      *
      * @param alg
-     *         the algorithm of the resultant {@code SecretKey} object
+     *         the algorithm of the resultant {@code SecretKey} object.
+     *         See the SecretKey Algorithms section in the
+     *         <a href="{@docRoot}/../specs/security/standard-names.html#secretkey-algorithms">
+     *         Java Security Standard Algorithm Names Specification</a>
+     *         for information about standard secret key algorithm names.
      * @param derivationSpec
      *         the object describing the inputs to the derivation function
      *
@@ -494,6 +522,7 @@ public final class KDF {
      *
      * @see <a href="#DelayedProviderSelection">Delayed Provider
      *         Selection</a>
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      *
      */
     public SecretKey deriveKey(String alg,
@@ -512,7 +541,12 @@ public final class KDF {
         }
         Objects.requireNonNull(derivationSpec);
         if (checkSpiNonNull(theOne)) {
-            return theOne.spi().engineDeriveKey(alg, derivationSpec);
+            try {
+                return theOne.spi().engineDeriveKey(alg, derivationSpec);
+            } catch (InvalidAlgorithmParameterException e) {
+                rethrow(e);
+                return null; // will not be called
+            }
         } else {
             return (SecretKey) chooseProvider(alg, derivationSpec);
         }
@@ -543,7 +577,12 @@ public final class KDF {
 
         Objects.requireNonNull(derivationSpec);
         if (checkSpiNonNull(theOne)) {
-            return theOne.spi().engineDeriveData(derivationSpec);
+            try {
+                return theOne.spi().engineDeriveData(derivationSpec);
+            } catch (InvalidAlgorithmParameterException e) {
+                rethrow(e);
+                return null; // will not be called
+            }
         } else {
             try {
                 return (byte[]) chooseProvider(null, derivationSpec);
@@ -602,6 +641,11 @@ public final class KDF {
                                         derivationSpec);
                         // found a working KDFSpi
                         this.theOne = currOne;
+                        if (!skipDebug && pdebug != null) {
+                            pdebug.println("The provider "
+                                    + currOne.provider().getName()
+                                    + " is selected");
+                        }
                         return result;
                     } catch (Exception e) {
                         if (!skipDebug && pdebug != null) {
@@ -638,7 +682,8 @@ public final class KDF {
                     e.printStackTrace(pdebug.getPrintStream());
                 }
                 // getNext reached end without finding an implementation
-                throw new InvalidAlgorithmParameterException(lastException);
+                throw new InvalidAlgorithmParameterException(
+                        "No provider supports this input", lastException);
             }
         }
     }

@@ -124,7 +124,6 @@ public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object
      *         or {@code null} if this map uses the natural ordering
      *         of its keys
      */
-    
     @Nullable Comparator<? super K> comparator();
 
     /**
@@ -156,8 +155,7 @@ public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object
      *         range, and {@code fromKey} or {@code toKey} lies
      *         outside the bounds of the range
      */
-    
-    SortedMap<K,V> subMap( K fromKey,  K toKey);
+    SortedMap<K,V> subMap(K fromKey, K toKey);
 
     /**
      * Returns a view of the portion of this map whose keys are
@@ -184,7 +182,6 @@ public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object
      *         restricted range, and {@code toKey} lies outside the
      *         bounds of the range
      */
-    
     SortedMap<K,V> headMap(K toKey);
 
     /**
@@ -212,7 +209,6 @@ public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object
      *         restricted range, and {@code fromKey} lies outside the
      *         bounds of the range
      */
-    
     SortedMap<K,V> tailMap(K fromKey);
 
     /**
@@ -221,8 +217,7 @@ public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object
      * @return the first (lowest) key currently in this map
      * @throws NoSuchElementException if this map is empty
      */
-    
-     K firstKey();
+    K firstKey();
 
     /**
      * Returns the last (highest) key currently in this map.
@@ -230,8 +225,7 @@ public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object
      * @return the last (highest) key currently in this map
      * @throws NoSuchElementException if this map is empty
      */
-    
-     K lastKey();
+    K lastKey();
 
     /**
      * Returns a {@link Set} view of the keys contained in this map.
@@ -250,8 +244,7 @@ public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object
      * @return a set view of the keys contained in this map, sorted in
      *         ascending order
      */
-    
-    Set< K> keySet();
+    Set<K> keySet();
 
     /**
      * Returns a {@link Collection} view of the values contained in this map.
@@ -271,7 +264,6 @@ public interface SortedMap<K extends @Nullable Object,V extends @Nullable Object
      * @return a collection view of the values contained in this map,
      *         sorted in ascending key order
      */
-    
     Collection<V> values();
 
     /**

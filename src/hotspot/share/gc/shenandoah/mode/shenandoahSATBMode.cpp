@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "gc/shenandoah/heuristics/shenandoahHeuristics.hpp"
 #include "gc/shenandoah/mode/shenandoahSATBMode.hpp"
 #include "logging/log.hpp"
@@ -41,8 +40,6 @@ void ShenandoahSATBMode::initialize_flags() const {
   // Final configuration checks
   SHENANDOAH_CHECK_FLAG_SET(ShenandoahLoadRefBarrier);
   SHENANDOAH_CHECK_FLAG_SET(ShenandoahSATBBarrier);
-  SHENANDOAH_CHECK_FLAG_SET(ShenandoahCASBarrier);
   SHENANDOAH_CHECK_FLAG_SET(ShenandoahCloneBarrier);
-  SHENANDOAH_CHECK_FLAG_SET(ShenandoahStackWatermarkBarrier);
   SHENANDOAH_CHECK_FLAG_UNSET(ShenandoahCardBarrier);
 }

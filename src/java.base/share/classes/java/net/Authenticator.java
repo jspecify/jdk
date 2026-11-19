@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
  */
 
 package java.net;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * The class Authenticator represents an object that knows how to obtain
@@ -139,7 +141,7 @@ class Authenticator {
      *
      * @return The username/password, or null if one can't be gotten.
      */
-    public static PasswordAuthentication requestPasswordAuthentication(
+    public static @Nullable PasswordAuthentication requestPasswordAuthentication(
                                             InetAddress addr,
                                             int port,
                                             String protocol,
@@ -181,7 +183,7 @@ class Authenticator {
      *
      * @since 1.4
      */
-    public static PasswordAuthentication requestPasswordAuthentication(
+    public static @Nullable PasswordAuthentication requestPasswordAuthentication(
                                             String host,
                                             InetAddress addr,
                                             int port,
@@ -226,7 +228,7 @@ class Authenticator {
      *
      * @since 1.5
      */
-    public static PasswordAuthentication requestPasswordAuthentication(
+    public static @Nullable PasswordAuthentication requestPasswordAuthentication(
                                     String host,
                                     InetAddress addr,
                                     int port,
@@ -278,8 +280,8 @@ class Authenticator {
      *
      * @since 9
      */
-    public static PasswordAuthentication requestPasswordAuthentication(
-                                    Authenticator authenticator,
+    public static @Nullable PasswordAuthentication requestPasswordAuthentication(
+                                    @Nullable Authenticator authenticator,
                                     String host,
                                     InetAddress addr,
                                     int port,
@@ -421,17 +423,17 @@ class Authenticator {
      * @return The PasswordAuthentication collected from the
      *          user, or null if none is provided.
      */
-    protected PasswordAuthentication getPasswordAuthentication() {
+    protected @Nullable PasswordAuthentication getPasswordAuthentication() {
         return null;
     }
 
     /**
-     * Returns the URL that resulted in this
-     * request for authentication.
+     * Returns the URL that resulted in this request for authentication.
+     * If the corresponding request does not specify a URL, this method returns null.
      *
      * @since 1.5
      *
-     * @return the requesting URL
+     * @return the requesting URL, or null if not available.
      *
      */
     protected URL getRequestingURL () {

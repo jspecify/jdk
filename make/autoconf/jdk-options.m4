@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -95,6 +95,13 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_OPEN_OR_CUSTOM],
 
 AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
 [
+  # Should we build a JDK with/without sound ?
+  UTIL_ARG_ENABLE(NAME: jsound, DEFAULT: true,
+      RESULT: ENABLE_JSOUND,
+      DESC: [build with sound support],
+      CHECKING_MSG: [if we should build with sound support])
+  AC_SUBST(ENABLE_JSOUND)
+
   # Should we build a JDK without a graphical UI?
   UTIL_ARG_ENABLE(NAME: headless-only, DEFAULT: false,
       RESULT: ENABLE_HEADLESS_ONLY,
@@ -102,9 +109,20 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
       CHECKING_MSG: [if we should build headless-only (no GUI)])
   AC_SUBST(ENABLE_HEADLESS_ONLY)
 
+  # Avoid headless-only on macOS and Windows, it is not supported there
+  if test "x$ENABLE_HEADLESS_ONLY" = xtrue; then
+    if test "x$OPENJDK_TARGET_OS" = xwindows || test "x$OPENJDK_TARGET_OS" = xmacosx; then
+      AC_MSG_ERROR([headless-only is not supported on macOS and Windows])
+    fi
+  fi
+
   # should we linktime gc unused code sections in the JDK build ?
-  if test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = xs390x; then
-    LINKTIME_GC_DEFAULT=true
+  if test "x$OPENJDK_TARGET_OS" = "xlinux"; then
+    if test "x$OPENJDK_TARGET_CPU" = "xs390x" || test "x$OPENJDK_TARGET_CPU" = "xppc64le"; then
+      LINKTIME_GC_DEFAULT=true
+    else
+      LINKTIME_GC_DEFAULT=false
+    fi
   else
     LINKTIME_GC_DEFAULT=false
   fi
@@ -312,26 +330,47 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
   AC_SUBST(COPY_DEBUG_SYMBOLS)
   AC_SUBST(ZIP_EXTERNAL_DEBUG_SYMBOLS)
 
+  # Should we enable objcopy debuginfo compression ?
+  UTIL_ARG_ENABLE(NAME: objcopy-debuginfo-compression, DEFAULT: false,
+      RESULT: ENABLE_OBJCOPY_DEBUGINFO_COMPRESSION,
+      DESC: [Set to enable compression in the debuginfo files (Linux only)],
+      CHECKING_MSG: [if debuginfo compression with objcopy is done],
+      IF_ENABLED: [ OBJCOPY_COMPRESS_FLAGS="--compress-debug-sections=zlib-gnu" ])
+  AC_SUBST(OBJCOPY_COMPRESS_FLAGS)
+
   # Should we add external native debug symbols to the shipped bundles?
   AC_MSG_CHECKING([if we should add external native debug symbols to the shipped bundles])
   AC_ARG_WITH([external-symbols-in-bundles],
       [AS_HELP_STRING([--with-external-symbols-in-bundles],
-      [which type of external native debug symbol information shall be shipped in product bundles (none, public, full)
-      (e.g. ship full/stripped pdbs on Windows) @<:@none@:>@])])
+      [which type of external native debug symbol information shall be shipped with bundles/images (none, public, full).
+      @<:@none in release builds, full otherwise. --with-native-debug-symbols=external/zipped is a prerequisite. public is only supported on Windows@:>@])],
+      [],
+      [with_external_symbols_in_bundles=default])
 
   if test "x$with_external_symbols_in_bundles" = x || test "x$with_external_symbols_in_bundles" = xnone ; then
     AC_MSG_RESULT([no])
   elif test "x$with_external_symbols_in_bundles" = xfull || test "x$with_external_symbols_in_bundles" = xpublic ; then
-    if test "x$OPENJDK_TARGET_OS" != xwindows ; then
-      AC_MSG_ERROR([--with-external-symbols-in-bundles currently only works on windows!])
-    elif test "x$COPY_DEBUG_SYMBOLS" != xtrue ; then
-      AC_MSG_ERROR([--with-external-symbols-in-bundles only works when --with-native-debug-symbols=external is used!])
-    elif test "x$with_external_symbols_in_bundles" = xfull ; then
+    if test "x$COPY_DEBUG_SYMBOLS" != xtrue ; then
+      AC_MSG_ERROR([--with-external-symbols-in-bundles only works when --with-native-debug-symbols=external/zipped is used!])
+    elif test "x$with_external_symbols_in_bundles" = xpublic && test "x$OPENJDK_TARGET_OS" != xwindows ; then
+      AC_MSG_ERROR([--with-external-symbols-in-bundles=public is only supported on Windows!])
+    fi
+
+    if test "x$with_external_symbols_in_bundles" = xfull ; then
       AC_MSG_RESULT([full])
       SHIP_DEBUG_SYMBOLS=full
     else
       AC_MSG_RESULT([public])
       SHIP_DEBUG_SYMBOLS=public
+    fi
+  elif test "x$with_external_symbols_in_bundles" = xdefault ; then
+    if test "x$DEBUG_LEVEL" = xrelease ; then
+      AC_MSG_RESULT([no (default)])
+    elif test "x$COPY_DEBUG_SYMBOLS" = xtrue ; then
+      AC_MSG_RESULT([full (default)])
+      SHIP_DEBUG_SYMBOLS=full
+    else
+      AC_MSG_RESULT([no (default, native debug symbols are not external/zipped)])
     fi
   else
     AC_MSG_ERROR([$with_external_symbols_in_bundles is an unknown value for --with-external-symbols-in-bundles])
@@ -405,10 +444,19 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
       JCOV_FILTERS="$with_jcov_filters"
     fi
   fi
+
+  UTIL_ARG_WITH(NAME: jcov-modules, TYPE: string,
+      DEFAULT: [], RESULT: JCOV_MODULES_COMMMA_SEPARATED,
+      DESC: [which modules to include in jcov (comma-separated)],
+      OPTIONAL: true)
+
+  # Replace ","  with " ".
+  JCOV_MODULES=${JCOV_MODULES_COMMMA_SEPARATED//,/ }
   AC_SUBST(JCOV_ENABLED)
   AC_SUBST(JCOV_HOME)
   AC_SUBST(JCOV_INPUT_JDK)
   AC_SUBST(JCOV_FILTERS)
+  AC_SUBST(JCOV_MODULES)
 ])
 
 ################################################################################
@@ -446,6 +494,7 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_ADDRESS_SANITIZER],
           fi
           if test "x$TOOLCHAIN_TYPE" = "xclang"; then
             ASAN_CFLAGS="$ASAN_CFLAGS -fsanitize-address-use-after-return=never"
+            ASAN_LDFLAGS="$ASAN_LDFLAGS -shared-libasan"
           fi
         elif test "x$TOOLCHAIN_TYPE" = "xmicrosoft"; then
           # -Oy- is equivalent to -fno-omit-frame-pointer in GCC/Clang.
@@ -467,6 +516,31 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_ADDRESS_SANITIZER],
         LDFLAGS_STATIC_JDK="$LDFLAGS_STATIC_JDK $ASAN_LDFLAGS"
       ])
   AC_SUBST(ASAN_ENABLED)
+])
+
+################################################################################
+#
+# Static analyzer
+#
+AC_DEFUN_ONCE([JDKOPT_SETUP_STATIC_ANALYZER],
+[
+  UTIL_ARG_ENABLE(NAME: static-analyzer, DEFAULT: false, RESULT: STATIC_ANALYZER_ENABLED,
+      DESC: [enable the GCC static analyzer],
+      CHECK_AVAILABLE: [
+        AC_MSG_CHECKING([if static analyzer is available])
+        if test "x$TOOLCHAIN_TYPE" = "xgcc"; then
+          AC_MSG_RESULT([yes])
+        else
+          AC_MSG_RESULT([no])
+          AVAILABLE=false
+        fi
+      ],
+      IF_ENABLED: [
+        STATIC_ANALYZER_CFLAGS="-fanalyzer -Wno-analyzer-fd-leak"
+        CFLAGS_JDKLIB="$CFLAGS_JDKLIB $STATIC_ANALYZER_CFLAGS"
+        CFLAGS_JDKEXE="$CFLAGS_JDKEXE $STATIC_ANALYZER_CFLAGS"
+      ])
+  AC_SUBST(STATIC_ANALYZER_ENABLED)
 ])
 
 ################################################################################
@@ -515,11 +589,30 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_UNDEFINED_BEHAVIOR_SANITIZER],
       OPTIONAL: true)
 
   # GCC reports lots of likely false positives for stringop-truncation and format-overflow.
+  # GCC 13 also for array-bounds and stringop-overflow
   # Silence them for now.
   UBSAN_CHECKS="-fsanitize=undefined -fsanitize=float-divide-by-zero -fno-sanitize=shift-base -fno-sanitize=alignment \
       $ADDITIONAL_UBSAN_CHECKS"
-  UBSAN_CFLAGS="$UBSAN_CHECKS -Wno-stringop-truncation -Wno-format-overflow -fno-omit-frame-pointer -DUNDEFINED_BEHAVIOR_SANITIZER"
+  UBSAN_CFLAGS="$UBSAN_CHECKS -Wno-array-bounds -fno-omit-frame-pointer -DUNDEFINED_BEHAVIOR_SANITIZER"
+  if test "x$TOOLCHAIN_TYPE" = "xgcc"; then
+    UBSAN_CFLAGS="$UBSAN_CFLAGS -Wno-format-overflow -Wno-stringop-overflow -Wno-stringop-truncation"
+  fi
   UBSAN_LDFLAGS="$UBSAN_CHECKS"
+  # On AIX, the llvm_symbolizer is not found out of the box, so we have to provide the
+  # full qualified llvm_symbolizer path in the __ubsan_default_options() function in
+  # make/data/ubsan/ubsan_default_options.c. To get it there we compile our sources
+  # with an additional define LLVM_SYMBOLIZER, which we set here.
+  # To calculate the correct llvm_symbolizer path we can use the location of the compiler, because
+  # their relation is fixed.
+  # In the ubsan case we have to link every binary with the C++-compiler as linker, because inherently
+  # the C-Compiler and the C++-compiler used as linker provide a different set of ubsan exports.
+  # Linking an executable with the C-compiler and one of its shared libraries with the C++-compiler
+  # leeds to unresolved symbols.
+  if test "x$TOOLCHAIN_TYPE" = "xclang" && test "x$OPENJDK_TARGET_OS" = "xaix"; then
+    UBSAN_CFLAGS="$UBSAN_CFLAGS -DLLVM_SYMBOLIZER=$(dirname $(dirname $CC))/tools/ibm-llvm-symbolizer"
+    UBSAN_LDFLAGS="$UBSAN_LDFLAGS -Wl,-bbigtoc"
+    LD="$LDCXX"
+  fi
   UTIL_ARG_ENABLE(NAME: ubsan, DEFAULT: false, RESULT: UBSAN_ENABLED,
       DESC: [enable UndefinedBehaviorSanitizer],
       CHECK_AVAILABLE: [
@@ -550,16 +643,6 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_UNDEFINED_BEHAVIOR_SANITIZER],
   AC_SUBST(UBSAN_CFLAGS)
   AC_SUBST(UBSAN_LDFLAGS)
   AC_SUBST(UBSAN_ENABLED)
-])
-
-################################################################################
-#
-# Static build support.  When enabled will generate static
-# libraries instead of shared libraries for all JDK libs.
-#
-AC_DEFUN_ONCE([JDKOPT_SETUP_STATIC_BUILD],
-[
-  UTIL_DEPRECATED_ARG_ENABLE(static-build)
 ])
 
 ################################################################################
@@ -628,6 +711,18 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JLINK_OPTIONS],
       DEFAULT_DESC: [enabled by default unless --enable-linkable-runtime is set],
       CHECKING_MSG: [if packaged modules are kept])
   AC_SUBST(JLINK_KEEP_PACKAGED_MODULES)
+
+  ################################################################################
+  #
+  # Extra jlink options to be (optionally) passed to the JDK build
+  #
+  UTIL_ARG_WITH(NAME: extra-jlink-flags, TYPE: string,
+      DEFAULT: [],
+      DESC: [extra flags to be passed to jlink during the build],
+      OPTIONAL: true)
+
+  JLINK_USER_EXTRA_FLAGS="$EXTRA_JLINK_FLAGS"
+  AC_SUBST(JLINK_USER_EXTRA_FLAGS)
 ])
 
 ################################################################################
@@ -671,15 +766,6 @@ AC_DEFUN([JDKOPT_EXCLUDE_TRANSLATIONS],
 
 ################################################################################
 #
-# Optionally disable man pages (deprecated)
-#
-AC_DEFUN([JDKOPT_ENABLE_DISABLE_MANPAGES],
-[
-  UTIL_DEPRECATED_ARG_ENABLE(manpages)
-])
-
-################################################################################
-#
 # Disable the default CDS archive generation
 #
 AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE],
@@ -707,14 +793,13 @@ AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE],
 #
 # Enable or disable the default CDS archive generation for Compact Object Headers
 #
-AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE_COH],
+AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE_NOCOH],
 [
-  UTIL_ARG_ENABLE(NAME: cds-archive-coh, DEFAULT: auto, RESULT: BUILD_CDS_ARCHIVE_COH,
-      DESC: [enable generation of default CDS archives for compact object headers (requires --enable-cds-archive)],
-      DEFAULT_DESC: [auto],
-      CHECKING_MSG: [if default CDS archives for compact object headers should be generated],
+  UTIL_ARG_ENABLE(NAME: cds-archive-nocoh, DEFAULT: auto, RESULT: BUILD_CDS_ARCHIVE_NOCOH,
+      DESC: [enable generation of default CDS archives for no compact object headers (requires --enable-cds-archive)],
+      CHECKING_MSG: [if default CDS archives for no compact object headers should be generated],
       CHECK_AVAILABLE: [
-        AC_MSG_CHECKING([if CDS archive with compact object headers is available])
+        AC_MSG_CHECKING([if CDS archive with no compact object headers is available])
         if test "x$BUILD_CDS_ARCHIVE" = "xfalse"; then
           AC_MSG_RESULT([no (CDS default archive generation is disabled)])
           AVAILABLE=false
@@ -731,7 +816,32 @@ AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE_COH],
           AVAILABLE=true
         fi
       ])
-  AC_SUBST(BUILD_CDS_ARCHIVE_COH)
+  AC_SUBST(BUILD_CDS_ARCHIVE_NOCOH)
+])
+
+AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE_NOCOOPS],
+[
+  UTIL_ARG_ENABLE(NAME: cds-archive-nocoops, DEFAULT: true, RESULT: BUILD_CDS_ARCHIVE_NOCOOPS,
+      DESC: [enable generation of no compressed oops CDS archives (requires --enable-cds-archive)],
+      CHECKING_MSG: [if default CDS archives for no compressed oops should be generated])
+  AC_SUBST(BUILD_CDS_ARCHIVE_NOCOOPS)
+])
+
+AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE_PREVIEW],
+[
+  UTIL_ARG_ENABLE(NAME: cds-archive-preview, DEFAULT: auto, RESULT: BUILD_CDS_ARCHIVE_PREVIEW,
+      DESC: [enable generation of preview CDS archives (requires --enable-cds-archive)],
+      CHECKING_MSG: [if default CDS archives for preview should be generated],
+      CHECK_AVAILABLE: [
+        AC_MSG_CHECKING([if value objects are supported])
+        if test "x$OPENJDK_TARGET_CPU_BITS" = "x64"; then
+          AC_MSG_RESULT([yes])
+        else
+          AC_MSG_RESULT([no (64-bit only)])
+          AVAILABLE=false
+        fi
+      ])
+  AC_SUBST(BUILD_CDS_ARCHIVE_PREVIEW)
 ])
 
 ################################################################################
@@ -864,8 +974,6 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_REPRODUCIBLE_BUILD],
   AC_SUBST(SOURCE_DATE)
   AC_SUBST(ISO_8601_FORMAT_STRING)
   AC_SUBST(SOURCE_DATE_ISO_8601)
-
-  UTIL_DEPRECATED_ARG_ENABLE(reproducible-build)
 ])
 
 ################################################################################
@@ -970,6 +1078,41 @@ AC_DEFUN([JDKOPT_SETUP_MACOSX_SIGNING],
   fi
   AC_SUBST(MACOSX_CODESIGN_IDENTITY)
   AC_SUBST(MACOSX_CODESIGN_MODE)
+])
+
+################################################################################
+#
+# Setup a hook to invoke a script that runs for file produced by the native
+# compilation steps, after linking.
+# Parameter is the path to the script to be called.
+#
+AC_DEFUN([JDKOPT_SETUP_SIGNING_HOOK],
+[
+  UTIL_ARG_WITH(NAME: signing-hook, TYPE: executable,
+      OPTIONAL: true, DEFAULT: "",
+      DESC: [specify path to script used to code sign native binaries]
+  )
+
+  AC_MSG_CHECKING([for signing hook])
+  if test "x$SIGNING_HOOK" != x; then
+    UTIL_FIXUP_EXECUTABLE(SIGNING_HOOK)
+    AC_MSG_RESULT([$SIGNING_HOOK])
+  else
+    AC_MSG_RESULT([none])
+  fi
+  AC_SUBST(SIGNING_HOOK)
+])
+
+################################################################################
+#
+# Setup how javac should handle warnings.
+#
+AC_DEFUN([JDKOPT_SETUP_JAVA_WARNINGS],
+[
+  UTIL_ARG_ENABLE(NAME: java-warnings-as-errors, DEFAULT: false,
+      RESULT: JAVA_WARNINGS_AS_ERRORS,
+      DESC: [consider java warnings to be an error])
+  AC_SUBST(JAVA_WARNINGS_AS_ERRORS)
 ])
 
 ################################################################################

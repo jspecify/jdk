@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,7 @@ import jdk.internal.reflect.Reflection;
  * </ul>
  *
  * <li>Service providers of the {@code java.sql.Driver} class, that are loaded
- * via the {@linkplain ServiceLoader#load service-provider loading} mechanism.
+ * via the {@linkplain ServiceLoader#load(Class) service-provider loading} mechanism.
  *</ul>
  *
  * @implNote
@@ -81,8 +81,7 @@ import jdk.internal.reflect.Reflection;
  * @see Connection
  * @since 1.1
  */
-
-public  class DriverManager {
+public class DriverManager {
 
 
     // List of registered JDBC drivers
@@ -660,8 +659,6 @@ class DriverInfo {
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object other) {
         return (other instanceof DriverInfo)
                 && this.driver == ((DriverInfo) other).driver;

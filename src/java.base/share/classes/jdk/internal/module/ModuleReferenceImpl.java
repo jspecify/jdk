@@ -174,8 +174,6 @@ public class ModuleReferenceImpl extends ModuleReference {
     private int hash;
 
     @Override
-    
-    
     public boolean equals(@Nullable Object ob) {
         if (!(ob instanceof ModuleReferenceImpl))
             return false;

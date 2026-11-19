@@ -41,7 +41,6 @@ public class NoSuchFieldException extends ReflectiveOperationException {
     /**
      * Constructor.
      */
-    
     public NoSuchFieldException() {
         super();
     }
@@ -51,7 +50,6 @@ public class NoSuchFieldException extends ReflectiveOperationException {
      *
      * @param s the detail message
      */
-    
     public NoSuchFieldException(@Nullable String s) {
         super(s);
     }

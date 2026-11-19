@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,15 +29,18 @@
 #include "cds/dumpAllocStats.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/metaspaceClosure.hpp"
+#include "memory/reservedSpace.hpp"
+#include "memory/virtualspace.hpp"
 #include "oops/array.hpp"
 #include "oops/klass.hpp"
 #include "runtime/os.hpp"
 #include "utilities/bitMap.hpp"
 #include "utilities/growableArray.hpp"
-#include "utilities/resizeableResourceHash.hpp"
-#include "utilities/resourceHash.hpp"
+#include "utilities/hashTable.hpp"
+#include "utilities/resizableHashTable.hpp"
 
-class ArchiveHeapInfo;
+class AOTMappedHeapInfo;
+class AOTStreamedHeapInfo;
 class CHeapBitMap;
 class FileMapInfo;
 class Klass;
@@ -91,12 +94,11 @@ constexpr size_t SharedSpaceObjectAlignment = Metaspace::min_allocation_alignmen
 //    buffered_address + _buffer_to_requested_delta == requested_address
 //
 class ArchiveBuilder : public StackObj {
+  friend class AOTMapLogger;
+
 protected:
   DumpRegion* _current_dump_region;
   address _buffer_bottom;                      // for writing the contents of rw/ro regions
-  address _last_verified_top;
-  int _num_dump_regions_used;
-  size_t _other_region_used_bytes;
 
   // These are the addresses where we will request the static and dynamic archives to be
   // mapped at run time. If the request fails (due to ASLR), we will map the archives at
@@ -132,13 +134,13 @@ private:
     int _size_in_bytes;
     int _id; // Each object has a unique serial ID, starting from zero. The ID is assigned
              // when the object is added into _source_objs.
-    MetaspaceObj::Type _msotype;
+    MetaspaceClosureType _type;
     address _source_addr;    // The source object to be copied.
     address _buffered_addr;  // The copy of this object insider the buffer.
   public:
     SourceObjInfo(MetaspaceClosure::Ref* ref, bool read_only, FollowMode follow_mode) :
       _ptrmap_start(0), _ptrmap_end(0), _read_only(read_only), _has_embedded_pointer(false), _follow_mode(follow_mode),
-      _size_in_bytes(ref->size() * BytesPerWord), _id(0), _msotype(ref->msotype()),
+      _size_in_bytes(ref->size() * BytesPerWord), _id(0), _type(ref->type()),
       _source_addr(ref->obj()) {
       if (follow_mode == point_to_it) {
         _buffered_addr = ref->obj();
@@ -153,7 +155,7 @@ private:
     SourceObjInfo(address src, SourceObjInfo* renegerated_obj_info) :
       _ptrmap_start(0), _ptrmap_end(0), _read_only(false),
       _follow_mode(renegerated_obj_info->_follow_mode),
-      _size_in_bytes(0), _msotype(renegerated_obj_info->_msotype),
+      _size_in_bytes(0), _type(renegerated_obj_info->_type),
       _source_addr(src),  _buffered_addr(renegerated_obj_info->_buffered_addr) {}
 
     bool should_copy() const { return _follow_mode == make_a_copy; }
@@ -180,7 +182,8 @@ private:
       }
       return _buffered_addr;
     }
-    MetaspaceObj::Type msotype() const { return _msotype; }
+    MetaspaceClosureType type() const { return _type; }
+    FollowMode follow_mode() const { return _follow_mode; }
   };
 
   class SourceObjList {
@@ -202,16 +205,21 @@ private:
     SourceObjInfo* at(int i) const { return objs()->at(i); }
   };
 
-  class CDSMapLogger;
-
   static const int INITIAL_TABLE_SIZE = 15889;
   static const int MAX_TABLE_SIZE     = 1000000;
 
   ReservedSpace _shared_rs;
   VirtualSpace _shared_vs;
 
+  // The "pz" region is used only during static dumps to reserve an unused space between SharedBaseAddress and
+  // the bottom of the rw region. During runtime, this space will be filled with a reserved area that disallows
+  // read/write/exec, so we can track for bad CompressedKlassPointers encoding.
+  // Note: this region does NOT exist in the cds archive.
+  DumpRegion _pz_region;
+
   DumpRegion _rw_region;
   DumpRegion _ro_region;
+  DumpRegion _ac_region; // AOT code
 
   // Combined bitmap to track pointers in both RW and RO regions. This is updated
   // as objects are copied into RW and RO.
@@ -223,8 +231,8 @@ private:
 
   SourceObjList _rw_src_objs;                 // objs to put in rw region
   SourceObjList _ro_src_objs;                 // objs to put in ro region
-  ResizeableResourceHashtable<address, SourceObjInfo, AnyObj::C_HEAP, mtClassShared> _src_obj_table;
-  ResizeableResourceHashtable<address, address, AnyObj::C_HEAP, mtClassShared> _buffered_to_src_table;
+  ResizeableHashTable<address, SourceObjInfo, AnyObj::C_HEAP, mtClassShared> _src_obj_table;
+  ResizeableHashTable<address, address, AnyObj::C_HEAP, mtClassShared> _buffered_to_src_table;
   GrowableArray<Klass*>* _klasses;
   GrowableArray<Symbol*>* _symbols;
   unsigned int _entropy_seed;
@@ -232,10 +240,17 @@ private:
   // statistics
   DumpAllocStats _alloc_stats;
   size_t _total_heap_region_size;
+  struct {
+    size_t _num_ptrs;
+    size_t _num_tagged_ptrs;
+    size_t _num_nulled_ptrs;
+  } _relocated_ptr_info;
 
-  void print_region_stats(FileMapInfo *map_info, ArchiveHeapInfo* heap_info);
+  void print_region_stats(FileMapInfo *map_info,
+                          AOTMappedHeapInfo* mapped_heap_info,
+                          AOTStreamedHeapInfo* streamed_heap_info);
   void print_bitmap_region_stats(size_t size, size_t total_size);
-  void print_heap_region_stats(ArchiveHeapInfo* heap_info, size_t total_size);
+  void print_heap_region_stats(char* start, size_t size, size_t total_size);
 
   // For global access.
   static ArchiveBuilder* _current;
@@ -251,6 +266,8 @@ public:
     }
     ~OtherROAllocMark();
   };
+
+  void count_relocated_pointer(bool tagged, bool nulled);
 
 private:
   FollowMode get_follow_mode(MetaspaceClosure::Ref *ref);
@@ -270,17 +287,7 @@ private:
 
 protected:
   virtual void iterate_roots(MetaspaceClosure* it) = 0;
-
-  // Conservative estimate for number of bytes needed for:
-  size_t _estimated_metaspaceobj_bytes;   // all archived MetaspaceObj's.
-  size_t _estimated_hashtable_bytes;     // symbol table and dictionaries
-
-  static const int _total_dump_regions = 2;
-
-  size_t estimate_archive_size();
-
   void start_dump_region(DumpRegion* next);
-  void verify_estimate_size(size_t estimate, const char* which);
 
 public:
   address reserve_buffer();
@@ -312,53 +319,32 @@ public:
     return (T)(address(obj) + _buffer_to_requested_delta);
   }
 
+  template <typename T> T requested_to_buffered(T obj) const {
+    T b = (T)(address(obj) - _buffer_to_requested_delta);
+    assert(is_in_buffer_space(b), "must be");
+    return b;
+  }
+
   static intx get_buffer_to_requested_delta() {
     return current()->buffer_to_requested_delta();
   }
 
-  inline static u4 to_offset_u4(uintx offset) {
-    guarantee(offset <= MAX_SHARED_DELTA, "must be 32-bit offset " INTPTR_FORMAT, offset);
-    return (u4)offset;
-  }
-
 public:
-  static const uintx MAX_SHARED_DELTA = ArchiveUtils::MAX_SHARED_DELTA;;
-
   // The address p points to an object inside the output buffer. When the archive is mapped
   // at the requested address, what's the offset of this object from _requested_static_archive_bottom?
-  uintx buffer_to_offset(address p) const;
+  size_t buffer_to_offset(address p) const;
 
-  // Same as buffer_to_offset, except that the address p points to either (a) an object
-  // inside the output buffer, or (b), an object in the currently mapped static archive.
-  uintx any_to_offset(address p) const;
+  // Same as buffer_to_offset, except that the address p points to one of the following:
+  // - an object in the ArchiveBuilder's buffer.
+  // - an object in the currently mapped AOT cache rw/ro regions.
+  // - an object that has been copied into the ArchiveBuilder's buffer.
+  size_t any_to_offset(address p) const;
 
   // The reverse of buffer_to_offset()
-  address offset_to_buffered_address(u4 offset) const;
+  address offset_to_buffered_address(size_t offset) const;
 
   template <typename T>
-  u4 buffer_to_offset_u4(T p) const {
-    uintx offset = buffer_to_offset((address)p);
-    return to_offset_u4(offset);
-  }
-
-  template <typename T>
-  u4 any_to_offset_u4(T p) const {
-    assert(p != nullptr, "must not be null");
-    uintx offset = any_to_offset((address)p);
-    return to_offset_u4(offset);
-  }
-
-  template <typename T>
-  u4 any_or_null_to_offset_u4(T p) const {
-    if (p == nullptr) {
-      return 0;
-    } else {
-      return any_to_offset_u4<T>(p);
-    }
-  }
-
-  template <typename T>
-  T offset_to_buffered(u4 offset) const {
+  T offset_to_buffered(size_t offset) const {
     return (T)offset_to_buffered_address(offset);
   }
 
@@ -372,10 +358,11 @@ public:
   bool gather_klass_and_symbol(MetaspaceClosure::Ref* ref, bool read_only);
   bool gather_one_source_obj(MetaspaceClosure::Ref* ref, bool read_only);
   void remember_embedded_pointer_in_enclosing_obj(MetaspaceClosure::Ref* ref);
-  static void serialize_dynamic_archivable_items(SerializeClosure* soc);
 
+  DumpRegion* pz_region() { return &_pz_region; }
   DumpRegion* rw_region() { return &_rw_region; }
   DumpRegion* ro_region() { return &_ro_region; }
+  DumpRegion* ac_region() { return &_ac_region; }
 
   static char* rw_region_alloc(size_t num_bytes) {
     return current()->rw_region()->allocate(num_bytes);
@@ -383,6 +370,12 @@ public:
   static char* ro_region_alloc(size_t num_bytes) {
     return current()->ro_region()->allocate(num_bytes);
   }
+  static char* ac_region_alloc(size_t num_bytes) {
+    return current()->ac_region()->allocate(num_bytes);
+  }
+
+  void start_ac_region();
+  void end_ac_region();
 
   template <typename T>
   static Array<T>* new_ro_array(int length) {
@@ -415,8 +408,11 @@ public:
   void relocate_metaspaceobj_embedded_pointers();
   void record_regenerated_object(address orig_src_obj, address regen_src_obj);
   void make_klasses_shareable();
+  void make_training_data_shareable();
   void relocate_to_requested();
-  void write_archive(FileMapInfo* mapinfo, ArchiveHeapInfo* heap_info);
+  void write_archive(FileMapInfo* mapinfo,
+                     AOTMappedHeapInfo* mapped_heap_info,
+                     AOTStreamedHeapInfo* streamed_heap_info);
   void write_region(FileMapInfo* mapinfo, int region_idx, DumpRegion* dump_region,
                     bool read_only,  bool allow_exec);
 
@@ -430,14 +426,15 @@ public:
     mark_and_relocate_to_buffered_addr((address*)ptr_location);
   }
 
-  bool has_been_buffered(address src_addr) const;
-  template <typename T> bool has_been_buffered(T src_addr) const {
-    return has_been_buffered((address)src_addr);
+  bool has_been_archived(address src_addr) const;
+  template <typename T> bool has_been_archived(T src_addr) const {
+    return has_been_archived((address)src_addr);
   }
 
   address get_buffered_addr(address src_addr) const;
   template <typename T> T get_buffered_addr(T src_addr) const {
-    return (T)get_buffered_addr((address)src_addr);
+    CDS_ONLY(return (T)get_buffered_addr((address)src_addr);)
+    NOT_CDS(return nullptr;)
   }
 
   address get_source_addr(address buffered_addr) const;
@@ -450,7 +447,8 @@ public:
   GrowableArray<Symbol*>* symbols() const { return _symbols; }
 
   static bool is_active() {
-    return (_current != nullptr);
+    CDS_ONLY(return (_current != nullptr));
+    NOT_CDS(return false;)
   }
 
   static ArchiveBuilder* current() {
@@ -482,10 +480,10 @@ public:
     return (Symbol*)current()->get_buffered_addr((address)src_symbol);
   }
 
+  static void log_as_hex(address base, address top, address requested_base, bool is_heap = false);
   void print_stats();
   void report_out_of_space(const char* name, size_t needed_bytes);
 
-#ifdef _LP64
   // The CDS archive contains pre-computed narrow Klass IDs. It carries them in the headers of
   // archived heap objects. With +UseCompactObjectHeaders, it also carries them in prototypes
   // in Klass.
@@ -505,7 +503,6 @@ public:
   // TinyClassPointer Mode:
   //    We use the highest possible shift value to maximize the encoding range size.
   static int precomputed_narrow_klass_shift();
-#endif // _LP64
 
 };
 

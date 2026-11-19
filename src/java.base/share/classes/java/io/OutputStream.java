@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -49,7 +48,7 @@ import java.util.Objects;
  * @since   1.0
  */
 @NullMarked
-public abstract  class OutputStream implements Closeable, Flushable {
+public abstract class OutputStream implements Closeable, Flushable {
     /**
      * Constructor for subclasses to call.
      */
@@ -112,7 +111,7 @@ public abstract  class OutputStream implements Closeable, Flushable {
      *             an {@code IOException} may be thrown if the
      *             output stream has been closed.
      */
-    public abstract void write( int b) throws IOException;
+    public abstract void write(int b) throws IOException;
 
     /**
      * Writes {@code b.length} bytes from the specified byte array

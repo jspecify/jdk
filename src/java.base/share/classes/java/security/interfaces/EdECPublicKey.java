@@ -27,6 +27,7 @@ package java.security.interfaces;
 import java.security.PublicKey;
 import java.security.spec.EdECPoint;
 import java.security.spec.NamedParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An interface for an elliptic curve public key as defined by
@@ -60,7 +61,7 @@ public interface EdECPublicKey extends EdECKey, PublicKey {
      * @return {@inheritDoc java.security.AsymmetricKey}
      */
     @Override
-    default NamedParameterSpec getParams() {
+    default @Nullable NamedParameterSpec getParams() {
         return null;
     }
 }

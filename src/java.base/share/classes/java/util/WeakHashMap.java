@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,8 @@ package java.util;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -45,6 +45,18 @@ import java.util.function.Consumer;
  * When a key has been discarded its entry is effectively removed from the map,
  * so this class behaves somewhat differently from other {@code Map}
  * implementations.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          {@linkplain java.util.Objects#hasIdentity Value objects} can not be used as
+ *          keys in a {@code WeakHashMap}. The {@link #put(Object, Object) put(K, V)}
+ *          method, and all methods that associate a value with a key, throw {@link
+ *          IdentityException} if the key is a value object.
+ *          The {@link WeakHashMap#WeakHashMap(Map)} constructor and the {@link
+ *          #putAll(Map)} method also throw {@code IdentityException} if invoked with
+ *          a {@code Map} containing a key that is a value object.
+ *      </div>
+ * </div>
  *
  * <p> Both null values and the null key are supported. This class has
  * performance characteristics similar to those of the {@code HashMap}
@@ -90,14 +102,14 @@ import java.util.function.Consumer;
  * removed only after the weak references to it, both inside and outside of the
  * map, have been cleared by the garbage collector.
  *
- * <p> <strong>Implementation note:</strong> The value objects in a
+ * <p> <strong>Implementation note:</strong> The values in a
  * {@code WeakHashMap} are held by ordinary strong references.  Thus care
- * should be taken to ensure that value objects do not strongly refer to their
+ * should be taken to ensure that values do not strongly refer to their
  * own keys, either directly or indirectly, since that will prevent the keys
- * from being discarded.  Note that a value object may refer indirectly to its
- * key via the {@code WeakHashMap} itself; that is, a value object may
- * strongly refer to some other key object whose associated value object, in
- * turn, strongly refers to the key of the first value object.  If the values
+ * from being discarded.  Note that a value may refer indirectly to its
+ * key via the {@code WeakHashMap} itself; that is, a value may
+ * strongly refer to some other key object whose associated value, in
+ * turn, strongly refers to the key of the first value.  If the values
  * in the map do not rely on the map holding strong references to them, one way
  * to deal with this is to wrap values themselves within
  * {@code WeakReferences} before
@@ -135,10 +147,8 @@ import java.util.function.Consumer;
  * @see         java.util.HashMap
  * @see         java.lang.ref.WeakReference
  */
-
-
 @NullMarked
-public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
+public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Object,V extends @Nullable Object>
     extends AbstractMap<K,V>
     implements Map<K,V> {
 
@@ -213,7 +223,7 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * @throws IllegalArgumentException if the initial capacity is negative,
      *         or if the load factor is nonpositive.
      */
-    public WeakHashMap( int initialCapacity, float loadFactor) {
+    public WeakHashMap(int initialCapacity, float loadFactor) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal Initial Capacity: "+
                                                initialCapacity);
@@ -240,7 +250,7 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * @param  initialCapacity The initial capacity of the {@code WeakHashMap}
      * @throws IllegalArgumentException if the initial capacity is negative
      */
-    public WeakHashMap( int initialCapacity) {
+    public WeakHashMap(int initialCapacity) {
         this(initialCapacity, DEFAULT_LOAD_FACTOR);
     }
 
@@ -260,6 +270,8 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      *
      * @param   m the map whose mappings are to be placed in this map
      * @throws  NullPointerException if the specified map is null
+     * @throws  IdentityException if any of the keys in the specified map
+     *          is a value object
      * @since   1.3
      */
     @SuppressWarnings("this-escape")
@@ -294,6 +306,8 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
     /**
      * Checks for equality of non-null reference x and possibly-null y.  By
      * default uses Object.equals.
+     * The key may be a value object, but it will never be equal to the referent
+     * so does not need a separate Objects.hasIdentity check.
      */
     private boolean matchesKey(Entry<K,V> e, Object key) {
         // check if the given entry refers to the given key without
@@ -375,8 +389,7 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * entries that will be removed before next attempted access
      * because they are no longer referenced.
      */
-    
-    public  int size() {
+    public int size() {
         if (size == 0)
             return 0;
         expungeStaleEntries();
@@ -389,7 +402,6 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * entries that will be removed before next attempted access
      * because they are no longer referenced.
      */
-    
     public boolean isEmpty() {
         return size() == 0;
     }
@@ -412,7 +424,6 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      *
      * @see #put(Object, Object)
      */
-    
     public @Nullable V get(@Nullable Object key) {
         Object k = maskNull(key);
         int h = hash(k);
@@ -435,8 +446,6 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * @return {@code true} if there is a mapping for {@code key};
      *         {@code false} otherwise
      */
-    
-    
     public boolean containsKey(@Nullable Object key) {
         return getEntry(key) != null;
     }
@@ -467,10 +476,12 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      *         {@code null} if there was no mapping for {@code key}.
      *         (A {@code null} return can also indicate that the map
      *         previously associated {@code null} with {@code key}.)
+     * @throws IdentityException if {@code key} is a {@link
+     *         java.util.Objects#hasIdentity(Object) value object}
      */
-    
-    public @Nullable V put(K key, V value) {
+    public @Nullable V put(@jdk.internal.RequiresIdentity K key, V value) {
         Object k = maskNull(key);
+        Objects.requireIdentity(k);
         int h = hash(k);
         Entry<K,V>[] tab = getTable();
         int i = indexFor(h, tab.length);
@@ -558,8 +569,15 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * These mappings will replace any mappings that this map had for any
      * of the keys currently in the specified map.
      *
+     * @apiNote If the specified map contains keys that are
+     * {@linkplain java.util.Objects#hasIdentity value objects},
+     * an {@linkplain IdentityException} is thrown when the first value object
+     * key is encountered. Zero or more mappings may have already been copied to
+     * this map.
+     *
      * @param m mappings to be stored in this map.
      * @throws  NullPointerException if the specified map is null.
+     * @throws  IdentityException if any of the {@code keys} is a value object
      */
     public void putAll(Map<? extends K, ? extends V> m) {
         int numKeysToBeAdded = m.size();
@@ -694,7 +712,6 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * @return {@code true} if this map maps one or more keys to the
      *         specified value
      */
-    
     public boolean containsValue(@Nullable Object value) {
         if (value==null)
             return containsNullValue();
@@ -886,8 +903,7 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * operations.  It does not support the {@code add} or {@code addAll}
      * operations.
      */
-    
-    public Set< K> keySet() {
+    public Set<K> keySet() {
         Set<K> ks = keySet;
         if (ks == null) {
             ks = new KeySet();
@@ -897,21 +913,19 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
     }
 
     private class KeySet extends AbstractSet<K> {
-        
         public Iterator<K> iterator() {
             return new KeyIterator();
         }
 
-        
-        public  int size() {
+        public int size() {
             return WeakHashMap.this.size();
         }
 
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return containsKey(o);
         }
 
-        public boolean remove(@Nullable Object o) {
+        public boolean remove(Object o) {
             if (containsKey(o)) {
                 WeakHashMap.this.remove(o);
                 return true;
@@ -924,7 +938,6 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
             WeakHashMap.this.clear();
         }
 
-        
         public Spliterator<K> spliterator() {
             return new KeySpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }
@@ -943,7 +956,6 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * {@code retainAll} and {@code clear} operations.  It does not
      * support the {@code add} or {@code addAll} operations.
      */
-    
     public Collection<V> values() {
         Collection<V> vs = values;
         if (vs == null) {
@@ -954,17 +966,15 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
     }
 
     private class Values extends AbstractCollection<V> {
-        
         public Iterator<V> iterator() {
             return new ValueIterator();
         }
 
-        
-        public  int size() {
+        public int size() {
             return WeakHashMap.this.size();
         }
 
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return containsValue(o);
         }
 
@@ -972,7 +982,6 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
             WeakHashMap.this.clear();
         }
 
-        
         public Spliterator<V> spliterator() {
             return new ValueSpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }
@@ -992,14 +1001,12 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
      * {@code clear} operations.  It does not support the
      * {@code add} or {@code addAll} operations.
      */
-    
-    public Set<Map.Entry< K,V>> entrySet() {
+    public Set<Map.Entry<K,V>> entrySet() {
         Set<Map.Entry<K,V>> es = entrySet;
         return es != null ? es : (entrySet = new EntrySet());
     }
 
     private class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        
         public Iterator<Map.Entry<K,V>> iterator() {
             return new EntryIterator();
         }
@@ -1010,12 +1017,11 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
                     && getEntry(e.getKey()).equals(e);
         }
 
-        public boolean remove(@Nullable Object o) {
+        public boolean remove(Object o) {
             return removeMapping(o);
         }
 
-        
-        public  int size() {
+        public int size() {
             return WeakHashMap.this.size();
         }
 
@@ -1030,17 +1036,14 @@ public class WeakHashMap<K extends @Nullable Object,V extends @Nullable Object>
             return list;
         }
 
-        
         public Object[] toArray() {
             return deepCopy().toArray();
         }
 
-        
-        public <T extends @Nullable Object> T[] toArray(T[] a) {
+        public <T> T[] toArray(T[] a) {
             return deepCopy().toArray(a);
         }
 
-        
         public Spliterator<Map.Entry<K,V>> spliterator() {
             return new EntrySpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }

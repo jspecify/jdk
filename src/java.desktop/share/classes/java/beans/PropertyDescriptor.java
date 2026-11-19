@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,7 +72,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @throws IntrospectionException if an exception occurs during
      *              introspection.
      */
-    
     public PropertyDescriptor(String propertyName, Class<?> beanClass)
                 throws IntrospectionException {
         this(propertyName, beanClass,
@@ -94,7 +93,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @throws IntrospectionException if an exception occurs during
      *              introspection.
      */
-    
     public PropertyDescriptor(String propertyName, Class<?> beanClass,
                 @Nullable String readMethodName, @Nullable String writeMethodName)
                 throws IntrospectionException {
@@ -137,7 +135,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @throws IntrospectionException if an exception occurs during
      *              introspection.
      */
-    
     public PropertyDescriptor(String propertyName, @Nullable Method readMethod, @Nullable Method writeMethod)
                 throws IntrospectionException {
         if (propertyName == null || propertyName.length() == 0) {
@@ -208,7 +205,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return the {@code Class} object that represents the Java type info,
      *         or {@code null} if the type cannot be determined
      */
-    
     public synchronized @Nullable Class<?> getPropertyType() {
         Class<?> type = getPropertyType0();
         if (type  == null) {
@@ -238,7 +234,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return The method that should be used to read the property value.
      * May return null if the property can't be read.
      */
-    
     public synchronized @Nullable Method getReadMethod() {
         Method readMethod = this.readMethodRef.get();
         if (readMethod == null) {
@@ -308,7 +303,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return The method that should be used to write the property value.
      * May return null if the property can't be written.
      */
-    
     public synchronized @Nullable Method getWriteMethod() {
         Method writeMethod = this.writeMethodRef.get();
         if (writeMethod == null) {
@@ -381,6 +375,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
     /**
      * Overridden to ensure that a super class doesn't take precedent
      */
+    @Override
     void setClass0(Class<?> clz) {
         if (getClass0() != null && clz.isAssignableFrom(getClass0())) {
             // don't replace a subclass with a superclass
@@ -395,7 +390,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *
      * @return True if this is a bound property.
      */
-    
     public boolean isBound() {
         return bound;
     }
@@ -416,7 +410,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *
      * @return True if this is a constrained property.
      */
-    
     public boolean isConstrained() {
         return constrained;
     }
@@ -454,7 +447,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *          so the PropertyEditorManager should be used to locate
      *          a suitable PropertyEditor.
      */
-    
     public @Nullable Class<?> getPropertyEditorClass() {
         return (this.propertyEditorClassRef != null)
                 ? this.propertyEditorClassRef.get()
@@ -474,7 +466,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *         not been defined or cannot be created
      * @since 1.5
      */
-    
     @SuppressWarnings("deprecation")
     public @Nullable PropertyEditor createPropertyEditor(@Nullable Object bean) {
         Object editor = null;
@@ -511,7 +502,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *
      * @since 1.4
      */
-    
+    @Override
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;
@@ -727,7 +718,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return a hash code value for this object.
      * @since 1.5
      */
-    
+    @Override
     public int hashCode() {
         int result = 7;
 
@@ -758,6 +749,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
         return baseName;
     }
 
+    @Override
     void appendTo(StringBuilder sb) {
         appendTo(sb, "bound", this.bound);
         appendTo(sb, "constrained", this.constrained);

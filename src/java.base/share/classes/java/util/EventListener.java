@@ -26,7 +26,6 @@
 package java.util;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A tagging interface that all event listener interfaces must extend.

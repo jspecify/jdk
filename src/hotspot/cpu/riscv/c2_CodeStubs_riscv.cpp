@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2020, 2023, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,7 +23,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "opto/c2_CodeStubs.hpp"
 #include "opto/c2_MacroAssembler.hpp"
 #include "runtime/objectMonitor.hpp"
@@ -69,7 +68,6 @@ void C2EntryBarrierStub::emit(C2_MacroAssembler& masm) {
   // make guard value 4-byte aligned so that it can be accessed atomically
   __ align(4);
   __ bind(guard());
-  __ relocate(entry_guard_Relocation::spec());
   __ emit_int32(0);  // nmethod guard value
 }
 

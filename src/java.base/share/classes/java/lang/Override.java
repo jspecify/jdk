@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.*;
 

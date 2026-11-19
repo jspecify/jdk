@@ -30,6 +30,17 @@
 #include "services/memoryPool.hpp"
 #include "services/memoryUsage.hpp"
 
+// Constructs a MemoryUsage from concurrently sampled values, clamping committed
+// to be at least as large as used to account for concurrent updates. See JDK-8207200.
+inline MemoryUsage shenandoah_memory_usage(size_t initial, size_t used, size_t committed, size_t max) {
+  assert(initial <= max,    "initial: %zu, max: %zu",   initial,   max);
+  assert(used <= max,       "used: %zu, max: %zu",      used,      max);
+  assert(committed <= max,  "committed: %zu, max: %zu", committed, max);
+  committed = MAX2(used, committed);
+  assert(used <= committed, "used: %zu, committed: %zu", used, committed);
+  return MemoryUsage(initial, used, committed, max);
+}
+
 class ShenandoahMemoryPool : public CollectedMemoryPool {
 protected:
    ShenandoahHeap* _heap;
@@ -55,7 +66,6 @@ public:
   explicit ShenandoahGenerationalMemoryPool(ShenandoahHeap* heap, const char* name, ShenandoahGeneration* generation);
   MemoryUsage get_memory_usage() override;
   size_t used_in_bytes() override;
-  size_t max_size() const override;
 };
 
 class ShenandoahYoungGenMemoryPool : public ShenandoahGenerationalMemoryPool {

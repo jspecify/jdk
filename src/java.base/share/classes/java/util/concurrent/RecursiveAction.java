@@ -34,6 +34,8 @@
  */
 
 package java.util.concurrent;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A recursive resultless {@link ForkJoinTask}.  This class
@@ -162,7 +164,8 @@ package java.util.concurrent;
  * @since 1.7
  * @author Doug Lea
  */
-public abstract class RecursiveAction extends ForkJoinTask<Void> {
+@NullMarked
+public abstract class RecursiveAction extends ForkJoinTask<@Nullable Void> {
     private static final long serialVersionUID = 5232453952276485070L;
 
     /**
@@ -180,12 +183,12 @@ public abstract class RecursiveAction extends ForkJoinTask<Void> {
      *
      * @return {@code null} always
      */
-    public final Void getRawResult() { return null; }
+    public final @Nullable Void getRawResult() { return null; }
 
     /**
      * Requires null completion value.
      */
-    protected final void setRawResult(Void mustBeNull) { }
+    protected final void setRawResult(@Nullable Void mustBeNull) { }
 
     /**
      * Implements execution conventions for RecursiveActions.

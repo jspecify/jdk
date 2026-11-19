@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,6 +72,8 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectStreamField;
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.chrono.Chronology;
 import java.time.chrono.IsoChronology;
@@ -88,6 +90,8 @@ import java.time.temporal.TemporalQuery;
 import java.time.temporal.UnsupportedTemporalTypeException;
 import java.time.temporal.ValueRange;
 import java.util.Objects;
+
+import jdk.internal.util.DecimalDigits;
 
 /**
  * A month-day in the ISO-8601 calendar system, such as {@code --12-03}.
@@ -116,11 +120,18 @@ import java.util.Objects;
  * to be accurate will find the ISO-8601 approach unsuitable.
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
- * The {@code equals} method should be used for comparisons.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code MonthDay} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @implSpec
  * This class is immutable and thread-safe.
@@ -129,7 +140,8 @@ import java.util.Objects;
  */
 @NullMarked
 @jdk.internal.ValueBased
-public final class MonthDay
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class MonthDay
         implements TemporalAccessor, TemporalAdjuster, Comparable<MonthDay>, Serializable {
 
     /**
@@ -137,6 +149,20 @@ public final class MonthDay
      */
     @java.io.Serial
     private static final long serialVersionUID = -939150713474957432L;
+
+    /**
+     * For backward compatibility of the serialized {@code MonthDay.class} object,
+     * explicitly declare the types of the serialized fields as defined in Java SE 8.
+     * Instances of {@code MonthDay} are serialized using the dedicated
+     * serialized form by {@code writeReplace}.
+     * @serialField month int The month-of-year.
+     * @serialField day int The day-of-month.
+     */
+    @Serial
+    private static final ObjectStreamField[] serialPersistentFields = {
+            new ObjectStreamField("month", int.class),
+            new ObjectStreamField("day", int.class)
+    };
     /**
      * Parser.
      */
@@ -148,13 +174,13 @@ public final class MonthDay
         .toFormatter();
 
     /**
-     * The month-of-year, not null.
+     * @serial The month-of-year.
      */
-    private final int month;
+    private final transient byte month;
     /**
-     * The day-of-month.
+     * @serial The day-of-month.
      */
-    private final int day;
+    private final transient byte day;
 
     //-----------------------------------------------------------------------
     /**
@@ -323,8 +349,8 @@ public final class MonthDay
      * @param dayOfMonth  the day-of-month to represent, validated from 1 to 29-31
      */
     private MonthDay(int month, int dayOfMonth) {
-        this.month = month;
-        this.day = dayOfMonth;
+        this.month = (byte) month;
+        this.day = (byte) dayOfMonth;
     }
 
     //-----------------------------------------------------------------------
@@ -352,7 +378,7 @@ public final class MonthDay
      * @return true if the field is supported on this month-day, false if not
      */
     @Override
-    public boolean isSupported(TemporalField field) {
+    public boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field == MONTH_OF_YEAR || field == DAY_OF_MONTH;
         }
@@ -723,8 +749,6 @@ public final class MonthDay
      * @return true if this is equal to the other month-day
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;
@@ -754,10 +778,12 @@ public final class MonthDay
      */
     @Override
     public String toString() {
-        return new StringBuilder(10).append("--")
-            .append(month < 10 ? "0" : "").append(month)
-            .append(day < 10 ? "-0" : "-").append(day)
-            .toString();
+        StringBuilder buf = new StringBuilder(10);
+        buf.append("--");
+        DecimalDigits.appendPair(buf, month);
+        buf.append('-');
+        DecimalDigits.appendPair(buf, day);
+        return buf.toString();
     }
 
     //-----------------------------------------------------------------------
@@ -785,6 +811,7 @@ public final class MonthDay
      * @throws InvalidObjectException always
      */
     @java.io.Serial
+    @SuppressWarnings("serial") // this method is not invoked for value classes
     private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@ import org.jspecify.annotations.Nullable;
  * @author Gary Ellison
  * @since 1.2
  */
+
 @NullMarked
 public class ProtectionDomain {
 
@@ -61,7 +62,7 @@ public class ProtectionDomain {
     private final Principal[] principals;
 
     /* the rights this protection domain is granted */
-    private @Nullable PermissionCollection permissions;
+    private PermissionCollection permissions;
 
     /* if the permissions object has AllPermission */
     private boolean hasAllPerm = false;
@@ -133,7 +134,7 @@ public class ProtectionDomain {
     public ProtectionDomain(@Nullable CodeSource codesource,
                             @Nullable PermissionCollection permissions,
                             @Nullable ClassLoader classloader,
-                            Principal[] principals) {
+                            Principal @Nullable [] principals) {
         this.codesource = codesource;
         if (permissions != null) {
             this.permissions = permissions;
@@ -154,7 +155,6 @@ public class ProtectionDomain {
      * @return the {@code CodeSource} of this domain which may be {@code null}.
      * @since 1.2
      */
-    
     public final @Nullable CodeSource getCodeSource() {
         return this.codesource;
     }
@@ -228,7 +228,7 @@ public class ProtectionDomain {
      * no longer supported. The {@linkplain Policy#getPolicy current policy}
      * is always a {@code Policy} object that grants no permissions.
      *
-     * @param perm the {code Permission} object to check.
+     * @param perm the {@code Permission} object to check.
      *
      * @return {@code true} if {@code perm} is implied by this
      * {@code ProtectionDomain}.

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +36,8 @@ import java.util.Optional;
 import jdk.internal.math.FloatingDecimal;
 import jdk.internal.math.DoubleConsts;
 import jdk.internal.math.DoubleToDecimal;
+import jdk.internal.util.DecimalDigits;
+import jdk.internal.value.Deserializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
@@ -50,10 +53,18 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * {@code double}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Double} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * <h2><a id=equivalenceRelation>Floating-point Equality, Equivalence,
  * and Comparison</a></h2>
@@ -160,7 +171,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * number and is not equal to any value, including itself.
  * </dd>
  *
- * <dt><dfn>{@index "bit-wise equivalence"}</dfn>:</dt>
+ * <dt><dfn>{@index "bit-wise equivalence"} (or indistinguishable)</dfn>:</dt>
  * <dd>The bits of the two floating-point values are the same. This
  * equivalence relation for {@code double} values {@code a} and {@code
  * b} is implemented by the expression
@@ -168,6 +179,8 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * Under this relation, {@code +0.0} and {@code -0.0} are
  * distinguished from each other and every bit pattern encoding a NaN
  * is distinguished from every other bit pattern encoding a NaN.
+ * Note this is the notion of equivalence used when {@linkplain
+ * Object##equalsIndistinguishable comparing value objects for equality}.
  * </dd>
  *
  * <dt><dfn><a id=repEquivalence></a>{@index "representation equivalence"}</dfn>:</dt>
@@ -351,17 +364,15 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * @jls 15.21.1 Numerical Equality Operators == and !=
  * @jls 15.20.1 Numerical Comparison Operators {@code <}, {@code <=}, {@code >}, and {@code >=}
  *
- * @see <a href="https://standards.ieee.org/ieee/754/6210/">
- *      <cite>IEEE Standard for Floating-Point Arithmetic</cite></a>
+ * @spec https://standards.ieee.org/ieee/754/6210/
+ *       IEEE Standard for Floating-Point Arithmetic
  *
- * @author  Lee Boynton
- * @author  Arthur van Hoff
- * @author  Joseph D. Darcy
  * @since 1.0
  */
 @NullMarked
 @jdk.internal.ValueBased
-public final class Double extends Number
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Double extends Number
         implements Comparable<Double>, Constable, ConstantDesc {
     /**
      * A constant holding the positive infinity of type
@@ -392,7 +403,7 @@ public final class Double extends Number
      * {@code 0x1.fffffffffffffP+1023} and also equal to
      * {@code Double.longBitsToDouble(0x7fefffffffffffffL)}.
      */
-    public static final  double MAX_VALUE = 0x1.fffffffffffffP+1023; // 1.7976931348623157e+308
+    public static final double MAX_VALUE = 0x1.fffffffffffffP+1023; // 1.7976931348623157e+308
 
     /**
      * A constant holding the smallest positive normal value of type
@@ -411,7 +422,7 @@ public final class Double extends Number
      * {@code 0x0.0000000000001P-1022} and also equal to
      * {@code Double.longBitsToDouble(0x1L)}.
      */
-    public static final  double MIN_VALUE = 0x0.0000000000001P-1022; // 4.9e-324
+    public static final double MIN_VALUE = 0x0.0000000000001P-1022; // 4.9e-324
 
     /**
      * The number of bits used to represent a {@code double} value,
@@ -419,7 +430,7 @@ public final class Double extends Number
      *
      * @since 1.5
      */
-    public static final  int SIZE = 64;
+    public static final int SIZE = 64;
 
     /**
      * The number of bits in the significand of a {@code double}
@@ -454,7 +465,7 @@ public final class Double extends Number
      *
      * @since 1.8
      */
-    public static final  int BYTES = SIZE / Byte.SIZE;
+    public static final int BYTES = SIZE / Byte.SIZE;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -613,8 +624,6 @@ public final class Double extends Number
      * @param   d   the {@code double} to be converted.
      * @return a string representation of the argument.
      */
-    
-    
     public static String toString(double d) {
         return DoubleToDecimal.toString(d);
     }
@@ -700,66 +709,87 @@ public final class Double extends Number
      * @param   d   the {@code double} to be converted.
      * @return a hex string representation of the argument.
      * @since 1.5
-     * @author Joseph D. Darcy
      */
-    
-    
     public static String toHexString(double d) {
         /*
          * Modeled after the "a" conversion specifier in C99, section
          * 7.19.6.1; however, the output of this method is more
          * tightly specified.
          */
-        if (!isFinite(d) )
+        if (!isFinite(d)) {
             // For infinity and NaN, use the decimal output.
             return Double.toString(d);
-        else {
-            // Initialized to maximum size of output.
-            StringBuilder answer = new StringBuilder(24);
-
-            if (Math.copySign(1.0, d) == -1.0)    // value is negative,
-                answer.append("-");                  // so append sign info
-
-            answer.append("0x");
-
-            d = Math.abs(d);
-
-            if(d == 0.0) {
-                answer.append("0.0p0");
-            } else {
-                boolean subnormal = (d < Double.MIN_NORMAL);
-
-                // Isolate significand bits and OR in a high-order bit
-                // so that the string representation has a known
-                // length.
-                long signifBits = (Double.doubleToLongBits(d)
-                                   & DoubleConsts.SIGNIF_BIT_MASK) |
-                    0x1000000000000000L;
-
-                // Subnormal values have a 0 implicit bit; normal
-                // values have a 1 implicit bit.
-                answer.append(subnormal ? "0." : "1.");
-
-                // Isolate the low-order 13 digits of the hex
-                // representation.  If all the digits are zero,
-                // replace with a single 0; otherwise, remove all
-                // trailing zeros.
-                String signif = Long.toHexString(signifBits).substring(3,16);
-                answer.append(signif.equals("0000000000000") ? // 13 zeros
-                              "0":
-                              signif.replaceFirst("0{1,12}$", ""));
-
-                answer.append('p');
-                // If the value is subnormal, use the E_min exponent
-                // value for double; otherwise, extract and report d's
-                // exponent (the representation of a subnormal uses
-                // E_min -1).
-                answer.append(subnormal ?
-                              Double.MIN_EXPONENT:
-                              Math.getExponent(d));
-            }
-            return answer.toString();
         }
+
+        long doubleToLongBits = Double.doubleToLongBits(d);
+        boolean negative = doubleToLongBits < 0;
+
+        if (d == 0.0) {
+            return negative ? "-0x0.0p0" : "0x0.0p0";
+        }
+        d = Math.abs(d);
+        // Check if the value is subnormal (less than the smallest normal value)
+        boolean subnormal = d < Double.MIN_NORMAL;
+
+        // Isolate significand bits and OR in a high-order bit
+        // so that the string representation has a known length.
+        // This ensures we always have 13 hex digits to work with (52 bits / 4 bits per hex digit)
+        long signifBits = doubleToLongBits & DoubleConsts.SIGNIF_BIT_MASK;
+
+        // Calculate the number of trailing zeros in the significand (in groups of 4 bits)
+        // This is used to remove trailing zeros from the hex representation
+        // We limit to 12 because we want to keep at least 1 hex digit (13 total - 12 = 1)
+        // assert 0 <= trailingZeros && trailingZeros <= 12
+        int trailingZeros = Long.numberOfTrailingZeros(signifBits | 1L << 4 * 12) >> 2;
+
+        // Determine the exponent value based on whether the number is subnormal or normal
+        // Subnormal numbers use the minimum exponent, normal numbers use the actual exponent
+        int exp = subnormal ? Double.MIN_EXPONENT : Math.getExponent(d);
+
+        // Calculate the total length of the resulting string:
+        // Sign (optional) + prefix "0x" + implicit bit + "." + hex digits + "p" + exponent
+        int charlen = (negative ? 1 : 0) // sign character
+                + 4 // "0x1." or "0x0."
+                + 13 - trailingZeros // hex digits (13 max, minus trailing zeros)
+                + 1 // "p"
+                + DecimalDigits.stringSize(exp) // exponent
+                ;
+
+        // Create a byte array to hold the result characters
+        byte[] chars = new byte[charlen];
+        int index = 0;
+
+        // Add the sign character if the number is negative
+        if (negative) {  // value is negative
+            chars[index++] = '-';
+        }
+
+        // Add the prefix and the implicit bit ('1' for normal, '0' for subnormal)
+        // Subnormal values have a 0 implicit bit; normal values have a 1 implicit bit.
+        chars[index    ] = '0';      // Hex prefix
+        chars[index + 1] = 'x';  // Hex prefix
+        chars[index + 2] = (byte) (subnormal ? '0' : '1');  // Implicit bit
+        chars[index + 3] = '.';  // Decimal point
+        index += 4;
+
+        // Convert significand to hex digits manually to avoid creating temporary strings
+        // Extract the 13 hex digits (52 bits) from signifBits
+        // We need to extract bits 48-51, 44-47, ..., 0-3 (13 groups of 4 bits)
+        for (int sh = 4 * 12, end = 4 * trailingZeros; sh >= end; sh -= 4) {
+            // Extract 4 bits at a time from left to right
+            // Shift right by sh positions and mask with 0xF
+            // Integer.digits maps values 0-15 to '0'-'f' characters
+            chars[index++] = Integer.digits[((int)(signifBits >> sh)) & 0xF];
+        }
+
+        // Add the exponent indicator
+        chars[index] = 'p';
+
+        // Append the exponent value to the character array
+        // This method writes the decimal representation of exp directly into the byte array
+        DecimalDigits.uncheckedGetCharsLatin1(exp, charlen, chars);
+
+        return String.newStringWithLatin1Bytes(chars);
     }
 
     /**
@@ -936,8 +966,6 @@ public final class Double extends Number
      *             parsable number.
      * @see Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
      */
-    
-    
     public static Double valueOf(String s) throws NumberFormatException {
         return new Double(parseDouble(s));
     }
@@ -945,11 +973,22 @@ public final class Double extends Number
     /**
      * Returns a {@code Double} instance representing the specified
      * {@code double} value.
-     * If a new {@code Double} instance is not required, this method
-     * should generally be used in preference to the constructor
-     * {@link #Double(double)}, as this method is likely to yield
-     * significantly better space and time performance by caching
-     * frequently requested values.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Double} is an identity class.
+     *              If a new {@code Double} instance is not required, this
+     *              method should generally be used in preference to the
+     *              constructor {@link #Double(double)}, as this method is
+     *              likely to yield significantly better space and time
+     *              performance by caching frequently requested values.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Double} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  d a double value.
      * @return a {@code Double} instance representing {@code d}.
@@ -976,8 +1015,6 @@ public final class Double extends Number
      * @see    Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
      * @since 1.2
      */
-    
-    
     public static double parseDouble(String s) throws NumberFormatException {
         return FloatingDecimal.parseDouble(s);
     }
@@ -994,8 +1031,6 @@ public final class Double extends Number
      * @return  {@code true} if the value of the argument is NaN;
      *          {@code false} otherwise.
      */
-    
-    
     public static boolean isNaN(double v) {
         return (v != v);
     }
@@ -1054,7 +1089,8 @@ public final class Double extends Number
      * {@link #valueOf(double)} is generally a better choice, as it is
      * likely to yield significantly better space and time performance.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
+    @Deserializer("value")
     public Double(double value) {
         this.value = value;
     }
@@ -1075,7 +1111,7 @@ public final class Double extends Number
      * {@code double} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Double} object.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
     public Double(String s) throws NumberFormatException {
         value = parseDouble(s);
     }
@@ -1087,8 +1123,6 @@ public final class Double extends Number
      * @return  {@code true} if the value represented by this object is
      *          NaN; {@code false} otherwise.
      */
-    
-    
     public boolean isNaN() {
         return isNaN(value);
     }
@@ -1101,8 +1135,6 @@ public final class Double extends Number
      *          positive infinity or negative infinity;
      *          {@code false} otherwise.
      */
-    
-    
     public boolean isInfinite() {
         return isInfinite(value);
     }
@@ -1116,8 +1148,6 @@ public final class Double extends Number
      * @return  a {@code String} representation of this object.
      * @see java.lang.Double#toString(double)
      */
-    
-    
     public String toString() {
         return toString(value);
     }
@@ -1234,8 +1264,6 @@ public final class Double extends Number
      *
      * @return  a {@code hash code} value for this object.
      */
-    
-    
     @Override
     public int hashCode() {
         return Double.hashCode(value);
@@ -1249,7 +1277,6 @@ public final class Double extends Number
      * @return a hash code value for a {@code double} value.
      * @since 1.8
      */
-    
     public static int hashCode(double value) {
         return Long.hashCode(doubleToLongBits(value));
     }
@@ -1264,6 +1291,8 @@ public final class Double extends Number
      * the same if and only if the method {@link
      * #doubleToLongBits(double)} returns the identical
      * {@code long} value when applied to each.
+     * In other words, {@linkplain ##repEquivalence representation
+     * equivalence} is used to compare the {@code double} values.
      *
      * @apiNote
      * This method is defined in terms of {@link
@@ -1445,12 +1474,28 @@ public final class Double extends Number
      *      This method chooses to define positive zero ({@code +0.0d}),
      *      to be greater than negative zero ({@code -0.0d}).
      * </ul>
-
+     *
      * This ensures that the <i>natural ordering</i> of {@code Double}
      * objects imposed by this method is <i>consistent with
      * equals</i>; see {@linkplain ##equivalenceRelation this
      * discussion for details of floating-point comparison and
      * ordering}.
+     *
+     * @apiNote
+     * The inclusion of a total order idiom in the Java SE API
+     * predates the inclusion of that functionality in the IEEE 754
+     * standard. The ordering of the totalOrder predicate chosen by
+     * IEEE 754 differs from the total order chosen by this method.
+     * While this method treats all NaN representations as being in
+     * the same equivalence class, the IEEE 754 total order defines an
+     * ordering based on the bit patterns of the NaN among the
+     * different NaN representations. The IEEE 754 order regards
+     * "negative" NaN representations, that is NaN representations
+     * whose sign bit is set, to be less than any finite or infinite
+     * value and less than any "positive" NaN. In addition, the IEEE
+     * order regards all positive NaN values as greater than positive
+     * infinity. See the IEEE 754 standard for full details of its
+     * total ordering.
      *
      * @param   anotherDouble   the {@code Double} to be compared.
      * @return  the value {@code 0} if {@code anotherDouble} is
@@ -1477,6 +1522,12 @@ public final class Double extends Number
      *    Double.valueOf(d1).compareTo(Double.valueOf(d2))
      * </pre>
      *
+     * @apiNote
+     * One idiom to implement {@linkplain ##repEquivalence
+     * representation equivalence} on {@code double} values is
+     * {@snippet lang="java" :
+     * Double.compare(a, b) == 0
+     * }
      * @param   d1        the first {@code double} to compare
      * @param   d2        the second {@code double} to compare
      * @return  the value {@code 0} if {@code d1} is
@@ -1487,8 +1538,6 @@ public final class Double extends Number
      *          {@code d2}.
      * @since 1.4
      */
-    
-    
     public static int compare(double d1, double d2) {
         if (d1 < d2)
             return -1;           // Neither val is NaN, thisVal is smaller
@@ -1517,8 +1566,6 @@ public final class Double extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static double sum(double a, double b) {
         return a + b;
     }
@@ -1537,8 +1584,6 @@ public final class Double extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static double max(double a, double b) {
         return Math.max(a, b);
     }
@@ -1557,8 +1602,6 @@ public final class Double extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static double min(double a, double b) {
         return Math.min(a, b);
     }

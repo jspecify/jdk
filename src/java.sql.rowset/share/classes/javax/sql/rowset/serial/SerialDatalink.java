@@ -124,8 +124,6 @@ public class SerialDatalink implements Serializable, Cloneable {
      *          equivalent to this SerialDatalink, {@code false} otherwise
      *
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

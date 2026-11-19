@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,8 +104,6 @@ public class BuddhistCalendar extends GregorianCalendar {
      * @return true if this object is equal to <code>obj</code>; false otherwise
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         return obj instanceof BuddhistCalendar
             && super.equals(obj);

@@ -197,7 +197,6 @@ public interface Attr extends Node {
      * Returns the name of this attribute. If <code>Node.localName</code> is
      * different from <code>null</code>, this attribute is a qualified name.
      */
-    
     public String getName();
 
     /**
@@ -210,7 +209,6 @@ public interface Attr extends Node {
      * use <code>Document.normalizeDocument()</code> to guarantee this
      * information is up-to-date.
      */
-    
     public boolean getSpecified();
 
     /**
@@ -227,7 +225,6 @@ public interface Attr extends Node {
      * mutation; in such case, the value on retrieval may differ from the
      * value on setting.
      */
-    
     public String getValue();
     /**
      * On retrieval, the value of the attribute is returned as a string.
@@ -253,7 +250,6 @@ public interface Attr extends Node {
      * <code>null</code> if this attribute is not in use.
      * @since 1.4, DOM Level 2
      */
-    
     public @Nullable Element getOwnerElement();
 
     /**
@@ -264,7 +260,6 @@ public interface Attr extends Node {
      *  may not be reliable if the node was moved.
      * @since 1.5, DOM Level 3
      */
-    
     public TypeInfo getSchemaTypeInfo();
 
     /**
@@ -313,7 +308,6 @@ public interface Attr extends Node {
      * <code>isId</code> will always return true.
      * @since 1.5, DOM Level 3
      */
-    
     public boolean isId();
 
 }

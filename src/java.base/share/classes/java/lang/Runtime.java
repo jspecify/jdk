@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2019, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -124,7 +124,7 @@ import jdk.internal.reflect.Reflection;
  */
 
 @NullMarked
-public class Runtime {
+public final class Runtime {
     private static final Runtime currentRuntime = new Runtime();
 
     private static Version version;

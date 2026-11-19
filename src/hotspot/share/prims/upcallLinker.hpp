@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,7 +44,7 @@ public:
                                   bool needs_return_buffer, int ret_buf_size);
 
   // public for stubGenerator
-  static void handle_uncaught_exception(oop exception);
+  static void handle_uncaught_exception(oopDesc* exception);
 };
 
 #endif // SHARE_VM_PRIMS_UPCALLLINKER_HPP

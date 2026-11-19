@@ -26,6 +26,7 @@
 package java.security.spec;
 
 import java.math.BigInteger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class specifies an RSA private key, as defined in the
@@ -104,7 +105,7 @@ public class RSAPrivateCrtKeySpec extends RSAPrivateKeySpec {
                                 BigInteger primeExponentP,
                                 BigInteger primeExponentQ,
                                 BigInteger crtCoefficient,
-                                AlgorithmParameterSpec keyParams) {
+                                @Nullable AlgorithmParameterSpec keyParams) {
         super(modulus, privateExponent, keyParams);
         this.publicExponent = publicExponent;
         this.primeP = primeP;

@@ -96,7 +96,7 @@ public class LineNumberReader extends BufferedReader {
      * @param  sz
      *         An int specifying the size of the buffer
      */
-    public LineNumberReader(Reader in,  int sz) {
+    public LineNumberReader(Reader in, int sz) {
         super(in, sz);
     }
 
@@ -108,7 +108,7 @@ public class LineNumberReader extends BufferedReader {
      *
      * @see #getLineNumber
      */
-    public void setLineNumber( int lineNumber) {
+    public void setLineNumber(int lineNumber) {
         this.lineNumber = lineNumber;
     }
 
@@ -119,7 +119,7 @@ public class LineNumberReader extends BufferedReader {
      *
      * @see #setLineNumber
      */
-    public  int getLineNumber() {
+    public int getLineNumber() {
         return lineNumber;
     }
 
@@ -274,7 +274,7 @@ public class LineNumberReader extends BufferedReader {
     /**
      * {@inheritDoc}
      */
-    public  long skip( long n) throws IOException {
+    public long skip(long n) throws IOException {
         if (n < 0)
             throw new IllegalArgumentException("skip() value is negative");
         int nn = (int) Math.min(n, maxSkipBufferSize);
@@ -308,7 +308,7 @@ public class LineNumberReader extends BufferedReader {
      * @throws  IOException
      *          If an I/O error occurs
      */
-    public void mark( int readAheadLimit) throws IOException {
+    public void mark(int readAheadLimit) throws IOException {
         synchronized (lock) {
             // If the most recently read character is '\r', then increment the
             // read ahead limit as in this case if the next character is '\n',

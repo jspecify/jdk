@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package javax.crypto.spec;
 
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Arrays;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class specifies the parameters used with the
@@ -91,11 +92,19 @@ public class RC2ParameterSpec implements AlgorithmParameterSpec {
      * are copied to protect against subsequent modification.
      * @param offset the offset in {@code iv} where the 8-byte IV
      * starts.
-     * @exception IllegalArgumentException if {@code iv} is null.
+     * @exception IllegalArgumentException if {@code iv} is {@code null}
+     * or {@code iv.length - offset < 8}.
+     * @exception ArrayIndexOutOfBoundsException if
+     * {@code offset} is negative.
      */
     public RC2ParameterSpec(int effectiveKeyBits, byte[] iv, int offset) {
         this.effectiveKeyBits = effectiveKeyBits;
-        if (iv == null) throw new IllegalArgumentException("IV missing");
+        if (iv == null) {
+            throw new IllegalArgumentException("IV missing");
+        }
+        if (offset < 0) {
+            throw new ArrayIndexOutOfBoundsException("offset is negative");
+        }
         int blockSize = 8;
         if (iv.length - offset < blockSize) {
             throw new IllegalArgumentException("IV too short");
@@ -119,7 +128,7 @@ public class RC2ParameterSpec implements AlgorithmParameterSpec {
      * @return the IV or null if this parameter set does not contain an IV.
      * Returns a new array each time this method is called.
      */
-    public byte[] getIV() {
+    public byte @Nullable [] getIV() {
         return (iv == null? null:iv.clone());
     }
 

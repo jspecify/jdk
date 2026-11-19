@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -110,7 +110,6 @@ import jdk.internal.util.ArraysSupport;
  * @see     Vector
  * @since   1.2
  */
-
 @NullMarked
 public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
         implements List<E>, RandomAccess, Cloneable, java.io.Serializable
@@ -157,7 +156,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @throws IllegalArgumentException if the specified initial capacity
      *         is negative
      */
-    public ArrayList( int initialCapacity) {
+    public ArrayList(int initialCapacity) {
         if (initialCapacity > 0) {
             this.elementData = new Object[initialCapacity];
         } else if (initialCapacity == 0) {
@@ -255,8 +254,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      *
      * @return the number of elements in this list
      */
-    
-    public  int size() {
+    public int size() {
         return size;
     }
 
@@ -265,7 +263,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      *
      * @return {@code true} if this list contains no elements
      */
-    
     public boolean isEmpty() {
         return size == 0;
     }
@@ -279,7 +276,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @param o element whose presence in this list is to be tested
      * @return {@code true} if this list contains the specified element
      */
-    
     public boolean contains(@Nullable Object o) {
         return indexOf(o) >= 0;
     }
@@ -291,12 +287,11 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * {@code Objects.equals(o, get(i))},
      * or -1 if there is no such index.
      */
-    
-    public  int indexOf(@Nullable Object o) {
+    public int indexOf(@Nullable Object o) {
         return indexOfRange(o, 0, size);
     }
 
-    int indexOfRange(@Nullable Object o, int start, int end) {
+    int indexOfRange(Object o, int start, int end) {
         Object[] es = elementData;
         if (o == null) {
             for (int i = start; i < end; i++) {
@@ -321,12 +316,11 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * {@code Objects.equals(o, get(i))},
      * or -1 if there is no such index.
      */
-    
-    public  int lastIndexOf(@Nullable Object o) {
+    public int lastIndexOf(@Nullable Object o) {
         return lastIndexOfRange(o, 0, size);
     }
 
-    int lastIndexOfRange(@Nullable Object o, int start, int end) {
+    int lastIndexOfRange(Object o, int start, int end) {
         Object[] es = elementData;
         if (o == null) {
             for (int i = end - 1; i >= start; i--) {
@@ -350,7 +344,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      *
      * @return a clone of this {@code ArrayList} instance
      */
-    
     public Object clone() {
         try {
             ArrayList<?> v = (ArrayList<?>) super.clone();
@@ -377,7 +370,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @return an array containing all of the elements in this list in
      *         proper sequence
      */
-    
     public @Nullable Object[] toArray() {
         return Arrays.copyOf(elementData, size);
     }
@@ -406,7 +398,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      *         this list
      * @throws NullPointerException if the specified array is null
      */
-    
     @SuppressWarnings("unchecked")
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         if (a.length < size)
@@ -421,12 +412,12 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
     // Positional Access Operations
 
     @SuppressWarnings("unchecked")
-    E elementData( int index) {
+    E elementData(int index) {
         return (E) elementData[index];
     }
 
     @SuppressWarnings("unchecked")
-    static <E extends @Nullable Object> E elementAt(Object[] es, int index) {
+    static <E> E elementAt(Object[] es, int index) {
         return (E) es[index];
     }
 
@@ -437,8 +428,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @return the element at the specified position in this list
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    
-    public E get( int index) {
+    public E get(int index) {
         Objects.checkIndex(index, size);
         return elementData(index);
     }
@@ -481,7 +471,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @return the element previously at the specified position
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public E set( int index, E element) {
+    public E set(int index, E element) {
         Objects.checkIndex(index, size);
         E oldValue = elementData(index);
         elementData[index] = element;
@@ -521,7 +511,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @param element element to be inserted
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public void add( int index, E element) {
+    public void add(int index, E element) {
         rangeCheckForAdd(index);
         modCount++;
         final int s;
@@ -562,7 +552,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @return the element that was removed from the list
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public E remove( int index) {
+    public E remove(int index) {
         Objects.checkIndex(index, size);
         final Object[] es = elementData;
 
@@ -610,8 +600,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
     /**
      * {@inheritDoc}
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this) {
             return true;
@@ -766,9 +754,17 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @throws NullPointerException if the specified collection is null
      */
     public boolean addAll(Collection<? extends E> c) {
-        Object[] a = c.toArray();
+        Object[] a;
+        int numNew;
+        if (c.getClass() == ArrayList.class) {
+            ArrayList<?> src = (ArrayList<?>) c;
+            a = src.elementData;
+            numNew = src.size;
+        } else {
+            a = c.toArray();
+            numNew = a.length;
+        }
         modCount++;
-        int numNew = a.length;
         if (numNew == 0)
             return false;
         Object[] elementData;
@@ -795,7 +791,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      * @throws NullPointerException if the specified collection is null
      */
-    public boolean addAll( int index, Collection<? extends E> c) {
+    public boolean addAll(int index, Collection<? extends E> c) {
         rangeCheckForAdd(index);
 
         Object[] a = c.toArray();
@@ -850,7 +846,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
     /**
      * A version of rangeCheck used by add and addAll.
      */
-    private void rangeCheckForAdd( int index) {
+    private void rangeCheckForAdd(int index) {
         if (index > size || index < 0)
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
     }
@@ -860,7 +856,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * Of the many possible refactorings of the error handling code,
      * this "outlining" performs best with both server and client VMs.
      */
-    private String outOfBoundsMsg( int index) {
+    private String outOfBoundsMsg(int index) {
         return "Index: "+index+", Size: "+size;
     }
 
@@ -1018,7 +1014,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      *
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public ListIterator<E> listIterator( int index) {
+    public ListIterator<E> listIterator(int index) {
         rangeCheckForAdd(index);
         return new ListItr(index);
     }
@@ -1042,7 +1038,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      *
      * @return an iterator over the elements in this list in proper sequence
      */
-    
     public Iterator<E> iterator() {
         return new Itr();
     }
@@ -1090,7 +1085,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             }
         }
 
-        @SuppressWarnings({"unchecked"})
         @Override
         public void forEachRemaining(Consumer<? super E> action) {
             Objects.requireNonNull(action);
@@ -1205,12 +1199,12 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      * @throws IllegalArgumentException {@inheritDoc}
      */
-    public List<E> subList( int fromIndex,  int toIndex) {
+    public List<E> subList(int fromIndex, int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size);
         return new SubList<>(this, fromIndex, toIndex);
     }
 
-    private static class SubList<E extends @Nullable Object> extends AbstractList<E> implements RandomAccess {
+    private static class SubList<E> extends AbstractList<E> implements RandomAccess {
         private final ArrayList<E> root;
         private final SubList<E> parent;
         private final int offset;
@@ -1238,7 +1232,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             this.modCount = parent.modCount;
         }
 
-        public E set( int index, E element) {
+        public E set(int index, E element) {
             Objects.checkIndex(index, size);
             checkForComodification();
             E oldValue = root.elementData(offset + index);
@@ -1246,26 +1240,25 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             return oldValue;
         }
 
-        public E get( int index) {
+        public E get(int index) {
             Objects.checkIndex(index, size);
             checkForComodification();
             return root.elementData(offset + index);
         }
 
-        
-        public  int size() {
+        public int size() {
             checkForComodification();
             return size;
         }
 
-        public void add( int index, E element) {
+        public void add(int index, E element) {
             rangeCheckForAdd(index);
             checkForComodification();
             root.add(offset + index, element);
             updateSizeAndModCount(1);
         }
 
-        public E remove( int index) {
+        public E remove(int index) {
             Objects.checkIndex(index, size);
             checkForComodification();
             E result = root.remove(offset + index);
@@ -1283,7 +1276,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             return addAll(this.size, c);
         }
 
-        public boolean addAll( int index, Collection<? extends E> c) {
+        public boolean addAll(int index, Collection<? extends E> c) {
             rangeCheckForAdd(index);
             int cSize = c.size();
             if (cSize==0)
@@ -1325,13 +1318,13 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             return modified;
         }
 
-        public @Nullable Object[] toArray() {
+        public Object[] toArray() {
             checkForComodification();
             return Arrays.copyOfRange(root.elementData, offset, offset + size);
         }
 
         @SuppressWarnings("unchecked")
-        public <T extends @Nullable Object> T[] toArray(T[] a) {
+        public <T> T[] toArray(T[] a) {
             checkForComodification();
             if (a.length < size)
                 return (T[]) Arrays.copyOfRange(
@@ -1342,7 +1335,7 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             return a;
         }
 
-        public boolean equals(@Nullable Object o) {
+        public boolean equals(Object o) {
             if (o == this) {
                 return true;
             }
@@ -1362,28 +1355,27 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             return hash;
         }
 
-        public int indexOf(@Nullable Object o) {
+        public int indexOf(Object o) {
             int index = root.indexOfRange(o, offset, offset + size);
             checkForComodification();
             return index >= 0 ? index - offset : -1;
         }
 
-        public int lastIndexOf(@Nullable Object o) {
+        public int lastIndexOf(Object o) {
             int index = root.lastIndexOfRange(o, offset, offset + size);
             checkForComodification();
             return index >= 0 ? index - offset : -1;
         }
 
-        public boolean contains(@Nullable Object o) {
+        public boolean contains(Object o) {
             return indexOf(o) >= 0;
         }
 
-        
         public Iterator<E> iterator() {
             return listIterator();
         }
 
-        public ListIterator<E> listIterator( int index) {
+        public ListIterator<E> listIterator(int index) {
             checkForComodification();
             rangeCheckForAdd(index);
 
@@ -1504,12 +1496,12 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             return new SubList<>(this, fromIndex, toIndex);
         }
 
-        private void rangeCheckForAdd( int index) {
+        private void rangeCheckForAdd(int index) {
             if (index < 0 || index > this.size)
                 throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
         }
 
-        private String outOfBoundsMsg( int index) {
+        private String outOfBoundsMsg(int index) {
             return "Index: "+index+", Size: "+this.size;
         }
 
@@ -1527,7 +1519,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
             } while (slist != null);
         }
 
-        
         public Spliterator<E> spliterator() {
             checkForComodification();
 
@@ -1640,7 +1631,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
      * @return a {@code Spliterator} over the elements in this list
      * @since 1.8
      */
-    
     @Override
     public Spliterator<E> spliterator() {
         return new ArrayListSpliterator(0, -1, 0);
@@ -1810,7 +1800,6 @@ public class ArrayList<E extends @Nullable Object> extends AbstractList<E>
         }
     }
 
-    @SuppressWarnings({"unchecked"})
     @Override
     public void replaceAll(UnaryOperator<E> operator) {
         replaceAllRange(operator, 0, size);

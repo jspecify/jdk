@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,15 +37,17 @@ import java.util.Objects;
 import java.util.Optional;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.value.Deserializer;
+import jdk.internal.value.ValueClass;
 import jdk.internal.util.DecimalDigits;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 
 import static java.lang.Character.digit;
 import static java.lang.String.COMPACT_STRINGS;
-import static java.lang.String.LATIN1;
-import static java.lang.String.UTF16;
 
 /**
  * The {@code Long} class is the {@linkplain
@@ -59,10 +61,19 @@ import static java.lang.String.UTF16;
  * with a {@code long}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Long} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
+ *
  *
  * <p>Implementation note: The implementations of the "bit twiddling"
  * methods (such as {@link #highestOneBit(long) highestOneBit} and
@@ -71,27 +82,24 @@ import static java.lang.String.UTF16;
  * Delight</cite>, (Addison Wesley, 2002) and <cite>Hacker's
  * Delight, Second Edition</cite>, (Pearson Education, 2013).
  *
- * @author  Lee Boynton
- * @author  Arthur van Hoff
- * @author  Josh Bloch
- * @author  Joseph D. Darcy
  * @since   1.0
  */
 @NullMarked
 @jdk.internal.ValueBased
-public final class Long extends Number
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Long extends Number
         implements Comparable<Long>, Constable, ConstantDesc {
     /**
      * A constant holding the minimum value a {@code long} can
      * have, -2<sup>63</sup>.
      */
-    @Native public static final  long MIN_VALUE = 0x8000000000000000L;
+    @Native public static final long MIN_VALUE = 0x8000000000000000L;
 
     /**
      * A constant holding the maximum value a {@code long} can
      * have, 2<sup>63</sup>-1.
      */
-    @Native public static final   long MAX_VALUE = 0x7fffffffffffffffL;
+    @Native public static final long MAX_VALUE = 0x7fffffffffffffffL;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -145,9 +153,7 @@ public final class Long extends Number
      * @see     java.lang.Character#MAX_RADIX
      * @see     java.lang.Character#MIN_RADIX
      */
-    
-    
-    public static  String toString(long i,   int radix) {
+    public static String toString(long i, int radix) {
         if (radix < Character.MIN_RADIX || radix > Character.MAX_RADIX)
             radix = 10;
         if (radix == 10)
@@ -163,10 +169,10 @@ public final class Long extends Number
             }
 
             while (i <= -radix) {
-                buf[charPos--] = (byte)Integer.digits[(int)(-(i % radix))];
+                buf[charPos--] = Integer.digits[(int)(-(i % radix))];
                 i = i / radix;
             }
-            buf[charPos] = (byte)Integer.digits[(int)(-i)];
+            buf[charPos] = Integer.digits[(int)(-i)];
 
             if (negative) {
                 buf[--charPos] = '-';
@@ -176,8 +182,7 @@ public final class Long extends Number
         return toStringUTF16(i, radix);
     }
 
-    
-    private static String toStringUTF16(long i,  int radix) {
+    private static String toStringUTF16(long i, int radix) {
         byte[] buf = new byte[65 * 2];
         int charPos = 64;
         boolean negative = (i < 0);
@@ -221,9 +226,7 @@ public final class Long extends Number
      * @see     #toString(long, int)
      * @since 1.8
      */
-    
-    
-    public static  String toUnsignedString( long i,   int radix) {
+    public static String toUnsignedString(long i, int radix) {
         if (i >= 0)
             return toString(i, radix);
         else {
@@ -255,7 +258,7 @@ public final class Long extends Number
      * Return a BigInteger equal to the unsigned value of the
      * argument.
      */
-    private static BigInteger toUnsignedBigInteger( long i) {
+    private static BigInteger toUnsignedBigInteger(long i) {
         if (i >= 0L)
             return BigInteger.valueOf(i);
         else {
@@ -319,9 +322,7 @@ public final class Long extends Number
      * @see #toUnsignedString(long, int)
      * @since   1.0.2
      */
-    
-    
-    public static  String toHexString( long i) {
+    public static String toHexString(long i) {
         return toUnsignedString0(i, 4);
     }
 
@@ -360,9 +361,7 @@ public final class Long extends Number
      * @see #toUnsignedString(long, int)
      * @since   1.0.2
      */
-    
-    
-    public static  String toOctalString( long i) {
+    public static String toOctalString(long i) {
         return toUnsignedString0(i, 3);
     }
 
@@ -395,9 +394,7 @@ public final class Long extends Number
      * @see #toUnsignedString(long, int)
      * @since   1.0.2
      */
-    
-    
-    public static  String toBinaryString( long i) {
+    public static String toBinaryString(long i) {
         return toUnsignedString0(i, 1);
     }
 
@@ -406,19 +403,13 @@ public final class Long extends Number
      * @param val the value to format
      * @param shift the log2 of the base to format in (4 for hex, 3 for octal, 1 for binary)
      */
-    static String toUnsignedString0( long val,  int shift) {
+    static String toUnsignedString0(long val, int shift) {
         // assert shift > 0 && shift <=5 : "Illegal shift value";
         int mag = Long.SIZE - Long.numberOfLeadingZeros(val);
         int chars = Math.max(((mag + (shift - 1)) / shift), 1);
-        if (COMPACT_STRINGS) {
-            byte[] buf = new byte[chars];
-            formatUnsignedLong0(val, shift, buf, 0, chars);
-            return new String(buf, LATIN1);
-        } else {
-            byte[] buf = new byte[chars * 2];
-            formatUnsignedLong0UTF16(val, shift, buf, 0, chars);
-            return new String(buf, UTF16);
-        }
+        byte[] buf = new byte[chars];
+        formatUnsignedLong0(val, shift, buf, 0, chars);
+        return String.newStringWithLatin1Bytes(buf);
     }
 
     /**
@@ -437,28 +428,7 @@ public final class Long extends Number
         int radix = 1 << shift;
         int mask = radix - 1;
         do {
-            buf[--charPos] = (byte)Integer.digits[((int) val) & mask];
-            val >>>= shift;
-        } while (charPos > offset);
-    }
-
-    /**
-     * Format a long (treated as unsigned) into a byte buffer (UTF16 version). If
-     * {@code len} exceeds the formatted ASCII representation of {@code val},
-     * {@code buf} will be padded with leading zeroes.
-     *
-     * @param val the unsigned long to format
-     * @param shift the log2 of the base to format in (4 for hex, 3 for octal, 1 for binary)
-     * @param buf the byte buffer to write to
-     * @param offset the offset in the destination buffer to start at
-     * @param len the number of characters to write
-     */
-    private static void formatUnsignedLong0UTF16(long val, int shift, byte[] buf, int offset, int len) {
-        int charPos = offset + len;
-        int radix = 1 << shift;
-        int mask = radix - 1;
-        do {
-            StringUTF16.putChar(buf, --charPos, Integer.digits[((int) val) & mask]);
+            buf[--charPos] = Integer.digits[((int) val) & mask];
             val >>>= shift;
         } while (charPos > offset);
     }
@@ -475,15 +445,9 @@ public final class Long extends Number
      */
     public static String toString(long i) {
         int size = DecimalDigits.stringSize(i);
-        if (COMPACT_STRINGS) {
-            byte[] buf = new byte[size];
-            StringLatin1.getChars(i, size, buf);
-            return new String(buf, LATIN1);
-        } else {
-            byte[] buf = new byte[size * 2];
-            StringUTF16.getChars(i, size, buf);
-            return new String(buf, UTF16);
-        }
+        byte[] buf = new byte[size];
+        DecimalDigits.uncheckedGetCharsLatin1(i, size, buf);
+        return String.newStringWithLatin1Bytes(buf);
     }
 
     /**
@@ -500,9 +464,7 @@ public final class Long extends Number
      * @see     #toUnsignedString(long, int)
      * @since 1.8
      */
-    
-    
-    public static String toUnsignedString( long i) {
+    public static String toUnsignedString(long i) {
         return toUnsignedString(i, 10);
     }
 
@@ -638,9 +600,7 @@ public final class Long extends Number
      *             {@link java.lang.Character#MAX_RADIX}.
      * @since  9
      */
-    
-    
-    public static long parseLong(CharSequence s, int beginIndex, int endIndex,  int radix)
+    public static long parseLong(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
         Objects.requireNonNull(s);
         Objects.checkFromToIndex(beginIndex, endIndex, s.length());
@@ -713,8 +673,6 @@ public final class Long extends Number
      * @throws     NumberFormatException  if the string does not contain a
      *             parsable {@code long}.
      */
-    
-    
     public static long parseLong(String s) throws NumberFormatException {
         return parseLong(s, 10);
     }
@@ -762,9 +720,7 @@ public final class Long extends Number
      *             does not contain a parsable {@code long}.
      * @since 1.8
      */
-    
-    
-    public static  long parseUnsignedLong(String s,   int radix)
+    public static long parseUnsignedLong(String s, int radix)
                 throws NumberFormatException {
         if (s == null)  {
             throw new NumberFormatException("Cannot parse null string");
@@ -841,9 +797,7 @@ public final class Long extends Number
      *             {@link java.lang.Character#MAX_RADIX}.
      * @since  9
      */
-    
-    
-    public static long parseUnsignedLong(CharSequence s, int beginIndex, int endIndex,  int radix)
+    public static long parseUnsignedLong(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
         Objects.requireNonNull(s);
         Objects.checkFromToIndex(beginIndex, endIndex, s.length());
@@ -914,9 +868,7 @@ public final class Long extends Number
      *            parsable unsigned integer.
      * @since 1.8
      */
-    
-    
-    public static  long parseUnsignedLong(String s) throws NumberFormatException {
+    public static long parseUnsignedLong(String s) throws NumberFormatException {
         return parseUnsignedLong(s, 10);
     }
 
@@ -946,9 +898,7 @@ public final class Long extends Number
      * @throws     NumberFormatException  If the {@code String} does not
      *             contain a parsable {@code long}.
      */
-    
-    
-    public static Long valueOf(String s,   int radix) throws NumberFormatException {
+    public static Long valueOf(String s, int radix) throws NumberFormatException {
         return Long.valueOf(parseLong(s, radix));
     }
 
@@ -974,13 +924,15 @@ public final class Long extends Number
      * @throws     NumberFormatException  If the string cannot be parsed
      *             as a {@code long}.
      */
-    
-    
     public static Long valueOf(String s) throws NumberFormatException
     {
         return Long.valueOf(parseLong(s, 10));
     }
 
+    // When preview features are enabled, the cache does not affect object
+    // equality == semantics, but exists for performance.
+    // See doc/value-class-preview.md "Wrapper Class Caches" section.
+    @AOTSafeClassInitializer
     private static final class LongCache {
         private LongCache() {}
 
@@ -994,7 +946,7 @@ public final class Long extends Number
             // Load and use the archived cache if it exists
             CDS.initializeFromArchive(LongCache.class);
             if (archivedCache == null) {
-                Long[] c = new Long[size];
+                Long[] c = newCacheArray(size);
                 long value = -128;
                 for(int i = 0; i < size; i++) {
                     c[i] = new Long(value++);
@@ -1004,19 +956,38 @@ public final class Long extends Number
             cache = archivedCache;
             assert cache.length == size;
         }
+
+        private static Long[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
+            if (PreviewFeatures.isEnabled()) {
+                return (Long[]) ValueClass.newReferenceArray(Long.class, size);
+            }
+            return new Long[size];
+        }
     }
 
     /**
      * Returns a {@code Long} instance representing the specified
      * {@code long} value.
-     * If a new {@code Long} instance is not required, this method
-     * should generally be used in preference to the constructor
-     * {@link #Long(long)}, as this method is likely to yield
-     * significantly better space and time performance by caching
-     * frequently requested values.
-     *
-     * This method will always cache values in the range -128 to 127,
-     * inclusive, and may cache other values outside of this range.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Long} is an identity class.
+     *              If a new {@code Long} instance is not required, this method
+     *              should generally be used in preference to the constructor
+     *              {@link #Long(long)}, as this method is likely to yield
+     *              significantly better space and time performance by caching
+     *              frequently requested values.
+     *              This method will always cache values in the range -128 to 127,
+     *              inclusive, and may cache other values outside of this range.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Long} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor,
+     *              whether cached or not.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  l a long value.
      * @return a {@code Long} instance representing {@code l}.
@@ -1024,9 +995,9 @@ public final class Long extends Number
      */
     @IntrinsicCandidate
     public static Long valueOf(long l) {
-        final int offset = 128;
         if (l >= -128 && l <= 127) { // will cache
-            return LongCache.cache[(int)l + offset];
+            final int offset = 128;
+            return LongCache.cache[(int) l + offset];
         }
         return new Long(l);
     }
@@ -1074,8 +1045,6 @@ public final class Long extends Number
      * @see java.lang.Long#parseLong(String, int)
      * @since 1.2
      */
-    
-    
     public static Long decode(String nm) throws NumberFormatException {
         int radix = 10;
         int index = 0;
@@ -1142,7 +1111,8 @@ public final class Long extends Number
      * {@link #valueOf(long)} is generally a better choice, as it is
      * likely to yield significantly better space and time performance.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
+    @Deserializer("value")
     public Long(long value) {
         this.value = value;
     }
@@ -1165,7 +1135,7 @@ public final class Long extends Number
      * {@code long} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Long} object.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
     public Long(String s) throws NumberFormatException {
         this.value = parseLong(s, 10);
     }
@@ -1175,9 +1145,7 @@ public final class Long extends Number
      * a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
-    
-    
-    public   byte byteValue() {
+    public byte byteValue() {
         return (byte)value;
     }
 
@@ -1186,9 +1154,7 @@ public final class Long extends Number
      * a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
-    
-    
-    public   short shortValue() {
+    public short shortValue() {
         return (short)value;
     }
 
@@ -1197,9 +1163,7 @@ public final class Long extends Number
      * a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
-    
-    
-    public   int intValue() {
+    public int intValue() {
         return (int)value;
     }
 
@@ -1217,9 +1181,7 @@ public final class Long extends Number
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  float floatValue() {
+    public float floatValue() {
         return (float)value;
     }
 
@@ -1228,9 +1190,7 @@ public final class Long extends Number
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  double doubleValue() {
+    public double doubleValue() {
         return (double)value;
     }
 
@@ -1244,9 +1204,7 @@ public final class Long extends Number
      * @return  a string representation of the value of this object in
      *          base&nbsp;10.
      */
-    
-    
-    public  String toString() {
+    public String toString() {
         return toString(value);
     }
 
@@ -1262,8 +1220,6 @@ public final class Long extends Number
      *
      * @return  a hash code value for this object.
      */
-    
-    
     @Override
     public int hashCode() {
         return Long.hashCode(value);
@@ -1277,8 +1233,6 @@ public final class Long extends Number
      * @return a hash code value for a {@code long} value.
      * @since 1.8
      */
-    
-    
     public static int hashCode(long value) {
         return (int)(value ^ (value >>> 32));
     }
@@ -1328,8 +1282,6 @@ public final class Long extends Number
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
-    
-    
     public static @Nullable Long getLong(@Nullable String nm) {
         return getLong(nm, null);
     }
@@ -1373,8 +1325,6 @@ public final class Long extends Number
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
-    
-    
     public static Long getLong(@Nullable String nm, long val) {
         Long result = Long.getLong(nm, null);
         return (result == null) ? Long.valueOf(val) : result;
@@ -1446,8 +1396,6 @@ public final class Long extends Number
      *           comparison).
      * @since   1.2
      */
-    
-    
     public int compareTo(Long anotherLong) {
         return compare(this.value, anotherLong.value);
     }
@@ -1466,8 +1414,6 @@ public final class Long extends Number
      *         a value greater than {@code 0} if {@code x > y}
      * @since 1.7
      */
-    
-    
     public static int compare(long x, long y) {
         return (x < y) ? -1 : ((x == y) ? 0 : 1);
     }
@@ -1505,6 +1451,7 @@ public final class Long extends Number
      * @param divisor the value doing the dividing
      * @return the unsigned quotient of the first argument divided by
      * the second argument
+     * @throws ArithmeticException if the divisor is zero
      * @see #remainderUnsigned
      * @since 1.8
      */
@@ -1528,6 +1475,7 @@ public final class Long extends Number
      * @param divisor the value doing the dividing
      * @return the unsigned remainder of the first argument divided by
      * the second argument
+     * @throws ArithmeticException if the divisor is zero
      * @see #divideUnsigned
      * @since 1.8
      */
@@ -1570,7 +1518,7 @@ public final class Long extends Number
      *
      * @since 1.5
      */
-    @Native public static final   int SIZE = 64;
+    @Native public static final int SIZE = 64;
 
     /**
      * The number of bytes used to represent a {@code long} value in two's
@@ -1578,7 +1526,7 @@ public final class Long extends Number
      *
      * @since 1.8
      */
-    public static final   int BYTES = SIZE / Byte.SIZE;
+    public static final int BYTES = SIZE / Byte.SIZE;
 
     /**
      * Returns a {@code long} value with at most a single one-bit, in the
@@ -1593,9 +1541,7 @@ public final class Long extends Number
      *     the specified value is itself equal to zero.
      * @since 1.5
      */
-    
-    
-    public static long highestOneBit( long i) {
+    public static long highestOneBit(long i) {
         return i & (MIN_VALUE >>> numberOfLeadingZeros(i));
     }
 
@@ -1612,9 +1558,7 @@ public final class Long extends Number
      *     the specified value is itself equal to zero.
      * @since 1.5
      */
-    
-    
-    public static long lowestOneBit( long i) {
+    public static long lowestOneBit(long i) {
         // HD, Section 2-1
         return i & -i;
     }
@@ -1710,9 +1654,7 @@ public final class Long extends Number
      *     specified number of bits.
      * @since 1.5
      */
-    
-    
-    public static  long rotateLeft( long i, int distance) {
+    public static long rotateLeft(long i, int distance) {
         return (i << distance) | (i >>> -distance);
     }
 
@@ -1736,9 +1678,7 @@ public final class Long extends Number
      *     specified number of bits.
      * @since 1.5
      */
-    
-    
-    public static  long rotateRight( long i, int distance) {
+    public static long rotateRight(long i, int distance) {
         return (i >>> distance) | (i << -distance);
     }
 
@@ -2001,9 +1941,7 @@ public final class Long extends Number
      * @return the signum function of the specified {@code long} value.
      * @since 1.5
      */
-    
-    
-    public static  int signum(long i) {
+    public static int signum(long i) {
         // HD, Section 2-7
         return (int) ((i >> 63) | (-i >>> 63));
     }
@@ -2033,8 +1971,6 @@ public final class Long extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static long sum(long a, long b) {
         return a + b;
     }
@@ -2049,8 +1985,6 @@ public final class Long extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static long max(long a, long b) {
         return Math.max(a, b);
     }
@@ -2065,8 +1999,6 @@ public final class Long extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static long min(long a, long b) {
         return Math.min(a, b);
     }

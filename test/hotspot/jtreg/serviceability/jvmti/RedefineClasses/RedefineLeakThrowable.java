@@ -21,14 +21,20 @@
  * questions.
  */
 
+// This test has two variants with different MaxMetaspaceSize values depending on CDS availability.
+// With CDS enabled: 17m is sufficient because core JDK classes are mapped from CDS shared
+// archive into separate shared class space and do not count against MaxMetaspaceSize.
+// Without CDS (e.g. AIX): all classes are allocated in classic metaspace, requiring a
+// larger MaxMetaspaceSize of 25m.
+
 /*
- * @test
+ * @test id=nocds
  * @bug 8308762
  * @library /test/lib
  * @summary Test that redefinition of class containing Throwable refs does not leak constant pool
- * @requires os.family == "aix"
  * @requires vm.jvmti
  * @requires vm.flagless
+ * @requires !vm.cds
  * @modules java.base/jdk.internal.misc
  * @modules java.instrument
  *          java.compiler
@@ -37,13 +43,13 @@
  */
 
 /*
- * @test
+ * @test id=cds
  * @bug 8308762
  * @library /test/lib
  * @summary Test that redefinition of class containing Throwable refs does not leak constant pool
- * @requires os.family != "aix"
  * @requires vm.jvmti
  * @requires vm.flagless
+ * @requires vm.cds
  * @modules java.base/jdk.internal.misc
  * @modules java.instrument
  *          java.compiler

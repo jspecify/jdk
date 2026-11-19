@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,10 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.value.Deserializer;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 
@@ -37,7 +41,6 @@ import java.lang.constant.DynamicConstantDesc;
 import java.util.Optional;
 
 import static java.lang.constant.ConstantDescs.BSM_EXPLICIT_CAST;
-import static java.lang.constant.ConstantDescs.CD_int;
 import static java.lang.constant.ConstantDescs.CD_short;
 import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
 
@@ -53,31 +56,39 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * dealing with a {@code short}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization or
+ * with {@linkplain java.lang.ref.Reference object references}.
  *
- * @author  Nakul Saraiya
- * @author  Joseph D. Darcy
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Short} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
+ *
  * @see     java.lang.Number
  * @since   1.1
  */
 @NullMarked
 @jdk.internal.ValueBased
-public final class Short extends Number implements Comparable<Short>, Constable {
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Short extends Number
+        implements Comparable<Short>, Constable {
 
     /**
      * A constant holding the minimum value a {@code short} can
      * have, -2<sup>15</sup>.
      */
-    public static final  short   MIN_VALUE = -32768;
+    public static final short   MIN_VALUE = -32768;
 
     /**
      * A constant holding the maximum value a {@code short} can
      * have, 2<sup>15</sup>-1.
      */
-    public static final   short   MAX_VALUE = 32767;
+    public static final short   MAX_VALUE = 32767;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -137,9 +148,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * @throws          NumberFormatException If the {@code String}
      *                  does not contain a parsable {@code short}.
      */
-    
-    
-    public static short parseShort(String s,   int radix)
+    public static short parseShort(String s, int radix)
         throws NumberFormatException {
         int i = Integer.parseInt(s, radix);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -166,8 +175,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * @throws  NumberFormatException If the string does not
      *          contain a parsable {@code short}.
      */
-    
-    
     public static short parseShort(String s) throws NumberFormatException {
         return parseShort(s, 10);
     }
@@ -197,9 +204,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * @throws          NumberFormatException If the {@code String} does
      *                  not contain a parsable {@code short}.
      */
-    
-    
-    public static Short valueOf(String s,   int radix)
+    public static Short valueOf(String s, int radix)
         throws NumberFormatException {
         return valueOf(parseShort(s, radix));
     }
@@ -226,8 +231,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * @throws  NumberFormatException If the {@code String} does
      *          not contain a parsable {@code short}.
      */
-    
-    
     public static Short valueOf(String s) throws NumberFormatException {
         return valueOf(s, 10);
     }
@@ -244,6 +247,10 @@ public final class Short extends Number implements Comparable<Short>, Constable 
         return Optional.of(DynamicConstantDesc.ofNamed(BSM_EXPLICIT_CAST, DEFAULT_NAME, CD_short, intValue()));
     }
 
+    // When preview features are enabled, the cache does not affect object
+    // equality == semantics, but exists for performance.
+    // See doc/value-class-preview.md "Wrapper Class Caches" section.
+    @AOTSafeClassInitializer
     private static final class ShortCache {
         private ShortCache() {}
 
@@ -257,7 +264,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
             // Load and use the archived cache if it exists
             CDS.initializeFromArchive(ShortCache.class);
             if (archivedCache == null) {
-                Short[] c = new Short[size];
+                Short[] c = newCacheArray(size);
                 short value = -128;
                 for(int i = 0; i < size; i++) {
                     c[i] = new Short(value++);
@@ -267,19 +274,38 @@ public final class Short extends Number implements Comparable<Short>, Constable 
             cache = archivedCache;
             assert cache.length == size;
         }
+
+        private static Short[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
+            if (PreviewFeatures.isEnabled()) {
+                return (Short[]) ValueClass.newReferenceArray(Short.class, size);
+            }
+            return new Short[size];
+        }
     }
 
     /**
      * Returns a {@code Short} instance representing the specified
      * {@code short} value.
-     * If a new {@code Short} instance is not required, this method
-     * should generally be used in preference to the constructor
-     * {@link #Short(short)}, as this method is likely to yield
-     * significantly better space and time performance by caching
-     * frequently requested values.
-     *
-     * This method will always cache values in the range -128 to 127,
-     * inclusive, and may cache other values outside of this range.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Short} is an identity class.
+     *              If a new {@code Short} instance is not required, this method
+     *              should generally be used in preference to the constructor
+     *              {@link #Short(short)}, as this method is likely to yield
+     *              significantly better space and time performance by caching
+     *              frequently requested values.
+     *              This method will always cache values in the range -128 to 127,
+     *              inclusive, and may cache other values outside of this range.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Short} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor,
+     *              whether cached or not.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  s a short value.
      * @return a {@code Short} instance representing {@code s}.
@@ -337,8 +363,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      *            contain a parsable {@code short}.
      * @see java.lang.Short#parseShort(java.lang.String, int)
      */
-    
-    
     public static Short decode(String nm) throws NumberFormatException {
         int i = Integer.decode(nm);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -366,7 +390,8 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * {@link #valueOf(short)} is generally a better choice, as it is
      * likely to yield significantly better space and time performance.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
+    @Deserializer("value")
     public Short(short value) {
         this.value = value;
     }
@@ -389,7 +414,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * {@code short} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Short} object.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
     public Short(String s) throws NumberFormatException {
         this.value = parseShort(s, 10);
     }
@@ -399,9 +424,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
-    
-    
-    public   byte byteValue() {
+    public byte byteValue() {
         return (byte)value;
     }
 
@@ -419,9 +442,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public   int intValue() {
+    public int intValue() {
         return (int)value;
     }
 
@@ -430,9 +451,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public   long longValue() {
+    public long longValue() {
         return (long)value;
     }
 
@@ -441,9 +460,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  float floatValue() {
+    public float floatValue() {
         return (float)value;
     }
 
@@ -452,9 +469,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  double doubleValue() {
+    public double doubleValue() {
         return (double)value;
     }
 
@@ -479,8 +494,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      *
      * @return a hash code value for this {@code Short}
      */
-    
-    
     @Override
     public int hashCode() {
         return Short.hashCode(value);
@@ -494,8 +507,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * @return a hash code value for a {@code short} value.
      * @since 1.8
      */
-    
-    
     public static int hashCode(short value) {
         return (int)value;
     }
@@ -530,8 +541,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      *           comparison).
      * @since   1.2
      */
-    
-    
     public int compareTo(Short anotherShort) {
         return compare(this.value, anotherShort.value);
     }
@@ -550,8 +559,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      *         a value greater than {@code 0} if {@code x > y}
      * @since 1.7
      */
-    
-    
     public static int compare(short x, short y) {
         return x - y;
     }
@@ -568,8 +575,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      *         unsigned values
      * @since 9
      */
-    
-    
     public static int compareUnsigned(short x, short y) {
         return Short.toUnsignedInt(x) - Short.toUnsignedInt(y);
     }
@@ -579,7 +584,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * complement binary form.
      * @since 1.5
      */
-    public static final   int SIZE = 16;
+    public static final int SIZE = 16;
 
     /**
      * The number of bytes used to represent a {@code short} value in two's
@@ -587,7 +592,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      *
      * @since 1.8
      */
-    public static final  int BYTES = SIZE / Byte.SIZE;
+    public static final int BYTES = SIZE / Byte.SIZE;
 
     /**
      * Returns the value obtained by reversing the order of the bytes in the
@@ -620,8 +625,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      *         conversion
      * @since 1.8
      */
-    
-    
     public static int toUnsignedInt(short x) {
         return ((int) x) & 0xffff;
     }
@@ -642,8 +645,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      *         conversion
      * @since 1.8
      */
-    
-    
     public static long toUnsignedLong(short x) {
         return ((long) x) & 0xffffL;
     }

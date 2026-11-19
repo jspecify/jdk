@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -322,7 +322,8 @@ public abstract class InnerClassesTestBase extends TestResult {
     }
 
     protected List<String> getCompileOptions() {
-        return Collections.emptyList();
+        // Use a release before value classes for now.
+        return List.of("--release", "25");
     }
 
     private List<List<Modifier>> getAllCombinations(Modifier[] accessModifiers, Modifier[] otherModifiers) {
@@ -439,7 +440,8 @@ public abstract class InnerClassesTestBase extends TestResult {
         PUBLIC("public"), PRIVATE("private"),
         PROTECTED("protected"), DEFAULT("default"),
         FINAL("final"), ABSTRACT("abstract"),
-        STATIC("static"), EMPTY("");
+        STATIC("static"), EMPTY(""),
+        IDENTITY("identity");
 
         private final String str;
 

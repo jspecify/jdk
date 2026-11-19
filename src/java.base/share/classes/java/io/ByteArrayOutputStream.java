@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.nio.charset.Charset;
 import java.util.Arrays;
@@ -60,7 +59,7 @@ public class ByteArrayOutputStream extends OutputStream {
     /**
      * The number of valid bytes in the buffer.
      */
-    protected  int count;
+    protected int count;
 
     /**
      * Creates a new {@code ByteArrayOutputStream}. The buffer capacity is
@@ -77,7 +76,7 @@ public class ByteArrayOutputStream extends OutputStream {
      * @param  size   the initial size.
      * @throws IllegalArgumentException if size is negative.
      */
-    public ByteArrayOutputStream( int size) {
+    public ByteArrayOutputStream(int size) {
         if (size < 0) {
             throw new IllegalArgumentException("Negative initial size: "
                                                + size);
@@ -187,7 +186,7 @@ public class ByteArrayOutputStream extends OutputStream {
      * @return  the current contents of this output stream, as a byte array.
      * @see     java.io.ByteArrayOutputStream#size()
      */
-    public synchronized  byte[] toByteArray() {
+    public synchronized byte[] toByteArray() {
         return Arrays.copyOf(buf, count);
     }
 
@@ -198,8 +197,7 @@ public class ByteArrayOutputStream extends OutputStream {
      *          of valid bytes in this output stream.
      * @see     java.io.ByteArrayOutputStream#count
      */
-    
-    public synchronized  int size() {
+    public synchronized int size() {
         return count;
     }
 
@@ -253,7 +251,6 @@ public class ByteArrayOutputStream extends OutputStream {
      *         If the named charset is not supported
      * @since  1.1
      */
-    
     public synchronized String toString(String charsetName)
         throws UnsupportedEncodingException
     {
@@ -303,7 +300,6 @@ public class ByteArrayOutputStream extends OutputStream {
      * @see        java.io.ByteArrayOutputStream#toString()
      * @see        Charset#defaultCharset()
      */
-    
     @Deprecated
     public synchronized String toString(int hibyte) {
         return new String(buf, hibyte, 0, count);

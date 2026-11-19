@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package java.lang;
 import java.lang.module.Configuration;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ResolvedModule;
+import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,7 +53,11 @@ import jdk.internal.module.ServicesCatalog;
 import jdk.internal.misc.CDS;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.Stable;
+
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A layer of modules in the Java virtual machine.
@@ -144,6 +149,8 @@ import jdk.internal.vm.annotation.Stable;
  * @see Module#getLayer()
  */
 
+@NullMarked
+@AOTSafeClassInitializer
 public final class ModuleLayer {
 
     // the empty layer (may be initialized from the CDS archive)
@@ -252,6 +259,12 @@ public final class ModuleLayer {
          * module {@code target}. This method is a no-op if {@code source}
          * already exports the package to at least {@code target}.
          *
+         * <p> Exporting a package with this method does not allow the target module to
+         * {@linkplain Field#set(Object, Object) reflectively set} or {@linkplain
+         * java.lang.invoke.MethodHandles.Lookup#unreflectSetter(Field) obtain a method
+         * handle with write access} to a public final field declared in a public class
+         * in the package.
+         *
          * @param  source
          *         The source module
          * @param  pn
@@ -277,6 +290,11 @@ public final class ModuleLayer {
          * Updates module {@code source} in the layer to open a package to
          * module {@code target}. This method is a no-op if {@code source}
          * already opens the package to at least {@code target}.
+         *
+         * <p> Opening a package with this method does not allow the target module
+         * to {@linkplain Field#set(Object, Object) reflectively set} or {@linkplain
+         * java.lang.invoke.MethodHandles.Lookup#unreflectSetter(Field) obtain a method
+         * handle with write access} to a final field declared in a class in the package.
          *
          * @param  source
          *         The source module
@@ -361,7 +379,7 @@ public final class ModuleLayer {
      * @see #findLoader
      */
     public ModuleLayer defineModulesWithOneLoader(Configuration cf,
-                                                  ClassLoader parentLoader) {
+                                                  @Nullable ClassLoader parentLoader) {
         return defineModulesWithOneLoader(cf, List.of(this), parentLoader).layer();
     }
 
@@ -399,7 +417,7 @@ public final class ModuleLayer {
      * @see #findLoader
      */
     public ModuleLayer defineModulesWithManyLoaders(Configuration cf,
-                                                    ClassLoader parentLoader) {
+                                                    @Nullable ClassLoader parentLoader) {
         return defineModulesWithManyLoaders(cf, List.of(this), parentLoader).layer();
     }
 
@@ -498,7 +516,7 @@ public final class ModuleLayer {
      */
     public static Controller defineModulesWithOneLoader(Configuration cf,
                                                         List<ModuleLayer> parentLayers,
-                                                        ClassLoader parentLoader)
+                                                        @Nullable ClassLoader parentLoader)
     {
         List<ModuleLayer> parents = List.copyOf(parentLayers);
         checkConfiguration(cf, parents);
@@ -562,7 +580,7 @@ public final class ModuleLayer {
      */
     public static Controller defineModulesWithManyLoaders(Configuration cf,
                                                           List<ModuleLayer> parentLayers,
-                                                          ClassLoader parentLoader)
+                                                          @Nullable ClassLoader parentLoader)
     {
         List<ModuleLayer> parents = List.copyOf(parentLayers);
         checkConfiguration(cf, parents);
@@ -862,7 +880,7 @@ public final class ModuleLayer {
      * @throws IllegalArgumentException if a module of the given name is not
      *         defined in this layer or any parent of this layer
      */
-    public ClassLoader findLoader(String name) {
+    public @Nullable ClassLoader findLoader(String name) {
         Optional<Module> om = findModule(name);
 
         // can't use map(Module::getClassLoader) as class loader can be null
@@ -906,7 +924,7 @@ public final class ModuleLayer {
      *
      * @return The boot layer
      */
-    public static ModuleLayer boot() {
+    public static @Nullable ModuleLayer boot() {
         return System.bootLayer;
     }
 

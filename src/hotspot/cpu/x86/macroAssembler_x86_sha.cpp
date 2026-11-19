@@ -23,7 +23,6 @@
 *
 */
 
-#include "precompiled.hpp"
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -236,21 +235,13 @@ void MacroAssembler::fast_sha1(XMMRegister abcd, XMMRegister e0, XMMRegister e1,
 // and state0 and state1 can never use xmm0 register.
 // ofs and limit are used for multi-block byte array.
 // int com.sun.security.provider.DigestBase.implCompressMultiBlock(byte[] b, int ofs, int limit)
-#ifdef _LP64
 void MacroAssembler::fast_sha256(XMMRegister msg, XMMRegister state0, XMMRegister state1, XMMRegister msgtmp0,
   XMMRegister msgtmp1, XMMRegister msgtmp2, XMMRegister msgtmp3, XMMRegister msgtmp4,
   Register buf, Register state, Register ofs, Register limit, Register rsp,
   bool multi_block, XMMRegister shuf_mask) {
-#else
-void MacroAssembler::fast_sha256(XMMRegister msg, XMMRegister state0, XMMRegister state1, XMMRegister msgtmp0,
-  XMMRegister msgtmp1, XMMRegister msgtmp2, XMMRegister msgtmp3, XMMRegister msgtmp4,
-  Register buf, Register state, Register ofs, Register limit, Register rsp,
-  bool multi_block) {
-#endif
   Label done_hash, loop0;
 
   address K256 = StubRoutines::x86::k256_addr();
-  address pshuffle_byte_flip_mask = StubRoutines::x86::pshuffle_byte_flip_mask_addr();
 
   movdqu(state0, Address(state, 0));
   movdqu(state1, Address(state, 16));
@@ -261,9 +252,7 @@ void MacroAssembler::fast_sha256(XMMRegister msg, XMMRegister state0, XMMRegiste
   palignr(state0, state1, 8);
   pblendw(state1, msgtmp4, 0xF0);
 
-#ifdef _LP64
-  movdqu(shuf_mask, ExternalAddress(pshuffle_byte_flip_mask));
-#endif
+  movdqu(shuf_mask, ExternalAddress(StubRoutines::x86::pshuffle_byte_flip_mask_addr()));
   lea(rax, ExternalAddress(K256));
 
   bind(loop0);
@@ -272,11 +261,7 @@ void MacroAssembler::fast_sha256(XMMRegister msg, XMMRegister state0, XMMRegiste
 
   // Rounds 0-3
   movdqu(msg, Address(buf, 0));
-#ifdef _LP64
   pshufb(msg, shuf_mask);
-#else
-  pshufb(msg, ExternalAddress(pshuffle_byte_flip_mask));
-#endif
   movdqa(msgtmp0, msg);
   paddd(msg, Address(rax, 0));
   sha256rnds2(state1, state0);
@@ -285,11 +270,7 @@ void MacroAssembler::fast_sha256(XMMRegister msg, XMMRegister state0, XMMRegiste
 
   // Rounds 4-7
   movdqu(msg, Address(buf, 16));
-#ifdef _LP64
   pshufb(msg, shuf_mask);
-#else
-  pshufb(msg, ExternalAddress(pshuffle_byte_flip_mask));
-#endif
   movdqa(msgtmp1, msg);
   paddd(msg, Address(rax, 16));
   sha256rnds2(state1, state0);
@@ -299,11 +280,7 @@ void MacroAssembler::fast_sha256(XMMRegister msg, XMMRegister state0, XMMRegiste
 
   // Rounds 8-11
   movdqu(msg, Address(buf, 32));
-#ifdef _LP64
   pshufb(msg, shuf_mask);
-#else
-  pshufb(msg, ExternalAddress(pshuffle_byte_flip_mask));
-#endif
   movdqa(msgtmp2, msg);
   paddd(msg, Address(rax, 32));
   sha256rnds2(state1, state0);
@@ -313,11 +290,7 @@ void MacroAssembler::fast_sha256(XMMRegister msg, XMMRegister state0, XMMRegiste
 
   // Rounds 12-15
   movdqu(msg, Address(buf, 48));
-#ifdef _LP64
   pshufb(msg, shuf_mask);
-#else
-  pshufb(msg, ExternalAddress(pshuffle_byte_flip_mask));
-#endif
   movdqa(msgtmp3, msg);
   paddd(msg, Address(rax, 48));
   sha256rnds2(state1, state0);
@@ -492,10 +465,9 @@ void MacroAssembler::fast_sha256(XMMRegister msg, XMMRegister state0, XMMRegiste
 
 }
 
-#ifdef _LP64
 /*
   The algorithm below is based on Intel publication:
-  "Fast SHA-256 Implementations on Intelë Architecture Processors" by Jim Guilford, Kirk Yap and Vinodh Gopal.
+  "Fast SHA-256 Implementations on Intel(R) Architecture Processors" by Jim Guilford, Kirk Yap and Vinodh Gopal.
   The assembly code was originally provided by Sean Gulley and in many places preserves
   the original assembly NAMES and comments to simplify matching Java assembly with its original.
   The Java version was substantially redesigned to replace 1200 assembly instruction with
@@ -688,8 +660,6 @@ void MacroAssembler::sha256_AVX2(XMMRegister msg, XMMRegister state0, XMMRegiste
         compute_size1, compute_size_end1;
 
   address K256_W = StubRoutines::x86::k256_W_addr();
-  address pshuffle_byte_flip_mask = StubRoutines::x86::pshuffle_byte_flip_mask_addr();
-  address pshuffle_byte_flip_mask_addr = nullptr;
 
 const XMMRegister& SHUF_00BA        = xmm10;    // ymm10: shuffle xBxA -> 00BA
 const XMMRegister& SHUF_DC00        = xmm12;    // ymm12: shuffle xDxC -> DC00
@@ -818,10 +788,14 @@ enum {
   // load g - r10 after it is used as scratch
   movl(h, Address(CTX, 4*7));
 
-  pshuffle_byte_flip_mask_addr = pshuffle_byte_flip_mask;
-  vmovdqu(BYTE_FLIP_MASK, ExternalAddress(pshuffle_byte_flip_mask_addr +  0)); // [PSHUFFLE_BYTE_FLIP_MASK wrt rip]
-  vmovdqu(SHUF_00BA,      ExternalAddress(pshuffle_byte_flip_mask_addr + 32)); // [_SHUF_00BA wrt rip]
-  vmovdqu(SHUF_DC00,      ExternalAddress(pshuffle_byte_flip_mask_addr + 64)); // [_SHUF_DC00 wrt rip]
+  // the three successive pshuffle_byte_flip_mask stub entries should
+  // be offset by 32 bytes
+  assert(StubRoutines::x86::pshuffle_byte_flip_mask_addr() + 32 == StubRoutines::x86::pshuffle_byte_flip_mask_00ba_addr(), "sanity");
+  assert(StubRoutines::x86::pshuffle_byte_flip_mask_addr() + 64 == StubRoutines::x86::pshuffle_byte_flip_mask_dc00_addr(), "sanity");
+
+  vmovdqu(BYTE_FLIP_MASK, ExternalAddress(StubRoutines::x86::pshuffle_byte_flip_mask_addr())); // [PSHUFFLE_BYTE_FLIP_MASK wrt rip]
+  vmovdqu(SHUF_00BA,      ExternalAddress(StubRoutines::x86::pshuffle_byte_flip_mask_00ba_addr())); // [_SHUF_00BA wrt rip]
+  vmovdqu(SHUF_DC00,      ExternalAddress(StubRoutines::x86::pshuffle_byte_flip_mask_dc00_addr())); // [_SHUF_DC00 wrt rip]
 
   movl(g, Address(CTX, 4*6));
 
@@ -980,11 +954,9 @@ bind(only_one_block);
   // load g - r10 after use as scratch
   movl(h, Address(CTX, 4*7));   // 0x5be0cd19
 
-
-  pshuffle_byte_flip_mask_addr = pshuffle_byte_flip_mask;
-  vmovdqu(BYTE_FLIP_MASK, ExternalAddress(pshuffle_byte_flip_mask_addr +  0)); // [PSHUFFLE_BYTE_FLIP_MASK wrt rip]
-  vmovdqu(SHUF_00BA,      ExternalAddress(pshuffle_byte_flip_mask_addr + 32)); // [_SHUF_00BA wrt rip]
-  vmovdqu(SHUF_DC00,      ExternalAddress(pshuffle_byte_flip_mask_addr + 64)); // [_SHUF_DC00 wrt rip]
+  vmovdqu(BYTE_FLIP_MASK, ExternalAddress(StubRoutines::x86::pshuffle_byte_flip_mask_addr())); // [PSHUFFLE_BYTE_FLIP_MASK wrt rip]
+  vmovdqu(SHUF_00BA,      ExternalAddress(StubRoutines::x86::pshuffle_byte_flip_mask_00ba_addr())); // [_SHUF_00BA wrt rip]
+  vmovdqu(SHUF_DC00,      ExternalAddress(StubRoutines::x86::pshuffle_byte_flip_mask_dc00_addr())); // [_SHUF_DC00 wrt rip]
 
   movl(g, Address(CTX, 4*6));   // 0x1f83d9ab
 
@@ -1373,9 +1345,12 @@ void MacroAssembler::sha512_AVX2(XMMRegister msg, XMMRegister state0, XMMRegiste
     // load g - r10 after it is used as scratch
     movq(h, Address(CTX, 8 * 7));
 
-    pshuffle_byte_flip_mask_addr = pshuffle_byte_flip_mask_sha512;
-    vmovdqu(BYTE_FLIP_MASK, ExternalAddress(pshuffle_byte_flip_mask_addr +  0)); // PSHUFFLE_BYTE_FLIP_MASK wrt rip
-    vmovdqu(YMM_MASK_LO,    ExternalAddress(pshuffle_byte_flip_mask_addr + 32));
+    // the two successive pshuffle_byte_flip_mask_sha512 stub entries should
+    // be offset by 32 bytes
+    assert(StubRoutines::x86::pshuffle_byte_flip_mask_addr_sha512() + 32 == StubRoutines::x86::pshuffle_byte_flip_mask_ymm_lo_addr_sha512(), "sanity");
+
+    vmovdqu(BYTE_FLIP_MASK, ExternalAddress(StubRoutines::x86::pshuffle_byte_flip_mask_addr_sha512())); // PSHUFFLE_BYTE_FLIP_MASK wrt rip
+    vmovdqu(YMM_MASK_LO,    ExternalAddress(StubRoutines::x86::pshuffle_byte_flip_mask_ymm_lo_addr_sha512())); // MASK_YMM_LO wrt rip
 
     movq(g, Address(CTX, 8 * 6));
 
@@ -1538,7 +1513,7 @@ void MacroAssembler::sha512_update_ni_x1(Register arg_hash, Register arg_msg, Re
     //ymm13 = A B E F, ymm14 = C D G H
 
     lea(rax, ExternalAddress(K512_W));
-    align(32);
+    align(CodeEntryAlignment);
     bind(block_loop);
     vmovdqu(xmm11, xmm13);//ABEF
     vmovdqu(xmm12, xmm14);//CDGH
@@ -1697,6 +1672,3 @@ void MacroAssembler::sha512_update_ni_x1(Register arg_hash, Register arg_msg, Re
 
     bind(done_hash);
 }
-
-#endif //#ifdef _LP64
-

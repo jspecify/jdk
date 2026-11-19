@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -45,6 +45,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   virtual void call_VM_base(Register oop_result,
                             Register java_thread,
                             Register last_java_sp,
+                            Label*   return_pc,
                             address  entry_point,
                             int number_of_arguments,
                             bool check_exceptions);
@@ -58,11 +59,24 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   void load_earlyret_value(TosState state);
 
+  // Use for vthread preemption
   void call_VM_preemptable(Register oop_result,
                            address entry_point,
-                           Register arg_1);
+                           Register arg_1,
+                           bool check_exceptions = true);
+  void call_VM_preemptable(Register oop_result,
+                           address entry_point,
+                           Register arg_1,
+                           Register arg_2,
+                           bool check_exceptions = true);
   void restore_after_resume(bool is_native);
+ private:
+  void call_VM_preemptable_helper(Register oop_result,
+                                  address entry_point,
+                                  int number_of_arguments,
+                                  bool check_exceptions);
 
+ public:
   void jump_to_entry(address entry);
 
   virtual void check_and_handle_popframe(Register java_thread);
@@ -144,6 +158,16 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void get_cache_index_at_bcp(Register index, int bcp_offset, size_t index_size = sizeof(u2));
   void get_method_counters(Register method, Register mcs, Label& skip);
 
+  // Allocate instance in "obj" and read in the content of the flat field
+  // NOTES:
+  //   - input holder object via "obj", which must be r0,
+  //     will return new instance via the same reg
+  void read_flat_field(Register entry, Register obj);
+
+  void write_flat_field(Register entry, Register field_offset,
+                        Register tmp1, Register tmp2,
+                        Register obj);
+
   // load cpool->resolved_references(index);
   void load_resolved_reference_at_index(Register result, Register index, Register tmp = r5);
 
@@ -188,7 +212,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   // Generate a subtype check: branch to ok_is_subtype if sub_klass is
   // a subtype of super_klass.
-  void gen_subtype_check( Register sub_klass, Label &ok_is_subtype );
+  void gen_subtype_check( Register sub_klass, Label &ok_is_subtype, bool profile = true);
 
   // Dispatching
   void dispatch_prolog(TosState state, int step = 0);
@@ -247,11 +271,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void verify_method_data_pointer();
 
   void set_mdp_data_at(Register mdp_in, int constant, Register value);
-  void increment_mdp_data_at(Address data, bool decrement = false);
-  void increment_mdp_data_at(Register mdp_in, int constant,
-                             bool decrement = false);
-  void increment_mdp_data_at(Register mdp_in, Register reg, int constant,
-                             bool decrement = false);
+  void increment_mdp_data_at(Register mdp_in, int constant);
+  void increment_mdp_data_at(Register mdp_in, Register index, int constant);
   void increment_mask_and_jump(Address counter_addr,
                                int increment, Address mask,
                                Register scratch, Register scratch2,
@@ -262,15 +283,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
                         Register test_value_out,
                         Label& not_equal_continue);
 
-  void record_klass_in_profile(Register receiver, Register mdp,
-                               Register reg2);
-  void record_klass_in_profile_helper(Register receiver, Register mdp,
-                                      Register reg2, int start_row,
-                                      Label& done);
-  void record_item_in_profile_helper(Register item, Register mdp,
-                                     Register reg2, int start_row, Label& done, int total_rows,
-                                     OffsetFunction item_offset_fn, OffsetFunction item_count_offset_fn);
-
   void update_mdp_by_offset(Register mdp_in, int offset_of_offset);
   void update_mdp_by_offset(Register mdp_in, Register reg, int offset_of_disp);
   void update_mdp_by_constant(Register mdp_in, int constant);
@@ -279,20 +291,22 @@ class InterpreterMacroAssembler: public MacroAssembler {
   // narrow int return value
   void narrow(Register result);
 
-  void profile_taken_branch(Register mdp, Register bumped_count);
-  void profile_not_taken_branch(Register mdp);
+  void profile_taken_branch(Register mdp);
+  void profile_not_taken_branch(Register mdp, bool acmp = false);
   void profile_call(Register mdp);
   void profile_final_call(Register mdp);
-  void profile_virtual_call(Register receiver, Register mdp,
-                            Register scratch2,
-                            bool receiver_can_be_null = false);
+  void profile_virtual_call(Register receiver, Register mdp);
   void profile_ret(Register return_bci, Register mdp);
   void profile_null_seen(Register mdp);
-  void profile_typecheck(Register mdp, Register klass, Register scratch);
+  void profile_typecheck(Register mdp, Register klass);
   void profile_typecheck_failed(Register mdp);
   void profile_switch_default(Register mdp);
   void profile_switch_case(Register index_in_scratch, Register mdp,
                            Register scratch2);
+  template <class ArrayData> void profile_array_type(Register mdp, Register array, Register tmp);
+  void profile_multiple_element_types(Register mdp, Register element, Register tmp, Register tmp2);
+  void profile_element_type(Register mdp, Register element, Register tmp);
+  void profile_acmp(Register mdp, Register left, Register right, Register tmp);
 
   void profile_obj_type(Register obj, const Address& mdo_addr);
   void profile_arguments_type(Register mdp, Register callee, Register tmp, bool is_virtual);
@@ -303,14 +317,15 @@ class InterpreterMacroAssembler: public MacroAssembler {
   // only if +VerifyOops && state == atos
 #define interp_verify_oop(reg, state) _interp_verify_oop(reg, state, __FILE__, __LINE__);
   void _interp_verify_oop(Register reg, TosState state, const char* file, int line);
-  // only if +VerifyFPU  && (state == ftos || state == dtos)
-  void verify_FPU(int stack_depth, TosState state = ftos);
 
   typedef enum { NotifyJVMTI, SkipNotifyJVMTI } NotifyMethodExitMode;
 
   // support for jvmti/dtrace
   void notify_method_entry();
   void notify_method_exit(TosState state, NotifyMethodExitMode mode);
+
+  JFR_ONLY(void enter_jfr_critical_section();)
+  JFR_ONLY(void leave_jfr_critical_section();)
 
   virtual void _call_Unimplemented(address call_site) {
     save_bcp();
@@ -321,6 +336,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void load_resolved_indy_entry(Register cache, Register index);
   void load_field_entry(Register cache, Register index, int bcp_offset = 1);
   void load_method_entry(Register cache, Register index, int bcp_offset = 1);
+
+  void verify_field_offset(Register reg) NOT_DEBUG_RETURN;
 };
 
 #endif // CPU_AARCH64_INTERP_MASM_AARCH64_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciConstant.hpp"
 #include "ci/ciEnv.hpp"
 #include "ci/ciField.hpp"
@@ -43,8 +42,8 @@
 #include "compiler/compilationLog.hpp"
 #include "compiler/compilationPolicy.hpp"
 #include "compiler/compileBroker.hpp"
-#include "compiler/compilerEvent.hpp"
 #include "compiler/compileLog.hpp"
+#include "compiler/compilerEvent.hpp"
 #include "compiler/compileTask.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -64,6 +63,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/resolvedIndyEntry.hpp"
 #include "oops/symbolHandle.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -107,7 +107,7 @@ static bool firstEnv = true;
 // ------------------------------------------------------------------
 // ciEnv::ciEnv
 ciEnv::ciEnv(CompileTask* task)
-  : _ciEnv_arena(mtCompiler) {
+  : _ciEnv_arena(mtCompiler, Arena::Tag::tag_cienv) {
   VM_ENTRY_MARK;
 
   // Set up ciEnv::current immediately, for the sake of ciObjectFactory, etc.
@@ -187,9 +187,9 @@ ciEnv::ciEnv(CompileTask* task)
 // {
 //   RecordLocation fp(this, "field1");
 //   // location: "field1"
-//   { RecordLocation fp(this, " field2"); // location: "field1 field2" }
+//   { RecordLocation fp(this, "field2"); // location: "field1 field2" }
 //   // location: "field1"
-//   { RecordLocation fp(this, " field3"); // location: "field1 field3" }
+//   { RecordLocation fp(this, "field3"); // location: "field1 field3" }
 //   // location: "field1"
 // }
 // // location: ""
@@ -218,17 +218,20 @@ public:
   void push_va(ciEnv* ci, const char* fmt, va_list args) {
     char *e = ci->_dyno_name + strlen(ci->_dyno_name);
     char *m = ci->_dyno_name + ARRAY_SIZE(ci->_dyno_name) - 1;
-    os::vsnprintf(e, m - e, fmt, args);
+    (void) os::vsnprintf(e, m - e, fmt, args);
     assert(strlen(ci->_dyno_name) < (ARRAY_SIZE(ci->_dyno_name) - 1), "overflow");
   }
 
   // append a new component
   ATTRIBUTE_PRINTF(3, 4)
   RecordLocation(ciEnv* ci, const char* fmt, ...) {
-    end = ci->_dyno_name + strlen(ci->_dyno_name);
+    size_t len = strlen(ci->_dyno_name);
+    end = ci->_dyno_name + len;
     va_list args;
     va_start(args, fmt);
-    push(ci, " ");
+    if (len > 0) {
+      push(ci, " ");
+    }
     push_va(ci, fmt, args);
     va_end(args);
   }
@@ -239,7 +242,7 @@ public:
   }
 };
 
-ciEnv::ciEnv(Arena* arena) : _ciEnv_arena(mtCompiler) {
+ciEnv::ciEnv(Arena* arena) : _ciEnv_arena(mtCompiler, Arena::Tag::tag_cienv) {
   ASSERT_IN_VM;
 
   // Set up ciEnv::current immediately, for the sake of ciObjectFactory, etc.
@@ -1058,7 +1061,11 @@ void ciEnv::register_method(ciMethod* target,
     }
 
     assert(offsets->value(CodeOffsets::Deopt) != -1, "must have deopt entry");
-    assert(offsets->value(CodeOffsets::Exceptions) != -1, "must have exception entry");
+
+    assert(compiler->type() == compiler_c2 ||
+           offsets->value(CodeOffsets::Exceptions) != -1, "must have exception entry");
+
+    bool needs_stack_repair = (compiler->is_c2() && method()->needs_stack_repair());
 
     nm =  nmethod::new_nmethod(method,
                                compile_id(),
@@ -1068,16 +1075,13 @@ void ciEnv::register_method(ciMethod* target,
                                debug_info(), dependencies(), code_buffer,
                                frame_words, oop_map_set,
                                handler_table, inc_table,
-                               compiler, CompLevel(task()->comp_level()));
+                               compiler, CompLevel(task()->comp_level()),
+                               nmethod::Flags(has_unsafe_access, has_wide_vectors, has_monitors, has_scoped_access, needs_stack_repair));
 
     // Free codeBlobs
     code_buffer->free_blob();
 
     if (nm != nullptr) {
-      nm->set_has_unsafe_access(has_unsafe_access);
-      nm->set_has_wide_vectors(has_wide_vectors);
-      nm->set_has_monitors(has_monitors);
-      nm->set_has_scoped_access(has_scoped_access);
       assert(!method->is_synchronized() || nm->has_monitors(), "");
 
       if (entry_bci == InvocationEntryBci) {
@@ -1160,6 +1164,13 @@ int ciEnv::compile_id() {
 // ciEnv::notice_inlined_method()
 void ciEnv::notice_inlined_method(ciMethod* method) {
   _num_inlined_bytecodes += method->code_size_for_inlining();
+  CompileTrainingData* ctd = task()->training_data();
+  if (ctd != nullptr) {
+    GUARDED_VM_ENTRY({
+      methodHandle mh(Thread::current(), method->get_Method());
+      ctd->notice_inlined_method(task(), mh);
+    });
+  }
 }
 
 // ------------------------------------------------------------------
@@ -1171,6 +1182,15 @@ int ciEnv::num_inlined_bytecodes() const {
 // ------------------------------------------------------------------
 // ciEnv::record_failure()
 void ciEnv::record_failure(const char* reason) {
+  // record the bailout for hserr envlog
+  if (reason != nullptr) {
+    if (CompilationLog::log() != nullptr) {
+      CompilerThread* thread = CompilerThread::current();
+      CompileTask* task = thread->task();
+      CompilationLog::log()->log_failure(thread, task, reason, nullptr);
+    }
+  }
+
   if (_failure_reason.get() == nullptr) {
     // Record the first failure reason.
     _failure_reason.set(reason);
@@ -1341,7 +1361,9 @@ void ciEnv::record_lambdaform(Thread* thread, oop form) {
   }
 
   // Check LambdaForm.names array
-  objArrayOop names = (objArrayOop)obj_field(form, "names");
+  // The type of the array is Name[] and Name is an identity class,
+  // so the array is always an array of references
+  refArrayOop names = oop_cast<refArrayOop>(obj_field(form, "names"));
   if (names != nullptr) {
     RecordLocation lp0(this, "names");
     int len = names->length();

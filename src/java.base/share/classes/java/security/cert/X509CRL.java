@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
  */
 
 package java.security.cert;
+
+import org.jspecify.annotations.Nullable;
 
 import sun.security.util.SignatureUtil;
 import sun.security.x509.X509CRLImpl;
@@ -107,7 +109,7 @@ import java.util.Set;
  * @see X509Extension
  */
 
-public abstract class X509CRL extends CRL implements X509Extension {
+public abstract non-sealed class X509CRL extends CRL implements X509Extension, BinaryEncodable {
 
     private transient X500Principal issuerPrincipal;
 
@@ -233,7 +235,7 @@ public abstract class X509CRL extends CRL implements X509Extension {
      * @throws    CRLException on encoding errors.
      * @since 1.8
      */
-    public void verify(PublicKey key, Provider sigProvider)
+    public void verify(PublicKey key, @Nullable Provider sigProvider)
         throws CRLException, NoSuchAlgorithmException,
         InvalidKeyException, SignatureException {
         String sigAlgName = getSigAlgName();
@@ -384,7 +386,7 @@ public abstract class X509CRL extends CRL implements X509Extension {
      *
      * @since 1.5
      */
-    public X509CRLEntry getRevokedCertificate(X509Certificate certificate) {
+    public @Nullable X509CRLEntry getRevokedCertificate(X509Certificate certificate) {
         X500Principal certIssuer = certificate.getIssuerX500Principal();
         X500Principal crlIssuer = getIssuerX500Principal();
         if (!certIssuer.equals(crlIssuer)) {

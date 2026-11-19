@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ public class TypeNotPresentException extends RuntimeException {
     private static final long serialVersionUID = -5101214195716534496L;
 
     /**
-     * The type name or the name of a type variable.
+     * @serial The type name or the name of a type variable.
      */
     private String typeName;
 
@@ -64,8 +64,7 @@ public class TypeNotPresentException extends RuntimeException {
      * @param cause the exception that was thrown when the system attempted to
      *    load the named type, or {@code null} if unavailable or inapplicable
      */
-    
-    public TypeNotPresentException( String typeName, @Nullable Throwable cause) {
+    public TypeNotPresentException(String typeName, @Nullable Throwable cause) {
         super("Type " + typeName + " not present", cause);
         this.typeName = typeName;
     }
@@ -75,5 +74,5 @@ public class TypeNotPresentException extends RuntimeException {
      *
      * @return the fully qualified name of the unavailable type or type variable name
      */
-    public  String typeName() { return typeName;}
+    public String typeName() { return typeName;}
 }

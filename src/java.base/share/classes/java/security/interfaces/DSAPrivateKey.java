@@ -26,6 +26,7 @@
 package java.security.interfaces;
 
 import java.math.BigInteger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The standard interface to a DSA private key. DSA (Digital Signature
@@ -52,7 +53,6 @@ public interface DSAPrivateKey extends DSAKey, java.security.PrivateKey {
     * ineffectual. Do not use; no replacement.
     */
     @Deprecated
-    @SuppressWarnings("serial")
     @java.io.Serial
    long serialVersionUID = 7776497482533790279L;
 
@@ -72,7 +72,7 @@ public interface DSAPrivateKey extends DSAKey, java.security.PrivateKey {
      * @return {@inheritDoc java.security.AsymmetricKey}
      */
     @Override
-    default DSAParams getParams() {
+    default @Nullable DSAParams getParams() {
         return null;
     }
 }

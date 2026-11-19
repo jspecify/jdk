@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package java.util;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+
+import jdk.internal.vm.annotation.TrustFinalFields;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -46,10 +49,18 @@ import java.util.stream.Stream;
  * action if a value is present).
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Optional} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @apiNote
  * {@code Optional} is primarily intended for use as a method return type where
@@ -63,7 +74,9 @@ import java.util.stream.Stream;
  */
 @NullMarked
 @jdk.internal.ValueBased
-public final class Optional<T> {
+@TrustFinalFields
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Optional<T> {
     /**
      * Common instance for {@code empty()}.
      */
@@ -72,7 +85,7 @@ public final class Optional<T> {
     /**
      * If non-null, the value; if null, indicates no value is present
      */
-    private final @Nullable T value;
+    private final T value;
 
     /**
      * Returns an empty {@code Optional} instance.  No value is present for this
@@ -142,7 +155,7 @@ public final class Optional<T> {
      * @return the non-{@code null} value described by this {@code Optional}
      * @throws NoSuchElementException if no value is present
      */
-    public  T get() {
+    public T get() {
         if (value == null) {
             throw new NoSuchElementException("No value present");
         }
@@ -154,7 +167,6 @@ public final class Optional<T> {
      *
      * @return {@code true} if a value is present, otherwise {@code false}
      */
-    
     public boolean isPresent() {
         return value != null;
     }
@@ -166,7 +178,6 @@ public final class Optional<T> {
      * @return  {@code true} if a value is not present, otherwise {@code false}
      * @since   11
      */
-    
     public boolean isEmpty() {
         return value == null;
     }
@@ -402,7 +413,7 @@ public final class Optional<T> {
      * @return the value, if present
      * @throws X if no value is present
      * @throws NullPointerException if no value is present and the exception
-     *          supplying function is {@code null}
+     *         supplying function is {@code null} or produces a {@code null} result
      */
     public <X extends Throwable> T orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
         if (value != null) {
@@ -426,8 +437,6 @@ public final class Optional<T> {
      *         otherwise {@code false}
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

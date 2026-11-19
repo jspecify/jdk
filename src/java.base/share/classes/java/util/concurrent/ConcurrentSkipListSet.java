@@ -38,7 +38,9 @@ package java.util.concurrent;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.lang.reflect.Field;
+import jdk.internal.misc.Unsafe;
+
+import java.lang.invoke.VarHandle;
 import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Collections;
@@ -103,7 +105,7 @@ public class ConcurrentSkipListSet<E>
     private static final long serialVersionUID = -2479143111061671589L;
 
     /**
-     * The underlying map. Uses Boolean.TRUE as value for each
+     * @serial The underlying map. Uses Boolean.TRUE as value for each
      * element.  This field is declared final for the sake of thread
      * safety, which entails some ugliness in clone().
      */
@@ -174,13 +176,14 @@ public class ConcurrentSkipListSet<E>
      *
      * @return a shallow copy of this set
      */
-    
     public ConcurrentSkipListSet<E> clone() {
         try {
             @SuppressWarnings("unchecked")
             ConcurrentSkipListSet<E> clone =
                 (ConcurrentSkipListSet<E>) super.clone();
             clone.setMap(new ConcurrentSkipListMap<E,Object>(m));
+            // Needed to ensure safe publication of setMap()
+            VarHandle.releaseFence();
             return clone;
         } catch (CloneNotSupportedException e) {
             throw new InternalError();
@@ -200,7 +203,6 @@ public class ConcurrentSkipListSet<E>
      *
      * @return the number of elements in this set
      */
-    
     public int size() {
         return m.size();
     }
@@ -209,7 +211,6 @@ public class ConcurrentSkipListSet<E>
      * Returns {@code true} if this set contains no elements.
      * @return {@code true} if this set contains no elements
      */
-    
     public boolean isEmpty() {
         return m.isEmpty();
     }
@@ -225,7 +226,6 @@ public class ConcurrentSkipListSet<E>
      *         compared with the elements currently in this set
      * @throws NullPointerException if the specified element is null
      */
-    
     public boolean contains(Object o) {
         return m.containsKey(o);
     }
@@ -278,7 +278,6 @@ public class ConcurrentSkipListSet<E>
      *
      * @return an iterator over the elements in this set in ascending order
      */
-    
     public Iterator<E> iterator() {
         return m.navigableKeySet().iterator();
     }
@@ -307,8 +306,6 @@ public class ConcurrentSkipListSet<E>
      * @param o the object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         // Override AbstractSet version to avoid calling size()
         if (o == this)
@@ -352,7 +349,7 @@ public class ConcurrentSkipListSet<E>
      * @throws ClassCastException {@inheritDoc}
      * @throws NullPointerException if the specified element is null
      */
-    public E lower(E e) {
+    public @Nullable E lower(E e) {
         return m.lowerKey(e);
     }
 
@@ -360,7 +357,7 @@ public class ConcurrentSkipListSet<E>
      * @throws ClassCastException {@inheritDoc}
      * @throws NullPointerException if the specified element is null
      */
-    public E floor(E e) {
+    public @Nullable E floor(E e) {
         return m.floorKey(e);
     }
 
@@ -368,7 +365,7 @@ public class ConcurrentSkipListSet<E>
      * @throws ClassCastException {@inheritDoc}
      * @throws NullPointerException if the specified element is null
      */
-    public E ceiling(E e) {
+    public @Nullable E ceiling(E e) {
         return m.ceilingKey(e);
     }
 
@@ -376,7 +373,7 @@ public class ConcurrentSkipListSet<E>
      * @throws ClassCastException {@inheritDoc}
      * @throws NullPointerException if the specified element is null
      */
-    public E higher(E e) {
+    public @Nullable E higher(E e) {
         return m.higherKey(e);
     }
 
@@ -393,7 +390,6 @@ public class ConcurrentSkipListSet<E>
 
     /* ---------------- SortedSet operations -------------- */
 
-    
     public @Nullable Comparator<? super E> comparator() {
         return m.comparator();
     }
@@ -531,8 +527,6 @@ public class ConcurrentSkipListSet<E>
      * @return a {@code Spliterator} over the elements in this set
      * @since 1.8
      */
-    @SuppressWarnings({"unchecked"})
-    
     public Spliterator<E> spliterator() {
         return (m instanceof ConcurrentSkipListMap)
             ? ((ConcurrentSkipListMap<E,?>)m).keySpliterator()
@@ -541,12 +535,11 @@ public class ConcurrentSkipListSet<E>
 
     /** Initializes map field; for use in clone. */
     private void setMap(ConcurrentNavigableMap<E,Object> map) {
-        try {
-            Field mapField = ConcurrentSkipListSet.class.getDeclaredField("m");
-            mapField.setAccessible(true);
-            mapField.set(this, map);
-        } catch (IllegalAccessException | NoSuchFieldException e) {
-            throw new Error(e);
-        }
+        final Unsafe U = Unsafe.getUnsafe();
+        U.putReference(
+            this,
+            U.objectFieldOffset(ConcurrentSkipListSet.class, "m"),
+            map
+        );
     }
 }

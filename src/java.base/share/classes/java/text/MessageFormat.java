@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -319,15 +319,15 @@ import java.util.Objects;
  *       <th scope="row" style="font-weight:normal" rowspan=3>{@code list}
  *       <th scope="row" style="font-weight:normal"><i>(none)</i>
  *       <td>{@link ListFormat#getInstance(Locale, ListFormat.Type, ListFormat.Style)
- *       ListFormat.getInstance}{@code (getLocale()}, {@link ListFormat.Type#STANDARD}, {@link ListFormat.Style#FULL})
+ *       ListFormat.getInstance}{@code (getLocale()}, {@link ListFormat.Type#STANDARD}, {@link ListFormat.Style#FULL}{@code )}
  *    <tr>
  *       <th scope="row" style="font-weight:normal">{@code or}
  *       <td>{@link ListFormat#getInstance(Locale, ListFormat.Type, ListFormat.Style)
- *       ListFormat.getInstance}{@code (getLocale()}, {@link ListFormat.Type#OR}, {@link ListFormat.Style#FULL})
+ *       ListFormat.getInstance}{@code (getLocale()}, {@link ListFormat.Type#OR}, {@link ListFormat.Style#FULL}{@code )}
  *    <tr>
  *       <th scope="row" style="font-weight:normal">{@code unit}
  *       <td>{@link ListFormat#getInstance(Locale, ListFormat.Type, ListFormat.Style)
- *       ListFormat.getInstance}{@code (getLocale()}, {@link ListFormat.Type#UNIT}, {@link ListFormat.Style#FULL}}
+ *       ListFormat.getInstance}{@code (getLocale()}, {@link ListFormat.Type#UNIT}, {@link ListFormat.Style#FULL}{@code )}
  * </tbody>
  * </table>
  *
@@ -1058,7 +1058,7 @@ public class MessageFormat extends Format {
      *            that use it.
      * @throws    NullPointerException if {@code pattern} is {@code null}
      */
-    public static String format( String pattern, @Nullable Object ... arguments) {
+    public static String format(String pattern, @Nullable Object @Nullable ... arguments) {
         MessageFormat temp = new MessageFormat(pattern);
         return temp.format(arguments);
     }
@@ -1178,7 +1178,7 @@ public class MessageFormat extends Format {
      * @throws    NullPointerException if {@code pos} is {@code null}
      *            for a non-null {@code source} string.
      */
-    public Object[] parse(@Nullable String source, ParsePosition pos) {
+    public Object @Nullable [] parse(@Nullable String source, ParsePosition pos) {
         if (source == null) {
             Object[] empty = {};
             return empty;
@@ -1717,12 +1717,7 @@ public class MessageFormat extends Format {
             throw new IllegalArgumentException("unknown format type: " + type);
         }
         // Get the style if recognized, otherwise treat style as a SubformatPattern
-        FormatStyle fStyle;
-        try {
-            fStyle = FormatStyle.fromString(style);
-        } catch (IllegalArgumentException iae) {
-            fStyle = FormatStyle.SUBFORMATPATTERN;
-        }
+        FormatStyle fStyle = FormatStyle.fromString(style);
         return switch (fType) {
             case NUMBER -> switch (fStyle) {
                 case DEFAULT -> NumberFormat.getInstance(locale);
@@ -1980,41 +1975,43 @@ public class MessageFormat extends Format {
     }
 
     // Corresponding to the FormatStyle pattern
+    // WARNING: fromString is dependent on ordinal positioning and Enum names.
     private enum FormatStyle {
-        DEFAULT(""),
-        SHORT("short"),
-        MEDIUM("medium"),
-        LONG("long"),
-        FULL("full"),
-        INTEGER("integer"),
-        CURRENCY("currency"),
-        PERCENT("percent"),
-        COMPACT_SHORT("compact_short"),
-        COMPACT_LONG("compact_long"),
-        OR("or"),
-        UNIT("unit"),
-        SUBFORMATPATTERN(null);
+        // Special styles
+        DEFAULT,
+        SUBFORMATPATTERN,
+        // Pre-defined styles
+        SHORT,
+        MEDIUM,
+        LONG,
+        FULL,
+        INTEGER,
+        CURRENCY,
+        PERCENT,
+        COMPACT_SHORT,
+        COMPACT_LONG,
+        OR,
+        UNIT;
 
-        private final String text;
-
-        // Differs from FormatType in that the text String is
-        // not guaranteed to match the Enum name, thus a text field is used
-        FormatStyle(String text) {
-            this.text = text;
-        }
-
-        // This method returns a FormatStyle (excluding SUBFORMATPATTERN)
-        // that matches the passed String. If no FormatStyle is found,
-        // an IllegalArgumentException is thrown
+        // Returns a FormatStyle corresponding to the input text.
+        // DEFAULT is the empty String.
+        // Pre-defined styles are lower case versions of their enum name
+        // (but compared case-insensitive for historical compatibility).
+        // SUBFORMATPATTERN is anything else.
         private static FormatStyle fromString(String text) {
-            for (FormatStyle style : values()) {
-                // Also check trimmed case-insensitive for historical reasons
-                if (style != FormatStyle.SUBFORMATPATTERN &&
-                        text.trim().compareToIgnoreCase(style.text) == 0) {
-                    return style;
+            var style = text.trim();
+            if (style.isEmpty()) {
+                return FormatStyle.DEFAULT;
+            }
+            var styles = values();
+            // Match starting at the pre-defined styles -> [SHORT:]
+            for (int i = SHORT.ordinal(); i < styles.length; i++) {
+                var fStyle = styles[i];
+                if (style.compareToIgnoreCase(fStyle.name()) == 0) {
+                    return fStyle;
                 }
             }
-            throw new IllegalArgumentException();
+            return FormatStyle.SUBFORMATPATTERN;
         }
     }
 

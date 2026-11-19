@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package java.util.regex;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Unchecked exception thrown to indicate a syntax error in a
@@ -42,8 +41,11 @@ public class PatternSyntaxException
     @java.io.Serial
     private static final long serialVersionUID = -3864639126226059218L;
 
+    /** @serial */
     private final String desc;
+    /** @serial */
     private final String pattern;
+    /** @serial */
     private final int index;
 
     /**
@@ -59,7 +61,6 @@ public class PatternSyntaxException
      *         The approximate index in the pattern of the error,
      *         or {@code -1} if the index is not known
      */
-    
     public PatternSyntaxException(String desc, String regex, int index) {
         this.desc = desc;
         this.pattern = regex;
@@ -72,7 +73,6 @@ public class PatternSyntaxException
      * @return  The approximate index in the pattern of the error,
      *         or {@code -1} if the index is not known
      */
-    
     public int getIndex() {
         return index;
     }
@@ -82,7 +82,6 @@ public class PatternSyntaxException
      *
      * @return  The description of the error
      */
-    
     public String getDescription() {
         return desc;
     }
@@ -92,7 +91,6 @@ public class PatternSyntaxException
      *
      * @return  The erroneous pattern
      */
-    
     public String getPattern() {
         return pattern;
     }
@@ -104,7 +102,6 @@ public class PatternSyntaxException
      *
      * @return  The full detail message
      */
-    
     public String getMessage() {
         StringBuilder sb = new StringBuilder();
         sb.append(desc);

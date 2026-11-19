@@ -55,8 +55,7 @@ public class Exception extends Throwable {
      * The cause is not initialized, and may subsequently be initialized by a
      * call to {@link #initCause}.
      */
-    
-    public  Exception() {
+    public Exception() {
         super();
     }
 
@@ -68,8 +67,7 @@ public class Exception extends Throwable {
      * @param   message   the detail message. The detail message is saved for
      *          later retrieval by the {@link #getMessage()} method.
      */
-    
-    public  Exception(@Nullable String message) {
+    public Exception(@Nullable String message) {
         super(message);
     }
 
@@ -87,8 +85,7 @@ public class Exception extends Throwable {
      *         unknown.)
      * @since  1.4
      */
-    
-    public  Exception(@Nullable String message, @Nullable Throwable cause) {
+    public Exception(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
 
@@ -106,8 +103,7 @@ public class Exception extends Throwable {
      *         unknown.)
      * @since  1.4
      */
-    
-    public  Exception(@Nullable Throwable cause) {
+    public Exception(@Nullable Throwable cause) {
         super(cause);
     }
 
@@ -125,7 +121,7 @@ public class Exception extends Throwable {
      *                           be writable
      * @since 1.7
      */
-    protected  Exception(@Nullable String message, @Nullable Throwable cause,
+    protected Exception(@Nullable String message, @Nullable Throwable cause,
                         boolean enableSuppression,
                         boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);

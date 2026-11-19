@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2020 SAP SE. All rights reserved.
  * Copyright (c) 2023 Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -78,12 +78,12 @@ class BinListImpl {
     Block(Block* next) : _next(next) {}
   };
 
-#define BLOCK_FORMAT              "Block @" PTR_FORMAT ": size: " SIZE_FORMAT ", next: " PTR_FORMAT
+#define BLOCK_FORMAT              "Block @" PTR_FORMAT ": size: %zu, next: " PTR_FORMAT
 #define BLOCK_FORMAT_ARGS(b, sz)  p2i(b), (sz), p2i((b)->_next)
 
   // Block size must be exactly one word size.
-  STATIC_ASSERT(sizeof(Block) == BytesPerWord);
-  STATIC_ASSERT(num_lists > 0);
+  static_assert(sizeof(Block) == BytesPerWord);
+  static_assert(num_lists > 0);
 
 public:
 
@@ -161,7 +161,7 @@ public:
   // Block may be larger.
   MetaBlock remove_block(size_t word_size) {
     assert(word_size >= MinWordSize &&
-           word_size <= MaxWordSize, "bad block size " SIZE_FORMAT ".", word_size);
+           word_size <= MaxWordSize, "bad block size %zu.", word_size);
     MetaBlock result;
     int index = index_for_word_size(word_size);
     index = index_for_next_non_empty_list(index);

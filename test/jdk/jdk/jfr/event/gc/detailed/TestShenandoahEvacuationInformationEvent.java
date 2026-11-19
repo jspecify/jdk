@@ -1,5 +1,5 @@
 /*
- * Copyright Amazon.com Inc. All rights reserved.
+ * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,9 +39,9 @@ import jdk.test.lib.jfr.GCHelper;
  * @test
  * @bug 8221507
  * @requires vm.hasJFR & vm.gc.Shenandoah
- * @key jfr
+ * @requires vm.flagless
  * @library /test/lib /test/jdk
- * @run main/othervm -Xmx64m -XX:+UnlockExperimentalVMOptions -XX:ShenandoahRegionSize=1m -XX:+UseShenandoahGC -XX:ShenandoahGCMode=generational jdk.jfr.event.gc.detailed.TestShenandoahEvacuationInformationEvent
+ * @run main/othervm -Xmx64m -XX:+UnlockExperimentalVMOptions -XX:ShenandoahRegionSize=1m -XX:+UseShenandoahGC -XX:ShenandoahGCMode=generational -XX:ShenandoahGenerationalMinPIPUsage=100 -XX:ShenandoahImmediateThreshold=100 jdk.jfr.event.gc.detailed.TestShenandoahEvacuationInformationEvent
  */
 
 public class TestShenandoahEvacuationInformationEvent {
@@ -49,6 +49,7 @@ public class TestShenandoahEvacuationInformationEvent {
 
     public static void main(String[] args) throws Exception {
         final long shenandoahHeapRegionSize = 1024 * 1024;
+        final long shenandoahMaxHeapRegionCount = 64;
         Recording recording = new Recording();
         recording.enable(EVENT_NAME).withThreshold(Duration.ofMillis(0));
         recording.start();
@@ -63,16 +64,16 @@ public class TestShenandoahEvacuationInformationEvent {
             }
             System.out.println("Event: " + event);
 
-            long setRegions = Events.assertField(event, "cSetRegions").atLeast(0L).getValue();
+            long cSetRegions = Events.assertField(event, "cSetRegions").atLeast(0L).getValue();
             long setUsedAfter = Events.assertField(event, "cSetUsedAfter").atLeast(0L).getValue();
             long setUsedBefore = Events.assertField(event, "cSetUsedBefore").atLeast(setUsedAfter).getValue();
-            long regionsFreed = Events.assertField(event, "regionsFreed").atLeast(0L).getValue();
-            Events.assertField(event, "collectedOld").atLeast(0L).getValue();
-            Events.assertField(event, "collectedYoung").atLeast(0L).getValue();
+            long freeRegions = Events.assertField(event, "freeRegions").atLeast(0L).getValue();
+            Events.assertField(event, "regionsImmediate").atLeast(0L).getValue();
+            Events.assertField(event, "immediateBytes").atLeast(0L).getValue();
 
-            Asserts.assertGreaterThanOrEqual(setRegions, regionsFreed, "setRegions >= regionsFreed");
-            Asserts.assertGreaterThanOrEqual(shenandoahHeapRegionSize * setRegions, setUsedAfter, "ShenandoahHeapRegionSize * setRegions >= setUsedAfter");
-            Asserts.assertGreaterThanOrEqual(shenandoahHeapRegionSize * setRegions, setUsedBefore, "ShenandoahHeapRegionSize * setRegions >= setUsedBefore");
+            Asserts.assertGreaterThanOrEqual(shenandoahMaxHeapRegionCount, freeRegions + cSetRegions, "numRegions >= freeRegions + cSetRegions");
+            Asserts.assertGreaterThanOrEqual(shenandoahHeapRegionSize * cSetRegions, setUsedAfter, "ShenandoahHeapRegionSize * cSetRegions >= setUsedAfter");
+            Asserts.assertGreaterThanOrEqual(shenandoahHeapRegionSize * cSetRegions, setUsedBefore, "ShenandoahHeapRegionSize * cSetRegions >= setUsedBefore");
 
             int gcId = Events.assertField(event, "gcId").getValue();
         }

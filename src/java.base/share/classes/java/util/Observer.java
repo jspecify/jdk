@@ -39,7 +39,6 @@ import org.jspecify.annotations.Nullable;
  * This interface has been deprecated. See the {@link Observable}
  * class for further information.
  */
-
 @NullMarked
 @Deprecated(since="9")
 public interface Observer {

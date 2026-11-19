@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2020, 2021, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -41,12 +41,25 @@ inline void OrderAccess::storeload()  { fence(); }
 #define READ_MEM_BARRIER  __atomic_thread_fence(__ATOMIC_ACQUIRE);
 #define WRITE_MEM_BARRIER __atomic_thread_fence(__ATOMIC_RELEASE);
 
+// A compiler barrier, forcing the C++ compiler to invalidate all memory assumptions
+static inline void compiler_barrier() {
+  __asm__ volatile ("" : : : "memory");
+}
+
 inline void OrderAccess::acquire() {
-  READ_MEM_BARRIER;
+  if (UseZtso) {
+    compiler_barrier();
+  } else {
+    READ_MEM_BARRIER;
+  }
 }
 
 inline void OrderAccess::release() {
-  WRITE_MEM_BARRIER;
+  if (UseZtso) {
+    compiler_barrier();
+  } else {
+    WRITE_MEM_BARRIER;
+  }
 }
 
 inline void OrderAccess::fence() {
@@ -54,13 +67,13 @@ inline void OrderAccess::fence() {
 }
 
 inline void OrderAccess::cross_modify_fence_impl() {
-  // From 3 “Zifencei” Instruction-Fetch Fence, Version 2.0
+  // From 3 "Zifencei" Instruction-Fetch Fence, Version 2.0
   // "RISC-V does not guarantee that stores to instruction memory will be made
   // visible to instruction fetches on a RISC-V hart until that hart executes a
   // FENCE.I instruction. A FENCE.I instruction ensures that a subsequent
   // instruction fetch on a RISC-V hart will see any previous data stores
   // already visible to the same RISC-V hart. FENCE.I does not ensure that other
-  // RISC-V harts’ instruction fetches will observe the local hart’s stores in a
+  // RISC-V harts' instruction fetches will observe the local hart's stores in a
   // multiprocessor system."
   //
   // Hence to be able to use fence.i directly we need a kernel that supports

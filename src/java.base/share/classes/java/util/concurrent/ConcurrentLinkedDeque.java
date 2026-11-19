@@ -296,7 +296,7 @@ public class ConcurrentLinkedDeque<E>
         return (Node<E>) NEXT_TERMINATOR;
     }
 
-    static final class Node<E extends @Nullable Object> {
+    static final class Node<E> {
         volatile Node<E> prev;
         volatile E item;
         volatile Node<E> next;
@@ -306,7 +306,7 @@ public class ConcurrentLinkedDeque<E>
      * Returns a new node holding item.  Uses relaxed write because item
      * can only be seen after piggy-backing publication via CAS.
      */
-    static <E extends @Nullable Object> Node<E> newNode(E item) {
+    static <E> Node<E> newNode(E item) {
         Node<E> node = new Node<E>();
         ITEM.set(node, item);
         return node;
@@ -1078,7 +1078,6 @@ public class ConcurrentLinkedDeque<E>
      * @param o element whose presence in this deque is to be tested
      * @return {@code true} if this deque contains the specified element
      */
-    
     public boolean contains(@Nullable Object o) {
         if (o != null) {
             for (Node<E> p = first(); p != null; p = succ(p)) {
@@ -1095,8 +1094,6 @@ public class ConcurrentLinkedDeque<E>
      *
      * @return {@code true} if this collection contains no elements
      */
-    
-    
     public boolean isEmpty() {
         return peekFirst() == null;
     }
@@ -1117,7 +1114,6 @@ public class ConcurrentLinkedDeque<E>
      *
      * @return the number of elements in this deque
      */
-    
     public int size() {
         restart: for (;;) {
             int count = 0;
@@ -1290,7 +1286,6 @@ public class ConcurrentLinkedDeque<E>
      *
      * @return an array containing all of the elements in this deque
      */
-    
     public Object[] toArray() {
         return toArrayInternal(null);
     }
@@ -1332,7 +1327,6 @@ public class ConcurrentLinkedDeque<E>
      *         this deque
      * @throws NullPointerException if the specified array is null
      */
-    
     @SuppressWarnings("unchecked")
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         if (a == null) throw new NullPointerException();
@@ -1348,7 +1342,6 @@ public class ConcurrentLinkedDeque<E>
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
-    
     public Iterator<E> iterator() {
         return new Itr();
     }
@@ -1371,7 +1364,7 @@ public class ConcurrentLinkedDeque<E>
         /**
          * Next node to return item for.
          */
-        private @Nullable Node<E> nextNode;
+        private Node<E> nextNode;
 
         /**
          * nextItem holds on to item fields because once we claim
@@ -1379,13 +1372,13 @@ public class ConcurrentLinkedDeque<E>
          * the following next() call even if it was in the process of
          * being removed when hasNext() was called.
          */
-        private @Nullable E nextItem;
+        private E nextItem;
 
         /**
          * Node returned by most recent call to next. Needed by remove.
          * Reset to null if this element is deleted by a call to remove.
          */
-        private @Nullable Node<E> lastRet;
+        private Node<E> lastRet;
 
         abstract Node<E> startNode();
         abstract Node<E> nextNode(Node<E> p);
@@ -1554,7 +1547,6 @@ public class ConcurrentLinkedDeque<E>
      * @return a {@code Spliterator} over the elements in this deque
      * @since 1.8
      */
-    
     public Spliterator<E> spliterator() {
         return new CLDSpliterator();
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -383,7 +383,7 @@ public interface ChronoZonedDateTime<D extends ChronoLocalDate>
      * @return true if the field can be queried, false if not
      */
     @Override
-    boolean isSupported(TemporalField field);
+    boolean isSupported(@Nullable TemporalField field);
 
     /**
      * Checks if the specified unit is supported.
@@ -404,7 +404,7 @@ public interface ChronoZonedDateTime<D extends ChronoLocalDate>
      * @return true if the unit can be added/subtracted, false if not
      */
     @Override
-    default boolean isSupported(TemporalUnit unit) {
+    default boolean isSupported(@Nullable TemporalUnit unit) {
         if (unit instanceof ChronoUnit) {
             return unit != FOREVER;
         }
@@ -426,6 +426,7 @@ public interface ChronoZonedDateTime<D extends ChronoLocalDate>
     /**
      * {@inheritDoc}
      * @throws DateTimeException {@inheritDoc}
+     * @throws UnsupportedTemporalTypeException {@inheritDoc}
      * @throws ArithmeticException {@inheritDoc}
      */
     @Override
@@ -444,6 +445,7 @@ public interface ChronoZonedDateTime<D extends ChronoLocalDate>
     /**
      * {@inheritDoc}
      * @throws DateTimeException {@inheritDoc}
+     * @throws UnsupportedTemporalTypeException {@inheritDoc}
      * @throws ArithmeticException {@inheritDoc}
      */
     @Override
@@ -462,6 +464,7 @@ public interface ChronoZonedDateTime<D extends ChronoLocalDate>
     /**
      * {@inheritDoc}
      * @throws DateTimeException {@inheritDoc}
+     * @throws UnsupportedTemporalTypeException {@inheritDoc}
      * @throws ArithmeticException {@inheritDoc}
      */
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -202,7 +202,6 @@ final class ProxyGenerator {
      * @param interfaces  proxy interfaces
      * @param accessFlags access flags of the proxy class
      */
-    @SuppressWarnings("removal")
     static byte[] generateProxyClass(ClassLoader loader,
                                      final String name,
                                      List<Class<?>> interfaces,
@@ -223,7 +222,6 @@ final class ProxyGenerator {
                     path = Path.of(name + ".class");
                 }
                 Files.write(path, classFile);
-                return null;
             } catch (IOException e) {
                 throw new InternalError("I/O exception saving generated file: " + e);
             }
@@ -436,6 +434,12 @@ final class ProxyGenerator {
     /**
      * Generate a class file for the proxy class.  This method drives the
      * class file generation process.
+     *
+     * If a proxy interface references any value classes, the value classes
+     * are listed in the loadable descriptors attribute of the interface class.  The
+     * classes that are referenced by the proxy interface have already
+     * been loaded before the proxy class.  Hence the proxy class is
+     * generated with no loadable descriptors attributes as it essentially has no effect.
      */
     private byte[] generateClassFile() {
         /*

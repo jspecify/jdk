@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Thrown when an application tries to access an enum constant by name
@@ -46,12 +45,12 @@ public class EnumConstantNotPresentException extends RuntimeException {
     private static final long serialVersionUID = -6046998521960521108L;
 
     /**
-     * The type of the missing enum constant.
+     * @serial The type of the missing enum constant.
      */
     private Class<? extends Enum> enumType;
 
     /**
-     * The name of the missing enum constant.
+     * @serial The name of the missing enum constant.
      */
     private String constantName;
 
@@ -62,7 +61,6 @@ public class EnumConstantNotPresentException extends RuntimeException {
      * @param enumType the type of the missing enum constant
      * @param constantName the name of the missing enum constant
      */
-    
     public EnumConstantNotPresentException(Class<? extends Enum> enumType,
                                            String constantName) {
         super(enumType.getName() + "." + constantName);

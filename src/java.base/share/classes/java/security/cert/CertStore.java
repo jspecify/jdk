@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
  */
 
 package java.security.cert;
+
+import org.jspecify.annotations.Nullable;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
@@ -84,6 +86,7 @@ import sun.security.jca.GetInstance.Instance;
  * Multiple threads may concurrently invoke the static methods defined in
  * this class with no ill effects.
  *
+ * @spec security/standard-names.html Java Security Standard Algorithm Names
  * @since       1.4
  * @author      Sean Mullan, Steve Hanna
  */
@@ -112,7 +115,7 @@ public class CertStore {
      * @param params the initialization parameters (may be {@code null})
      */
     protected CertStore(CertStoreSpi storeSpi, Provider provider,
-                        String type, CertStoreParameters params) {
+                        String type, @Nullable CertStoreParameters params) {
         this.storeSpi = storeSpi;
         this.provider = provider;
         this.type = type;
@@ -216,6 +219,7 @@ public class CertStore {
      *
      * @param params the initialization parameters (may be {@code null}).
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code CertStore} object that implements the specified
      *          {@code CertStore} type
      *
@@ -282,6 +286,7 @@ public class CertStore {
      *
      * @param provider the name of the provider.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code CertStore} object that implements the
      *          specified type
      *
@@ -343,6 +348,7 @@ public class CertStore {
      *
      * @param provider the provider.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return a {@code CertStore} object that implements the
      *          specified type
      *
@@ -383,7 +389,7 @@ public class CertStore {
      * @return the parameters used to initialize this {@code CertStore}
      * (may be {@code null})
      */
-    public final CertStoreParameters getCertStoreParameters() {
+    public final @Nullable CertStoreParameters getCertStoreParameters() {
         return (params == null ? null : (CertStoreParameters) params.clone());
     }
 

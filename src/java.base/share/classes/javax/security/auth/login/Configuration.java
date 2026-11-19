@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.Security;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 import sun.security.jca.GetInstance;
 
@@ -176,6 +177,7 @@ import sun.security.jca.GetInstance;
  * Java Security Standard Algorithm Names Specification</a>
  * for a list of standard Configuration types.
  *
+ * @spec security/standard-names.html Java Security Standard Algorithm Names
  * @since 1.4
  * @see javax.security.auth.login.LoginContext
  * @see java.security.Security security properties
@@ -268,6 +270,7 @@ public abstract class Configuration {
      *
      * @param params parameters for the Configuration, which may be null.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return the new {@code Configuration} object
      *
      * @throws IllegalArgumentException if the specified parameters
@@ -324,6 +327,7 @@ public abstract class Configuration {
      *
      * @param provider the provider.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return the new {@code Configuration} object
      *
      * @throws IllegalArgumentException if the specified provider
@@ -387,6 +391,7 @@ public abstract class Configuration {
      *
      * @param provider the Provider.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return the new {@code Configuration} object
      *
      * @throws IllegalArgumentException if the specified {@code Provider}
@@ -449,7 +454,7 @@ public abstract class Configuration {
      *
      * @since 1.6
      */
-    public Provider getProvider() {
+    public @Nullable Provider getProvider() {
         return null;
     }
 
@@ -464,7 +469,7 @@ public abstract class Configuration {
      *
      * @since 1.6
      */
-    public String getType() {
+    public @Nullable String getType() {
         return null;
     }
 
@@ -479,7 +484,7 @@ public abstract class Configuration {
      *
      * @since 1.6
      */
-    public Configuration.Parameters getParameters() {
+    public Configuration.@Nullable Parameters getParameters() {
         return null;
     }
 

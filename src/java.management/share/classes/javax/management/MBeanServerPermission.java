@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,6 @@ import java.util.Enumeration;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-
 /** A Permission to perform actions related to MBeanServers.
     The <em>name</em> of the permission specifies the operation requested
     or granted by the permission.  For a granted permission, it can be
@@ -70,10 +69,14 @@ import java.util.StringTokenizer;
  * @apiNote
  * This permission cannot be used for controlling access to resources
  * as the Security Manager is no longer supported.
+ * Consequently this class is deprecated for removal in a future release.
+ *
+ * @deprecated This class was only useful in conjunction with the Security Manager,
+ * which is no longer supported. There is no replacement for this class.
  *
  * @since 1.5
  */
-
+@Deprecated(since="25", forRemoval=true)
 public class MBeanServerPermission extends BasicPermission {
     private static final long serialVersionUID = -5661980843569388590L;
 
@@ -188,7 +191,7 @@ public class MBeanServerPermission extends BasicPermission {
         return mask;
     }
 
-    static  String getCanonicalName(int mask) {
+    static String getCanonicalName(int mask) {
         if (mask == ALL_MASK)
             return "*";
 
@@ -297,8 +300,6 @@ public class MBeanServerPermission extends BasicPermission {
      * @param obj the object we are testing for equality with this object.
      * @return true if the objects are equal.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;
@@ -340,6 +341,7 @@ public class MBeanServerPermission extends BasicPermission {
  * implementation from defining a PermissionCollection there with an
  * optimized "implies" method.
  */
+@SuppressWarnings("removal")
 class MBeanServerPermissionCollection extends PermissionCollection {
     /** @serial Null if no permissions in collection, otherwise a
         single permission that is the union of all permissions that

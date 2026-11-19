@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/method.hpp"
@@ -31,6 +30,7 @@
 
 #define JVM_BYTECODES_DO(def)                                                                                                     \
   def(_fast_agetfield            , "fast_agetfield"            , "bJJ"  , nullptr    , T_OBJECT ,  0, true , _getfield          ) \
+  def(_fast_vgetfield            , "fast_vgetfield"            , "bJJ"  , nullptr    , T_OBJECT ,  0, true , _getfield          ) \
   def(_fast_bgetfield            , "fast_bgetfield"            , "bJJ"  , nullptr    , T_INT    ,  0, true , _getfield          ) \
   def(_fast_cgetfield            , "fast_cgetfield"            , "bJJ"  , nullptr    , T_CHAR   ,  0, true , _getfield          ) \
   def(_fast_dgetfield            , "fast_dgetfield"            , "bJJ"  , nullptr    , T_DOUBLE ,  0, true , _getfield          ) \
@@ -40,6 +40,7 @@
   def(_fast_sgetfield            , "fast_sgetfield"            , "bJJ"  , nullptr    , T_SHORT  ,  0, true , _getfield          ) \
                                                                                                                                   \
   def(_fast_aputfield            , "fast_aputfield"            , "bJJ"  , nullptr    , T_OBJECT ,  0, true , _putfield          ) \
+  def(_fast_vputfield            , "fast_vputfield"            , "bJJ"  , nullptr    , T_OBJECT ,  0, true , _putfield          ) \
   def(_fast_bputfield            , "fast_bputfield"            , "bJJ"  , nullptr    , T_INT    ,  0, true , _putfield          ) \
   def(_fast_zputfield            , "fast_zputfield"            , "bJJ"  , nullptr    , T_INT    ,  0, true , _putfield          ) \
   def(_fast_cputfield            , "fast_cputfield"            , "bJJ"  , nullptr    , T_CHAR   ,  0, true , _putfield          ) \
@@ -403,7 +404,7 @@ int Bytecodes::special_length_at(Bytecodes::Code code, address bcp, address end)
   case _fast_binaryswitch: // fall through
   case _fast_linearswitch:
     { address aligned_bcp = align_up(bcp + 1, jintSize);
-      if (end != nullptr && aligned_bcp + 2*jintSize >= end) {
+      if (end != nullptr && aligned_bcp + 2*jintSize > end) {
         return -1; // don't read past end of code buffer
       }
       // Promote calculation to 64 bits to do range checks, used by the verifier.

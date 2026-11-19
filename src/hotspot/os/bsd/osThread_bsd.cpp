@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/osThread.hpp"
@@ -30,13 +29,7 @@
 #include <signal.h>
 
 OSThread::OSThread()
-  : _thread_id(
-#ifdef __APPLE__
-        0
-#else
-        nullptr
-#endif
-    ),
+  : _thread_id(0),
     _pthread_id(nullptr),
     _unique_thread_id(0),
     _caller_sigmask(),

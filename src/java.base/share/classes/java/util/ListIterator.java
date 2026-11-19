@@ -75,7 +75,6 @@ public interface ListIterator<E extends @Nullable Object> extends Iterator<E> {
      * @return {@code true} if the list iterator has more elements when
      *         traversing the list in the forward direction
      */
-     // @Pure is not necessary here: it's inherited from Iterator
     boolean hasNext();
 
     /**
@@ -99,7 +98,6 @@ public interface ListIterator<E extends @Nullable Object> extends Iterator<E> {
      * @return {@code true} if the list iterator has more elements when
      *         traversing the list in the reverse direction
      */
-    
     boolean hasPrevious();
 
     /**
@@ -125,8 +123,7 @@ public interface ListIterator<E extends @Nullable Object> extends Iterator<E> {
      *         subsequent call to {@code next}, or list size if the list
      *         iterator is at the end of the list
      */
-    
-     int nextIndex();
+    int nextIndex();
 
     /**
      * Returns the index of the element that would be returned by a
@@ -137,8 +134,7 @@ public interface ListIterator<E extends @Nullable Object> extends Iterator<E> {
      *         subsequent call to {@code previous}, or -1 if the list
      *         iterator is at the beginning of the list
      */
-    
-     int previousIndex();
+    int previousIndex();
 
 
     // Modification Operations

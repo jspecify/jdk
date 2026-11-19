@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@ import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import java.util.function.ToLongFunction;
 import java.util.function.ToDoubleFunction;
-import java.util.Comparators;
 
 /**
  * A comparison function, which imposes a <i>total ordering</i> on
@@ -115,7 +114,6 @@ import java.util.Comparators;
  * @see java.io.Serializable
  * @since 1.2
  */
-
 @NullMarked
 @FunctionalInterface
 public interface Comparator<T extends @Nullable Object> {
@@ -180,8 +178,7 @@ public interface Comparator<T extends @Nullable Object> {
      * @see Object#equals(Object)
      * @see Object#hashCode()
      */
-    
-    boolean equals( @Nullable Object obj);
+    boolean equals(@Nullable Object obj);
 
     /**
      * Returns a comparator that imposes the reverse ordering of this
@@ -193,6 +190,52 @@ public interface Comparator<T extends @Nullable Object> {
      */
     default Comparator<T> reversed() {
         return Collections.reverseOrder(this);
+    }
+
+    /**
+     * Returns the greater of two values according to this comparator.
+     * If the arguments are equal with respect to this comparator,
+     * the {@code o1} argument is returned.
+     *
+     * @implSpec This default implementation behaves as if
+     *           {@code compare(o1, o2) >= 0 ? o1 : o2}.
+     *
+     * @param   o1   an argument.
+     * @param   o2   another argument.
+     * @param   <U> the type of the arguments and the result.
+     * @return  the larger of {@code o1} and {@code o2} according to this comparator.
+     * @throws  NullPointerException if an argument is null and this
+     *          comparator does not permit null arguments
+     * @throws  ClassCastException if the arguments' types prevent them from
+     *          being compared by this comparator.
+     *
+     * @since 26
+     */
+    default <U extends T> U max(U o1, U o2) {
+        return compare(o1, o2) >= 0 ? o1 : o2;
+    }
+
+    /**
+     * Returns the smaller of two values according to this comparator.
+     * If the arguments are equal with respect to this comparator,
+     * the {@code o1} argument is returned.
+     *
+     * @implSpec This default implementation behaves as if
+     *           {@code compare(o1, o2) <= 0 ? o1 : o2}.
+     *
+     * @param   o1   an argument.
+     * @param   o2   another argument.
+     * @param   <U> the type of the arguments and the result.
+     * @return  the smaller of {@code o1} and {@code o2} according to this comparator.
+     * @throws  NullPointerException if an argument is null and this
+     *          comparator does not permit null arguments
+     * @throws  ClassCastException if the arguments' types prevent them from
+     *          being compared by this comparator.
+     *
+     * @since 26
+     */
+    default <U extends T> U min(U o1, U o2) {
+        return compare(o1, o2) <= 0 ? o1 : o2;
     }
 
     /**
@@ -363,7 +406,7 @@ public interface Comparator<T extends @Nullable Object> {
      * @since 1.8
      */
     @SuppressWarnings("unchecked")
-    public static <T extends Comparable< ? super  T>> Comparator<T> naturalOrder() {
+    public static <T extends Comparable<? super T>> Comparator<T> naturalOrder() {
         return (Comparator<T>) Comparators.NaturalOrderComparator.INSTANCE;
     }
 
@@ -384,7 +427,7 @@ public interface Comparator<T extends @Nullable Object> {
      *         {@code Comparator}.
      * @since 1.8
      */
-    public static <T extends @Nullable Object> Comparator<@Nullable T> nullsFirst(@Nullable Comparator< ? super T> comparator) {
+    public static <T extends @Nullable Object> Comparator<@Nullable T> nullsFirst(@Nullable Comparator<? super T> comparator) {
         return new Comparators.NullComparator<>(true, comparator);
     }
 
@@ -405,7 +448,7 @@ public interface Comparator<T extends @Nullable Object> {
      *         {@code Comparator}.
      * @since 1.8
      */
-    public static <T extends @Nullable Object> Comparator<@Nullable T> nullsLast(@Nullable Comparator< ? super T> comparator) {
+    public static <T extends @Nullable Object> Comparator<@Nullable T> nullsLast(@Nullable Comparator<? super T> comparator) {
         return new Comparators.NullComparator<>(false, comparator);
     }
 

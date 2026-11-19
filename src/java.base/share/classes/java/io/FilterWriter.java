@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -101,7 +100,7 @@ public abstract class FilterWriter extends Writer {
      *
      * @throws  IOException  If an I/O error occurs
      */
-    public void write(String str,  int off,   int len) throws IOException {
+    public void write(String str, int off, int len) throws IOException {
         out.write(str, off, len);
     }
 

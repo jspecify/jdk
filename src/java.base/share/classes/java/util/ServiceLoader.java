@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -378,7 +378,7 @@ import jdk.internal.reflect.Reflection;
  */
 
 @NullMarked
-public final  class ServiceLoader<S>
+public final class ServiceLoader<S>
     implements Iterable<S>
 {
     // The class or interface representing the service being loaded
@@ -625,9 +625,9 @@ public final  class ServiceLoader<S>
         Constructor<?> ctor = null;
         try {
             ctor = clazz.getConstructor();
-        } catch (NoSuchMethodException ex) {
+        } catch (NoSuchMethodException | LinkageError e) {
             String cn = clazz.getName();
-            fail(service, cn + " Unable to get public no-arg constructor", ex);
+            fail(service, cn + " Unable to get public no-arg constructor", e);
         }
         if (inExplicitModule(clazz))
             ctor.setAccessible(true);
@@ -730,7 +730,7 @@ public final  class ServiceLoader<S>
 
         @Override
         public boolean equals(Object ob) {
-            return ob instanceof @SuppressWarnings("unchecked")ProviderImpl<?> that
+            return ob instanceof ProviderImpl<?> that
                     && this.service == that.service
                     && this.type == that.type;
         }
@@ -1090,8 +1090,8 @@ public final  class ServiceLoader<S>
             String cn = pending.next();
             try {
                 return Class.forName(cn, false, loader);
-            } catch (ClassNotFoundException x) {
-                fail(service, "Provider " + cn + " not found");
+            } catch (ClassNotFoundException | LinkageError e) {
+                fail(service, "Provider " + cn + " not found", e);
                 return null;
             }
         }
@@ -1218,7 +1218,6 @@ public final  class ServiceLoader<S>
      * @return  An iterator that lazily loads providers for this loader's
      *          service
      */
-    
     public Iterator<S> iterator() {
 
         // create lookup iterator if needed
@@ -1697,7 +1696,6 @@ public final  class ServiceLoader<S>
      *
      * @return  A descriptive string
      */
-    
     public String toString() {
         return "java.util.ServiceLoader[" + service.getName() + "]";
     }

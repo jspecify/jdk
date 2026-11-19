@@ -44,7 +44,6 @@ public class IllegalThreadStateException extends IllegalArgumentException {
      * Constructs an {@code IllegalThreadStateException} with no
      * detail message.
      */
-    
     public IllegalThreadStateException() {
         super();
     }
@@ -55,7 +54,6 @@ public class IllegalThreadStateException extends IllegalArgumentException {
      *
      * @param   s   the detail message.
      */
-    
     public IllegalThreadStateException(@Nullable String s) {
         super(s);
     }

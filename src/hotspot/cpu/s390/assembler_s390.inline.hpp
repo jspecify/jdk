@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -26,7 +26,7 @@
 #ifndef CPU_S390_ASSEMBLER_S390_INLINE_HPP
 #define CPU_S390_ASSEMBLER_S390_INLINE_HPP
 
-#include "asm/assembler.inline.hpp"
+#include "asm/assembler.hpp"
 #include "asm/codeBuffer.hpp"
 #include "code/codeCache.hpp"
 
@@ -244,6 +244,11 @@ inline void Assembler::z_stg(Register r1, const Address &a)                     
 inline void Assembler::z_stcm (Register r1, int64_t m3, int64_t d2, Register b2) { emit_32( STCM_ZOPC  | regt(r1, 8, 32) | uimm4(m3, 12, 32) | rsmask_32( d2, b2)); }
 inline void Assembler::z_stcmy(Register r1, int64_t m3, int64_t d2, Register b2) { emit_48( STCMY_ZOPC | regt(r1, 8, 48) | uimm4(m3, 12, 48) | rsymask_48(d2, b2)); }
 inline void Assembler::z_stcmh(Register r1, int64_t m3, int64_t d2, Register b2) { emit_48( STCMH_ZOPC | regt(r1, 8, 48) | uimm4(m3, 12, 48) | rsymask_48(d2, b2)); }
+
+// load halfword immediate on condition
+inline void Assembler::z_lochi(Register r1, int64_t i2, branch_condition m3) { emit_48( LOCHI_ZOPC | reg(r1, 8, 48) | simm16(i2, 16, 48) | uimm4(m3, 12, 48)); }
+inline void Assembler::z_lochhi(Register r1, int64_t i2, branch_condition m3) { emit_48( LOCHHI_ZOPC | reg(r1, 8, 48) | simm16(i2, 16, 48) | uimm4(m3, 12, 48)); }
+inline void Assembler::z_locghi(Register r1, int64_t i2, branch_condition m3) { emit_48( LOCGHI_ZOPC | reg(r1, 8, 48) | simm16(i2, 16, 48) | uimm4(m3, 12, 48)); }
 
 // memory-immediate instructions (8-bit immediate)
 inline void Assembler::z_cli( int64_t d1, Register b1, int64_t i2) { emit_32( CLI_ZOPC  | rsmask_32( d1, b1) | uimm8(i2, 8, 32)); }
@@ -738,12 +743,14 @@ inline void Assembler::z_bctg( Register r1, int64_t d2, Register x2, Register b2
 inline void Assembler::z_basr( Register r1, Register r2) { emit_16( BASR_ZOPC  | regt(r1, 8, 16) | reg(r2, 12, 16)); }
 inline void Assembler::z_brasl(Register r1, address a)   { emit_48( BRASL_ZOPC | regt(r1, 8, 48) | simm32(RelAddr::pcrel_off32(a, pc()), 16, 48)); }
 
-inline void Assembler::z_brct(Register  r1, address a)              {emit_32( BRCT_ZOPC  | reg(r1, 8, 32) | simm16(RelAddr::pcrel_off16(a, pc()), 16, 32)); }
+inline void Assembler::z_brct( Register r1, address a)              {emit_32( BRCT_ZOPC  | reg(r1, 8, 32) | simm16(RelAddr::pcrel_off16(a, pc()), 16, 32)); }
+inline void Assembler::z_brctg(Register r1, address a)              {emit_32( BRCTG_ZOPC | reg(r1, 8, 32) | simm16(RelAddr::pcrel_off16(a, pc()), 16, 32)); }
 inline void Assembler::z_brxh(Register  r1, Register r3, address a) {emit_32( BRXH_ZOPC  | reg(r1, 8, 32) | reg(r3, 12, 32) | simm16(RelAddr::pcrel_off16(a, pc()), 16, 32));}
 inline void Assembler::z_brxle(Register r1, Register r3, address a) {emit_32( BRXLE_ZOPC | reg(r1, 8, 32) | reg(r3, 12, 32) | simm16(RelAddr::pcrel_off16(a, pc()), 16, 32));}
 inline void Assembler::z_brxhg(Register r1, Register r3, address a) {emit_48( BRXHG_ZOPC | reg(r1, 8, 48) | reg(r3, 12, 48) | simm16(RelAddr::pcrel_off16(a, pc()), 16, 48));}
 inline void Assembler::z_brxlg(Register r1, Register r3, address a) {emit_48( BRXLG_ZOPC | reg(r1, 8, 48) | reg(r3, 12, 48) | simm16(RelAddr::pcrel_off16(a, pc()), 16, 48));}
-inline void Assembler::z_brct(Register  r1,              Label& L) {z_brct( r1,     target(L)); }
+inline void Assembler::z_brct( Register r1,              Label& L) {z_brct( r1,     target(L)); }
+inline void Assembler::z_brctg(Register r1,              Label& L) {z_brctg(r1,     target(L)); }
 inline void Assembler::z_brxh(Register  r1, Register r3, Label& L) {z_brxh( r1, r3, target(L)); }
 inline void Assembler::z_brxle(Register r1, Register r3, Label& L) {z_brxle(r1, r3, target(L)); }
 inline void Assembler::z_brxhg(Register r1, Register r3, Label& L) {z_brxhg(r1, r3, target(L)); }

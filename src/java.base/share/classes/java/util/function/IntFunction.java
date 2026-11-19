@@ -41,7 +41,6 @@ import org.jspecify.annotations.Nullable;
  * @since 1.8
  */
 @NullMarked
-
 @FunctionalInterface
 public interface IntFunction<R extends @Nullable Object> {
 

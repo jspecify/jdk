@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,7 +66,7 @@ import sun.nio.ch.FileChannelImpl;
  */
 
 @NullMarked
-public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
+public class RandomAccessFile implements DataOutput, DataInput, Closeable {
 
     private static final int O_RDONLY = 1;
     private static final int O_RDWR =   2;
@@ -371,21 +371,16 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
     private int traceRead0() throws IOException {
         int result = 0;
         long bytesRead = 0;
-        boolean endOfFile = false;
-        long start = 0;
+        long start = FileReadEvent.timestamp();
         try {
-            start = FileReadEvent.timestamp();
             result = read0();
             if (result < 0) {
-                endOfFile = true;
+                bytesRead = -1;
             } else {
                 bytesRead = 1;
             }
         } finally {
-            long duration = FileReadEvent.timestamp() - start;
-            if (FileReadEvent.shouldCommit(duration)) {
-                FileReadEvent.commit(start, duration, path, bytesRead, endOfFile);
-            }
+            FileReadEvent.offer(start, path, bytesRead);
         }
         return result;
     }
@@ -408,19 +403,11 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
 
     private int traceReadBytes0(byte b[], int off, int len) throws IOException {
         int bytesRead = 0;
-        long start = 0;
+        long start = FileReadEvent.timestamp();
         try {
-            start = FileReadEvent.timestamp();
             bytesRead = readBytes0(b, off, len);
         } finally {
-            long duration = FileReadEvent.timestamp() - start;
-            if (FileReadEvent.shouldCommit(duration)) {
-                if (bytesRead < 0) {
-                    FileReadEvent.commit(start, duration, path, 0L, true);
-                } else {
-                    FileReadEvent.commit(start, duration, path, bytesRead, false);
-                }
-            }
+            FileReadEvent.offer(start, path, bytesRead);
         }
         return bytesRead;
     }
@@ -538,7 +525,7 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
      * @return     the actual number of bytes skipped.
      * @throws     IOException  if an I/O error occurs.
      */
-    public  int skipBytes( int n) throws IOException {
+    public int skipBytes(int n) throws IOException {
         long pos;
         long len;
         long newpos;
@@ -586,20 +573,16 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
 
     private void traceImplWrite(int b) throws IOException {
         long bytesWritten = 0;
-        long start = 0;
+        long start = FileWriteEvent.timestamp();
         try {
-            start = FileWriteEvent.timestamp();
             implWrite(b);
             bytesWritten = 1;
         } finally {
-            long duration = FileWriteEvent.timestamp() - start;
-            if (FileWriteEvent.shouldCommit(duration)) {
-                FileWriteEvent.commit(start, duration, path, bytesWritten);
-            }
+            FileWriteEvent.offer(start, path, bytesWritten);
         }
     }
 
-    private native void write0( int b) throws IOException;
+    private native void write0(int b) throws IOException;
 
     /**
      * Writes a sub array as a sequence of bytes.
@@ -628,16 +611,12 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
 
     private void traceImplWriteBytes(byte b[], int off, int len) throws IOException {
         long bytesWritten = 0;
-        long start = 0;
+        long start = FileWriteEvent.timestamp();
         try {
-            start = FileWriteEvent.timestamp();
             implWriteBytes(b, off, len);
             bytesWritten = len;
         } finally {
-            long duration = FileWriteEvent.timestamp() - start;
-            if (FileWriteEvent.shouldCommit(duration)) {
-                FileWriteEvent.commit(start, duration, path, bytesWritten);
-            }
+            FileWriteEvent.offer(start, path, bytesWritten);
         }
     }
 
@@ -693,7 +672,7 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
      * @throws     IOException  if {@code pos} is less than
      *                          {@code 0} or if an I/O error occurs.
      */
-    public void seek( long pos) throws IOException {
+    public void seek(long pos) throws IOException {
         if (pos < 0) {
             throw new IOException("Negative seek offset");
         }
@@ -843,7 +822,7 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
      * @throws     EOFException  if this file has reached the end.
      * @throws     IOException   if an I/O error occurs.
      */
-    public final   int readUnsignedByte() throws IOException {
+    public final int readUnsignedByte() throws IOException {
         int ch = this.read();
         if (ch < 0)
             throw new EOFException();
@@ -1055,17 +1034,32 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
      */
 
     public final @Nullable String readLine() throws IOException {
+        if (jfrTracing && FileReadEvent.enabled()) {
+            long bytesRead = 0;
+            long start = FileReadEvent.timestamp();
+            try {
+                String result = implReadLine();
+                bytesRead = result == null ? 0 : result.length();
+                return result;
+            } finally {
+                FileReadEvent.offer(start, path, bytesRead);
+            }
+        }
+        return implReadLine();
+    }
+
+    private final String implReadLine() throws IOException {
         StringBuilder input = new StringBuilder();
         int c = -1;
         boolean eol = false;
 
         while (!eol) {
-            switch (c = read()) {
+            switch (c = read0()) {
                 case -1, '\n' -> eol = true;
                 case '\r'     -> {
                     eol = true;
                     long cur = getFilePointer();
-                    if ((read()) != '\n') {
+                    if ((read0()) != '\n') {
                         seek(cur);
                     }
                 }
@@ -1129,7 +1123,7 @@ public  class RandomAccessFile implements DataOutput, DataInput, Closeable {
      * @param      v   a {@code byte} value to be written.
      * @throws     IOException  if an I/O error occurs.
      */
-    public final void writeByte( int v) throws IOException {
+    public final void writeByte(int v) throws IOException {
         write(v);
     }
 

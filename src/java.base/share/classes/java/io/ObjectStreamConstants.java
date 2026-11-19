@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Constants written into the Object Serialization Stream.
@@ -190,6 +189,7 @@ public interface ObjectStreamConstants {
      * @see java.io.ObjectInputStream#enableResolveObject(boolean)
      * @since 1.2
      */
+    @SuppressWarnings("removal")
     static final SerializablePermission SUBSTITUTION_PERMISSION =
                            new SerializablePermission("enableSubstitution");
 
@@ -200,6 +200,7 @@ public interface ObjectStreamConstants {
      * @see java.io.ObjectInputStream#readObjectOverride()
      * @since 1.2
      */
+    @SuppressWarnings("removal")
     static final SerializablePermission SUBCLASS_IMPLEMENTATION_PERMISSION =
                     new SerializablePermission("enableSubclassImplementation");
 
@@ -209,6 +210,7 @@ public interface ObjectStreamConstants {
      * @see java.io.ObjectInputFilter.Config#setSerialFilter(ObjectInputFilter)
      * @since 9
      */
+    @SuppressWarnings("removal")
     static final SerializablePermission SERIAL_FILTER_PERMISSION =
             new SerializablePermission("serialFilter");
 

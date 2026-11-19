@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -447,8 +447,7 @@ public class TestExplicitRangeChecks {
                 success = false;
             }
             // Only perform these additional checks if C2 is available
-            if (Platform.isServer() && !Platform.isEmulatedClient() &&
-                TIERED_STOP_AT_LEVEL == CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION) {
+            if (Platform.isServer() && TIERED_STOP_AT_LEVEL == CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION) {
                 if (deoptimize && WHITE_BOX.isMethodCompiled(m)) {
                     System.out.println(name + " not deoptimized on invalid access");
                     success = false;

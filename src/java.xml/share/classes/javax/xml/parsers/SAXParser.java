@@ -109,8 +109,6 @@ public abstract class SAXParser {
          *
          * @since 1.5
          */
-        
-        @SuppressWarnings({"nullness"})
         public void reset() {
 
                 // implementors should override this method
@@ -526,8 +524,6 @@ public abstract class SAXParser {
      *
      * @since 1.5
      */
-    
-    @SuppressWarnings({"nullness"})
     public @Nullable Schema getSchema() {
         throw new UnsupportedOperationException(
             "This parser does not support specification \""
@@ -553,8 +549,6 @@ public abstract class SAXParser {
      *
      * @see SAXParserFactory#setXIncludeAware(boolean)
      */
-    
-    @SuppressWarnings({"nullness"})
     public boolean isXIncludeAware() {
         throw new UnsupportedOperationException(
             "This parser does not support specification \""

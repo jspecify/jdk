@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/pcDesc.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -92,10 +91,10 @@ static bool is_decipherable_interpreted_frame(JavaThread* thread,
 vframeStreamForte::vframeStreamForte(JavaThread *jt,
                                      frame fr,
                                      bool stop_at_java_call_stub)
-    : vframeStreamCommon(RegisterMap(jt,
-                                     RegisterMap::UpdateMap::skip,
-                                     RegisterMap::ProcessFrames::skip,
-                                     RegisterMap::WalkContinuation::skip)) {
+    : vframeStreamCommon(jt,
+                         RegisterMap::UpdateMap::skip,
+                         RegisterMap::ProcessFrames::skip,
+                         RegisterMap::WalkContinuation::skip) {
   _reg_map.set_async(true);
   _stop_at_java_call_stub = stop_at_java_call_stub;
   _frame = fr;
@@ -326,6 +325,7 @@ static bool find_initial_Java_frame(JavaThread* thread,
                     RegisterMap::UpdateMap::skip,
                     RegisterMap::ProcessFrames::skip,
                     RegisterMap::WalkContinuation::skip);
+    map.set_async(true);
 
     while (true) {
       // Cannot walk this frame? Cannot do anything anymore.
@@ -373,6 +373,7 @@ static bool find_initial_Java_frame(JavaThread* thread,
                     RegisterMap::UpdateMap::skip,
                     RegisterMap::ProcessFrames::skip,
                     RegisterMap::WalkContinuation::skip);
+    map.set_async(true);
 
     for (loop_count = 0; loop_max == 0 || loop_count < loop_max; loop_count++) {
       if (!candidate.safe_for_sender(thread)) return false;
@@ -390,6 +391,7 @@ static bool find_initial_Java_frame(JavaThread* thread,
                   RegisterMap::UpdateMap::skip,
                   RegisterMap::ProcessFrames::skip,
                   RegisterMap::WalkContinuation::skip);
+  map.set_async(true);
 
   for (loop_count = 0; loop_max == 0 || loop_count < loop_max; loop_count++) {
 
@@ -613,17 +615,13 @@ void AsyncGetCallTrace(ASGCT_CallTrace *trace, jint depth, void* ucontext) {
   switch (thread->thread_state()) {
   case _thread_new:
   case _thread_uninitialized:
-  case _thread_new_trans:
     // We found the thread on the threads list above, but it is too
     // young to be useful so return that there are no Java frames.
     trace->num_frames = 0;
     break;
   case _thread_in_native:
-  case _thread_in_native_trans:
   case _thread_blocked:
-  case _thread_blocked_trans:
   case _thread_in_vm:
-  case _thread_in_vm_trans:
     {
       frame fr;
 
@@ -649,7 +647,6 @@ void AsyncGetCallTrace(ASGCT_CallTrace *trace, jint depth, void* ucontext) {
     }
     break;
   case _thread_in_Java:
-  case _thread_in_Java_trans:
     {
       frame fr;
 

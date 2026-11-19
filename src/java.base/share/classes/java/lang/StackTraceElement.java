@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,35 +68,35 @@ public final class StackTraceElement implements java.io.Serializable {
 
     // Normally initialized by VM
     /**
-     * The name of the class loader.
+     * @serial The name of the class loader.
      */
     private String classLoaderName;
     /**
-     * The module name.
+     * @serial The module name.
      */
     private String moduleName;
     /**
-     * The module version.
+     * @serial The module version.
      */
     private String moduleVersion;
     /**
-     * The declaring class.
+     * @serial The declaring class.
      */
     private String declaringClass;
     /**
-     * The method name.
+     * @serial The method name.
      */
     private String methodName;
     /**
-     * The source file name.
+     * @serial The source file name.
      */
     private String fileName;
     /**
-     * The source line number.
+     * @serial The source line number.
      */
     private int    lineNumber;
     /**
-     * Control to show full or partial module, package, and class names.
+     * @serial Control to show full or partial module, package, and class names.
      */
     private byte   format = 0; // Default to show all
 
@@ -123,7 +123,7 @@ public final class StackTraceElement implements java.io.Serializable {
      *         {@code methodName} is null
      * @since 1.5
      */
-    public StackTraceElement( String declaringClass, String methodName,
+    public StackTraceElement(String declaringClass, String methodName,
                              @Nullable String fileName, int lineNumber) {
         this(null, null, null, declaringClass, methodName, fileName, lineNumber);
     }
@@ -258,7 +258,7 @@ public final class StackTraceElement implements java.io.Serializable {
      * of the {@code Class} containing the execution point represented
      * by this stack trace element}
      */
-    public  String getClassName() {
+    public String getClassName() {
         return declaringClass;
     }
 
@@ -284,7 +284,6 @@ public final class StackTraceElement implements java.io.Serializable {
      * @return {@code true} if the method containing the execution point
      *         represented by this stack trace element is a native method.
      */
-    
     public boolean isNativeMethod() {
         return lineNumber == -2;
     }
@@ -430,8 +429,7 @@ public final class StackTraceElement implements java.io.Serializable {
      *         {@code StackTraceElement} instance representing the same
      *         execution point as this instance.
      */
-    
-    public boolean equals( @Nullable Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (obj==this)
             return true;
         return (obj instanceof StackTraceElement e)
@@ -447,7 +445,6 @@ public final class StackTraceElement implements java.io.Serializable {
     /**
      * Returns a hash code value for this stack trace element.
      */
-    
     public int hashCode() {
         int result = 31*declaringClass.hashCode() + methodName.hashCode();
         result = 31*result + Objects.hashCode(classLoaderName);
@@ -568,7 +565,7 @@ public final class StackTraceElement implements java.io.Serializable {
 
         // VM to fill in StackTraceElement
         initStackTraceElements(stackTrace, x, depth);
-        return of(stackTrace);
+        return finishInit(stackTrace);
     }
 
     /*
@@ -582,7 +579,7 @@ public final class StackTraceElement implements java.io.Serializable {
         return ste;
     }
 
-    static StackTraceElement[] of(StackTraceElement[] stackTrace) {
+    static StackTraceElement[] finishInit(StackTraceElement[] stackTrace) {
         // ensure the proper StackTraceElement initialization
         for (StackTraceElement ste : stackTrace) {
             ste.computeFormat();

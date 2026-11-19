@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,16 +28,13 @@ package java.lang;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import jdk.internal.value.Deserializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import java.lang.constant.Constable;
-import java.lang.constant.ConstantDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.DynamicConstantDesc;
 import java.util.Optional;
-
-import static java.lang.constant.ConstantDescs.BSM_GET_STATIC_FINAL;
-import static java.lang.constant.ConstantDescs.CD_Boolean;
 
 /**
  * The {@code Boolean} class is the {@linkplain
@@ -52,30 +49,39 @@ import static java.lang.constant.ConstantDescs.CD_Boolean;
  * {@code boolean}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Boolean} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @author  Arthur van Hoff
  * @since   1.0
  */
 @NullMarked
 @jdk.internal.ValueBased
-public final class Boolean implements java.io.Serializable,
-                                      Comparable<Boolean>, Constable
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Boolean
+        implements java.io.Serializable, Comparable<Boolean>, Constable
 {
     /**
      * The {@code Boolean} object corresponding to the primitive
      * value {@code true}.
      */
-    public static final  Boolean TRUE = new Boolean(true);
+    public static final Boolean TRUE = new Boolean(true);
 
     /**
      * The {@code Boolean} object corresponding to the primitive
      * value {@code false}.
      */
-    public static final  Boolean FALSE = new Boolean(false);
+    public static final Boolean FALSE = new Boolean(false);
 
     /**
      * The Class object representing the primitive type boolean.
@@ -108,7 +114,8 @@ public final class Boolean implements java.io.Serializable,
      * Also consider using the final fields {@link #TRUE} and {@link #FALSE}
      * if possible.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
+    @Deserializer("value")
     public Boolean(boolean value) {
         this.value = value;
     }
@@ -128,7 +135,7 @@ public final class Boolean implements java.io.Serializable,
      * {@code boolean} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Boolean} object.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
     public Boolean(@Nullable String s) {
         this(parseBoolean(s));
     }
@@ -148,9 +155,6 @@ public final class Boolean implements java.io.Serializable,
      * @return     the boolean represented by the string argument
      * @since 1.5
      */
-    
-    
-    
     public static boolean parseBoolean(@Nullable String s) {
         return "true".equalsIgnoreCase(s);
     }
@@ -168,13 +172,26 @@ public final class Boolean implements java.io.Serializable,
 
     /**
      * Returns a {@code Boolean} instance representing the specified
-     * {@code boolean} value.  If the specified {@code boolean} value
-     * is {@code true}, this method returns {@code Boolean.TRUE};
-     * if it is {@code false}, this method returns {@code Boolean.FALSE}.
-     * If a new {@code Boolean} instance is not required, this method
-     * should generally be used in preference to the constructor
-     * {@link #Boolean(boolean)}, as this method is likely to yield
-     * significantly better space and time performance.
+     * {@code boolean} value.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Boolean} is an identity class.
+     *              If the specified {@code boolean} value is {@code true},
+     *              this method returns {@code Boolean.TRUE}; if it is
+     *              {@code false}, this method returns {@code Boolean.FALSE}.
+     *              If a new {@code Boolean} instance is not required, this
+     *              method should generally be used in preference to the
+     *              constructor {@link #Boolean(boolean)}, as this method is
+     *              likely to yield significantly better space and time
+     *              performance.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Boolean} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  b a boolean value.
      * @return a {@code Boolean} instance representing {@code b}.
@@ -196,9 +213,7 @@ public final class Boolean implements java.io.Serializable,
      * @param   s   a string.
      * @return  the {@code Boolean} value represented by the string.
      */
-    
-    
-    public static   Boolean valueOf(@Nullable  String s) {
+    public static Boolean valueOf(@Nullable String s) {
         return parseBoolean(s) ? TRUE : FALSE;
     }
 
@@ -236,8 +251,6 @@ public final class Boolean implements java.io.Serializable,
      * {@code true}; returns the integer {@code 1237} if this
      * object represents {@code false}.
      */
-    
-    
     @Override
     public int hashCode() {
         return Boolean.hashCode(value);
@@ -251,8 +264,6 @@ public final class Boolean implements java.io.Serializable,
      * @return a hash code value for a {@code boolean} value.
      * @since 1.8
      */
-    
-    
     public static int hashCode(boolean value) {
         return value ? 1231 : 1237;
     }
@@ -303,8 +314,6 @@ public final class Boolean implements java.io.Serializable,
      * @see     Comparable
      * @since  1.5
      */
-    
-    
     public int compareTo(Boolean b) {
         return compare(this.value, b.value);
     }
@@ -323,8 +332,6 @@ public final class Boolean implements java.io.Serializable,
      *         a value greater than {@code 0} if {@code x && !y}
      * @since 1.7
      */
-    
-    
     public static int compare(boolean x, boolean y) {
         return (x == y) ? 0 : (x ? 1 : -1);
     }
@@ -339,8 +346,6 @@ public final class Boolean implements java.io.Serializable,
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static boolean logicalAnd(boolean a, boolean b) {
         return a && b;
     }
@@ -355,8 +360,6 @@ public final class Boolean implements java.io.Serializable,
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static boolean logicalOr(boolean a, boolean b) {
         return a || b;
     }
@@ -371,8 +374,6 @@ public final class Boolean implements java.io.Serializable,
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static boolean logicalXor(boolean a, boolean b) {
         return a ^ b;
     }

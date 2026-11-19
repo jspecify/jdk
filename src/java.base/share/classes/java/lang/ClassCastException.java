@@ -47,7 +47,6 @@ public class ClassCastException extends RuntimeException {
     /**
      * Constructs a {@code ClassCastException} with no detail message.
      */
-    
     public ClassCastException() {
         super();
     }
@@ -58,7 +57,6 @@ public class ClassCastException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    
     public ClassCastException(@Nullable String s) {
         super(s);
     }

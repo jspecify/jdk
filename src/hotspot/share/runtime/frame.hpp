@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -127,6 +127,7 @@ class frame {
   address get_deopt_original_pc() const;
 
   void set_pc(address newpc);
+  void adjust_pc(address newpc);
 
   intptr_t* sp() const           { assert_absolute(); return _sp; }
   void set_sp( intptr_t* newsp ) { _sp = newsp; }
@@ -213,6 +214,9 @@ class frame {
   // tells whether this frame can be deoptimized
   bool can_be_deoptimized() const;
 
+  // used by virtual thread thaw code to fix deopt state
+  inline void set_deoptimized();
+
   // the frame size in machine words
   inline int frame_size() const;
 
@@ -222,7 +226,7 @@ class frame {
   inline void interpreted_frame_oop_map(InterpreterOopMap* mask) const;
 
   // returns the sending frame
-  inline frame sender(RegisterMap* map) const;
+  ALWAYSINLINE frame sender(RegisterMap* map) const;
 
   bool safe_for_sender(JavaThread *thread);
 
@@ -235,7 +239,7 @@ class frame {
 
  private:
   // Helper methods for better factored code in frame::sender
-  inline frame sender_for_compiled_frame(RegisterMap* map) const;
+  ALWAYSINLINE frame sender_for_compiled_frame(RegisterMap* map) const;
   frame sender_for_entry_frame(RegisterMap* map) const;
   frame sender_for_interpreter_frame(RegisterMap* map) const;
   frame sender_for_upcall_stub_frame(RegisterMap* map) const;
@@ -278,6 +282,7 @@ class frame {
 
   // Support for deoptimization
   void deoptimize(JavaThread* thread);
+  void deoptimize(JavaThread* thread, stackChunkOop chunk);
 
   // The frame's original SP, before any extension by an interpreted callee;
   // used for packing debug info into vframeArray objects and vframeArray lookup.
@@ -440,6 +445,7 @@ class frame {
   void interpreter_frame_print_on(outputStream* st) const;
   void print_on_error(outputStream* st, char* buf, int buflen, bool verbose = false) const;
   static void print_C_frame(outputStream* st, char* buf, int buflen, address pc);
+  static frame next_frame(frame fr, Thread* t); // For native stack walking
 
 #ifndef PRODUCT
   // Add annotated descriptions of memory locations belonging to this frame to values
@@ -454,7 +460,8 @@ class frame {
 
   // Oops-do's
   void oops_compiled_arguments_do(Symbol* signature, bool has_receiver, bool has_appendix, const RegisterMap* reg_map, OopClosure* f) const;
-  void oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool query_oop_map_cache = true) const;
+  template <typename RegisterMapT>
+  void oops_interpreted_do(OopClosure* f, const RegisterMapT* map, bool query_oop_map_cache = true) const;
 
  private:
   void oops_interpreted_arguments_do(Symbol* signature, bool has_receiver, OopClosure* f) const;
@@ -472,13 +479,13 @@ class frame {
  public:
   // Memory management
   void oops_do(OopClosure* f, NMethodClosure* cf, const RegisterMap* map) {
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
     DerivedPointerIterationMode dpim = DerivedPointerTable::is_active() ?
                                        DerivedPointerIterationMode::_with_table :
                                        DerivedPointerIterationMode::_ignore;
-#else
+#else // COMPILER2
     DerivedPointerIterationMode dpim = DerivedPointerIterationMode::_ignore;;
-#endif
+#endif // COMPILER2
     oops_do_internal(f, cf, nullptr, dpim, map, true);
   }
 
@@ -502,6 +509,18 @@ class frame {
   static bool verify_return_pc(address x);
   // Usage:
   // assert(frame::verify_return_pc(return_address), "must be a return pc");
+#endif
+
+#if INCLUDE_JFR
+  // Static helper routines
+  static address interpreter_bcp(const intptr_t* fp);
+  static address interpreter_return_address(const intptr_t* fp);
+  static intptr_t* interpreter_sender_sp(const intptr_t* fp);
+  static bool is_interpreter_frame_setup_at(const intptr_t* fp, const void* sp);
+  static intptr_t* sender_sp(intptr_t* fp);
+  static intptr_t* link(const intptr_t* fp);
+  static address return_address(const intptr_t* sp);
+  static intptr_t* fp(const intptr_t* sp);
 #endif
 
 #include CPU_HEADER(frame)

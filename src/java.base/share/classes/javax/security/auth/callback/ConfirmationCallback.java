@@ -28,6 +28,7 @@ package javax.security.auth.callback;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <p> Underlying security services instantiate and pass a
@@ -401,7 +402,7 @@ public class ConfirmationCallback implements Callback, java.io.Serializable {
      *          {@code ConfirmationCallback} was instantiated with
      *          an {@code optionType} instead of {@code options}.
      */
-    public String[] getOptions() {
+    public String @Nullable [] getOptions() {
         return options == null ? null : options.clone();
     }
 

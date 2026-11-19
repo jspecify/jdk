@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ import java.util.HexFormat;
 import java.util.function.IntPredicate;
 
 import jdk.internal.util.ImmutableBitSetPredicate;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Utility class for HTML form encoding. This class contains static methods
@@ -84,7 +85,8 @@ import jdk.internal.util.ImmutableBitSetPredicate;
  * @author  Herb Jellinek
  * @since   1.0
  */
-public class URLEncoder {
+@NullMarked
+public final class URLEncoder {
     private static final IntPredicate DONT_NEED_ENCODING;
 
     static {

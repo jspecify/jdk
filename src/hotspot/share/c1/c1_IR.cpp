@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,11 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_FrameMap.hpp"
 #include "c1/c1_GraphBuilder.hpp"
-#include "c1/c1_IR.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
+#include "c1/c1_IR.hpp"
 #include "c1/c1_Optimizer.hpp"
 #include "compiler/oopMap.hpp"
 #include "memory/resourceArea.hpp"
@@ -143,7 +142,7 @@ IRScope::IRScope(Compilation* compilation, IRScope* caller, int caller_bci, ciMe
   _xhandlers          = new XHandlers(method);
   _number_of_locks    = 0;
   _monitor_pairing_ok = method->has_balanced_monitors();
-  _wrote_final        = false;
+  _wrote_non_strict_final = false;
   _wrote_fields       = false;
   _wrote_volatile     = false;
   _wrote_stable       = false;
@@ -172,6 +171,9 @@ int IRScope::max_stack() const {
 
 
 bool IRScopeDebugInfo::should_reexecute() {
+  if (_should_reexecute) {
+    return true;
+  }
   ciMethod* cur_method = scope()->method();
   int       cur_bci    = bci();
   if (cur_method != nullptr && cur_bci != SynchronizationEntryBCI) {
@@ -191,7 +193,6 @@ CodeEmitInfo::CodeEmitInfo(ValueStack* stack, XHandlers* exception_handlers, boo
   , _exception_handlers(exception_handlers)
   , _oop_map(nullptr)
   , _stack(stack)
-  , _is_method_handle_invoke(false)
   , _deoptimize_on_exception(deoptimize_on_exception)
   , _force_reexecute(false) {
   assert(_stack != nullptr, "must be non null");
@@ -204,7 +205,6 @@ CodeEmitInfo::CodeEmitInfo(CodeEmitInfo* info, ValueStack* stack)
   , _exception_handlers(nullptr)
   , _oop_map(nullptr)
   , _stack(stack == nullptr ? info->_stack : stack)
-  , _is_method_handle_invoke(info->_is_method_handle_invoke)
   , _deoptimize_on_exception(info->_deoptimize_on_exception)
   , _force_reexecute(info->_force_reexecute) {
 
@@ -215,11 +215,11 @@ CodeEmitInfo::CodeEmitInfo(CodeEmitInfo* info, ValueStack* stack)
 }
 
 
-void CodeEmitInfo::record_debug_info(DebugInformationRecorder* recorder, int pc_offset) {
+void CodeEmitInfo::record_debug_info(DebugInformationRecorder* recorder, int pc_offset, bool maybe_return_as_fields) {
   // record the safepoint before recording the debug info for enclosing scopes
   recorder->add_safepoint(pc_offset, _oop_map->deep_copy());
   bool reexecute = _force_reexecute || _scope_debug_info->should_reexecute();
-  _scope_debug_info->record_debug_info(recorder, pc_offset, reexecute, _is_method_handle_invoke);
+  _scope_debug_info->record_debug_info(recorder, pc_offset, reexecute, maybe_return_as_fields);
   recorder->end_safepoint(pc_offset);
 }
 

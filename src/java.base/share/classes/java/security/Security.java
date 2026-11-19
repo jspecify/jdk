@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 
 package java.security;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,6 +36,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -112,7 +115,7 @@ public final class Security {
 
         private static Path currentPath;
 
-        private static final Set<Path> activePaths = new HashSet<>();
+        private static final List<Path> activePaths = new ArrayList<>();
 
         static void loadAll() {
             // first load the master properties file to
@@ -262,30 +265,40 @@ public final class Security {
             }
         }
 
+        private static void checkCyclicInclude(Path path) {
+            for (Path activePath : activePaths) {
+                try {
+                    if (Files.isSameFile(path, activePath)) {
+                        throw new InternalError(
+                                "Cyclic include of '" + path + "'");
+                    }
+                } catch (IOException e) {
+                    if (sdebug != null) {
+                        sdebug.println("skipped exception when checking for " +
+                                "cyclic inclusion of " + path + ":");
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+
         private static void loadFromPath(Path path, LoadingMode mode)
                 throws IOException {
-            boolean isRegularFile = Files.isRegularFile(path);
-            if (isRegularFile) {
-                path = path.toRealPath();
-            } else if (Files.isDirectory(path)) {
+            if (Files.isDirectory(path)) {
                 throw new IOException("Is a directory");
-            } else {
-                path = path.toAbsolutePath();
-            }
-            if (activePaths.contains(path)) {
-                throw new InternalError("Cyclic include of '" + path + "'");
             }
             try (InputStream is = Files.newInputStream(path)) {
+                checkCyclicInclude(path);
                 reset(mode);
                 Path previousPath = currentPath;
-                currentPath = isRegularFile ? path : null;
+                currentPath = Files.isRegularFile(path) ? path : null;
                 activePaths.add(path);
                 try {
                     debugLoad(true, path);
                     props.load(is);
                     debugLoad(false, path);
                 } finally {
-                    activePaths.remove(path);
+                    activePaths.removeLast();
                     currentPath = previousPath;
                 }
             }
@@ -318,6 +331,10 @@ public final class Security {
             @Override
             public Properties getInitialProperties() {
                 return initialSecurityProperties;
+            }
+            @Override
+            public Properties getCurrentProperties() {
+                return props;
             }
         });
     }
@@ -425,7 +442,7 @@ public final class Security {
      * classes (introduced in the J2SE version 1.2 platform) instead.
      */
     @Deprecated
-    public static String getAlgorithmProperty(String algName,
+    public static @Nullable String getAlgorithmProperty(String algName,
                                               String propName) {
         ProviderProperty entry = getProviderProperty("Alg." + propName
                                                      + "." + algName);
@@ -688,7 +705,7 @@ public final class Security {
      * @see #getProviders(java.lang.String)
      * @since 1.3
      */
-    public static Provider[] getProviders(Map<String,String> filter) {
+    public static Provider @Nullable [] getProviders(Map<String,String> filter) {
         // Get all installed providers first.
         // Then only return those providers who satisfy the selection criteria.
         Provider[] allProviders = Security.getProviders();
@@ -1000,7 +1017,7 @@ public final class Security {
      *
      * @since 1.4
      */
-    public static Set<String> getAlgorithms(String serviceName) {
+    public static Set<String> getAlgorithms(@Nullable String serviceName) {
 
         if ((serviceName == null) || (serviceName.isEmpty()) ||
             (serviceName.endsWith("."))) {

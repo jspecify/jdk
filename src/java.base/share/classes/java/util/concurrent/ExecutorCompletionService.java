@@ -35,6 +35,11 @@
 
 package java.util.concurrent;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
+import java.util.Objects;
+
 /**
  * A {@link CompletionService} that uses a supplied {@link Executor}
  * to execute tasks.  This class arranges that submitted tasks are,
@@ -102,7 +107,8 @@ package java.util.concurrent;
  *
  * @since 1.5
  */
-public class ExecutorCompletionService<V> implements CompletionService<V> {
+@NullMarked
+public class ExecutorCompletionService<V extends @Nullable Object> implements CompletionService<V> {
     private final Executor executor;
     private final AbstractExecutorService aes;
     private final BlockingQueue<Future<V>> completionQueue;
@@ -145,8 +151,7 @@ public class ExecutorCompletionService<V> implements CompletionService<V> {
      * @throws NullPointerException if executor is {@code null}
      */
     public ExecutorCompletionService(Executor executor) {
-        if (executor == null)
-            throw new NullPointerException();
+        Objects.requireNonNull(executor, "executor");
         this.executor = executor;
         this.aes = (executor instanceof AbstractExecutorService) ?
             (AbstractExecutorService) executor : null;
@@ -168,8 +173,8 @@ public class ExecutorCompletionService<V> implements CompletionService<V> {
      */
     public ExecutorCompletionService(Executor executor,
                                      BlockingQueue<Future<V>> completionQueue) {
-        if (executor == null || completionQueue == null)
-            throw new NullPointerException();
+        Objects.requireNonNull(executor, "executor");
+        Objects.requireNonNull(completionQueue, "completionQueue");
         this.executor = executor;
         this.aes = (executor instanceof AbstractExecutorService) ?
             (AbstractExecutorService) executor : null;
@@ -181,7 +186,7 @@ public class ExecutorCompletionService<V> implements CompletionService<V> {
      * @throws NullPointerException       {@inheritDoc}
      */
     public Future<V> submit(Callable<V> task) {
-        if (task == null) throw new NullPointerException();
+        Objects.requireNonNull(task, "task");
         RunnableFuture<V> f = newTaskFor(task);
         executor.execute(new QueueingFuture<V>(f, completionQueue));
         return f;
@@ -192,7 +197,7 @@ public class ExecutorCompletionService<V> implements CompletionService<V> {
      * @throws NullPointerException       {@inheritDoc}
      */
     public Future<V> submit(Runnable task, V result) {
-        if (task == null) throw new NullPointerException();
+        Objects.requireNonNull(task, "task");
         RunnableFuture<V> f = newTaskFor(task, result);
         executor.execute(new QueueingFuture<V>(f, completionQueue));
         return f;
@@ -202,11 +207,11 @@ public class ExecutorCompletionService<V> implements CompletionService<V> {
         return completionQueue.take();
     }
 
-    public Future<V> poll() {
+    public @Nullable Future<V> poll() {
         return completionQueue.poll();
     }
 
-    public Future<V> poll(long timeout, TimeUnit unit)
+    public @Nullable Future<V> poll(long timeout, TimeUnit unit)
             throws InterruptedException {
         return completionQueue.poll(timeout, unit);
     }

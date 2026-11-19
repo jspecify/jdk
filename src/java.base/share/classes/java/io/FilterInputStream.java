@@ -46,7 +46,7 @@ public class FilterInputStream extends InputStream {
     /**
      * The input stream to be filtered.
      */
-    protected volatile InputStream in;
+    protected volatile @Nullable InputStream in;
 
     /**
      * Creates a {@code FilterInputStream}

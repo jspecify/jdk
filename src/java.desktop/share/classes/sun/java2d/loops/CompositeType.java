@@ -283,8 +283,6 @@ public final class CompositeType {
         return false;
     }
 
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o instanceof CompositeType) {
             return (((CompositeType) o).uniqueID == this.uniqueID);

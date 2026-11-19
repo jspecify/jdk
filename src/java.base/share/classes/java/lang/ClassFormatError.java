@@ -43,7 +43,6 @@ public class ClassFormatError extends LinkageError {
     /**
      * Constructs a {@code ClassFormatError} with no detail message.
      */
-    
     public ClassFormatError() {
         super();
     }
@@ -54,7 +53,6 @@ public class ClassFormatError extends LinkageError {
      *
      * @param   s   the detail message.
      */
-    
     public ClassFormatError(@Nullable String s) {
         super(s);
     }

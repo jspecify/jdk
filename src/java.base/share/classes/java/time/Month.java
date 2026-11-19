@@ -279,7 +279,7 @@ public enum Month implements TemporalAccessor, TemporalAdjuster {
      * @return true if the field is supported on this month-of-year, false if not
      */
     @Override
-    public boolean isSupported(TemporalField field) {
+    public boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field == MONTH_OF_YEAR;
         }

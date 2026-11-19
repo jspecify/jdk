@@ -35,6 +35,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @since   1.1
  */
+
 @NullMarked
 public class BindException extends SocketException {
     @java.io.Serial

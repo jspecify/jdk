@@ -25,7 +25,6 @@
 package java.util.function;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents an operation upon two {@code double}-valued operands and producing a

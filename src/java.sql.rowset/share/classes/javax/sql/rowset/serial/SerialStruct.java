@@ -273,8 +273,6 @@ public class SerialStruct implements Struct, Serializable, Cloneable {
      *          equivalent to this SerialStruct, {@code false} otherwise
      *
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,11 +58,11 @@ import jdk.internal.misc.ExtendedMapMode;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.misc.VM.BufferPool;
-import jdk.internal.ref.Cleaner;
 import jdk.internal.ref.CleanerFactory;
 import jdk.internal.event.FileReadEvent;
 import jdk.internal.event.FileWriteEvent;
 import jdk.internal.access.foreign.UnmapperProxy;
+import sun.nio.Cleaner;
 
 public class FileChannelImpl
     extends FileChannel
@@ -75,7 +75,7 @@ public class FileChannelImpl
     private static final FileDispatcher nd = new FileDispatcherImpl();
 
     // Flag set by jdk.internal.event.JFRTracing to indicate if
-    // file reads and writes should be traced by JFR.
+    // file reads, writes, and force should be traced by JFR.
     private static boolean jfrTracing;
 
     // File descriptor
@@ -178,7 +178,11 @@ public class FileChannelImpl
     }
 
     private void endBlocking(boolean completed) throws AsynchronousCloseException {
-        if (!uninterruptible) end(completed);
+        if (!uninterruptible) {
+            end(completed);
+        } else if (!completed && !isOpen()) {
+            throw new AsynchronousCloseException();
+        }
     }
 
     // -- Standard channel operations --
@@ -264,19 +268,11 @@ public class FileChannelImpl
 
     private int traceImplRead(ByteBuffer dst) throws IOException {
         int bytesRead = 0;
-        long start = 0;
+        long start = FileReadEvent.timestamp();
         try {
-            start = FileReadEvent.timestamp();
             bytesRead = implRead(dst);
         } finally {
-            long duration = FileReadEvent.timestamp() - start;
-            if (FileReadEvent.shouldCommit(duration)) {
-                if (bytesRead < 0) {
-                    FileReadEvent.commit(start, duration, path, 0L, true);
-                } else {
-                    FileReadEvent.commit(start, duration, path, bytesRead, false);
-                }
-            }
+            FileReadEvent.offer(start, path, bytesRead);
         }
         return bytesRead;
     }
@@ -326,19 +322,11 @@ public class FileChannelImpl
 
     private long traceImplRead(ByteBuffer[] dsts, int offset, int length) throws IOException {
         long bytesRead = 0;
-        long start = 0;
+        long start = FileReadEvent.timestamp();
         try {
-            start = FileReadEvent.timestamp();
             bytesRead = implRead(dsts, offset, length);
         } finally {
-            long duration = FileReadEvent.timestamp() - start;
-            if (FileReadEvent.shouldCommit(duration)) {
-                if (bytesRead < 0) {
-                    FileReadEvent.commit(start, duration, path, 0L, true);
-                } else {
-                    FileReadEvent.commit(start, duration, path, bytesRead, false);
-                }
-            }
+            FileReadEvent.offer(start, path, bytesRead);
         }
         return bytesRead;
     }
@@ -385,16 +373,11 @@ public class FileChannelImpl
 
     private int traceImplWrite(ByteBuffer src) throws IOException {
         int bytesWritten = 0;
-        long start = 0;
+        long start = FileWriteEvent.timestamp();
         try {
-            start = FileWriteEvent.timestamp();
             bytesWritten = implWrite(src);
         } finally {
-            long duration = FileWriteEvent.timestamp() - start;
-            if (FileWriteEvent.shouldCommit(duration)) {
-                long bytes = bytesWritten > 0 ? bytesWritten : 0;
-                FileWriteEvent.commit(start, duration, path, bytes);
-            }
+            FileWriteEvent.offer(start, path, bytesWritten);
         }
         return bytesWritten;
     }
@@ -441,16 +424,11 @@ public class FileChannelImpl
 
     private long traceImplWrite(ByteBuffer[] srcs, int offset, int length) throws IOException {
         long bytesWritten = 0;
-        long start = 0;
+        long start = FileWriteEvent.timestamp();
         try {
-            start = FileWriteEvent.timestamp();
             bytesWritten = implWrite(srcs, offset, length);
         } finally {
-            long duration = FileWriteEvent.timestamp() - start;
-            if (FileWriteEvent.shouldCommit(duration)) {
-                long bytes = bytesWritten > 0 ? bytesWritten : 0;
-                FileWriteEvent.commit(start, duration, path, bytes);
-            }
+            FileWriteEvent.offer(start, path, bytesWritten);
         }
         return bytesWritten;
     }
@@ -657,13 +635,13 @@ public class FileChannelImpl
 
     @Override
     public void force(boolean metaData) throws IOException {
-        if (!FileForceEvent.enabled()) {
+        if (jfrTracing && FileForceEvent.enabled()) {
+            long start = FileForceEvent.timestamp();
             implForce(metaData);
+            FileForceEvent.offer(start, path, metaData);
             return;
         }
-        long start = FileForceEvent.timestamp();
         implForce(metaData);
-        FileForceEvent.offer(start, path, metaData);
     }
 
     // Assume at first that the underlying kernel supports sendfile/equivalent;
@@ -1199,19 +1177,11 @@ public class FileChannelImpl
 
     private int traceImplRead(ByteBuffer dst, long position) throws IOException {
         int bytesRead = 0;
-        long start = 0;
+        long start = FileReadEvent.timestamp();
         try {
-            start = FileReadEvent.timestamp();
             bytesRead = implRead(dst, position);
         } finally {
-            long duration = FileReadEvent.timestamp() - start;
-            if (FileReadEvent.shouldCommit(duration)) {
-                if (bytesRead < 0) {
-                    FileReadEvent.commit(start, duration, path, 0L, true);
-                } else {
-                    FileReadEvent.commit(start, duration, path, bytesRead, false);
-                }
-            }
+            FileReadEvent.offer(start, path, bytesRead);
         }
         return bytesRead;
     }
@@ -1271,16 +1241,11 @@ public class FileChannelImpl
 
     private int traceImplWrite(ByteBuffer src, long position) throws IOException {
         int bytesWritten = 0;
-        long start = 0;
+        long start = FileWriteEvent.timestamp();
         try {
-            start = FileWriteEvent.timestamp();
             bytesWritten = implWrite(src, position);
         } finally {
-            long duration = FileWriteEvent.timestamp() - start;
-            if (FileWriteEvent.shouldCommit(duration)) {
-                long bytes = bytesWritten > 0 ? bytesWritten : 0;
-                FileWriteEvent.commit(start, duration, path, bytes);
-            }
+            FileWriteEvent.offer(start, path, bytesWritten);
         }
         return bytesWritten;
     }

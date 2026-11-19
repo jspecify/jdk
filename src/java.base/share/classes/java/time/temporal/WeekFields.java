@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -251,11 +251,11 @@ public final class WeekFields implements Serializable {
     private static final long serialVersionUID = -1177360819670808121L;
 
     /**
-     * The first day-of-week.
+     * @serial The first day-of-week.
      */
     private final DayOfWeek firstDayOfWeek;
     /**
-     * The minimal number of days in the first week.
+     * @serial The minimal number of days in the first week.
      */
     private final int minimalDays;
     /**
@@ -293,8 +293,8 @@ public final class WeekFields implements Serializable {
      * <p>
      * This will look up appropriate values from the provider of localization data.
      * If the locale contains "fw" (First day of week) and/or "rg"
-     * (Region Override) <a href="../../util/Locale.html#def_locale_extension">
-     * Unicode extensions</a>, returned instance will reflect the values specified with
+     * (Region Override) {@linkplain Locale##def_locale_extension Unicode extensions},
+     * returned instance will reflect the values specified with
      * those extensions. If both "fw" and "rg" are specified, the value from
      * the "fw" extension supersedes the implicit one from the "rg" extension.
      *
@@ -654,8 +654,6 @@ public final class WeekFields implements Serializable {
      * @return true if this is equal to the specified rules
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object object) {
         if (this == object) {
             return true;

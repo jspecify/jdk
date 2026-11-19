@@ -509,8 +509,6 @@ public class PSStreamPrintService extends StreamPrintService
     /* Stream services have an output stream which cannot be shared,
      * so two services are equal only if they are the same object.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         return (obj == this ||
                  (obj instanceof PSStreamPrintService &&

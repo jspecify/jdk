@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" href="jvmti.xsl"?>
 <!--
- Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2002, 2026, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -277,7 +277,7 @@
    <!ELEMENT errorlink (#PCDATA|jvmti|code|i|b|tm)*>
    <!ATTLIST errorlink id CDATA #REQUIRED>
 
-   <!ELEMENT externallink (#PCDATA|jvmti|code|i|b|tm)*>
+   <!ELEMENT externallink (#PCDATA|jvmti|code|i|b|tm|sup)*>
    <!ATTLIST externallink id CDATA #REQUIRED>
 
    <!ELEMENT vmspec EMPTY>
@@ -324,6 +324,9 @@
    <!ELEMENT pre ANY>
 
    <!ELEMENT space EMPTY>
+
+   <!ELEMENT sup (#PCDATA)>
+   <!ATTLIST sup class CDATA #IMPLIED>
 
    <!ELEMENT jvmti EMPTY>
 
@@ -925,6 +928,23 @@ Agent_OnUnload_L(JavaVM *vm)</example>
     and/or its affiliates, in the U.S. and other countries.
   </intro>
 
+  <intro id="identityAndValueObjects" label="Identity and Value Objects">
+    If preview features are enabled then some Java objects will have identity and others
+    (instances of value classes) will not. <jvmti/> makes no distinction between these cases
+    in general, but some specific functions will behave differently if invoked upon
+    a Java object that does not have identity. Such differences in behavior are described
+    by the individual functions and events where they apply.
+    <p/>
+    In summary, tags for value objects use value equality semantics, and
+    the <eventlink id="ObjectFree"/> event is not sent for tagged value objects.
+    The <eventlink id="VMObjectAlloc"/> and <eventlink id="SampledObjectAlloc"/> events
+    are only sent for value objects if the
+    <fieldlink id="can_support_value_objects" struct="jvmtiCapabilities"/>
+    capability is possessed.
+    <p/>
+    Value objects can also affect class and interface property queries, monitor information,
+    and <jvmti/> functions that operate on value class constructor frames.
+  </intro>
 
 <functionsection label="Functions">
   <intro id="jvmtiEnvAccess" label="Accessing Functions">
@@ -1218,7 +1238,7 @@ jvmtiEnv *jvmti;
                             <li><i>Timed wait?</i>
                               <ul>
                                 <li>Indefinite (<datalink
-                                    id="JVMTI_THREAD_STATE_WAITING_INDEFINITELY"><code>JVMTI_THREAD_STATE_WAITING_INDEFINITELY</code></datalink></li>
+                                    id="JVMTI_THREAD_STATE_WAITING_INDEFINITELY"><code>JVMTI_THREAD_STATE_WAITING_INDEFINITELY</code></datalink>)</li>
                                 <li>Timed (<datalink
                                     id="JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT"><code>JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT</code></datalink>)</li>
                               </ul>
@@ -2987,12 +3007,8 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       </parameters>
       <errors>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Called or calling method is a native method.
-          The implementation is unable to pop this frame.
-        </error>
-        <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          The thread is a suspended virtual thread and the implementation
-          was unable to pop the current frame.
+          The implementation is unable to pop this frame
+          (e.g. called or calling method is a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -3078,9 +3094,40 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       </parameters>
       <errors>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          The frame at <code>depth</code> is executing a
-          native method.
+           A <eventlink id="FramePop"></eventlink> event cannot be generated for this frame
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
+        <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
+          Thread was not suspended and was not the current thread.
+        </error>
+        <error id="JVMTI_ERROR_DUPLICATE">
+          There is already a frame pop event request at the specified depth.
+        </error>
+      </errors>
+    </function>
+
+    <function id="ClearAllFramePops" num="67" since="25">
+      <synopsis>Clear Frame Pop</synopsis>
+      <description>
+        Clear all frame pop requests so that a <eventlink id="FramePop"></eventlink>
+        event will not be generated for any frames.
+        See the <eventlink id="FramePop"></eventlink> event for details.
+        <p/>
+        The specified thread must be suspended or must be the current thread.
+      </description>
+      <origin>new</origin>
+      <capabilities>
+        <required id="can_generate_frame_pop_events"></required>
+      </capabilities>
+      <parameters>
+        <param id="thread">
+          <jthread null="current" impl="noconvert"/>
+          <description>
+            The thread for which all the frame pop events will be cleared.
+          </description>
+        </param>
+      </parameters>
+      <errors>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
         </error>
@@ -3157,12 +3204,8 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       </parameters>
       <errors>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Attempted to return early from a frame
-          corresponding to a native method.
-          The thread is a suspended virtual thread and the implementation was
-          unable to force its current frame to return.
-          Or the implementation is unable to provide
-          this functionality on this frame.
+          The implementation is unable to force the current frame to return
+          (e.g. current frame is executing a native method).
         </error>
         <error id="JVMTI_ERROR_TYPE_MISMATCH">
           The result type of the called method is not
@@ -3209,12 +3252,8 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       </parameters>
       <errors>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Attempted to return early from a frame
-          corresponding to a native method.
-          The thread is a suspended virtual thread and the implementation was
-          unable to force its current frame to return.
-          Or the implementation is unable to provide
-          this functionality on this frame.
+          The implementation is unable to force the current frame to return
+          (e.g. current frame is executing a native method).
         </error>
         <error id="JVMTI_ERROR_TYPE_MISMATCH">
           The result type of the called method is not
@@ -3257,12 +3296,8 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       </parameters>
       <errors>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Attempted to return early from a frame
-          corresponding to a native method.
-          The thread is a suspended virtual thread and the implementation was
-          unable to force its current frame to return.
-          Or the implementation is unable to provide
-          this functionality on this frame.
+          The implementation is unable to force the current frame to return
+          (e.g. current frame is executing a native method).
         </error>
         <error id="JVMTI_ERROR_TYPE_MISMATCH">
           The result type of the called method is not <code>long</code>.
@@ -3302,12 +3337,8 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       </parameters>
       <errors>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Attempted to return early from a frame
-          corresponding to a native method.
-          The thread is a suspended virtual thread and the implementation was
-          unable to force its current frame to return.
-          Or the implementation is unable to provide
-          this functionality on this frame.
+          The implementation is unable to force the current frame to return
+          (e.g. current frame is executing a native method).
         </error>
         <error id="JVMTI_ERROR_TYPE_MISMATCH">
           The result type of the called method is not <code>float</code>.
@@ -3347,12 +3378,8 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       </parameters>
       <errors>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Attempted to return early from a frame
-          corresponding to a native method.
-          The thread is a suspended virtual thread and the implementation was
-          unable to force its current frame to return.
-          Or the implementation is unable to provide
-          this functionality on this frame.
+          The implementation is unable to force the current frame to return
+          (e.g. current frame is executing a native method).
         </error>
         <error id="JVMTI_ERROR_TYPE_MISMATCH">
           The result type of the called method is not <code>double</code>.
@@ -3369,8 +3396,25 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
     <function id="ForceEarlyReturnVoid" num="86" since="1.1">
       <synopsis>Force Early Return - Void</synopsis>
       <description>
-        This function can be used to return from a method with no result type.
-        That is, the called method must be declared <code>void</code>.
+        This function can be used to return from a method with a return type
+        of <code>void</code>.
+        A constructor is a special method named <code>&lt;init&gt;</code> with
+        a return type of <code>void</code>. A class initializer is a special
+        method named <code>&lt;clinit&gt;</code> with a return type of
+        <code>void</code>.
+        <p/>
+        When preview features are enabled, this function can not be used to force
+        a return when the current frame is a constructor of a class with
+        <externallink id="../api/java.base/java/lang/reflect/Field.html#isStrictInit()">
+        strictly-initialized<sup>PREVIEW</sup></externallink> instance fields in the
+        class or any of its superclasses, or the current frame is the class initializer
+        of a class with strictly-initialized static fields.
+        <p/>
+        <b>API Note:</b>
+        <externallink id="../api/java.base/java/lang/Class.html#isValue()">
+        Value classes<sup>PREVIEW</sup></externallink> rely upon strict field
+        initialization. This function can not be used to return from a constructor
+        of a value class with one or more instance fields.
       </description>
       <origin>new</origin>
       <capabilities>
@@ -3386,12 +3430,12 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       </parameters>
       <errors>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Attempted to return early from a frame
-          corresponding to a native method.
-          The thread is a suspended virtual thread and the implementation was
-          unable to force its current frame to return.
-          Or the implementation is unable to provide
-          this functionality on this frame.
+          The implementation is unable to force the current frame to return
+          (e.g. the current frame is executing a native method or, if preview features
+          are enabled, either the current frame is a constructor of a class with
+          strictly-initialized instance fields in its class hierarchy or the current
+          frame is the class initializer of a class with strictly-initialized static
+          fields.)
         </error>
         <error id="JVMTI_ERROR_TYPE_MISMATCH">
           The called method has a result type.
@@ -3428,6 +3472,12 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       information.  Objects which have not been tagged have a
       tag of zero.
       Setting a tag to zero makes the object untagged.
+      <p/>
+      If the <eventlink id="ObjectFree"/> event is enabled then an Object Free
+      event is sent for tagged objects when the garbage collector frees the object.
+      When preview features are enabled, the Object Free event is only sent for tagged
+      <externallink id="jni/functions.html#hasidentity">identity objects</externallink>.
+      <b>The event is not sent for tagged value objects.</b>
     </intro>
 
     <intro id="heapCallbacks" label="Heap Callback Functions">
@@ -5856,6 +5906,11 @@ class C2 extends C1 implements I2 {
         This function can be used to retrieve the value of a local
         variable whose type is <code>Object</code> or a subclass of <code>Object</code>.
         <p/>
+        When preview features are enabled, if the local is the "<code>this</code>"
+        object and "<code>this</code>" is a value object under construction, the
+        function retrieves a snapshot of the "<code>this</code>" object representing
+        the value object's state at the point the snapshot is taken.
+        <p/>
         The specified thread must be suspended or must be the current thread.
       </description>
       <origin>jvmdi</origin>
@@ -5885,6 +5940,11 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
+              When preview features are enabled, if the local is the "<code>this</code>"
+              object and "<code>this</code>" is a value object under construction,
+              <code>value_ptr</code> will point to a snapshot of the "<code>this</code>"
+              object representing the value object's state at the point the snapshot
+              is taken.
             </description>
         </param>
       </parameters>
@@ -5897,7 +5957,8 @@ class C2 extends C1 implements I2 {
           <code>Object</code> or a subclass of <code>Object</code>.
         </error>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Not a visible frame
+          The implementation is unable to get the frame locals
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -5913,6 +5974,11 @@ class C2 extends C1 implements I2 {
         frames.  This function can retrieve the "<code>this</code>" object from
         native method frames, whereas <code>GetLocalObject()</code> would
         return <code>JVMTI_ERROR_OPAQUE_FRAME</code> in those cases.
+        <p/>
+        When preview features are enabled and the "<code>this</code>" object is
+        a value object under construction, the function retrieves a snapshot of the
+        "<code>this</code>" object that represents the value object's state at
+        the point the snapshot is taken.
         <p/>
         The specified thread must be suspended or must be the current thread.
       </description>
@@ -5937,6 +6003,10 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
+              When preview features are enabled, and the "<code>this</code>" object is
+              a value object under construction, <code>value_ptr</code> will point to
+              a snapshot of the "<code>this</code>" object representing the value
+              object's state at the point the snapshot is taken.
             </description>
         </param>
       </parameters>
@@ -6000,7 +6070,8 @@ class C2 extends C1 implements I2 {
           <code>boolean</code>.
         </error>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Not a visible frame
+          The implementation is unable to get the frame locals
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -6054,7 +6125,8 @@ class C2 extends C1 implements I2 {
           The variable type is not <code>long</code>.
         </error>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Not a visible frame
+          The implementation is unable to get the frame locals
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -6108,7 +6180,8 @@ class C2 extends C1 implements I2 {
           The variable type is not <code>float</code>.
         </error>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Not a visible frame
+          The implementation is unable to get the frame locals
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -6120,7 +6193,7 @@ class C2 extends C1 implements I2 {
       <synopsis>Get Local Variable - Double</synopsis>
       <description>
         This function can be used to retrieve the value of a local
-        variable whose type is <code>long</code>.
+        variable whose type is <code>double</code>.
         <p/>
         The specified thread must be suspended or must be the current thread.
       </description>
@@ -6162,7 +6235,8 @@ class C2 extends C1 implements I2 {
           The variable type is not <code>double</code>.
         </error>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Not a visible frame
+          The implementation is unable to get the frame locals
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -6221,12 +6295,8 @@ class C2 extends C1 implements I2 {
           with the variable type.
         </error>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Not a visible frame
-        </error>
-        <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          The thread is a suspended virtual thread and the implementation does not support
-          setting the value of locals in the frame of the given depth.
-          See <internallink id="local">Local Variables</internallink>.
+          The implementation is unable to set the frame locals
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -6285,12 +6355,8 @@ class C2 extends C1 implements I2 {
           <code>boolean</code>.
         </error>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Not a visible frame
-        </error>
-        <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          The thread is a suspended virtual thread and the implementation does not support
-          setting the value of locals in the frame of the given depth.
-          See <internallink id="local">Local Variables</internallink>.
+          The implementation is unable to set the frame locals
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -6344,12 +6410,8 @@ class C2 extends C1 implements I2 {
           The variable type is not <code>long</code>.
         </error>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Not a visible frame
-        </error>
-        <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          The thread is a suspended virtual thread and the implementation does not support
-          setting the value of locals in the frame of the given depth.
-          See <internallink id="local">Local Variables</internallink>.
+          The implementation is unable to set the frame locals
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -6403,12 +6465,8 @@ class C2 extends C1 implements I2 {
           The variable type is not <code>float</code>.
         </error>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Not a visible frame
-        </error>
-        <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          The thread is a suspended virtual thread and the implementation does not support
-          setting the value of locals in the frame of the given depth.
-          See <internallink id="local">Local Variables</internallink>.
+          The implementation is unable to set the frame locals
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -6462,12 +6520,8 @@ class C2 extends C1 implements I2 {
           The variable type is not <code>double</code>.
         </error>
         <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          Not a visible frame
-        </error>
-        <error id="JVMTI_ERROR_OPAQUE_FRAME">
-          The thread is a suspended virtual thread and the implementation does not support
-          setting the value of locals in the frame of the given depth.
-          See <internallink id="local">Local Variables</internallink>.
+          The implementation is unable to set the frame locals
+          (e.g. the frame at <code>depth</code> is executing a native method).
         </error>
         <error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
           Thread was not suspended and was not the current thread.
@@ -7364,23 +7418,39 @@ class C2 extends C1 implements I2 {
     <function id="GetClassModifiers" phase="start" num="51">
       <synopsis>Get Class Modifiers</synopsis>
       <description>
-        For the class indicated by <code>klass</code>, return the access
-        flags
-        via <code>modifiers_ptr</code>.
-        Access flags are defined in <vmspec chapter="4"/>.
+        For the class indicated by <code>klass</code>, return the Java language
+        modifiers and class/interface properties of the corresponding
+        <code>java.lang.Class</code> object, via <code>modifiers_ptr</code>.
         <p/>
-        If the class is an array class, then its public, private, and protected
-        modifiers are the same as those of its component type. For arrays of
+        The modifiers are encoded as a mask of access-flag bit values defined in
+        <vmspec chapter="4"/>. The returned value is not necessarily the value of the
+        access_flags item in the class file of <code>klass</code>.
+        In particular, for member, local, or anonymous classes and interfaces, the result
+        may include modifiers represented by access flags from the <code>InnerClasses</code>
+        attribute, such as <code>ACC_STATIC</code>.
+        <p/>
+        The modifiers include, as applicable, the Java Virtual Machine constants for
+        public, private, protected, final, static, abstract, and interface, as well as
+        access-flag bit values for other class/interface properties encoded in the
+        result of invoking <code>java.lang.Class.getModifiers()</code> on the
+        corresponding <code>java.lang.Class</code> object.
+        <p/>
+        If <code>klass</code> is an array class, then its public, private, and
+        protected modifiers are the same as those of its component type. For arrays of
         primitives, this component type is represented by one of the primitive
-        classes (for example, <code>java.lang.Integer.TYPE</code>).
+        classes, such as <code>java.lang.Integer.TYPE</code>. For array classes, the
+        abstract and final modifiers are set, and the interface modifier is not set.
         <p/>
-        If the class is a primitive class, its public modifier is always true,
-        and its protected and private modifiers are always false.
+        If <code>klass</code> is a primitive type or void, then its public, abstract,
+        and final modifiers are always set, and its protected, private, and interface
+        modifiers are never set.
         <p/>
-        If the class is an array class or a primitive class then its final
-        modifier is always true and its interface modifier is always false.
-        The values of its other modifiers are not determined by this specification.
-
+        When preview features are enabled, the <code>ACC_IDENTITY</code> access flag
+        is set if and only if <code>klass</code> is an identity class or an array class.
+        <p/>
+        When preview features are disabled, the <code>ACC_SUPER</code> access flag may be
+        set only if <code>klass</code> is not a primitive type or void. The flag has no
+        effective meaning.
       </description>
       <origin>jvmdi</origin>
       <capabilities>
@@ -7395,7 +7465,7 @@ class C2 extends C1 implements I2 {
         <param id="modifiers_ptr">
           <outptr><jint/></outptr>
           <description>
-            On return, points to the current access flags of this class.
+            On return, points to the modifiers of this class.
 
           </description>
         </param>
@@ -8261,7 +8331,7 @@ class C2 extends C1 implements I2 {
         <field id="entry_count">
           <jint/>
           <description>
-            The number of times the platform thread owning this monitor has entered it, 
+            The number of times the platform thread owning this monitor has entered it,
             or <code>0</code> if owned by a virtual thread or not owned
           </description>
         </field>
@@ -8297,6 +8367,12 @@ class C2 extends C1 implements I2 {
         Get information about the object's monitor.
         The fields of the <functionlink id="jvmtiMonitorUsage"></functionlink> structure
         are filled in with information about usage of the monitor.
+        <p/>
+        When preview features are enabled, the object to query may be a value object.
+        It is not possible to synchronize on a value object, so there is no monitor
+        usage information to return. The fields of the returned
+        <functionlink id="jvmtiMonitorUsage"></functionlink> structure will always
+        be filled in with null values and zeros.
         <p/>
         <b> This function does not support getting information about an object's monitor
             when it is owned by a virtual thread. It also does not support returning a
@@ -10697,6 +10773,18 @@ myInit() {
           <eventlink id="VirtualThreadEnd"></eventlink>.
         </description>
       </capabilityfield>
+      <capabilityfield id="can_support_value_objects" since="28">
+        <description>
+          Can support value objects.
+          When preview features are enabled and this capability is enabled, then
+          events are sent for value objects when the following two events are enabled:
+          <eventlink id="VMObjectAlloc"></eventlink>,
+          <eventlink id="SampledObjectAlloc"></eventlink>.
+          <b> can_support_value_objects is a preview API of the Java platform. </b>
+          <i>Preview features may be removed in a future release, or upgraded to
+          permanent features of the Java platform.</i>
+        </description>
+      </capabilityfield>
     </capabilitiestypedef>
 
     <function id="GetPotentialCapabilities" jkernel="yes" phase="onload" num="140">
@@ -12019,7 +12107,7 @@ myInit() {
     </errorid>
     <errorid id="JVMTI_ERROR_OPAQUE_FRAME" num="32">
       Information about the frame is not available (e.g. for native frames),
-      or the function cannot be performed on the thread's current frame.
+      or the implementation is unable to provide this functionality on this frame.
     </errorid>
     <errorid id="JVMTI_ERROR_DUPLICATE" num="40">
       Item already set.
@@ -12831,16 +12919,17 @@ myInit() {
       parameters  uniquely identify the current location
       (where the exception was detected) and allow
       the mapping to source file and line number when that information is
-      available. The <code>exception</code> field identifies the thrown
+      available. The <code>exception</code> parameter identifies the thrown
       exception object. The <code>catch_method</code>
       and <code>catch_location</code> identify the location of the catch clause,
       if any, that handles the thrown exception. If there is no such catch clause,
-      each field is set to 0. There is no guarantee that the thread will ever
+      the <code>catch_method</code> is set to null and the <code>catch_location</code>is set to 0.
+      There is no guarantee that the thread will ever
       reach this catch clause. If there are native methods on the call stack
       between the throw location and the catch clause, the exception may
       be reset by one of those native methods.
-      Similarly, exceptions that are reported as uncaught (<code>catch_klass</code>
-      et al. set to 0) may in fact be caught by native code.
+      Similarly, exceptions that are reported as uncaught (<code>catch_method</code>
+      set to null) may in fact be caught by native code.
       Agents can check for these occurrences by monitoring
       <eventlink id="ExceptionCatch"></eventlink> events.
       Note that finally clauses are implemented as catch and re-throw. Therefore they
@@ -12929,7 +13018,7 @@ myInit() {
       available. For exceptions caught in a Java programming language method, the
       <code>exception</code> object identifies the exception object. Exceptions
       caught in native methods are not necessarily available by the time the
-      exception catch is reported, so the <code>exception</code> field is set
+      exception catch is reported, so the <code>exception</code> parameter is set
       to null.
     </description>
     <origin>jvmdi</origin>
@@ -13184,7 +13273,7 @@ myInit() {
          id="ClassLoad" const="JVMTI_EVENT_CLASS_LOAD" filtered="thread" phase="start" num="55">
     <description>
       A class load event is generated
-      <functionlink id="GetLoadedClasses">when a class or interface is created.</functionlink>.
+      <functionlink id="GetLoadedClasses">when a class or interface is created</functionlink>.
       <p/>
       Array class creation does not generate a class load event.
       The creation of a primitive class (for example, java.lang.Integer.TYPE)
@@ -13999,7 +14088,11 @@ myInit() {
       VM. These methods should send this event.
       Virtual machines which are incapable of bytecode instrumentation
       for some or all of their methods can send this event.
-
+      <p/>
+      When preview features are enabled and the capability <code>can_support_value_objects</code>
+      is enabled, this event is sent for the value object allocations.
+      <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter in such cases.
+      <p/>
       Note that the <internallink
       id="SampledObjectAlloc">SampledObjectAlloc</internallink>
       event is triggered on all Java object allocations, including those
@@ -14025,6 +14118,7 @@ myInit() {
     <origin>new</origin>
     <capabilities>
       <required id="can_generate_vm_object_alloc_events"></required>
+      <capability id="can_support_value_objects"></capability>
     </capabilities>
     <parameters>
       <param id="jni_env">
@@ -14045,6 +14139,8 @@ myInit() {
         <jobject/>
           <description>
             JNI local reference to the object that was allocated.
+            Null when preview features are enabled, the capability <code>can_support_value_objects</code>
+            is enabled, and the allocated object has no identity.
           </description>
       </param>
       <param id="object_klass">
@@ -14091,10 +14187,15 @@ myInit() {
       In conjunction with weak references and the function
       <functionlink id="GetStackTrace"></functionlink>, a user can track which objects were allocated from which
       stack trace, and which are still live during the execution of the program.
+      <p/>
+      When preview features are enabled and the capability <code>can_support_value_objects</code>
+      is enabled, this event is sent for the allocated objects that have no identity.
+      <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter in such cases.
     </description>
     <origin>new</origin>
     <capabilities>
       <required id="can_generate_sampled_object_alloc_events"></required>
+      <capability id="can_support_value_objects"></capability>
     </capabilities>
     <parameters>
       <param id="jni_env">
@@ -14115,6 +14216,8 @@ myInit() {
         <jobject/>
         <description>
           JNI local reference to the object that was allocated.
+          Null when preview features are enabled, the capability <code>can_support_value_objects</code>
+          is enabled, and the allocated object has no identity.
         </description>
       </param>
       <param id="object_klass">
@@ -14138,6 +14241,10 @@ myInit() {
       An Object Free event is sent when the garbage collector frees an object.
       Events are only sent for tagged objects--see
       <internallink id="Heap">heap functions</internallink>.
+      <p/>
+      When preview features are enabled, the Object Free event is only sent for tagged
+      <externallink id="jni/functions.html#hasidentity">identity objects</externallink>.
+      <b>The event is not sent for tagged value objects.</b>
       <p/>
       The event handler must not use JNI functions and
       must not use <jvmti/> functions except those which
@@ -15477,6 +15584,15 @@ typedef void (JNICALL *jvmtiEventVMInit)
   <change date="7 June 2023" version="21.0.0">
       Virtual threads finalized to be a permanent feature.
       Agent start-up in the live phase now specified to print a warning.
+  </change>
+  <change date="10 January 2025" version="25.0.0">
+      Add new function ClearAllFramePops. Needed to speedup debugger single stepping.
+  </change>
+  <change date="30 June 2026" version="28.0.0">
+      Support for value objects (Preview):
+      Add new capability: can_support_value_objects which enables
+      the following events for value objects:
+      JVMTI_EVENT_VM_OBJECT_ALLOC, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC.
   </change>
 </changehistory>
 

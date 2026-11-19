@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,6 +67,7 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import org.jspecify.annotations.Nullable;
 
 import sun.nio.ch.FileChannelImpl;
 
@@ -244,7 +245,7 @@ public abstract class FileSystemProvider {
      *
      * <p> This method returns a reference to a {@code FileSystem} that was
      * created by invoking the {@link #newFileSystem(URI,Map) newFileSystem(URI,Map)}
-     * method. File systems created the {@link #newFileSystem(Path,Map)
+     * method. File systems created by the {@link #newFileSystem(Path,Map)
      * newFileSystem(Path,Map)} method are not returned by this method.
      * The file system is identified by its {@code URI}. Its exact form
      * is highly provider dependent. In the case of the default provider the URI's
@@ -1090,7 +1091,7 @@ public abstract class FileSystemProvider {
      *
      * @since 20
      */
-    public <A extends BasicFileAttributes> A readAttributesIfExists(Path path,
+    public <A extends BasicFileAttributes> @Nullable A readAttributesIfExists(Path path,
                                                                     Class<A> type,
                                                                     LinkOption... options)
         throws IOException

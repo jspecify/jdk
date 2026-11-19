@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package java.security;
 
 import java.security.spec.AlgorithmParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An asymmetric key, which can be either a public key or a private key.
@@ -34,7 +35,7 @@ import java.security.spec.AlgorithmParameterSpec;
  *
  * @since 22
  */
-public interface AsymmetricKey extends Key {
+public non-sealed interface AsymmetricKey extends Key, BinaryEncodable {
     /**
      * Returns the parameters associated with this key.
      * The parameters are optional and may be either
@@ -46,7 +47,7 @@ public interface AsymmetricKey extends Key {
      *
      * @return the associated parameters, may be {@code null}
      */
-    default AlgorithmParameterSpec getParams() {
+    default @Nullable AlgorithmParameterSpec getParams() {
         return null;
     }
 }

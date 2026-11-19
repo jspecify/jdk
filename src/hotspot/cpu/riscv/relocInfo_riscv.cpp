@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * Copyright (c) 2020, 2022, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -24,7 +24,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "code/relocInfo.hpp"
 #include "nativeInst_riscv.hpp"
@@ -45,7 +44,7 @@ void Relocation::pd_set_data_value(address x, bool verify_only) {
       if (MacroAssembler::is_load_pc_relative_at(addr())) {
         address constptr = (address)code()->oop_addr_at(reloc->oop_index());
         bytes = MacroAssembler::pd_patch_instruction_size(addr(), constptr);
-        assert((address)Bytes::get_native_u8(constptr) == x, "error in oop relocation");
+        assert((address)MacroAssembler::get_native_u8(constptr) == x, "error in oop relocation");
       } else {
         bytes = MacroAssembler::patch_oop(addr(), x);
       }
@@ -73,13 +72,17 @@ void Relocation::pd_set_data_value(address x, bool verify_only) {
 }
 
 address Relocation::pd_call_destination(address orig_addr) {
-  assert(is_call(), "should be an address instruction here");
+  assert(is_call(), "should be a call here");
   if (NativeCall::is_at(addr())) {
-    return nativeCall_at(addr())->reloc_destination(orig_addr);
+    // A reloc call keeps its destination in its address stub, so the
+    // instruction sequence at orig_addr must not be decoded here: the
+    // auipc + ld pair points to itself until the call is linked to the
+    // stub in pd_set_call_destination.
+    NativeCall* call = nativeCall_at(addr());
+    return call->destination();
   }
-  // Non call reloc
+
   if (orig_addr != nullptr) {
-    // the extracted address from the instructions in address orig_addr
     address new_addr = MacroAssembler::pd_call_destination(orig_addr);
     // If call is branch to self, don't try to relocate it, just leave it
     // as branch to self. This happens during code generation if the code
@@ -88,20 +91,23 @@ address Relocation::pd_call_destination(address orig_addr) {
     new_addr = (new_addr == orig_addr) ? addr() : new_addr;
     return new_addr;
   }
+
   return MacroAssembler::pd_call_destination(addr());
 }
 
 void Relocation::pd_set_call_destination(address x) {
-  assert(is_call(), "should be an address instruction here");
+  assert(is_call(), "should be a call here");
   if (NativeCall::is_at(addr())) {
-    NativeCall* nc = nativeCall_at(addr());
-    if (nc->reloc_set_destination(x)) {
-      return;
+    // Nothing to do while code is still living in a CodeBuffer, where the call
+    // does not have an address stub yet. See NativeCall::stub_address().
+    if (x != nullptr) {
+      NativeCall* call = nativeCall_at(addr());
+      call->set_destination(x);
     }
+  } else {
+    MacroAssembler::pd_patch_instruction_size(addr(), x);
   }
-  MacroAssembler::pd_patch_instruction_size(addr(), x);
-  address pd_call = pd_call_destination(addr());
-  assert(pd_call == x, "fail in reloc");
+  guarantee(pd_call_destination(addr()) == x, "fail in reloc");
 }
 
 address* Relocation::pd_address_in_code() {

@@ -63,8 +63,6 @@ public abstract class LazyCompositeData
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         return compositeData().equals(obj);
     }

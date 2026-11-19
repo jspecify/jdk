@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,6 +88,7 @@ static jboolean _have_classpath = JNI_FALSE;
 static const char *_fVersion;
 static jboolean _wc_enabled = JNI_FALSE;
 static jboolean dumpSharedSpaces = JNI_FALSE; /* -Xshare:dump */
+static const char *launchModeNames[] = { "Unknown", "Main class", "JAR file", "Module", "Source" };
 
 /*
  * Values that will be stored into splash screen environment variables.
@@ -549,6 +550,11 @@ JavaMain(void* _args)
         LEAVE();
     }
 
+    /* Exit normally after showing the settings if no application was specified. */
+    if (showSettings != NULL && what == NULL) {
+        LEAVE();
+    }
+
     FreeKnownVMs(); /* after last possible PrintUsage */
 
     if (JLI_IsTraceLauncher()) {
@@ -666,7 +672,14 @@ JavaMain(void* _args)
         ret = 1;
     }
     LEAVE();
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wreturn-type"
+#endif
 }
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 /*
  * Test if the given name is one of the class path options.
@@ -715,7 +728,8 @@ IsModuleOption(const char* name) {
            JLI_StrCmp(name, "--add-exports") == 0 ||
            JLI_StrCmp(name, "--add-opens") == 0 ||
            JLI_StrCmp(name, "--add-reads") == 0 ||
-           JLI_StrCmp(name, "--patch-module") == 0;
+           JLI_StrCmp(name, "--patch-module") == 0 ||
+           JLI_StrCmp(name, "--enable-final-field-mutation") == 0;
 }
 
 static jboolean
@@ -727,7 +741,21 @@ IsLongFormModuleOption(const char* name) {
            JLI_StrCCmp(name, "--limit-modules=") == 0 ||
            JLI_StrCCmp(name, "--add-exports=") == 0 ||
            JLI_StrCCmp(name, "--add-reads=") == 0 ||
-           JLI_StrCCmp(name, "--patch-module=") == 0;
+           JLI_StrCCmp(name, "--patch-module=") == 0 ||
+           JLI_StrCCmp(name, "--enable-final-field-mutation=") == 0;
+}
+
+/*
+ * Test if the given name is a non-module VM white-space option that
+ * will be passed to the VM with its corresponding long-form option
+ * name and "=" delimiter.
+ */
+static jboolean
+IsNonModuleVMWhiteSpaceOption(const char* name) {
+    return JLI_StrCmp(name, "--illegal-native-access") == 0 ||
+           JLI_StrCmp(name, "--illegal-final-field-mutation") == 0 ||
+           JLI_StrCmp(name, "--sun-misc-unsafe-memory-access") == 0 ||
+           JLI_StrCmp(name, "--finalization") == 0;
 }
 
 /*
@@ -736,7 +764,8 @@ IsLongFormModuleOption(const char* name) {
 jboolean
 IsWhiteSpaceOption(const char* name) {
     return IsModuleOption(name) ||
-           IsLauncherOption(name);
+           IsLauncherOption(name) ||
+           IsNonModuleVMWhiteSpaceOption(name);
 }
 
 /*
@@ -1018,6 +1047,8 @@ SetClassPath(const char *s)
     if (s == NULL)
         return;
     s = JLI_WildcardExpandClasspath(s);
+    if (s == NULL)
+        return;
     if (sizeof(format) - 2 + JLI_StrLen(s) < JLI_StrLen(s))
         // s is became corrupted after expanding wildcards
         return;
@@ -1049,7 +1080,7 @@ static void
 SetMainModule(const char *s)
 {
     static const char format[] = "-Djdk.module.main=%s";
-    char* slash = JLI_StrChr(s, '/');
+    const char* slash = JLI_StrChr(s, '/');
     size_t s_len, def_len;
     char *def;
 
@@ -1111,7 +1142,7 @@ GetOpt(int *pargc, char ***pargv, char **poption, char **pvalue) {
         }
         kind = IsLauncherMainOption(arg) ? LAUNCHER_MAIN_OPTION
                                          : LAUNCHER_OPTION_WITH_ARGUMENT;
-    } else if (IsModuleOption(arg)) {
+    } else if (IsModuleOption(arg) || IsNonModuleVMWhiteSpaceOption(arg)) {
         kind = VM_LONG_OPTION_WITH_ARGUMENT;
         if (has_arg) {
             value = *argv;
@@ -1225,6 +1256,12 @@ ParseArguments(int *pargc, char ***pargv,
             } else if (kind == VM_LONG_OPTION_WITH_ARGUMENT) {
                 AddLongFormOption(option, value);
             }
+        /*
+         * Normalize a missing argument to the equivalent "--option=" form
+         * and let the subsequent option validation handle the empty value.
+         */
+        } else if (!has_arg && IsNonModuleVMWhiteSpaceOption(arg)) {
+            AddLongFormOption(option, "");
 /*
  * Error missing argument
  */
@@ -1294,21 +1331,9 @@ ParseArguments(int *pargc, char ***pargv,
             AddOption("-verbose:gc", NULL);
         } else if (JLI_StrCmp(arg, "-debug") == 0) {
             JLI_ReportErrorMessage(ARG_DEPRECATED, "-debug");
-        } else if (JLI_StrCmp(arg, "-noclassgc") == 0) {
-            JLI_ReportErrorMessage(ARG_DEPRECATED, "-noclassgc");
-            AddOption("-Xnoclassgc", NULL);
         } else if (JLI_StrCmp(arg, "-verify") == 0) {
             JLI_ReportErrorMessage(ARG_DEPRECATED, "-verify");
             AddOption("-Xverify:all", NULL);
-        } else if (JLI_StrCmp(arg, "-verifyremote") == 0) {
-            JLI_ReportErrorMessage(ARG_DEPRECATED, "-verifyremote");
-            AddOption("-Xverify:remote", NULL);
-        } else if (JLI_StrCmp(arg, "-noverify") == 0) {
-            /*
-             * Note that no 'deprecated' message is needed here because the VM
-             * issues 'deprecated' messages for -noverify and -Xverify:none.
-             */
-            AddOption("-Xverify:none", NULL);
         } else if (JLI_StrCCmp(arg, "-ss") == 0 ||
                    JLI_StrCCmp(arg, "-ms") == 0 ||
                    JLI_StrCCmp(arg, "-mx") == 0) {
@@ -1354,7 +1379,11 @@ ParseArguments(int *pargc, char ***pargv,
 
     if (*pwhat == NULL) {
         /* LM_UNKNOWN okay for options that exit */
-        if (!listModules && !describeModule && !validateModules && !dumpSharedSpaces) {
+        if (!listModules &&
+            !describeModule &&
+            !validateModules &&
+            !dumpSharedSpaces &&
+            !showSettings) {
             *pret = 1;
             printUsageKind = HELP_CONCISE;
         }
@@ -1372,6 +1401,8 @@ ParseArguments(int *pargc, char ***pargv,
     }
 
     if (mode == LM_SOURCE) {
+        // communicate the launcher mode to runtime
+        AddOption("-Dsun.java.launcher.mode=source", NULL);
         AddOption("--add-modules=ALL-DEFAULT", NULL);
         *pwhat = SOURCE_LAUNCHER_MAIN_ENTRY;
         // adjust (argc, argv) so that the name of the source file
@@ -1494,6 +1525,7 @@ InitializeJVM(JavaVM **pvm, JNIEnv **penv, InvocationFunctions *ifn)
 
     r = ifn->CreateJavaVM(pvm, (void **)penv, &args);
     JLI_MemFree(options);
+    options = NULL;
     return r == JNI_OK;
 }
 
@@ -2192,6 +2224,7 @@ FreeKnownVMs()
         knownVMs[i].name = NULL;
     }
     JLI_MemFree(knownVMs);
+    knownVMs = NULL;
 }
 
 /*
@@ -2265,8 +2298,9 @@ ShowSplashScreen()
     (void)UnsetEnv(SPLASH_JAR_ENV_ENTRY);
 
     JLI_MemFree(splash_jar_entry);
+    splash_jar_entry = NULL;
     JLI_MemFree(splash_file_entry);
-
+    splash_file_entry = NULL;
 }
 
 static const char* GetFullVersion()

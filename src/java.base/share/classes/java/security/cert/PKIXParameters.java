@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Parameters used as input for the PKIX {@code CertPathValidator}
@@ -300,7 +301,7 @@ public class PKIXParameters implements CertPathParameters {
      * @param store the {@code CertStore} to add. If {@code null},
      * the store is ignored (not added to list).
      */
-    public void addCertStore(CertStore store) {
+    public void addCertStore(@Nullable CertStore store) {
         if (store != null) {
             this.certStores.add(store);
         }
@@ -490,7 +491,7 @@ public class PKIXParameters implements CertPathParameters {
      * @return the {@code Date}, or {@code null} if not set
      * @see #setDate
      */
-    public Date getDate() {
+    public @Nullable Date getDate() {
         if (date == null)
             return null;
         else
@@ -508,7 +509,7 @@ public class PKIXParameters implements CertPathParameters {
      * current time
      * @see #getDate
      */
-    public void setDate(Date date) {
+    public void setDate(@Nullable Date date) {
         if (date != null)
             this.date = (Date) date.clone();
         else
@@ -551,7 +552,7 @@ public class PKIXParameters implements CertPathParameters {
      * are not of type {@code java.security.cert.PKIXCertPathChecker}
      * @see #getCertPathCheckers
      */
-    public void setCertPathCheckers(List<PKIXCertPathChecker> checkers) {
+    public void setCertPathCheckers(@Nullable List<PKIXCertPathChecker> checkers) {
         if (checkers != null) {
             List<PKIXCertPathChecker> tmpList = new ArrayList<>();
             for (PKIXCertPathChecker checker : checkers) {
@@ -593,7 +594,7 @@ public class PKIXParameters implements CertPathParameters {
      * @param checker a {@code PKIXCertPathChecker} to add to the list of
      * checks. If {@code null}, the checker is ignored (not added to list).
      */
-    public void addCertPathChecker(PKIXCertPathChecker checker) {
+    public void addCertPathChecker(@Nullable PKIXCertPathChecker checker) {
         if (checker != null) {
             certPathCheckers.add((PKIXCertPathChecker)checker.clone());
         }
@@ -635,7 +636,7 @@ public class PKIXParameters implements CertPathParameters {
      * on the target certificate (or {@code null})
      * @see #setTargetCertConstraints
      */
-    public CertSelector getTargetCertConstraints() {
+    public @Nullable CertSelector getTargetCertConstraints() {
         if (certSelector != null) {
             return (CertSelector) certSelector.clone();
         } else {
@@ -656,7 +657,7 @@ public class PKIXParameters implements CertPathParameters {
      * on the target certificate (or {@code null})
      * @see #getTargetCertConstraints
      */
-    public void setTargetCertConstraints(CertSelector selector) {
+    public void setTargetCertConstraints(@Nullable CertSelector selector) {
         if (selector != null)
             certSelector = (CertSelector) selector.clone();
         else

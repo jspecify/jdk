@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 
 #include "compiler/oopMap.hpp"
 #include "gc/shared/workerThread.hpp"
@@ -45,7 +44,7 @@ const char* ShenandoahGC::degen_point_to_string(ShenandoahDegenPoint point) {
       return "Mark";
     case _degenerated_evac:
       return "Evacuation";
-    case _degenerated_updaterefs:
+    case _degenerated_update_refs:
       return "Update References";
     default:
       ShouldNotReachHere();
@@ -91,9 +90,9 @@ void ShenandoahGC::update_roots(bool full_gc) {
                                     ShenandoahPhaseTimings::degen_gc_update_roots;
 
   ShenandoahGCPhase phase(p);
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
   DerivedPointerTable::clear();
-#endif
+#endif // COMPILER2
 
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   WorkerThreads* workers = heap->workers();
@@ -103,7 +102,7 @@ void ShenandoahGC::update_roots(bool full_gc) {
   ShenandoahUpdateRootsTask update_roots(&root_updater, check_alive);
   workers->run_task(&update_roots);
 
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
   DerivedPointerTable::update_pointers();
-#endif
+#endif // COMPILER2
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,6 +95,8 @@ import java.time.temporal.ValueRange;
 import java.time.zone.ZoneRules;
 import java.util.Objects;
 
+import jdk.internal.util.DateTimeHelper;
+
 /**
  * A time with an offset from UTC/Greenwich in the ISO-8601 calendar system,
  * such as {@code 10:15:30+01:00}.
@@ -107,11 +109,18 @@ import java.util.Objects;
  * in an {@code OffsetTime}.
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
- * The {@code equals} method should be used for comparisons.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code OffsetTime} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @implSpec
  * This class is immutable and thread-safe.
@@ -120,7 +129,8 @@ import java.util.Objects;
  */
 @NullMarked
 @jdk.internal.ValueBased
-public final class OffsetTime
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class OffsetTime
         implements Temporal, TemporalAdjuster, Comparable<OffsetTime>, Serializable {
 
     /**
@@ -147,11 +157,11 @@ public final class OffsetTime
     private static final long serialVersionUID = 7264499704384272492L;
 
     /**
-     * The local date-time.
+     * @serial The local date-time.
      */
     private final LocalTime time;
     /**
-     * The offset from UTC/Greenwich.
+     * @serial The offset from UTC/Greenwich.
      */
     private final ZoneOffset offset;
 
@@ -398,7 +408,7 @@ public final class OffsetTime
      * @return true if the field is supported on this time, false if not
      */
     @Override
-    public boolean isSupported(TemporalField field) {
+    public boolean isSupported(@Nullable TemporalField field) {
         if (field instanceof ChronoField) {
             return field.isTimeBased() || field == OFFSET_SECONDS;
         }
@@ -434,7 +444,7 @@ public final class OffsetTime
      * @return true if the unit can be added/subtracted, false if not
      */
     @Override  // override for Javadoc
-    public boolean isSupported(TemporalUnit unit) {
+    public boolean isSupported(@Nullable TemporalUnit unit) {
         if (unit instanceof ChronoUnit) {
             return unit.isTimeBased();
         }
@@ -1364,8 +1374,6 @@ public final class OffsetTime
      * @return true if this is equal to the other time
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;
@@ -1406,7 +1414,7 @@ public final class OffsetTime
     public String toString() {
         var offsetStr = offset.toString();
         var buf = new StringBuilder(18 + offsetStr.length());
-        time.formatTo(buf);
+        DateTimeHelper.formatTo(buf, time);
         return buf.append(offsetStr).toString();
     }
 
@@ -1435,6 +1443,7 @@ public final class OffsetTime
      * @throws InvalidObjectException always
      */
     @java.io.Serial
+    @SuppressWarnings("serial") // this method is not invoked for value classes
     private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }

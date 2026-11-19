@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import jdk.jfr.Description;
+import jdk.jfr.SettingControl;
 import jdk.jfr.Label;
 import jdk.jfr.MetadataDefinition;
 import jdk.jfr.Name;
@@ -38,33 +39,39 @@ import jdk.jfr.Timespan;
 import jdk.jfr.internal.PlatformEventType;
 import jdk.jfr.internal.Type;
 import jdk.jfr.internal.util.ValueParser;
+import jdk.jfr.internal.util.Utils;
 
 @MetadataDefinition
 @Label("Cutoff")
 @Description("Limit running time of event")
 @Name(Type.SETTINGS_PREFIX + "Cutoff")
 @Timespan
-public final class CutoffSetting extends JDKSettingControl {
+public final class CutoffSetting extends SettingControl {
     public static final String DEFAULT_VALUE = ValueParser.INFINITY;
-    private String value = DEFAULT_VALUE;
     private final PlatformEventType eventType;
+    private final String defaultValue;
+    private String value;
 
-    public CutoffSetting(PlatformEventType eventType) {
-       this.eventType = Objects.requireNonNull(eventType);
+    public CutoffSetting(PlatformEventType eventType, String defaultValue) {
+        this.eventType = Objects.requireNonNull(eventType);
+        this.defaultValue = Utils.validTimespanInfinity(eventType, "Cutoff", defaultValue, DEFAULT_VALUE);
+        this.value = defaultValue;
     }
 
     @Override
     public String combine(Set<String> values) {
-        long max = 0;
+        Long max = null;
         String text = null;
         for (String value : values) {
             long nanos = ValueParser.parseTimespanWithInfinity(value, MISSING);
-            if (nanos != MISSING && nanos > max) {
-                text = value;
-                max = nanos;
+            if (nanos != MISSING) {
+                if (max == null || nanos > max) {
+                    text = value;
+                    max = nanos;
+                }
             }
         }
-        return Objects.requireNonNullElse(text, DEFAULT_VALUE);
+        return Objects.requireNonNullElse(text, defaultValue);
     }
 
     @Override

@@ -39,6 +39,8 @@ import java.util.concurrent.TimeUnit;
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.Unsafe;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Basic thread blocking primitives for creating locks and other
@@ -121,7 +123,7 @@ import jdk.internal.misc.Unsafe;
  *     }
  *
  *     waiters.remove();
- *     // ensure correct interrupt status on return
+ *     // ensure correct interrupted status on return
  *     if (wasInterrupted)
  *       Thread.currentThread().interrupt();
  *   }
@@ -139,7 +141,8 @@ import jdk.internal.misc.Unsafe;
  *
  * @since 1.5
  */
-public class LockSupport {
+@NullMarked
+public final class LockSupport {
     private LockSupport() {} // Cannot be instantiated.
 
     private static void setBlocker(Thread t, Object arg) {
@@ -160,7 +163,7 @@ public class LockSupport {
      * @param blocker the blocker object
      * @since 14
      */
-    public static void setCurrentBlocker(Object blocker) {
+    public static void setCurrentBlocker(@Nullable Object blocker) {
         U.putReferenceOpaque(Thread.currentThread(), PARKBLOCKER, blocker);
     }
 
@@ -175,7 +178,7 @@ public class LockSupport {
      * @param thread the thread to unpark, or {@code null}, in which case
      *        this operation has no effect
      */
-    public static void unpark(Thread thread) {
+    public static void unpark(@Nullable Thread thread) {
         if (thread != null) {
             if (thread.isVirtual()) {
                 JLA.unparkVirtualThread(thread);
@@ -207,13 +210,13 @@ public class LockSupport {
      * <p>This method does <em>not</em> report which of these caused the
      * method to return. Callers should re-check the conditions which caused
      * the thread to park in the first place. Callers may also determine,
-     * for example, the interrupt status of the thread upon return.
+     * for example, the interrupted status of the thread upon return.
      *
      * @param blocker the synchronization object responsible for this
      *        thread parking
      * @since 1.6
      */
-    public static void park(Object blocker) {
+    public static void park(@Nullable Object blocker) {
         Thread t = Thread.currentThread();
         setBlocker(t, blocker);
         try {
@@ -252,7 +255,7 @@ public class LockSupport {
      * <p>This method does <em>not</em> report which of these caused the
      * method to return. Callers should re-check the conditions which caused
      * the thread to park in the first place. Callers may also determine,
-     * for example, the interrupt status of the thread, or the elapsed time
+     * for example, the interrupted status of the thread, or the elapsed time
      * upon return.
      *
      * @param blocker the synchronization object responsible for this
@@ -260,7 +263,7 @@ public class LockSupport {
      * @param nanos the maximum number of nanoseconds to wait
      * @since 1.6
      */
-    public static void parkNanos(Object blocker, long nanos) {
+    public static void parkNanos(@Nullable Object blocker, long nanos) {
         if (nanos > 0) {
             Thread t = Thread.currentThread();
             setBlocker(t, blocker);
@@ -300,7 +303,7 @@ public class LockSupport {
      * <p>This method does <em>not</em> report which of these caused the
      * method to return. Callers should re-check the conditions which caused
      * the thread to park in the first place. Callers may also determine,
-     * for example, the interrupt status of the thread, or the current time
+     * for example, the interrupted status of the thread, or the current time
      * upon return.
      *
      * @param blocker the synchronization object responsible for this
@@ -309,7 +312,7 @@ public class LockSupport {
      *        to wait until
      * @since 1.6
      */
-    public static void parkUntil(Object blocker, long deadline) {
+    public static void parkUntil(@Nullable Object blocker, long deadline) {
         Thread t = Thread.currentThread();
         setBlocker(t, blocker);
         try {
@@ -331,7 +334,7 @@ public class LockSupport {
      * @throws NullPointerException if argument is null
      * @since 1.6
      */
-    public static Object getBlocker(Thread t) {
+    public static @Nullable Object getBlocker(Thread t) {
         if (t == null)
             throw new NullPointerException();
         return U.getReferenceOpaque(t, PARKBLOCKER);
@@ -360,7 +363,7 @@ public class LockSupport {
      * <p>This method does <em>not</em> report which of these caused the
      * method to return. Callers should re-check the conditions which caused
      * the thread to park in the first place. Callers may also determine,
-     * for example, the interrupt status of the thread upon return.
+     * for example, the interrupted status of the thread upon return.
      */
     public static void park() {
         if (Thread.currentThread().isVirtual()) {
@@ -395,7 +398,7 @@ public class LockSupport {
      * <p>This method does <em>not</em> report which of these caused the
      * method to return. Callers should re-check the conditions which caused
      * the thread to park in the first place. Callers may also determine,
-     * for example, the interrupt status of the thread, or the elapsed time
+     * for example, the interrupted status of the thread, or the elapsed time
      * upon return.
      *
      * @param nanos the maximum number of nanoseconds to wait
@@ -434,7 +437,7 @@ public class LockSupport {
      * <p>This method does <em>not</em> report which of these caused the
      * method to return. Callers should re-check the conditions which caused
      * the thread to park in the first place. Callers may also determine,
-     * for example, the interrupt status of the thread, or the current time
+     * for example, the interrupted status of the thread, or the current time
      * upon return.
      *
      * @param deadline the absolute time, in milliseconds from the Epoch,

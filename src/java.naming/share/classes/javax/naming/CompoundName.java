@@ -244,8 +244,6 @@ public class CompoundName implements Name {
       * @return true if obj is equal to this compound name, false otherwise.
       * @see #compareTo(java.lang.Object obj)
       */
-    
-    
     public boolean equals(@Nullable Object obj) {
         // %%% check syntax too?
         return (obj instanceof CompoundName other) &&

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import jdk.internal.ref.CleanerImpl;
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * {@code Cleaner} manages a set of object references and corresponding cleaning actions.
@@ -132,6 +133,7 @@ import java.util.function.Function;
  * All cleaning actions registered to a cleaner should be mutually compatible.
  * @since 9
  */
+@NullMarked
 public final class Cleaner {
 
     /**
@@ -218,9 +220,11 @@ public final class Cleaner {
      * @param obj   the object to monitor
      * @param action a {@code Runnable} to invoke when the object becomes phantom reachable
      * @return a {@code Cleanable} instance
+     * @throws IdentityException if the object is not an
+     *         {@link java.util.Objects#hasIdentity(Object) identity object}
      */
-    public Cleanable register(Object obj, Runnable action) {
-        Objects.requireNonNull(obj, "obj");
+    public Cleanable register(@jdk.internal.RequiresIdentity Object obj, Runnable action) {
+        Objects.requireIdentity(obj, "obj");
         Objects.requireNonNull(action, "action");
         return new CleanerImpl.PhantomCleanableRef(obj, this, action);
     }

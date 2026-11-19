@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@ import sun.awt.CGraphicsConfig;
 import sun.awt.CGraphicsDevice;
 import sun.awt.image.OffScreenImage;
 import sun.awt.image.SunVolatileImage;
+import sun.awt.image.SurfaceManager;
+import sun.awt.image.VolatileSurfaceManager;
 import sun.java2d.Disposer;
 import sun.java2d.DisposerRecord;
 import sun.java2d.Surface;
@@ -49,6 +51,7 @@ import java.awt.Image;
 import java.awt.ImageCapabilities;
 import java.awt.Rectangle;
 import java.awt.Transparency;
+import java.awt.Window;
 
 import java.awt.color.ColorSpace;
 import java.awt.image.BufferedImage;
@@ -67,7 +70,7 @@ import static sun.java2d.pipe.hw.ContextCapabilities.*;
 import static sun.java2d.metal.MTLContext.MTLContextCaps.CAPS_EXT_BIOP_SHADER;
 
 public final class MTLGraphicsConfig extends CGraphicsConfig
-        implements AccelGraphicsConfig
+        implements AccelGraphicsConfig, SurfaceManager.Factory
 {
     private static ImageCapabilities imageCaps = new MTLImageCaps();
 
@@ -206,11 +209,12 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
         return true;
     }
 
-    private static class MTLGCDisposerRecord implements DisposerRecord {
+    private static final class MTLGCDisposerRecord implements DisposerRecord {
         private long pCfgInfo;
         public MTLGCDisposerRecord(long pCfgInfo) {
             this.pCfgInfo = pCfgInfo;
         }
+        @Override
         public void dispose() {
             if (pCfgInfo != 0) {
                 MTLRenderQueue.disposeGraphicsConfig(pCfgInfo);
@@ -233,7 +237,11 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
     public Image createAcceleratedImage(Component target,
                                         int width, int height)
     {
-        ColorModel model = getColorModel(Transparency.OPAQUE);
+        int transparency = Transparency.OPAQUE;
+        if (target instanceof Window window && !window.isOpaque()) {
+            transparency = Transparency.TRANSLUCENT;
+        }
+        ColorModel model = getColorModel(transparency);
         WritableRaster wr = model.createCompatibleWritableRaster(width, height);
         return new OffScreenImage(target, model, wr,
                 model.isAlphaPremultiplied());
@@ -300,7 +308,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
         }
     }
 
-    private static class MTLBufferCaps extends BufferCapabilities {
+    private static final class MTLBufferCaps extends BufferCapabilities {
         public MTLBufferCaps(boolean dblBuf) {
             super(imageCaps, imageCaps,
                     dblBuf ? FlipContents.UNDEFINED : null);
@@ -315,10 +323,11 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
         return bufferCaps;
     }
 
-    private static class MTLImageCaps extends ImageCapabilities {
+    private static final class MTLImageCaps extends ImageCapabilities {
         private MTLImageCaps() {
             super(true);
         }
+        @Override
         public boolean isTrueVolatile() {
             return true;
         }
@@ -371,5 +380,11 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
     public int getMaxTextureHeight() {
         return Math.max(maxTextureSize / getDevice().getScaleFactor(),
                 getBounds().height);
+    }
+
+    @Override
+    public VolatileSurfaceManager createVolatileManager(SunVolatileImage image,
+                                                        Object context) {
+        return new MTLVolatileSurfaceManager(image, context);
     }
 }

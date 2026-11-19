@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 import static java.lang.constant.ConstantDescs.CD_String;
 import static java.util.Objects.requireNonNull;
@@ -41,12 +42,12 @@ import static jdk.internal.constant.ConstantUtils.validateMemberName;
  * A <a href="package-summary.html#nominal">nominal descriptor</a> for an
  * {@code invokedynamic} call site.
  *
- * <p>Concrete subtypes of {@linkplain DynamicCallSiteDesc} should be immutable
- * and their behavior should not rely on object identity.
+ * <p>A {@code DynamicCallSiteDesc} is immutable and its behavior does not
+ * rely on object identity.
  *
  * @since 12
  */
-public class DynamicCallSiteDesc {
+public final class DynamicCallSiteDesc implements ConstantDescs.CallSiteBootstrapMethodHook {
 
     private final DirectMethodHandleDesc bootstrapMethod;
     private final ConstantDesc[] bootstrapArgs;
@@ -207,12 +208,14 @@ public class DynamicCallSiteDesc {
     }
 
     /**
-     * Returns a {@link MethodHandleDesc} describing the bootstrap method for
+     * Returns a {@link DirectMethodHandleDesc} describing the bootstrap method for
      * the {@code invokedynamic}.
      *
      * @return the bootstrap method for the {@code invokedynamic}
+     * @since 28
      */
-    public MethodHandleDesc bootstrapMethod() { return bootstrapMethod; }
+    @Override
+    public DirectMethodHandleDesc bootstrapMethod() { return bootstrapMethod; }
 
     /**
      * Returns {@link ConstantDesc}s describing the bootstrap arguments for the
@@ -256,7 +259,7 @@ public class DynamicCallSiteDesc {
      *      is equal to this {@code DynamicCallSiteDesc}.
      */
     @Override
-    public final boolean equals(Object o) {
+    public final boolean equals(@Nullable Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         DynamicCallSiteDesc specifier = (DynamicCallSiteDesc) o;

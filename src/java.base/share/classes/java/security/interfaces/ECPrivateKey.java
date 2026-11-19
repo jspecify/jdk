@@ -27,6 +27,7 @@ package java.security.interfaces;
 import java.math.BigInteger;
 import java.security.PrivateKey;
 import java.security.spec.ECParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The interface to an elliptic curve (EC) private key.
@@ -48,7 +49,6 @@ public interface ECPrivateKey extends PrivateKey, ECKey {
     * ineffectual. Do not use; no replacement.
     */
     @Deprecated
-    @SuppressWarnings("serial")
     @java.io.Serial
    long serialVersionUID = -7896394956925609184L;
 
@@ -67,7 +67,7 @@ public interface ECPrivateKey extends PrivateKey, ECKey {
      * @return {@inheritDoc java.security.AsymmetricKey}
      */
     @Override
-    default ECParameterSpec getParams() {
+    default @Nullable ECParameterSpec getParams() {
         return null;
     }
 }

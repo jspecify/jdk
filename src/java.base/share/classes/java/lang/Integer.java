@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,13 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.util.DecimalDigits;
+import jdk.internal.value.Deserializer;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.AOTRuntimeSetup;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
@@ -44,8 +49,6 @@ import java.util.Optional;
 
 import static java.lang.Character.digit;
 import static java.lang.String.COMPACT_STRINGS;
-import static java.lang.String.LATIN1;
-import static java.lang.String.UTF16;
 
 /**
  * The {@code Integer} class is the {@linkplain
@@ -59,10 +62,18 @@ import static java.lang.String.UTF16;
  * dealing with an {@code int}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Integer} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * <p>Implementation note: The implementations of the "bit twiddling"
  * methods (such as {@link #highestOneBit(int) highestOneBit} and
@@ -71,27 +82,24 @@ import static java.lang.String.UTF16;
  * Delight</cite>, (Addison Wesley, 2002) and <cite>Hacker's
  * Delight, Second Edition</cite>, (Pearson Education, 2013).
  *
- * @author  Lee Boynton
- * @author  Arthur van Hoff
- * @author  Josh Bloch
- * @author  Joseph D. Darcy
  * @since 1.0
  */
 @NullMarked
 @jdk.internal.ValueBased
-public final class Integer extends Number
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Integer extends Number
         implements Comparable<Integer>, Constable, ConstantDesc {
     /**
      * A constant holding the minimum value an {@code int} can
      * have, -2<sup>31</sup>.
      */
-    @Native public static final  int   MIN_VALUE = 0x80000000;
+    @Native public static final int   MIN_VALUE = 0x80000000;
 
     /**
      * A constant holding the maximum value an {@code int} can
      * have, 2<sup>31</sup>-1.
      */
-    @Native public static final   int   MAX_VALUE = 0x7fffffff;
+    @Native public static final int   MAX_VALUE = 0x7fffffff;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -104,7 +112,8 @@ public final class Integer extends Number
     /**
      * All possible chars for representing a number as a String
      */
-    static final char[] digits = {
+    @Stable
+    static final byte[] digits = {
         '0' , '1' , '2' , '3' , '4' , '5' ,
         '6' , '7' , '8' , '9' , 'a' , 'b' ,
         'c' , 'd' , 'e' , 'f' , 'g' , 'h' ,
@@ -157,10 +166,7 @@ public final class Integer extends Number
      * @see     java.lang.Character#MAX_RADIX
      * @see     java.lang.Character#MIN_RADIX
      */
-    
-    
-    
-    public static  String toString(int i,   int radix) {
+    public static String toString(int i, int radix) {
         if (radix < Character.MIN_RADIX || radix > Character.MAX_RADIX)
             radix = 10;
 
@@ -179,10 +185,10 @@ public final class Integer extends Number
             }
 
             while (i <= -radix) {
-                buf[charPos--] = (byte)digits[-(i % radix)];
+                buf[charPos--] = digits[-(i % radix)];
                 i = i / radix;
             }
-            buf[charPos] = (byte)digits[-i];
+            buf[charPos] = digits[-i];
 
             if (negative) {
                 buf[--charPos] = '-';
@@ -193,9 +199,7 @@ public final class Integer extends Number
         return toStringUTF16(i, radix);
     }
 
-    
-    
-    private static String toStringUTF16(int i,  int radix) {
+    private static String toStringUTF16(int i, int radix) {
         byte[] buf = new byte[33 * 2];
         boolean negative = (i < 0);
         int charPos = 32;
@@ -240,10 +244,7 @@ public final class Integer extends Number
      * @see     #toString(int, int)
      * @since 1.8
      */
-    
-    
-    
-    public static String toUnsignedString( int i,   int radix) {
+    public static String toUnsignedString(int i, int radix) {
         return Long.toUnsignedString(toUnsignedLong(i), radix);
     }
 
@@ -297,9 +298,7 @@ public final class Integer extends Number
      * @see #toUnsignedString(int, int)
      * @since   1.0.2
      */
-    
-    
-    public static  String toHexString( int i) {
+    public static String toHexString(int i) {
         return toUnsignedString0(i, 4);
     }
 
@@ -337,9 +336,7 @@ public final class Integer extends Number
      * @see #toUnsignedString(int, int)
      * @since   1.0.2
      */
-    
-    
-    public static  String toOctalString( int i) {
+    public static String toOctalString(int i) {
         return toUnsignedString0(i, 3);
     }
 
@@ -371,28 +368,20 @@ public final class Integer extends Number
      * @see #toUnsignedString(int, int)
      * @since   1.0.2
      */
-    
-    
-    public static  String toBinaryString( int i) {
+    public static String toBinaryString(int i) {
         return toUnsignedString0(i, 1);
     }
 
     /**
      * Convert the integer to an unsigned number.
      */
-    private static String toUnsignedString0( int val,  int shift) {
+    private static String toUnsignedString0(int val, int shift) {
         // assert shift > 0 && shift <=5 : "Illegal shift value";
         int mag = Integer.SIZE - Integer.numberOfLeadingZeros(val);
         int chars = Math.max(((mag + (shift - 1)) / shift), 1);
-        if (COMPACT_STRINGS) {
-            byte[] buf = new byte[chars];
-            formatUnsignedInt(val, shift, buf, chars);
-            return new String(buf, LATIN1);
-        } else {
-            byte[] buf = new byte[chars * 2];
-            formatUnsignedIntUTF16(val, shift, buf, chars);
-            return new String(buf, UTF16);
-        }
+        byte[] buf = new byte[chars];
+        formatUnsignedInt(val, shift, buf, chars);
+        return String.newStringWithLatin1Bytes(buf);
     }
 
     /**
@@ -410,27 +399,7 @@ public final class Integer extends Number
         int radix = 1 << shift;
         int mask = radix - 1;
         do {
-            buf[--charPos] = (byte)Integer.digits[val & mask];
-            val >>>= shift;
-        } while (charPos > 0);
-    }
-
-    /**
-     * Format an {@code int} (treated as unsigned) into a byte buffer (UTF16 version). If
-     * {@code len} exceeds the formatted ASCII representation of {@code val},
-     * {@code buf} will be padded with leading zeroes.
-     *
-     * @param val the unsigned int to format
-     * @param shift the log2 of the base to format in (4 for hex, 3 for octal, 1 for binary)
-     * @param buf the byte buffer to write to
-     * @param len the number of characters to write
-     */
-    private static void formatUnsignedIntUTF16(int val, int shift, byte[] buf, int len) {
-        int charPos = len;
-        int radix = 1 << shift;
-        int mask = radix - 1;
-        do {
-            StringUTF16.putChar(buf, --charPos, Integer.digits[val & mask]);
+            buf[--charPos] = Integer.digits[val & mask];
             val >>>= shift;
         } while (charPos > 0);
     }
@@ -448,15 +417,9 @@ public final class Integer extends Number
     @IntrinsicCandidate
     public static String toString(int i) {
         int size = DecimalDigits.stringSize(i);
-        if (COMPACT_STRINGS) {
-            byte[] buf = new byte[size];
-            StringLatin1.getChars(i, size, buf);
-            return new String(buf, LATIN1);
-        } else {
-            byte[] buf = new byte[size * 2];
-            StringUTF16.getChars(i, size, buf);
-            return new String(buf, UTF16);
-        }
+        byte[] buf = new byte[size];
+        DecimalDigits.uncheckedGetCharsLatin1(i, size, buf);
+        return String.newStringWithLatin1Bytes(buf);
     }
 
     /**
@@ -473,9 +436,7 @@ public final class Integer extends Number
      * @see     #toUnsignedString(int, int)
      * @since 1.8
      */
-    
-    
-    public static String toUnsignedString( int i) {
+    public static String toUnsignedString(int i) {
         return Long.toString(toUnsignedLong(i));
     }
 
@@ -611,9 +572,7 @@ public final class Integer extends Number
      *             {@link java.lang.Character#MAX_RADIX}.
      * @since  9
      */
-    
-    
-    public static int parseInt(CharSequence s, int beginIndex, int endIndex,  int radix)
+    public static int parseInt(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
         Objects.requireNonNull(s);
         Objects.checkFromToIndex(beginIndex, endIndex, s.length());
@@ -679,8 +638,6 @@ public final class Integer extends Number
      * @throws     NumberFormatException  if the string does not contain a
      *               parsable integer.
      */
-    
-    
     public static int parseInt(String s) throws NumberFormatException {
         return parseInt(s, 10);
     }
@@ -728,9 +685,7 @@ public final class Integer extends Number
      *             does not contain a parsable {@code int}.
      * @since 1.8
      */
-    
-    
-    public static  int parseUnsignedInt(String s,   int radix)
+    public static int parseUnsignedInt(String s, int radix)
                 throws NumberFormatException {
         if (s == null)  {
             throw new NumberFormatException("Cannot parse null string");
@@ -807,9 +762,7 @@ public final class Integer extends Number
      *             {@link java.lang.Character#MAX_RADIX}.
      * @since  9
      */
-    
-    
-    public static int parseUnsignedInt(CharSequence s, int beginIndex, int endIndex,  int radix)
+    public static int parseUnsignedInt(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
         Objects.requireNonNull(s);
         Objects.checkFromToIndex(beginIndex, endIndex, s.length());
@@ -880,9 +833,7 @@ public final class Integer extends Number
      *            parsable unsigned integer.
      * @since 1.8
      */
-    
-    
-    public static  int parseUnsignedInt(String s) throws NumberFormatException {
+    public static int parseUnsignedInt(String s) throws NumberFormatException {
         return parseUnsignedInt(s, 10);
     }
 
@@ -911,9 +862,7 @@ public final class Integer extends Number
      * @throws    NumberFormatException if the {@code String}
      *            does not contain a parsable {@code int}.
      */
-    
-    
-    public static Integer valueOf(String s,   int radix) throws NumberFormatException {
+    public static Integer valueOf(String s, int radix) throws NumberFormatException {
         return Integer.valueOf(parseInt(s,radix));
     }
 
@@ -939,8 +888,6 @@ public final class Integer extends Number
      * @throws     NumberFormatException  if the string cannot be parsed
      *             as an integer.
      */
-    
-    
     public static Integer valueOf(String s) throws NumberFormatException {
         return Integer.valueOf(parseInt(s, 10));
     }
@@ -948,6 +895,10 @@ public final class Integer extends Number
     /**
      * Cache to support the object identity semantics of autoboxing for values between
      * -128 and 127 (inclusive) as required by JLS.
+     *
+     * When preview features are enabled, the cache does not affect object
+     * equality {@code ==} semantics, but exists for performance.
+     * See doc/value-class-preview.md "Wrapper Class Caches" section.
      *
      * The cache is initialized on first usage.  The size of the cache
      * may be controlled by the {@code -XX:AutoBoxCacheMax=<size>} option.
@@ -962,15 +913,20 @@ public final class Integer extends Number
      * with new Integer object(s) after initialization.
      */
 
+    @AOTSafeClassInitializer
     private static final class IntegerCache {
         static final int low = -128;
-        static final int high;
+        @Stable static int high;
 
-        @Stable
-        static final Integer[] cache;
+        @Stable static Integer[] cache;
         static Integer[] archivedCache;
 
         static {
+            runtimeSetup();
+        }
+
+        @AOTRuntimeSetup
+        private static void runtimeSetup() {
             // high value may be configured by property
             int h = 127;
             String integerCacheHighPropValue =
@@ -986,32 +942,56 @@ public final class Integer extends Number
             }
             high = h;
 
-            // Load IntegerCache.archivedCache from archive, if possible
-            CDS.initializeFromArchive(IntegerCache.class);
-            int size = (high - low) + 1;
-
-            // Use the archived cache if it exists and is large enough
-            if (archivedCache == null || size > archivedCache.length) {
-                Integer[] c = new Integer[size];
-                int j = low;
-                // If archive has Integer cache, we must use all instances from it.
-                // Otherwise, the identity checks between archived Integers and
-                // runtime-cached Integers would fail.
-                int archivedSize = (archivedCache == null) ? 0 : archivedCache.length;
-                for (int i = 0; i < archivedSize; i++) {
-                    c[i] = archivedCache[i];
-                    assert j == archivedCache[i];
-                    j++;
-                }
-                // Fill the rest of the cache.
-                for (int i = archivedSize; i < size; i++) {
-                    c[i] = new Integer(j++);
-                }
-                archivedCache = c;
+            Integer[] precomputed;
+            if (cache != null) {
+                // IntegerCache has been AOT-initialized.
+                precomputed = cache;
+            } else {
+                // Legacy CDS archive support (to be deprecated):
+                // Load IntegerCache.archivedCache from archive, if possible
+                CDS.initializeFromArchive(IntegerCache.class);
+                precomputed = archivedCache;
             }
-            cache = archivedCache;
+
+            cache = loadOrInitializeCache(precomputed);
+            archivedCache = cache; // Legacy CDS archive support (to be deprecated)
             // range [-128, 127] must be interned (JLS7 5.1.7)
             assert IntegerCache.high >= 127;
+        }
+
+        private static Integer[] loadOrInitializeCache(Integer[] precomputed) {
+            int size = (high - low) + 1;
+
+            // Use the precomputed cache if it exists and is large enough
+            if (precomputed != null && size <= precomputed.length) {
+                return precomputed;
+            }
+
+            Integer[] c = newCacheArray(size);
+            int j = low;
+            // If we loading a precomputed cache (from AOT cache or CDS archive),
+            // we must use all instances from it.
+            // Otherwise, the Integers from the AOT cache (or CDS archive) will not
+            // have the same object identity as items in IntegerCache.cache[].
+            int precomputedSize = (precomputed == null) ? 0 : precomputed.length;
+            for (int i = 0; i < precomputedSize; i++) {
+                c[i] = precomputed[i];
+                assert j == precomputed[i];
+                j++;
+            }
+            // Fill the rest of the cache.
+            for (int i = precomputedSize; i < size; i++) {
+                c[i] = new Integer(j++);
+            }
+            return c;
+        }
+
+        private static Integer[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
+            if (PreviewFeatures.isEnabled()) {
+                return (Integer[]) ValueClass.newReferenceArray(Integer.class, size);
+            }
+            return new Integer[size];
         }
 
         private IntegerCache() {}
@@ -1019,14 +999,26 @@ public final class Integer extends Number
 
     /**
      * Returns an {@code Integer} instance representing the specified
-     * {@code int} value.  If a new {@code Integer} instance is not
-     * required, this method should generally be used in preference to
-     * the constructor {@link #Integer(int)}, as this method is likely
-     * to yield significantly better space and time performance by
-     * caching frequently requested values.
-     *
-     * This method will always cache values in the range -128 to 127,
-     * inclusive, and may cache other values outside of this range.
+     * {@code int} value.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Integer} is an identity class.
+     *              If a new {@code Integer} instance is not
+     *              required, this method should generally be used in preference to
+     *              the constructor {@link #Integer(int)}, as this method is likely
+     *              to yield significantly better space and time performance by
+     *              caching frequently requested values.
+     *              This method will always cache values in the range -128 to 127,
+     *              inclusive, and may cache other values outside of this range.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Integer} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor,
+     *              whether cached or not.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  i an {@code int} value.
      * @return an {@code Integer} instance representing {@code i}.
@@ -1058,7 +1050,8 @@ public final class Integer extends Number
      * {@link #valueOf(int)} is generally a better choice, as it is
      * likely to yield significantly better space and time performance.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
+    @Deserializer("value")
     public Integer(int value) {
         this.value = value;
     }
@@ -1080,7 +1073,7 @@ public final class Integer extends Number
      * {@code int} primitive, or use {@link #valueOf(String)}
      * to convert a string to an {@code Integer} object.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
     public Integer(String s) throws NumberFormatException {
         this.value = parseInt(s, 10);
     }
@@ -1090,9 +1083,7 @@ public final class Integer extends Number
      * after a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
-    
-    
-    public   byte byteValue() {
+    public byte byteValue() {
         return (byte)value;
     }
 
@@ -1101,9 +1092,7 @@ public final class Integer extends Number
      * after a narrowing primitive conversion.
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
-    
-    
-    public   short shortValue() {
+    public short shortValue() {
         return (short)value;
     }
 
@@ -1122,9 +1111,7 @@ public final class Integer extends Number
      * @jls 5.1.2 Widening Primitive Conversion
      * @see Integer#toUnsignedLong(int)
      */
-    
-    
-    public   long longValue() {
+    public long longValue() {
         return (long)value;
     }
 
@@ -1133,9 +1120,7 @@ public final class Integer extends Number
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  float floatValue() {
+    public float floatValue() {
         return (float)value;
     }
 
@@ -1144,9 +1129,7 @@ public final class Integer extends Number
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  double doubleValue() {
+    public double doubleValue() {
         return (double)value;
     }
 
@@ -1160,9 +1143,7 @@ public final class Integer extends Number
      * @return  a string representation of the value of this object in
      *          base&nbsp;10.
      */
-    
-    
-    public  String toString() {
+    public String toString() {
         return toString(value);
     }
 
@@ -1173,8 +1154,6 @@ public final class Integer extends Number
      *          primitive {@code int} value represented by this
      *          {@code Integer} object.
      */
-    
-    
     @Override
     public int hashCode() {
         return Integer.hashCode(value);
@@ -1189,8 +1168,6 @@ public final class Integer extends Number
      *
      * @return a hash code value for an {@code int} value.
      */
-    
-    
     public static int hashCode(int value) {
         return value;
     }
@@ -1240,8 +1217,6 @@ public final class Integer extends Number
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
-    
-    
     public static @Nullable Integer getInteger(@Nullable String nm) {
         return getInteger(nm, null);
     }
@@ -1286,8 +1261,6 @@ public final class Integer extends Number
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
-    
-    
     public static Integer getInteger(@Nullable String nm, int val) {
         Integer result = getInteger(nm, null);
         return (result == null) ? Integer.valueOf(val) : result;
@@ -1381,8 +1354,6 @@ public final class Integer extends Number
      *            contain a parsable integer.
      * @see java.lang.Integer#parseInt(java.lang.String, int)
      */
-    
-    
     public static Integer decode(String nm) throws NumberFormatException {
         int radix = 10;
         int index = 0;
@@ -1443,8 +1414,6 @@ public final class Integer extends Number
      *           comparison).
      * @since   1.2
      */
-    
-    
     public int compareTo(Integer anotherInteger) {
         return compare(this.value, anotherInteger.value);
     }
@@ -1463,8 +1432,6 @@ public final class Integer extends Number
      *         a value greater than {@code 0} if {@code x > y}
      * @since 1.7
      */
-    
-    
     public static int compare(int x, int y) {
         return (x < y) ? -1 : ((x == y) ? 0 : 1);
     }
@@ -1503,9 +1470,7 @@ public final class Integer extends Number
      *         conversion
      * @since 1.8
      */
-    
-    
-    public static  long toUnsignedLong(int x) {
+    public static long toUnsignedLong(int x) {
         return ((long) x) & 0xffffffffL;
     }
 
@@ -1524,6 +1489,7 @@ public final class Integer extends Number
      * @param divisor the value doing the dividing
      * @return the unsigned quotient of the first argument divided by
      * the second argument
+     * @throws ArithmeticException if the divisor is zero
      * @see #remainderUnsigned
      * @since 1.8
      */
@@ -1542,6 +1508,7 @@ public final class Integer extends Number
      * @param divisor the value doing the dividing
      * @return the unsigned remainder of the first argument divided by
      * the second argument
+     * @throws ArithmeticException if the divisor is zero
      * @see #divideUnsigned
      * @since 1.8
      */
@@ -1560,7 +1527,7 @@ public final class Integer extends Number
      *
      * @since 1.5
      */
-    @Native public static final   int SIZE = 32;
+    @Native public static final int SIZE = 32;
 
     /**
      * The number of bytes used to represent an {@code int} value in two's
@@ -1568,7 +1535,7 @@ public final class Integer extends Number
      *
      * @since 1.8
      */
-    public static final   int BYTES = SIZE / Byte.SIZE;
+    public static final int BYTES = SIZE / Byte.SIZE;
 
     /**
      * Returns an {@code int} value with at most a single one-bit, in the
@@ -1583,9 +1550,7 @@ public final class Integer extends Number
      *     the specified value is itself equal to zero.
      * @since 1.5
      */
-    
-    
-    public static int highestOneBit( int i) {
+    public static int highestOneBit(int i) {
         return i & (MIN_VALUE >>> numberOfLeadingZeros(i));
     }
 
@@ -1602,9 +1567,7 @@ public final class Integer extends Number
      *     the specified value is itself equal to zero.
      * @since 1.5
      */
-    
-    
-    public static int lowestOneBit( int i) {
+    public static int lowestOneBit(int i) {
         // HD, Section 2-1
         return i & -i;
     }
@@ -1711,9 +1674,7 @@ public final class Integer extends Number
      *     specified number of bits.
      * @since 1.5
      */
-    
-    
-    public static  int rotateLeft( int i, int distance) {
+    public static int rotateLeft(int i, int distance) {
         return (i << distance) | (i >>> -distance);
     }
 
@@ -1737,9 +1698,7 @@ public final class Integer extends Number
      *     specified number of bits.
      * @since 1.5
      */
-    
-    
-    public static  int rotateRight( int i, int distance) {
+    public static int rotateRight(int i, int distance) {
         return (i >>> distance) | (i << -distance);
     }
 
@@ -1992,9 +1951,7 @@ public final class Integer extends Number
      * @return the signum function of the specified {@code int} value.
      * @since 1.5
      */
-    
-    
-    public static  int signum(int i) {
+    public static int signum(int i) {
         // HD, Section 2-7
         return (i >> 31) | (-i >>> 31);
     }
@@ -2025,8 +1982,6 @@ public final class Integer extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static int sum(int a, int b) {
         return a + b;
     }
@@ -2041,8 +1996,6 @@ public final class Integer extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static int max(int a, int b) {
         return Math.max(a, b);
     }
@@ -2057,8 +2010,6 @@ public final class Integer extends Number
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static int min(int a, int b) {
         return Math.min(a, b);
     }

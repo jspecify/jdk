@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,7 +55,7 @@ import java.io.Serializable;
 public final class TransformAttribute implements Serializable {
 
     /**
-     * The {@code AffineTransform} for this
+     * @serial The {@code AffineTransform} for this
      * {@code TransformAttribute}, or {@code null}
      * if {@code AffineTransform} is the identity transform.
      */
@@ -159,8 +159,6 @@ public final class TransformAttribute implements Serializable {
      * transform.
      * @since 1.6
      */
-    
-    
     public boolean equals(@Nullable Object rhs) {
         if (rhs != null) {
             try {

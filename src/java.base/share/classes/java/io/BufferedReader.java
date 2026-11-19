@@ -106,7 +106,7 @@ public class BufferedReader extends Reader {
      *
      * @throws IllegalArgumentException  If {@code sz <= 0}
      */
-    public BufferedReader(Reader in,  int sz) {
+    public BufferedReader(Reader in, int sz) {
         super(in);
         if (sz <= 0)
             throw new IllegalArgumentException("Buffer size <= 0");
@@ -407,7 +407,7 @@ public class BufferedReader extends Reader {
     /**
      * {@inheritDoc}
      */
-    public  long skip( long n) throws IOException {
+    public long skip(long n) throws IOException {
         if (n < 0L) {
             throw new IllegalArgumentException("skip value is negative");
         }
@@ -447,8 +447,6 @@ public class BufferedReader extends Reader {
      *
      * @throws     IOException  If an I/O error occurs
      */
-    
-    
     public boolean ready() throws IOException {
         synchronized (lock) {
             ensureOpen();
@@ -497,7 +495,7 @@ public class BufferedReader extends Reader {
      * @throws     IllegalArgumentException  If {@code readAheadLimit < 0}
      * @throws     IOException  If an I/O error occurs
      */
-    public void mark( int readAheadLimit) throws IOException {
+    public void mark(int readAheadLimit) throws IOException {
         if (readAheadLimit < 0) {
             throw new IllegalArgumentException("Read-ahead limit < 0");
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package java.util.regex;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
@@ -46,6 +45,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import jdk.internal.lang.CaseFolding;
 import jdk.internal.util.ArraysSupport;
 import jdk.internal.util.regex.Grapheme;
 
@@ -805,7 +805,7 @@ import jdk.internal.util.regex.Grapheme;
  */
 
 @NullMarked
-public final  class Pattern
+public final class Pattern
     implements java.io.Serializable
 {
 
@@ -1102,9 +1102,7 @@ public final  class Pattern
      * @throws  PatternSyntaxException
      *          If the expression's syntax is invalid
      */
-    
-    
-    public static Pattern compile( String regex) {
+    public static Pattern compile(String regex) {
         return new Pattern(regex, 0);
     }
 
@@ -1137,9 +1135,7 @@ public final  class Pattern
      * marks for any character is too large, an {@link java.lang.OutOfMemoryError}
      * is thrown.
      */
-    
-    
-    public static Pattern compile( String regex, int flags) {
+    public static Pattern compile(String regex, int flags) {
         return new Pattern(regex, flags);
     }
 
@@ -1160,7 +1156,6 @@ public final  class Pattern
      * @return  The string representation of this pattern
      * @since 1.5
      */
-    
     public String toString() {
         return pattern;
     }
@@ -1180,7 +1175,7 @@ public final  class Pattern
      * {@link java.lang.OutOfMemoryError} is thrown,
      * as in {@link #compile(String, int)}.
      */
-    public  Matcher matcher(CharSequence input) {
+    public Matcher matcher(CharSequence input) {
         if (!compiled) {
             synchronized(this) {
                 if (!compiled)
@@ -1226,7 +1221,7 @@ public final  class Pattern
      * @throws  PatternSyntaxException
      *          If the expression's syntax is invalid
      */
-    public static boolean matches( String regex, CharSequence input) {
+    public static boolean matches(String regex, CharSequence input) {
         Pattern p = Pattern.compile(regex);
         Matcher m = p.matcher(input);
         return m.matches();
@@ -1505,9 +1500,7 @@ public final  class Pattern
      * @return  A literal string replacement
      * @since 1.5
      */
-    
-    
-    public static  String quote(String s) {
+    public static String quote(String s) {
         int slashEIndex = s.indexOf("\\E");
         if (slashEIndex == -1)
             return "\\Q" + s + "\\E";
@@ -2926,6 +2919,8 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
               toLowerCase(u+212a) ==> u+006B
            (6)AngstromSign u+212b
               toLowerCase(u+212b) ==> u+00e5
+           (7) Latin Capital Letter Sharp S u+1e0e, was added in version 5.1
+              toLowerCase(u+1e9e) ==> u+00df
         */
         if (ch < 256 &&
             !(has(CASE_INSENSITIVE) && has(UNICODE_CASE) &&
@@ -2933,7 +2928,11 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                ch == 0x49 || ch == 0x69 ||    //I and i
                ch == 0x53 || ch == 0x73 ||    //S and s
                ch == 0x4b || ch == 0x6b ||    //K and k
-               ch == 0xc5 || ch == 0xe5))) {  //A+ring
+               ch == 0xc5 || ch == 0xe5 ||    //A+ring
+               // need to force single() to use SingleU specifically for u+00df.
+               // u+00df <-> u+1e9e, see https://codepoints.net/U+00DF.
+               // Character.toUpperCase('u+00df') still returns u+00df for now.
+                ch == 0xdf))) {               // Shape S
             bits.add(ch, flags0);
             return null;
         }
@@ -2950,7 +2949,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                 upper = Character.toUpperCase(ch);
                 lower = Character.toLowerCase(upper);
                 // Unicode case insensitive matches
-                if (upper != lower)
+                if (upper != lower || ch == 0xDF)
                     return SingleU(lower);
             } else if (ASCII.isAscii(ch)) {
                 lower = ASCII.toLower(ch);
@@ -3380,7 +3379,6 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
      * Parses the second part of inlined match flags and turns off
      * flags appropriately.
      */
-    @SuppressWarnings("fallthrough")
     private void subFlag() {
         int ch = peek();
         for (;;) {
@@ -4166,7 +4164,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                     if (predicate.is(ch0))
                         return next.match(matcher, j, seq);
                 } else {
-                    while (i + n < j) {
+                    while (i + n <= j) {
                         String nfc = Normalizer.normalize(
                             seq.toString().substring(i, j), Normalizer.Form.NFC);
                         if (nfc.codePointCount(0, nfc.length()) == 1) {
@@ -4175,13 +4173,10 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                                 return true;
                             }
                         }
-
                         ch0 = Character.codePointBefore(seq, j);
                         j -= Character.charCount(ch0);
                     }
                 }
-                if (j < matcher.to)
-                    return false;
             } else {
                 matcher.hitEnd = true;
             }
@@ -5975,12 +5970,29 @@ NEXT:       while (i <= last) {
     }
 
     static CharPredicate CIRangeU(int lower, int upper) {
+        int[] closingCharacters = CaseFolding.getClassRangeClosingCharacters(lower, upper);
+        if (closingCharacters.length == 0) {
+            return ch -> {
+                if (inRange(lower, ch, upper))
+                    return true;
+                int up = Character.toUpperCase(ch);
+                return (inRange(lower, up, upper) ||
+                        inRange(lower, Character.toLowerCase(up), upper));
+            };
+        }
         return ch -> {
             if (inRange(lower, ch, upper))
                 return true;
             int up = Character.toUpperCase(ch);
-            return inRange(lower, up, upper) ||
-                   inRange(lower, Character.toLowerCase(up), upper);
+            int lo = Character.toLowerCase(up);
+            if (inRange(lower, up, upper) ||
+                inRange(lower, lo, upper))
+                return true;
+            for (int cp : closingCharacters) {
+                if (up == cp || lo == cp)
+                return true;
+            }
+            return false;
         };
     }
 

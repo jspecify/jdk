@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,10 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.value.Deserializer;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 
@@ -38,7 +42,6 @@ import java.util.Optional;
 
 import static java.lang.constant.ConstantDescs.BSM_EXPLICIT_CAST;
 import static java.lang.constant.ConstantDescs.CD_byte;
-import static java.lang.constant.ConstantDescs.CD_int;
 import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
 
 /**
@@ -53,31 +56,39 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * with a {@code byte}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization or
+ * with {@linkplain java.lang.ref.Reference object references}.
  *
- * @author  Nakul Saraiya
- * @author  Joseph D. Darcy
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Byte} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
+ *
  * @see     java.lang.Number
  * @since   1.1
  */
 @NullMarked
 @jdk.internal.ValueBased
-public final class Byte extends Number implements Comparable<Byte>, Constable {
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Byte extends Number
+        implements Comparable<Byte>, Constable {
 
     /**
      * A constant holding the minimum value a {@code byte} can
      * have, -2<sup>7</sup>.
      */
-    public static final  byte   MIN_VALUE = -128;
+    public static final byte   MIN_VALUE = -128;
 
     /**
      * A constant holding the maximum value a {@code byte} can
      * have, 2<sup>7</sup>-1.
      */
-    public static final   byte   MAX_VALUE = 127;
+    public static final byte   MAX_VALUE = 127;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -109,6 +120,10 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
         return Optional.of(DynamicConstantDesc.ofNamed(BSM_EXPLICIT_CAST, DEFAULT_NAME, CD_byte, intValue()));
     }
 
+    // When preview features are enabled, the cache does not affect object
+    // equality == semantics, but exists for performance.
+    // See doc/value-class-preview.md "Wrapper Class Caches" section.
+    @AOTSafeClassInitializer
     private static final class ByteCache {
         private ByteCache() {}
 
@@ -122,7 +137,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
             // Load and use the archived cache if it exists
             CDS.initializeFromArchive(ByteCache.class);
             if (archivedCache == null) {
-                Byte[] c = new Byte[size];
+                Byte[] c = newCacheArray(size);
                 byte value = (byte)-128;
                 for(int i = 0; i < size; i++) {
                     c[i] = new Byte(value++);
@@ -132,16 +147,36 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
             cache = archivedCache;
             assert cache.length == size;
         }
+
+        private static Byte[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
+            if (PreviewFeatures.isEnabled()) {
+                return (Byte[]) ValueClass.newReferenceArray(Byte.class, size);
+            }
+            return new Byte[size];
+        }
     }
 
     /**
      * Returns a {@code Byte} instance representing the specified
      * {@code byte} value.
-     * If a new {@code Byte} instance is not required, this method
-     * should generally be used in preference to the constructor
-     * {@link #Byte(byte)}, as this method is likely to yield
-     * significantly better space and time performance since
-     * all byte values are cached.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Byte} is an identity class.
+     *              If a new {@code Byte} instance is not required, this method
+     *              should generally be used in preference to the constructor
+     *              {@link #Byte(byte)}, as this method is likely to yield
+     *              significantly better space and time performance since
+     *              all byte values are cached.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Byte} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor,
+     *              whether cached or not.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  b a byte value.
      * @return a {@code Byte} instance representing {@code b}.
@@ -150,7 +185,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
     @IntrinsicCandidate
     public static Byte valueOf(byte b) {
         final int offset = 128;
-        return ByteCache.cache[(int)b + offset];
+        return ByteCache.cache[(int) b + offset];
     }
 
     /**
@@ -194,9 +229,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * @throws          NumberFormatException If the string does
      *                  not contain a parsable {@code byte}.
      */
-    
-    
-    public static byte parseByte(String s,   int radix)
+    public static byte parseByte(String s, int radix)
         throws NumberFormatException {
         int i = Integer.parseInt(s, radix);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -223,8 +256,6 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * @throws          NumberFormatException if the string does not
      *                  contain a parsable {@code byte}.
      */
-    
-    
     public static byte parseByte(String s) throws NumberFormatException {
         return parseByte(s, 10);
     }
@@ -254,9 +285,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * @throws          NumberFormatException If the {@code String} does
      *                  not contain a parsable {@code byte}.
      */
-    
-    
-    public static  Byte valueOf(String s,   int radix)
+    public static Byte valueOf(String s, int radix)
         throws NumberFormatException {
         return valueOf(parseByte(s, radix));
     }
@@ -283,9 +312,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * @throws          NumberFormatException If the {@code String} does
      *                  not contain a parsable {@code byte}.
      */
-    
-    
-    public static  Byte valueOf(String s) throws NumberFormatException {
+    public static Byte valueOf(String s) throws NumberFormatException {
         return valueOf(s, 10);
     }
 
@@ -331,8 +358,6 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      *            contain a parsable {@code byte}.
      * @see java.lang.Byte#parseByte(java.lang.String, int)
      */
-    
-    
     public static Byte decode(String nm) throws NumberFormatException {
         int i = Integer.decode(nm);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -360,7 +385,8 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * {@link #valueOf(byte)} is generally a better choice, as it is
      * likely to yield significantly better space and time performance.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
+    @Deserializer("value")
     public Byte(byte value) {
         this.value = value;
     }
@@ -383,7 +409,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * {@code byte} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Byte} object.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
     public Byte(String s) throws NumberFormatException {
         this.value = parseByte(s, 10);
     }
@@ -402,9 +428,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public   short shortValue() {
+    public short shortValue() {
         return (short)value;
     }
 
@@ -413,9 +437,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public   int intValue() {
+    public int intValue() {
         return (int)value;
     }
 
@@ -424,9 +446,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public   long longValue() {
+    public long longValue() {
         return (long)value;
     }
 
@@ -435,9 +455,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  float floatValue() {
+    public float floatValue() {
         return (float)value;
     }
 
@@ -446,9 +464,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  double doubleValue() {
+    public double doubleValue() {
         return (double)value;
     }
 
@@ -473,8 +489,6 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      *
      * @return a hash code value for this {@code Byte}
      */
-    
-    
     @Override
     public int hashCode() {
         return Byte.hashCode(value);
@@ -488,8 +502,6 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * @return a hash code value for a {@code byte} value.
      * @since 1.8
      */
-    
-    
     public static int hashCode(byte value) {
         return (int)value;
     }
@@ -524,8 +536,6 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      *           comparison).
      * @since   1.2
      */
-    
-    
     public int compareTo(Byte anotherByte) {
         return compare(this.value, anotherByte.value);
     }
@@ -544,8 +554,6 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      *         a value greater than {@code 0} if {@code x > y}
      * @since 1.7
      */
-    
-    
     public static int compare(byte x, byte y) {
         return x - y;
     }
@@ -562,8 +570,6 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      *         unsigned values
      * @since 9
      */
-    
-    
     public static int compareUnsigned(byte x, byte y) {
         return Byte.toUnsignedInt(x) - Byte.toUnsignedInt(y);
     }
@@ -584,8 +590,6 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      *         conversion
      * @since 1.8
      */
-    
-    
     public static int toUnsignedInt(byte x) {
         return ((int) x) & 0xff;
     }
@@ -606,8 +610,6 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      *         conversion
      * @since 1.8
      */
-    
-    
     public static long toUnsignedLong(byte x) {
         return ((long) x) & 0xffL;
     }
@@ -619,7 +621,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      *
      * @since 1.5
      */
-    public static final   int SIZE = 8;
+    public static final int SIZE = 8;
 
     /**
      * The number of bytes used to represent a {@code byte} value in two's
@@ -627,7 +629,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      *
      * @since 1.8
      */
-    public static final   int BYTES = SIZE / Byte.SIZE;
+    public static final int BYTES = SIZE / Byte.SIZE;
 
     /** use serialVersionUID from JDK 1.1. for interoperability */
     @java.io.Serial

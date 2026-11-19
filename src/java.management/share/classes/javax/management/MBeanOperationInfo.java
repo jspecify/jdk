@@ -295,8 +295,6 @@ public class MBeanOperationInfo extends MBeanFeatureInfo implements Cloneable {
      * are equal if their elements are pairwise equal.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;

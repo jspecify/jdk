@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
  */
 
 package java.security;
+import org.jspecify.annotations.Nullable;
+
 
 /**
  * This class defines the <i>Service Provider Interface</i> (<b>SPI</b>)
@@ -79,6 +81,7 @@ package java.security;
  * {@code SecureRandom} will call the applicable engine methods
  * without any synchronization.
  *
+ * @spec security/standard-names.html Java Security Standard Algorithm Names
  * @since 1.2
  */
 
@@ -203,7 +206,7 @@ public abstract class SecureRandomSpi implements java.io.Serializable {
      *
      * @since 9
      */
-    protected SecureRandomParameters engineGetParameters() {
+    protected @Nullable SecureRandomParameters engineGetParameters() {
         return null;
     }
 

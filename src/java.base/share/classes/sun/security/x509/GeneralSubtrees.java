@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -152,8 +152,6 @@ public class GeneralSubtrees implements Cloneable, DerEncoder {
      * @param obj GeneralSubtrees to compare to this
      * @return true if match
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

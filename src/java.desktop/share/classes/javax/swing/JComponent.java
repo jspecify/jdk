@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,17 +28,18 @@ package javax.swing;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.applet.Applet;
 import java.awt.AWTEvent;
 import java.awt.AWTKeyStroke;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.FocusTraversalPolicy;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.GraphicsEnvironment;
 import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
 import java.awt.Point;
@@ -93,6 +94,7 @@ import javax.swing.event.AncestorEvent;
 import javax.swing.event.AncestorListener;
 import javax.swing.event.EventListenerList;
 import javax.swing.plaf.ComponentUI;
+import javax.swing.text.JTextComponent;
 
 import sun.awt.AWTAccessor;
 import sun.awt.SunToolkit;
@@ -109,8 +111,7 @@ import static javax.swing.ClientPropertyKey.JComponent_TRANSFER_HANDLER;
  * you must place the component in a containment hierarchy
  * whose root is a top-level Swing container.
  * Top-level Swing containers --
- * such as <code>JFrame</code>, <code>JDialog</code>,
- * and <code>JApplet</code> --
+ * such as <code>JFrame</code> and <code>JDialog</code> --
  * are specialized components
  * that provide a place for other Swing components to paint themselves.
  * For an explanation of containment hierarchies, see
@@ -228,7 +229,6 @@ import static javax.swing.ClientPropertyKey.JComponent_TRANSFER_HANDLER;
  * @since 1.2
  */
 @NullMarked
-
 @JavaBean(defaultProperty = "UIClassID")
 @SuppressWarnings("serial") // Same-version serialization only
 public abstract class JComponent extends Container implements Serializable,
@@ -267,16 +267,6 @@ public abstract class JComponent extends Container implements Serializable,
      * Set to true when DebugGraphics has been loaded.
      */
     static boolean DEBUG_GRAPHICS_LOADED;
-
-    /**
-     * Key used to look up a value from the AppContext to determine the
-     * JComponent the InputVerifier is running for. That is, if
-     * AppContext.get(INPUT_VERIFIER_SOURCE_KEY) returns non-null, it
-     * indicates the EDT is calling into the InputVerifier from the
-     * returned component.
-     */
-    private static final Object INPUT_VERIFIER_SOURCE_KEY =
-            new StringBuilder("InputVerifierSourceKey");
 
     /* The following fields support set methods for the corresponding
      * java.awt.Component properties.
@@ -362,7 +352,7 @@ public abstract class JComponent extends Container implements Serializable,
      * The comment to display when the cursor is over the component,
      * also known as a "value tip", "flyover help", or "flyover label".
      */
-    public static final  String TOOL_TIP_TEXT_KEY = "ToolTipText";
+    public static final String TOOL_TIP_TEXT_KEY = "ToolTipText";
 
     private static final String NEXT_FOCUS = "nextFocus";
 
@@ -421,8 +411,7 @@ public abstract class JComponent extends Container implements Serializable,
     /** ActionMap. */
     private ActionMap actionMap;
 
-    /** Key used to store the default locale in an AppContext **/
-    private static final String defaultLocale = "JComponent.defaultLocale";
+    private static volatile Locale defaultLocale;
 
     private static Component componentObtainingGraphicsFrom;
     private static Object componentObtainingGraphicsFromLock = new
@@ -614,7 +603,6 @@ public abstract class JComponent extends Container implements Serializable,
      * @see #setComponentPopupMenu
      * @since 1.5
      */
-    @SuppressWarnings("removal")
     public @Nullable JPopupMenu getComponentPopupMenu() {
 
         if(!getInheritsPopupMenu()) {
@@ -628,8 +616,7 @@ public abstract class JComponent extends Container implements Serializable,
                 if(parent instanceof JComponent) {
                     return ((JComponent)parent).getComponentPopupMenu();
                 }
-                if(parent instanceof Window ||
-                   parent instanceof Applet) {
+                if(parent instanceof Window) {
                     // Reached toplevel, break and return null
                     break;
                 }
@@ -2843,11 +2830,6 @@ public abstract class JComponent extends Container implements Serializable,
      * Returns the default locale used to initialize each JComponent's
      * locale property upon creation.
      *
-     * The default locale has "AppContext" scope so that applets (and
-     * potentially multiple lightweight applications running in a single VM)
-     * can have their own setting. An applet can safely alter its default
-     * locale because it will have no affect on other applets (or the browser).
-     *
      * @return the default <code>Locale</code>.
      * @see #setDefaultLocale
      * @see java.awt.Component#getLocale
@@ -2855,12 +2837,12 @@ public abstract class JComponent extends Container implements Serializable,
      * @since 1.4
      */
     public static Locale getDefaultLocale() {
-        Locale l = (Locale) SwingUtilities.appContextGet(defaultLocale);
-        if( l == null ) {
+        Locale l = defaultLocale;
+        if (l == null) {
             //REMIND(bcb) choosing the default value is more complicated
             //than this.
             l = Locale.getDefault();
-            JComponent.setDefaultLocale( l );
+            JComponent.setDefaultLocale(l);
         }
         return l;
     }
@@ -2870,10 +2852,6 @@ public abstract class JComponent extends Container implements Serializable,
      * Sets the default locale used to initialize each JComponent's locale
      * property upon creation.  The initial value is the VM's default locale.
      *
-     * The default locale has "AppContext" scope so that applets (and
-     * potentially multiple lightweight applications running in a single VM)
-     * can have their own setting. An applet can safely alter its default
-     * locale because it will have no affect on other applets (or the browser).
      * Passing {@code null} will reset the current locale back
      * to VM's default locale.
      *
@@ -2883,8 +2861,8 @@ public abstract class JComponent extends Container implements Serializable,
      * @see #setLocale
      * @since 1.4
      */
-    public static void setDefaultLocale( Locale l ) {
-        SwingUtilities.appContextPut(defaultLocale, l);
+    public static void setDefaultLocale(Locale l) {
+        defaultLocale = l;
     }
 
 
@@ -2983,7 +2961,7 @@ public abstract class JComponent extends Container implements Serializable,
      * @param pressed true if the key is pressed
      * @return true if there is a key binding for <code>e</code>
      */
-    @SuppressWarnings({"deprecation", "removal"})
+    @SuppressWarnings("deprecation")
     boolean processKeyBindings(KeyEvent e, boolean pressed) {
       if (!SwingUtilities.isValidKeyEventForKeyBindings(e)) {
           return false;
@@ -3020,8 +2998,7 @@ public abstract class JComponent extends Container implements Serializable,
        * asking the same component twice.
        */
       Container parent = this;
-      while (parent != null && !(parent instanceof Window) &&
-             !(parent instanceof Applet)) {
+      while (parent != null && !(parent instanceof Window)) {
           if(parent instanceof JComponent) {
               if(ksE != null && ((JComponent)parent).processKeyBinding(ksE, e,
                                WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, pressed))
@@ -3283,7 +3260,7 @@ public abstract class JComponent extends Container implements Serializable,
      * locations). If you do not wish for this component to respond in any way
      * to drops, you can disable drop support entirely either by removing the
      * drop target ({@code setDropTarget(null)}) or by de-activating it
-     * ({@code getDropTaget().setActive(false)}).
+     * ({@code getDropTarget().setActive(false)}).
      * <p>
      * If the new {@code TransferHandler} is {@code null}, this method removes
      * the drop target.
@@ -3526,7 +3503,7 @@ public abstract class JComponent extends Container implements Serializable,
 
 
     // This class is used by the KeyboardState class to provide a single
-    // instance that can be stored in the AppContext.
+    // instance.
     static final class IntVector {
         int[] array = null;
         int count = 0;
@@ -3557,24 +3534,12 @@ public abstract class JComponent extends Container implements Serializable,
         }
     }
 
+    private static final IntVector intVector = new IntVector();
     @SuppressWarnings("serial")
     static class KeyboardState implements Serializable {
-        private static final Object keyCodesKey =
-            JComponent.KeyboardState.class;
-
-        // Get the array of key codes from the AppContext.
-        static IntVector getKeyCodeArray() {
-            IntVector iv =
-                (IntVector)SwingUtilities.appContextGet(keyCodesKey);
-            if (iv == null) {
-                iv = new IntVector();
-                SwingUtilities.appContextPut(keyCodesKey, iv);
-            }
-            return iv;
-        }
 
         static void registerKeyPressed(int keyCode) {
-            IntVector kca = getKeyCodeArray();
+            IntVector kca = intVector;
             int count = kca.size();
             int i;
             for(i=0;i<count;i++) {
@@ -3587,7 +3552,7 @@ public abstract class JComponent extends Container implements Serializable,
         }
 
         static void registerKeyReleased(int keyCode) {
-            IntVector kca = getKeyCodeArray();
+            IntVector kca = intVector;
             int count = kca.size();
             int i;
             for(i=0;i<count;i++) {
@@ -3599,7 +3564,7 @@ public abstract class JComponent extends Container implements Serializable,
         }
 
         static boolean keyIsPressed(int keyCode) {
-            IntVector kca = getKeyCodeArray();
+            IntVector kca = intVector;
             int count = kca.size();
             int i;
             for(i=0;i<count;i++) {
@@ -3640,6 +3605,8 @@ public abstract class JComponent extends Container implements Serializable,
       }
     }
 
+    static JComponent ivSourceComponent; // accessed only on EDT.
+
     static final sun.awt.RequestFocusController focusController =
         new sun.awt.RequestFocusController() {
             public boolean acceptRequestFocus(Component from, Component to,
@@ -3663,15 +3630,13 @@ public abstract class JComponent extends Container implements Serializable,
                 if (iv == null) {
                     return true;
                 } else {
-                    Object currentSource = SwingUtilities.appContextGet(
-                            INPUT_VERIFIER_SOURCE_KEY);
+                    JComponent currentSource = ivSourceComponent;
                     if (currentSource == jFocusOwner) {
                         // We're currently calling into the InputVerifier
                         // for this component, so allow the focus change.
                         return true;
                     }
-                    SwingUtilities.appContextPut(INPUT_VERIFIER_SOURCE_KEY,
-                                                 jFocusOwner);
+                    ivSourceComponent = jFocusOwner;
                     try {
                         return iv.shouldYieldFocus(jFocusOwner, target);
                     } finally {
@@ -3681,11 +3646,9 @@ public abstract class JComponent extends Container implements Serializable,
                             // we ensure that if the InputVerifier for
                             // currentSource does a requestFocus, we don't
                             // try and run the InputVerifier again.
-                            SwingUtilities.appContextPut(
-                                INPUT_VERIFIER_SOURCE_KEY, currentSource);
+                            ivSourceComponent = currentSource;
                         } else {
-                            SwingUtilities.appContextRemove(
-                                INPUT_VERIFIER_SOURCE_KEY);
+                            ivSourceComponent = null;
                         }
                     }
                 }
@@ -4235,6 +4198,15 @@ public abstract class JComponent extends Container implements Serializable,
                                             BACKWARD_TRAVERSAL_KEYS,
                                             strokeSet);
             }
+        } else if ("dragEnabled".equals(propertyName)
+                && this instanceof JTextComponent textComponent) {
+            if (!GraphicsEnvironment.isHeadless()) {
+                var accessor = SwingAccessor.getJTextComponentAccessor();
+                if (!accessor.isDragEnabledSet(textComponent)) {
+                    accessor.setDragEnabledUIResource(textComponent,
+                                                      (Boolean) value);
+                }
+            }
         } else {
             throw new IllegalArgumentException("property \""+
                                                propertyName+ "\" cannot be set using this method");
@@ -4269,7 +4241,7 @@ public abstract class JComponent extends Container implements Serializable,
      * @since 1.5
      */
     public void
-        setFocusTraversalKeys(int id, Set<? extends AWTKeyStroke> keystrokes)
+        setFocusTraversalKeys(int id, @Nullable Set<? extends AWTKeyStroke> keystrokes)
     {
         if (id == KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS) {
             setFlag(FOCUS_TRAVERSAL_KEYS_FORWARD_SET,true);
@@ -4539,12 +4511,11 @@ public abstract class JComponent extends Container implements Serializable,
      *          return value for this method
      * @see #getVisibleRect
      */
-    @SuppressWarnings("removal")
     static final void computeVisibleRect(Component c, Rectangle visibleRect) {
         Container p = c.getParent();
         Rectangle bounds = c.getBounds();
 
-        if (p == null || p instanceof Window || p instanceof Applet) {
+        if (p == null || p instanceof Window) {
             visibleRect.setBounds(0, 0, bounds.width, bounds.height);
         } else {
             computeVisibleRect(p, visibleRect);
@@ -4699,8 +4670,8 @@ public abstract class JComponent extends Container implements Serializable,
 
 
     /**
-     * Returns the top-level ancestor of this component (either the
-     * containing <code>Window</code> or <code>Applet</code>),
+     * Returns the top-level ancestor of this component (the
+     * containing <code>Window</code>)
      * or <code>null</code> if this component has not
      * been added to any container.
      *
@@ -4708,10 +4679,9 @@ public abstract class JComponent extends Container implements Serializable,
      *          or <code>null</code> if not in any container
      */
     @BeanProperty(bound = false)
-    @SuppressWarnings("removal")
     public @Nullable Container getTopLevelAncestor() {
         for(Container p = this; p != null; p = p.getParent()) {
-            if(p instanceof Window || p instanceof Applet) {
+            if(p instanceof Window) {
                 return p;
             }
         }
@@ -4906,8 +4876,7 @@ public abstract class JComponent extends Container implements Serializable,
      * @see RepaintManager#addDirtyRegion
      */
     public void repaint(long tm, int x, int y, int width, int height) {
-        RepaintManager.currentManager(SunToolkit.targetToAppContext(this))
-                      .addDirtyRegion(this, x, y, width, height);
+        RepaintManager.currentManager(this).addDirtyRegion(this, x, y, width, height);
     }
 
 
@@ -4951,7 +4920,6 @@ public abstract class JComponent extends Container implements Serializable,
      * @see #isValidateRoot
      * @see RepaintManager#addInvalidComponent
      */
-    
     public void revalidate() {
         if (getParent() == null) {
             // Note: We don't bother invalidating here as once added
@@ -4962,7 +4930,7 @@ public abstract class JComponent extends Container implements Serializable,
             // which was causing some people grief.
             return;
         }
-        if (SunToolkit.isDispatchThreadForAppContext(this)) {
+        if (EventQueue.isDispatchThread()) {
             invalidate();
             RepaintManager.currentManager(this).addInvalidComponent(this);
         }
@@ -5117,7 +5085,6 @@ public abstract class JComponent extends Container implements Serializable,
         this.paintingChild = paintingChild;
     }
 
-    @SuppressWarnings("removal")
     void _paintImmediately(int x, int y, int w, int h) {
         Graphics g;
         Container c;
@@ -5132,7 +5099,7 @@ public abstract class JComponent extends Container implements Serializable,
         JComponent paintingComponent = this;
 
         RepaintManager repaintManager = RepaintManager.currentManager(this);
-        // parent Container's up to Window or Applet. First container is
+        // parent Container's up to Window. First container is
         // the direct parent. Note that in testing it was faster to
         // alloc a new Vector vs keeping a stack of them around, and gc
         // seemed to have a minimal effect on this.
@@ -5162,7 +5129,7 @@ public abstract class JComponent extends Container implements Serializable,
         }
         Component child;
         for (c = this, child = null;
-             c != null && !(c instanceof Window) && !(c instanceof Applet);
+             c != null && !(c instanceof Window);
              child = c, c = c.getParent()) {
                 JComponent jc = (c instanceof JComponent) ? (JComponent)c :
                                 null;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,6 @@ package java.lang;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.lang.ref.*;
-
 /**
  * This class extends {@code ThreadLocal} to provide inheritance of values
  * from parent thread to child thread: when a child thread is created, the
@@ -56,9 +54,8 @@ import java.lang.ref.*;
  * @see Thread.Builder#inheritInheritableThreadLocals(boolean)
  */
 
-
 @NullMarked
-public class InheritableThreadLocal< T extends @Nullable Object> extends ThreadLocal<T> {
+public class InheritableThreadLocal<T extends @Nullable Object> extends ThreadLocal<T> {
     /**
      * Creates an inheritable thread local variable.
      */
@@ -87,7 +84,7 @@ public class InheritableThreadLocal< T extends @Nullable Object> extends ThreadL
      */
     @Override
     ThreadLocalMap getMap(Thread t) {
-        return t.inheritableThreadLocals;
+        return t.inheritableThreadLocals();
     }
 
     /**
@@ -98,6 +95,6 @@ public class InheritableThreadLocal< T extends @Nullable Object> extends ThreadL
      */
     @Override
     void createMap(Thread t, T firstValue) {
-        t.inheritableThreadLocals = new ThreadLocalMap(this, firstValue);
+        t.setInheritableThreadLocals(new ThreadLocalMap(this, firstValue));
     }
 }

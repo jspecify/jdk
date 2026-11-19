@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package javax.crypto.spec;
 
 import java.security.spec.KeySpec;
 import java.util.Arrays;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A user-chosen password that can be used with password-based encryption
@@ -42,9 +43,9 @@ import java.util.Arrays;
  * PKCS #12 looks at all 16 bits of each character.
  *
  * <p>You convert the password characters to a PBE key by creating an
- * instance of the appropriate secret-key factory. For example, a secret-key
+ * instance of the appropriate secret key factory. For example, a secret key
  * factory for PKCS #5 will construct a PBE key from only the low order 8 bits
- * of each password character, whereas a secret-key factory for PKCS #12 will
+ * of each password character, whereas a secret key factory for PKCS #12 will
  * take all 16 bits of each character.
  *
  * <p>Also note that this class stores passwords as char arrays instead of
@@ -79,7 +80,7 @@ public class PBEKeySpec implements KeySpec {
      *
      * @param password the password.
      */
-    public PBEKeySpec(char[] password) {
+    public PBEKeySpec(char @Nullable [] password) {
         if ((password == null) || (password.length == 0)) {
             this.password = new char[0];
         } else {
@@ -107,7 +108,7 @@ public class PBEKeySpec implements KeySpec {
      * i.e. 0-length, <code>iterationCount</code> or
      * <code>keyLength</code> is not positive.
      */
-    public PBEKeySpec(char[] password, byte[] salt, int iterationCount,
+    public PBEKeySpec(char @Nullable [] password, byte[] salt, int iterationCount,
         int keyLength) {
         if ((password == null) || (password.length == 0)) {
             this.password = new char[0];
@@ -150,7 +151,7 @@ public class PBEKeySpec implements KeySpec {
      * @exception IllegalArgumentException if <code>salt</code> is empty,
      * i.e. 0-length, or <code>iterationCount</code> is not positive.
      */
-    public PBEKeySpec(char[] password, byte[] salt, int iterationCount) {
+    public PBEKeySpec(char @Nullable [] password, byte[] salt, int iterationCount) {
         if ((password == null) || (password.length == 0)) {
             this.password = new char[0];
         } else {
@@ -209,7 +210,7 @@ public class PBEKeySpec implements KeySpec {
      *
      * @return the salt.
      */
-    public final byte[] getSalt() {
+    public final byte @Nullable [] getSalt() {
         if (salt != null) {
             return salt.clone();
         } else {

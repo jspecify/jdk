@@ -68,7 +68,7 @@ public class StringWriter extends Writer {
      * @throws IllegalArgumentException
      *         If {@code initialSize} is negative
      */
-    public StringWriter( int initialSize) {
+    public StringWriter(int initialSize) {
         if (initialSize < 0) {
             throw new IllegalArgumentException("Negative buffer size");
         }
@@ -122,7 +122,7 @@ public class StringWriter extends Writer {
      *          or {@code off + len} is negative or greater than the length
      *          of the given string
      */
-    public void write(String str,  int off,   int len)  {
+    public void write(String str, int off, int len)  {
         buf.append(str, off, off + len);
     }
 
@@ -191,7 +191,7 @@ public class StringWriter extends Writer {
      *
      * @since  1.5
      */
-    public StringWriter append(@Nullable CharSequence csq,  int start,  int end) {
+    public StringWriter append(@Nullable CharSequence csq, int start, int end) {
         if (csq == null) csq = "null";
         return append(csq.subSequence(start, end));
     }
@@ -221,7 +221,6 @@ public class StringWriter extends Writer {
     /**
      * Return the buffer's current value as a string.
      */
-    
     public String toString() {
         return buf.toString();
     }

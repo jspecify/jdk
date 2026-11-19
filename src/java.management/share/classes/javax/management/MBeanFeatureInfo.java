@@ -144,8 +144,6 @@ public class MBeanFeatureInfo implements Serializable, DescriptorRead {
      * values are equal (not necessarily identical) to those of this
      * MBeanFeatureInfo.
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;

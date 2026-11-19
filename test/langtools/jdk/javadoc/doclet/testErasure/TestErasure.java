@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,9 +103,9 @@ public class TestErasure extends JavadocTester {
         checkOutput("Foo.html", true, """
                 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
                 <ol class="toc-list">
-                <li><a href="#%3Cinit%3E(T)" tabindex="0">Foo(T)</a></li>
-                <li><a href="#%3Cinit%3E(X)" tabindex="0">Foo(T)</a></li>
-                <li><a href="#%3Cinit%3E(Y)" tabindex="0">Foo(T)</a></li>
+                <li><a href="#%3Cinit%3E(T)" tabindex="0">Foo(<wbr>T)</a></li>
+                <li><a href="#%3Cinit%3E(X)" tabindex="0">Foo(<wbr>T)</a></li>
+                <li><a href="#%3Cinit%3E(Y)" tabindex="0">Foo(<wbr>T)</a></li>
                 </ol>
                 </li>""");
         checkOutput("index-all.html", true, """
@@ -119,9 +119,9 @@ public class TestErasure extends JavadocTester {
                  - Constructor for class <a href="Foo.html" title="class in Unnamed Package">Foo</a></dt>
                 <dd>&nbsp;</dd>""");
         checkOutput("member-search-index.js", true, """
-                {"p":"<Unnamed>","c":"Foo","l":"Foo(T)","u":"%3Cinit%3E(T)"},\
-                {"p":"<Unnamed>","c":"Foo","l":"Foo(T)","u":"%3Cinit%3E(X)"},\
-                {"p":"<Unnamed>","c":"Foo","l":"Foo(T)","u":"%3Cinit%3E(Y)"}""");
+                {"p":"<Unnamed>","c":"Foo","l":"Foo(T)","u":"%3Cinit%3E(T)","k":"3"},\
+                {"p":"<Unnamed>","c":"Foo","l":"Foo(T)","u":"%3Cinit%3E(X)","k":"3"},\
+                {"p":"<Unnamed>","c":"Foo","l":"Foo(T)","u":"%3Cinit%3E(Y)","k":"3"}""");
         // methods
         checkOutput("Foo.html", true, """
                 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 \
@@ -145,9 +145,9 @@ public class TestErasure extends JavadocTester {
         checkOutput("Foo.html", true, """
                 <li><a href="#method-detail" tabindex="0">Method Details</a>
                 <ol class="toc-list">
-                <li><a href="#m(T)" tabindex="0">m(T)</a></li>
-                <li><a href="#m(X)" tabindex="0">m(T)</a></li>
-                <li><a href="#m(Y)" tabindex="0">m(T)</a></li>
+                <li><a href="#m(T)" tabindex="0">m(<wbr>T)</a></li>
+                <li><a href="#m(X)" tabindex="0">m(<wbr>T)</a></li>
+                <li><a href="#m(Y)" tabindex="0">m(<wbr>T)</a></li>
                 </ol>
                 </li>""");
         checkOutput("index-all.html", true, """
@@ -210,8 +210,8 @@ public class TestErasure extends JavadocTester {
         checkOutput("Foo.html", true, """
                 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
                 <ol class="toc-list">
-                <li><a href="#%3Cinit%3E(T)" tabindex="0">Foo(T)</a></li>
-                <li><a href="#%3Cinit%3E(X)" tabindex="0">Foo(T)</a></li>
+                <li><a href="#%3Cinit%3E(T)" tabindex="0">Foo(<wbr>T)</a></li>
+                <li><a href="#%3Cinit%3E(X)" tabindex="0">Foo(<wbr>T)</a></li>
                 </ol>
                 </li>""");
         checkOutput("index-all.html", true, """
@@ -222,8 +222,8 @@ public class TestErasure extends JavadocTester {
                  - Constructor for class <a href="Foo.html" title="class in Unnamed Package">Foo</a></dt>
                 <dd>&nbsp;</dd>""");
         checkOutput("member-search-index.js", true, """
-                {"p":"<Unnamed>","c":"Foo","l":"Foo(T)","u":"%3Cinit%3E(T)"},\
-                {"p":"<Unnamed>","c":"Foo","l":"Foo(T)","u":"%3Cinit%3E(X)"}""");
+                {"p":"<Unnamed>","c":"Foo","l":"Foo(T)","u":"%3Cinit%3E(T)","k":"3"},\
+                {"p":"<Unnamed>","c":"Foo","l":"Foo(T)","u":"%3Cinit%3E(X)","k":"3"}""");
         // methods
         checkOutput("Foo.html", true, """
                 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 \
@@ -242,8 +242,8 @@ public class TestErasure extends JavadocTester {
         checkOutput("Foo.html", true, """
                 <li><a href="#method-detail" tabindex="0">Method Details</a>
                 <ol class="toc-list">
-                <li><a href="#m(T)" tabindex="0">m(T)</a></li>
-                <li><a href="#m(X)" tabindex="0">m(T)</a></li>
+                <li><a href="#m(T)" tabindex="0">m(<wbr>T)</a></li>
+                <li><a href="#m(X)" tabindex="0">m(<wbr>T)</a></li>
                 </ol>
                 </li>""");
         checkOutput("index-all.html", true, """

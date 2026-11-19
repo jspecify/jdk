@@ -41,6 +41,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A reusable synchronization barrier, similar in functionality to
@@ -546,7 +547,7 @@ public class Phaser {
      * @throws IllegalArgumentException if parties less than zero
      * or greater than the maximum number of parties supported
      */
-    public Phaser(Phaser parent, int parties) {
+    public Phaser(@Nullable Phaser parent, int parties) {
         if (parties >>> PARTIES_SHIFT != 0)
             throw new IllegalArgumentException("Illegal number of parties");
         int phase = 0;

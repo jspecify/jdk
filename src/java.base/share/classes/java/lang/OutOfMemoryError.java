@@ -48,7 +48,6 @@ public class OutOfMemoryError extends VirtualMachineError {
     /**
      * Constructs an {@code OutOfMemoryError} with no detail message.
      */
-    
     public OutOfMemoryError() {
         super();
     }
@@ -59,7 +58,6 @@ public class OutOfMemoryError extends VirtualMachineError {
      *
      * @param   s   the detail message.
      */
-    
     public OutOfMemoryError(@Nullable String s) {
         super(s);
     }

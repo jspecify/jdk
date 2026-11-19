@@ -343,8 +343,6 @@ public final class AclEntry {
      *          is identical to this AclEntry
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object ob) {
         if (ob == this)
             return true;

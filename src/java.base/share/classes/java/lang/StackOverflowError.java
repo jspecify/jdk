@@ -42,7 +42,6 @@ public class StackOverflowError extends VirtualMachineError {
     /**
      * Constructs a {@code StackOverflowError} with no detail message.
      */
-    
     public StackOverflowError() {
         super();
     }
@@ -53,7 +52,6 @@ public class StackOverflowError extends VirtualMachineError {
      *
      * @param   s   the detail message.
      */
-    
     public StackOverflowError(@Nullable String s) {
         super(s);
     }

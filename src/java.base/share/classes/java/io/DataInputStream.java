@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -63,7 +63,7 @@ public class DataInputStream extends FilterInputStream implements DataInput {
      *
      * @param  in   the specified input stream
      */
-    public DataInputStream(InputStream in) {
+    public DataInputStream(@Nullable InputStream in) {
         super(in);
     }
 
@@ -234,7 +234,7 @@ public class DataInputStream extends FilterInputStream implements DataInput {
      *             the contained input stream does not support
      *             reading after close, or another I/O error occurs.
      */
-    public final  int skipBytes(int n) throws IOException {
+    public final int skipBytes(int n) throws IOException {
         int total = 0;
         int cur = 0;
 
@@ -299,7 +299,7 @@ public class DataInputStream extends FilterInputStream implements DataInput {
      *             another I/O error occurs.
      * @see         java.io.FilterInputStream#in
      */
-    public final  int readUnsignedByte() throws IOException {
+    public final int readUnsignedByte() throws IOException {
         int ch = in.read();
         if (ch < 0)
             throw new EOFException();
@@ -602,7 +602,7 @@ loop:   while (true) {
         if (ascii == utflen) {
             String str;
             if (trusted) {
-                str = JLA.newStringNoRepl(bytearr, StandardCharsets.ISO_8859_1);
+                str = JLA.uncheckedNewStringWithLatin1Bytes(bytearr);
             } else {
                 str = new String(bytearr, 0, utflen, StandardCharsets.ISO_8859_1);
             }

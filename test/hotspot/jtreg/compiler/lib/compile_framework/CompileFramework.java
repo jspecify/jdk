@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,8 @@ import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import jtreg.SkippedException;
 
 /**
  * This is the entry-point for the Compile Framework. Its purpose it to allow
@@ -71,8 +73,11 @@ public class CompileFramework {
      * Compile all sources: store the sources to the {@link sourceDir} directory, compile
      * Java and Jasm sources and store the generated class-files in the {@link classesDir}
      * directory.
+     *
+     * @param javacFlags: optional, list of additional flags for javac, e.g. to make modules
+     *                    visible.
      */
-    public void compile() {
+    public void compile(String... javacFlags) {
         if (classLoader != null) {
             throw new CompileFrameworkException("Cannot compile twice!");
         }
@@ -86,7 +91,7 @@ public class CompileFramework {
         System.out.println("Classes directory: " + classesDir);
 
         Compile.compileJasmSources(jasmSources, sourceDir, classesDir);
-        Compile.compileJavaSources(javaSources, sourceDir, classesDir);
+        Compile.compileJavaSources(javaSources, sourceDir, classesDir, javacFlags);
         classLoader = ClassLoaderBuilder.build(classesDir);
     }
 
@@ -129,8 +134,29 @@ public class CompileFramework {
         } catch (IllegalAccessException e) {
             throw new CompileFrameworkException("Illegal access:", e);
         } catch (InvocationTargetException e) {
+            // Rethrow jtreg.SkippedException so the tests are properly skipped.
+            // If we wrapped the SkippedException instead, it would get buried
+            // in the exception causes and cause a failed test instead.
+            findJtregSkippedExceptionInCauses(e).ifPresent(ex -> { throw ex; });
             throw new CompileFrameworkException("Invocation target:", e);
         }
+    }
+
+    private static Optional<RuntimeException> findJtregSkippedExceptionInCauses(Throwable ex) {
+        while (ex != null) {
+            // jtreg.SkippedException can be from a different classloader, comparing by name
+            if (ex.getClass().getName().equals(SkippedException.class.getName())) {
+                return Optional.of((RuntimeException) ex);
+            }
+
+            if (ex.getCause() == ex) {
+                break;
+            }
+
+            ex = ex.getCause();
+        }
+
+        return Optional.empty();
     }
 
     private Method findMethod(String className, String methodName) {

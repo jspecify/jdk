@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "cds/cdsConfig.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/dictionary.hpp"
@@ -32,7 +31,10 @@
 #include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/instanceKlass.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/timerTrace.hpp"
 #include "utilities/concurrentHashTable.inline.hpp"
+#include "utilities/concurrentHashTableTasks.inline.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/tableStatistics.hpp"
 
@@ -46,7 +48,7 @@ Dictionary::Dictionary(ClassLoaderData* loader_data, size_t table_size)
 
   size_t start_size_log_2 = MAX2(log2i_ceil(table_size), 2); // 2 is minimum size even though some dictionaries only have one entry
   size_t current_size = ((size_t)1) << start_size_log_2;
-  log_info(class, loader, data)("Dictionary start size: " SIZE_FORMAT " (" SIZE_FORMAT ")",
+  log_info(class, loader, data)("Dictionary start size: %zu (%zu)",
                                 current_size, start_size_log_2);
   _table = new ConcurrentTable(start_size_log_2, END_SIZE, REHASH_LEN);
 }
@@ -240,10 +242,24 @@ void Dictionary::verify() {
 }
 
 void Dictionary::print_table_statistics(outputStream* st, const char* table_name) {
-  static TableStatistics ts;
+  TableStatistics stats;
   auto sz = [&] (InstanceKlass** val) {
     return sizeof(**val);
   };
-  ts = _table->statistics_get(Thread::current(), sz, ts);
-  ts.print(st, table_name);
+  Thread* thread = Thread::current();
+  ConcurrentTable::StatisticsTask sts(_table);
+  if (!sts.prepare(thread)) {
+    st->print_cr("Failed to take statistics");
+    return;
+  }
+  TraceTime timer("GetStatistics", TRACETIME_LOG(Debug, perf));
+  while (sts.do_task(thread, sz)) {
+    sts.pause(thread);
+    if (thread->is_Java_thread()) {
+      ThreadBlockInVM tbivm(JavaThread::cast(thread));
+    }
+    sts.cont(thread);
+  }
+  stats = sts.done(thread);
+  stats.print(st, table_name);
 }

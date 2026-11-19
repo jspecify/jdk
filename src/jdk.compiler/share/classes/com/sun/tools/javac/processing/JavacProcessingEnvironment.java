@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.util.*;
+import javax.tools.Diagnostic;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.JavaFileObject.Kind;
@@ -66,6 +67,7 @@ import com.sun.tools.javac.model.JavacTypes;
 import com.sun.tools.javac.platform.PlatformDescription;
 import com.sun.tools.javac.platform.PlatformDescription.PluginInfo;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
+import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -109,7 +111,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     private final boolean printProcessorInfo;
     private final boolean printRounds;
     private final boolean verbose;
-    private final boolean lint;
     private final boolean fatalErrors;
     private final boolean werror;
     private final boolean showResolveErrors;
@@ -204,14 +205,13 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         printProcessorInfo = options.isSet(Option.XPRINTPROCESSORINFO);
         printRounds = options.isSet(Option.XPRINTROUNDS);
         verbose = options.isSet(Option.VERBOSE);
-        lint = Lint.instance(context).isEnabled(PROCESSING);
         compiler = JavaCompiler.instance(context);
         if (options.isSet(Option.PROC, "only") || options.isSet(Option.XPRINT)) {
             compiler.shouldStopPolicyIfNoError = CompileState.PROCESS;
         }
         fatalErrors = options.isSet("fatalEnterError");
         showResolveErrors = options.isSet("showResolveErrors");
-        werror = options.isSet(Option.WERROR);
+        werror = compiler.isWerror(PROCESSING);
         fileManager = context.get(JavaFileManager.class);
         platformAnnotations = initPlatformAnnotations();
 
@@ -624,7 +624,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         private Set<String> supportedOptionNames;
 
         ProcessorState(Processor p, Log log, Source source, DeferredCompletionFailureHandler dcfh,
-                       boolean allowModules, ProcessingEnvironment env, boolean lint) {
+                       boolean allowModules, ProcessingEnvironment env) {
             processor = p;
             contributed = false;
 
@@ -645,10 +645,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     boolean patternAdded = supportedAnnotationStrings.add(annotationPattern);
 
                     supportedAnnotationPatterns.
-                        add(importStringToPattern(allowModules, annotationPattern,
-                                                  processor, log, lint));
-                    if (lint && !patternAdded) {
-                        log.warning(Warnings.ProcDuplicateSupportedAnnotation(annotationPattern,
+                        add(importStringToPattern(allowModules, annotationPattern, processor, log));
+                    if (!patternAdded) {
+                        log.warning(LintWarnings.ProcDuplicateSupportedAnnotation(annotationPattern,
                                                                               p.getClass().getName()));
                     }
                 }
@@ -659,19 +658,17 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // annotation types were otherwise non-overlapping
                 // with each other in other cases, for example "foo.*"
                 // and "foo.bar.*".
-                if (lint &&
-                    supportedAnnotationPatterns.contains(MatchingUtils.validImportStringToPattern("*")) &&
+                if (supportedAnnotationPatterns.contains(MatchingUtils.validImportStringToPattern("*")) &&
                     supportedAnnotationPatterns.size() > 1) {
-                    log.warning(Warnings.ProcRedundantTypesWithWildcard(p.getClass().getName()));
+                    log.warning(LintWarnings.ProcRedundantTypesWithWildcard(p.getClass().getName()));
                 }
 
                 supportedOptionNames = new LinkedHashSet<>();
                 for (String optionName : processor.getSupportedOptions() ) {
                     if (checkOptionName(optionName, log)) {
                         boolean optionAdded = supportedOptionNames.add(optionName);
-                        if (lint && !optionAdded) {
-                            log.warning(Warnings.ProcDuplicateOptionName(optionName,
-                                                                         p.getClass().getName()));
+                        if (!optionAdded) {
+                            log.warning(LintWarnings.ProcDuplicateOptionName(optionName, p.getClass().getName()));
                         }
                     }
                 }
@@ -758,8 +755,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     ProcessorState ps = new ProcessorState(psi.processorIterator.next(),
                                                            log, source, dcfh,
                                                            Feature.MODULES.allowedInSource(source),
-                                                           JavacProcessingEnvironment.this,
-                                                           lint);
+                                                           JavacProcessingEnvironment.this);
                     psi.procStateList.add(ps);
                     return ps;
                 } else
@@ -887,11 +883,11 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
         unmatchedAnnotations.remove("");
 
-        if (lint && unmatchedAnnotations.size() > 0) {
+        if (unmatchedAnnotations.size() > 0) {
             // Remove annotations processed by javac
             unmatchedAnnotations.keySet().removeAll(platformAnnotations);
             if (unmatchedAnnotations.size() > 0) {
-                log.warning(Warnings.ProcAnnotationsWithoutProcessors(unmatchedAnnotations.keySet()));
+                log.warning(LintWarnings.ProcAnnotationsWithoutProcessors(unmatchedAnnotations.keySet()));
             }
         }
 
@@ -1004,7 +1000,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 Assert.checkNonNull(deferredDiagnosticHandler);
                 this.deferredDiagnosticHandler = deferredDiagnosticHandler;
             } else {
-                this.deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(log);
+                this.deferredDiagnosticHandler = log.new DeferredDiagnosticHandler();
                 compiler.setDeferredDiagnosticHandler(this.deferredDiagnosticHandler);
             }
 
@@ -1107,21 +1103,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             if (messager.errorRaised())
                 return true;
 
-            for (JCDiagnostic d: deferredDiagnosticHandler.getDiagnostics()) {
-                switch (d.getKind()) {
-                    case WARNING:
-                        if (werror)
-                            return true;
-                        break;
-
-                    case ERROR:
-                        if (fatalErrors || !d.isFlagSet(RECOVERABLE))
-                            return true;
-                        break;
-                }
-            }
-
-            return false;
+            return deferredDiagnosticHandler.getDiagnostics().stream()
+              .anyMatch(d -> (d.getKind() == Diagnostic.Kind.WARNING && werror && ACCEPT_NON_RECOVERABLE_LINTS.test(d)) ||
+                             (d.getKind() == Diagnostic.Kind.ERROR && (fatalErrors || !d.isFlagSet(RECOVERABLE))));
         }
 
         /** Find the set of annotations present in the set of top level
@@ -1211,12 +1195,20 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
 
         void showDiagnostics(boolean showAll) {
-            deferredDiagnosticHandler.reportDeferredDiagnostics(showAll ? ACCEPT_ALL
-                                                                        : ACCEPT_NON_RECOVERABLE);
+            deferredDiagnosticHandler.reportDeferredDiagnostics(
+                    ACCEPT_NON_RECOVERABLE_LINTS.and(showAll ? ACCEPT_ALL
+                                                             : ACCEPT_NON_RECOVERABLE));
             log.popDiagnosticHandler(deferredDiagnosticHandler);
             compiler.setDeferredDiagnosticHandler(null);
         }
         //where:
+            private final Predicate<JCDiagnostic> ACCEPT_NON_RECOVERABLE_LINTS =
+                    d -> !Optional.of(d)
+                            .filter(diag -> !diag.isFlagSet(SYNTAX))
+                            .map(JCDiagnostic::getLintCategory)
+                            .map(lc -> lc.annotationSuppression ||
+                                       lc == Lint.LintCategory.INCUBATING)
+                            .orElse(false);
             private final Predicate<JCDiagnostic> ACCEPT_NON_RECOVERABLE =
                     d -> d.getKind() != JCDiagnostic.Kind.ERROR ||
                          !d.isFlagSet(DiagnosticFlag.RECOVERABLE) ||
@@ -1555,7 +1547,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             }
             public void visitMethodDef(JCMethodDecl node) {
                 // remove super constructor call that may have been added during attribution:
-                if (TreeInfo.isConstructor(node) && node.sym != null && node.sym.owner.isEnum() &&
+                if (TreeInfo.isConstructor(node) && node.sym != null &&
+                    (node.sym.owner.isEnum() || TreeInfo.isCanonicalConstructor(node)) &&
                     node.body != null && node.body.stats.nonEmpty() && TreeInfo.isSuperCall(node.body.stats.head) &&
                     node.body.stats.head.pos == node.body.pos) {
                     node.body.stats = node.body.stats.tail;
@@ -1660,7 +1653,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
      * regex matching that string.  If the string is not a valid
      * import-style string, return a regex that won't match anything.
      */
-    private static Pattern importStringToPattern(boolean allowModules, String s, Processor p, Log log, boolean lint) {
+    private static Pattern importStringToPattern(boolean allowModules, String s, Processor p, Log log) {
         String module;
         String pkg;
         int slash = s.indexOf('/');
@@ -1673,7 +1666,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         } else {
             String moduleName = s.substring(0, slash);
             if (!SourceVersion.isName(moduleName)) {
-                return warnAndNoMatches(s, p, log, lint);
+                return warnAndNoMatches(s, p, log);
             }
             module = Pattern.quote(moduleName + "/");
             // And warn if module is specified if modules aren't supported, conditional on -Xlint:proc?
@@ -1682,14 +1675,12 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         if (MatchingUtils.isValidImportString(pkg)) {
             return Pattern.compile(module + MatchingUtils.validImportStringToPatternString(pkg));
         } else {
-            return warnAndNoMatches(s, p, log, lint);
+            return warnAndNoMatches(s, p, log);
         }
     }
 
-    private static Pattern warnAndNoMatches(String s, Processor p, Log log, boolean lint) {
-        if (lint) {
-            log.warning(Warnings.ProcMalformedSupportedString(s, p.getClass().getName()));
-        }
+    private static Pattern warnAndNoMatches(String s, Processor p, Log log) {
+        log.warning(LintWarnings.ProcMalformedSupportedString(s, p.getClass().getName()));
         return noMatches; // won't match any valid identifier
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,11 @@
 #ifndef SHARE_PRIMS_JVMTIENVBASE_HPP
 #define SHARE_PRIMS_JVMTIENVBASE_HPP
 
+#include "oops/oopHandle.hpp"
 #include "prims/jvmtiEnvThreadState.hpp"
 #include "prims/jvmtiEventController.hpp"
 #include "prims/jvmtiThreadState.hpp"
-#include "oops/oopHandle.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/javaThread.hpp"
@@ -54,7 +54,7 @@ class JvmtiTagMap;
 // done via JNI GetEnv() call. Multiple attachments are
 // allowed in jvmti.
 
-class JvmtiEnvBase : public CHeapObj<mtInternal> {
+class JvmtiEnvBase : public CHeapObj<mtServiceability> {
 
  private:
 
@@ -90,8 +90,7 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
   // It is unsafe to use this function when virtual threads are executed.
   static bool disable_virtual_threads_notify_jvmti();
 
-  static jvmtiError suspend_thread(oop thread_oop, JavaThread* java_thread, bool single_suspend,
-                                   int* need_safepoint_p);
+  static jvmtiError suspend_thread(oop thread_oop, JavaThread* java_thread, bool single_suspend);
   static jvmtiError resume_thread(oop thread_oop, JavaThread* java_thread, bool single_resume);
   static jvmtiError check_thread_list(jint count, const jthread* list);
   static bool is_in_thread_list(jint count, const jthread* list, oop jt_oop);
@@ -267,7 +266,7 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
     if (size == 0) {
       *mem_ptr = nullptr;
     } else {
-      *mem_ptr = (unsigned char *)os::malloc((size_t)size, mtInternal);
+      *mem_ptr = (unsigned char *)os::malloc((size_t)size, mtServiceability);
       if (*mem_ptr == nullptr) {
         return JVMTI_ERROR_OUT_OF_MEMORY;
       }
@@ -329,11 +328,11 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
   }
 
   JvmtiTagMap* tag_map_acquire() {
-    return Atomic::load_acquire(&_tag_map);
+    return AtomicAccess::load_acquire(&_tag_map);
   }
 
   void release_set_tag_map(JvmtiTagMap* tag_map) {
-    Atomic::release_store(&_tag_map, tag_map);
+    AtomicAccess::release_store(&_tag_map, tag_map);
   }
 
   // return true if event is enabled globally or for any thread
@@ -348,7 +347,7 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
   // helper methods for creating arrays of global JNI Handles from local Handles
   // allocated into environment specific storage
   jthread * new_jthreadArray(int length, Handle *handles);
-  jthreadGroup * new_jthreadGroupArray(int length, objArrayHandle groups);
+  jthreadGroup * new_jthreadGroupArray(int length, refArrayHandle groups);
 
   // convert to a jni jclass from a non-null Klass*
   jclass get_jni_class_non_null(Klass* k);
@@ -396,7 +395,7 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
   static jvmtiError get_live_threads(JavaThread* current_thread, Handle group_hdl, jint *count_ptr, Handle **thread_objs_p);
 
   // enumerates the subgroups in the given thread group
-  static jvmtiError get_subgroups(JavaThread* current_thread, Handle group_hdl, jint *count_ptr, objArrayHandle *group_objs_p);
+  static jvmtiError get_subgroups(JavaThread* current_thread, Handle group_hdl, jint *count_ptr, refArrayHandle *group_objs_p);
 
   // JVMTI API helper functions which are called when target thread is suspended
   // or at safepoint / thread local handshake.
@@ -410,6 +409,7 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
   jvmtiError get_frame_location(oop vthread_oop, jint depth,
                                 jmethodID* method_ptr, jlocation* location_ptr);
   jvmtiError set_frame_pop(JvmtiThreadState* state, javaVFrame* jvf, jint depth);
+  jvmtiError clear_all_frame_pops(JvmtiThreadState* state);
   jvmtiError get_object_monitor_usage(JavaThread* calling_thread,
                                       jobject object, jvmtiMonitorUsage* info_ptr);
   jvmtiError get_stack_trace(javaVFrame* jvf,
@@ -453,6 +453,27 @@ class JvmtiEnvIterator : public StackObj {
   JvmtiEnv* first()                 { return JvmtiEnvBase::head_environment(); }
   JvmtiEnv* next(JvmtiEnvBase* env) { return env->next_environment(); }
 };
+
+#if INCLUDE_JVMTI
+
+// This helper class marks current thread as making a Java upcall.
+// It is needed to hide JVMTI events during JVMTI operation.
+class JvmtiJavaUpcallMark : public StackObj {
+ private:
+  JavaThread* _current;
+ public:
+  JvmtiJavaUpcallMark(JavaThread* current) {
+    _current = current;
+    assert(!_current->is_in_java_upcall(), "sanity check");
+    _current->toggle_is_in_java_upcall();
+  }
+
+  ~JvmtiJavaUpcallMark() {
+    assert(_current->is_in_java_upcall(), "sanity check");
+    _current->toggle_is_in_java_upcall();
+  }
+};
+#endif // INCLUDE_JVMTI
 
 // Used in combination with the JvmtiHandshake class.
 // It is intended to support both platform and virtual threads.
@@ -511,6 +532,17 @@ public:
   }
 };
 
+// HandshakeClosure to send an asynchronous exception to target.
+class StopThreadClosure : public JvmtiUnitedHandshakeClosure {
+ private:
+  Handle _exception;
+ public:
+  StopThreadClosure(JavaThread* current_thread, oop exception);
+  void doit(JavaThread* target);
+  void do_thread(Thread* target);
+  void do_vthread(Handle target_h);
+};
+
 // HandshakeClosure to update for pop top frame.
 class UpdateForPopTopFrameClosure : public JvmtiUnitedHandshakeClosure {
 private:
@@ -534,17 +566,19 @@ public:
 };
 
 // HandshakeClosure to set frame pop.
-class SetFramePopClosure : public JvmtiUnitedHandshakeClosure {
+class SetOrClearFramePopClosure : public JvmtiUnitedHandshakeClosure {
 private:
-  JvmtiEnv *_env;
+  JvmtiEnvBase *_env;
   JvmtiThreadState* _state;
-  jint _depth;
+  bool _set;
+  jint _depth; // used for NotiftyFramePop only
 
 public:
-  SetFramePopClosure(JvmtiEnv *env, JvmtiThreadState* state, jint depth)
-    : JvmtiUnitedHandshakeClosure("SetFramePopClosure"),
-      _env(env),
+  SetOrClearFramePopClosure(JvmtiEnv *env, JvmtiThreadState* state, bool set, jint depth = 0)
+    : JvmtiUnitedHandshakeClosure("SetOrClearFramePopClosure"),
+      _env((JvmtiEnvBase*)env),
       _state(state),
+      _set(set),
       _depth(depth) {}
   void do_thread(Thread *target);
   void do_vthread(Handle target_h);

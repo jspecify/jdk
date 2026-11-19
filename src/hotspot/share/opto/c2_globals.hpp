@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,9 @@
 #ifndef SHARE_OPTO_C2_GLOBALS_HPP
 #define SHARE_OPTO_C2_GLOBALS_HPP
 
-#include "opto/c2_globals_pd.hpp"
 #include "runtime/globals_shared.hpp"
 #include "utilities/macros.hpp"
+#include CPU_HEADER(c2_globals)
 
 //
 // Defines all globals flags used by the server compiler.
@@ -58,20 +58,31 @@
   product(bool, StressMacroExpansion, false, DIAGNOSTIC,                    \
           "Randomize macro node expansion order")                           \
                                                                             \
+  product(bool, StressMacroElimination, false, DIAGNOSTIC,                  \
+          "Randomize macro node elimination order")                         \
+                                                                            \
   product(bool, StressUnstableIfTraps, false, DIAGNOSTIC,                   \
           "Randomly take unstable if traps")                                \
-                                                                            \
-  product(uint, StressSeed, 0, DIAGNOSTIC,                                  \
-          "Seed for randomized stress testing (if unset, a random one is "  \
-          "generated). The seed is recorded in the compilation log, if "    \
-          "available.")                                                     \
-          range(0, max_juint)                                               \
                                                                             \
   develop(bool, StressMethodHandleLinkerInlining, false,                    \
           "Stress inlining through method handle linkers")                  \
                                                                             \
   develop(bool, StressBailout, false,                                       \
           "Perform bailouts randomly at C2 failing() checks")               \
+                                                                            \
+  develop(bool, StressVerifyMeetJoin, false,                                \
+          "Perform cross meet/join sanity checks on all Type instances")    \
+                                                                            \
+  product(bool, OptimizeReachabilityFences, true, DIAGNOSTIC,               \
+          "Optimize reachability fences "                                   \
+          "(leave reachability fence nodes intact when turned off)")        \
+                                                                            \
+  product(bool, PreserveReachabilityFencesOnConstants, false, DIAGNOSTIC,   \
+          "Keep reachability fences on compile-time constants")             \
+                                                                            \
+  product(bool, StressReachabilityFences, false, DIAGNOSTIC,                \
+          "Aggressively insert reachability fences "                        \
+          "for all oop method arguments")                                   \
                                                                             \
   develop(uint, StressBailoutMean, 100000,                                  \
           "The expected number of failing() checks made until "             \
@@ -237,14 +248,25 @@
   product(bool, UseCountedLoopSafepoints, false,                            \
           "Force counted loops to keep a safepoint")                        \
                                                                             \
+  product(bool, UseParsePredicates, true, DIAGNOSTIC,                       \
+          "Use Parse Predicates for speculative optimizations.")            \
+                                                                            \
   product(bool, UseLoopPredicate, true,                                     \
-          "Generate a predicate to select fast/slow loop versions")         \
+          "Move checks with uncommon trap out of loops.")                   \
                                                                             \
   develop(bool, TraceLoopPredicate, false,                                  \
           "Trace generation of loop predicates")                            \
                                                                             \
   develop(bool, TraceLoopOpts, false,                                       \
           "Trace executed loop optimizations")                              \
+                                                                            \
+  develop(bool, TraceSplitIf, false,                                        \
+          "Trace Split-If optimization")                                    \
+                                                                            \
+  product(bool, UseLoopLimitCheckPredicate, true, DIAGNOSTIC,               \
+          "Use Loop Limit Check Predicate to speculatively transform "      \
+          "loops to counted loops where overflow is uncertain at "          \
+          "compile time.")                                                  \
                                                                             \
   develop(bool, TraceLoopLimitCheck, false,                                 \
           "Trace generation of loop limits checks")                         \
@@ -261,6 +283,10 @@
                                                                             \
   develop(bool, OptoCoalesce, true,                                         \
           "Use Conservative Copy Coalescing in the Register Allocator")     \
+                                                                            \
+  product(uint, IFGEdgesLimit, 10000000, DIAGNOSTIC,                        \
+          "Maximum allowed edges in the interference graphs")               \
+          range(0, max_juint)                                               \
                                                                             \
   develop(bool, UseUniqueSubclasses, true,                                  \
           "Narrow an abstract reference to the unique concrete subclass")   \
@@ -327,6 +353,15 @@
   product(bool, PartialPeelLoop, true,                                      \
           "Partial peel (rotate) loops")                                    \
                                                                             \
+  product(uint, LoopPeeling, 1, DIAGNOSTIC,                                 \
+          "Control loop peeling optimization: "                             \
+          "0 = always disable loop peeling, "                               \
+          "1 = enable loop peeling (default), "                             \
+          "2 = disable loop peeling as a standalone optimization but "      \
+          "allow it as a helper to other loop optimizations like removing " \
+          "empty loops")                                                    \
+          range(0, 2)                                                       \
+                                                                            \
   product(intx, PartialPeelNewPhiDelta, 0,                                  \
           "Additional phis that can be created by partial peeling")         \
           range(0, max_jint)                                                \
@@ -346,6 +381,21 @@
   develop(bool, TraceLoopUnswitching, false,                                \
           "Trace loop unswitching")                                         \
                                                                             \
+  product(bool, LoopMultiversioning, true, DIAGNOSTIC,                      \
+          "Enable loop multiversioning (for speculative compilation)")      \
+                                                                            \
+  develop(bool, TraceLoopMultiversioning, false,                            \
+          "Trace loop multiversioning")                                     \
+                                                                            \
+  product(bool, UseAutoVectorizationPredicate, true, DIAGNOSTIC,            \
+          "Use AutoVectorization predicate (for speculative compilation)")  \
+                                                                            \
+  product(bool, UseAutoVectorizationSpeculativeAliasingChecks, true, DIAGNOSTIC, \
+          "Allow the use Multiversioning or Predicate to add aliasing"      \
+          "runtime checks. Runtime checks will only be inserted if either"  \
+          "LoopMultiversioning or UseAutoVectorizationPredicate are"        \
+          "enabled.")                                                       \
+                                                                            \
   product(bool, AllowVectorizeOnDemand, true,                               \
           "Globally suppress vectorization set in VectorizeMethod")         \
                                                                             \
@@ -360,6 +410,26 @@
           "forwarding failures. The number specifies over how many "        \
           "loop iterations this detection spans.")                          \
           range(0, 4096)                                                    \
+                                                                            \
+  product(uint, SuperWordAutomaticAlignment, 1, DIAGNOSTIC,                 \
+          "0 = Disabled (unless AlignVector is enabled)"                    \
+          "Else: align with a load or store of the largest vector width,"   \
+          "      and if there are loads and stores of the largest width:"   \
+          "1 = Prefer alignment with vector store (default)"                \
+          "2 = Prefer alignment with vector load.")                         \
+          range(0, 2)                                                       \
+                                                                            \
+  product(uint, AutoVectorizationOverrideProfitability, 1, DIAGNOSTIC,      \
+          "Override the auto vectorization profitability heuristics."       \
+          "0 = Run auto vectorizer, but abort just before applying"         \
+          "    vectorization, as though it was not profitable."             \
+          "1 = Run auto vectorizer with the default profitability"          \
+          "    heuristics. This is the default, and hopefully"              \
+          "    delivers the best performance."                              \
+          "2 = Run auto vectorizer, and vectorize even if the"              \
+          "    profitability heuristics predict that vectorization"         \
+          "    is not profitable.")                                         \
+          range(0, 2)                                                       \
                                                                             \
   product(bool, UseCMoveUnconditionally, false,                             \
           "Use CMove (scalar and vector) ignoring profitability test.")     \
@@ -379,6 +449,15 @@
   product_pd(intx, ConditionalMoveLimit,                                    \
           "Limit of ops to make speculative when using CMOVE")              \
           range(0, max_jint)                                                \
+                                                                            \
+  develop(intx, PrintPhaseLevel, 0,                                         \
+          "Level of detail of the phase trace print. "                      \
+          "System-wide value, -1=printing is disabled, "                    \
+          "0=print nothing except PhasePrintLevel directives, "             \
+          "6=all details printed. "                                         \
+          "Level of detail of printouts can be set on a per-method level "  \
+          "as well by using CompileCommand=PhasePrintLevel.")               \
+          range(-1, 6)                                                      \
                                                                             \
   develop(bool, PrintIdealGraph, false,                                     \
           "Print ideal graph to XML file / network interface. "             \
@@ -433,8 +512,12 @@
   /* controls for heat-based inlining */                                    \
                                                                             \
   develop(intx, NodeCountInliningCutoff, 18000,                             \
-          "If parser node generation exceeds limit stop inlining")          \
+          "If node count exceeds limit stop inlining")                      \
           range(0, max_jint)                                                \
+                                                                            \
+  product(bool, DelayAfterInliningCutoff, false, DIAGNOSTIC,                \
+          "If node count exceeds limit during parsing, attempt inlining "   \
+          "later instead of giving up completely")                          \
                                                                             \
   product(intx, MaxNodeLimit, 80000,                                        \
           "Maximum number of nodes")                                        \
@@ -522,6 +605,14 @@
   product(intx, EliminateAllocationFieldsLimit, 512, DIAGNOSTIC,            \
           "Number of fields in instance limit for scalar replacement")      \
           range(0, max_jint)                                                \
+                                                                            \
+  product(bool, StressEliminateAllocations, false, DIAGNOSTIC,              \
+          "Randomly fail allocation elimination attempts")                  \
+                                                                            \
+  product(uint, StressEliminateAllocationsMean, 20, DIAGNOSTIC,             \
+          "The expected number of elimination checks made until "           \
+          "a random failure.")                                              \
+          range(1, max_juint)                                               \
                                                                             \
   product(bool, OptimizePtrCompare, true,                                   \
           "Use escape analysis to optimize pointers compare")               \
@@ -633,17 +724,35 @@
   develop(bool, VerifyLoopOptimizations, false,                             \
           "verify major loop optimizations")                                \
                                                                             \
+  develop(bool, VerifyNoNewIrreducibleLoops, false,                         \
+          "Verify that no new irreducible loops are created after parsing") \
+                                                                            \
   product(bool, ProfileDynamicTypes, true, DIAGNOSTIC,                      \
           "do extra type profiling and use it more aggressively")           \
                                                                             \
   develop(bool, TraceIterativeGVN, false,                                   \
           "Print progress during Iterative Global Value Numbering")         \
                                                                             \
+  develop(bool, UseDeepIGVNRevisit, true,                                   \
+          "Re-process nodes that could benefit from a deep revisit after "  \
+          "the IGVN worklist drains")                                       \
+                                                                            \
+  product(uint, MacroExpansionCleanupCount, 16, DIAGNOSTIC,                 \
+          "Run IGVN to clean the graph after this many macro nodes are "    \
+          "expanded or when we approach the max live node limit.")          \
+          range(1, 100)                                                     \
+                                                                            \
   develop(uint, VerifyIterativeGVN, 0,                                      \
-          "Verify Iterative Global Value Numbering"                         \
-          "=XY, with Y: verify Def-Use modifications during IGVN"           \
-          "          X: verify that type(n) == n->Value() after IGVN"       \
-          "X and Y in 0=off; 1=on")                                         \
+          "Verify Iterative Global Value Numbering. Set the corresponding " \
+          "decimal place to 1 to enable a check, or 0 to disable it:\n"     \
+          "100000: verify IGVN method return invariants\n"                  \
+          " 10000: verify node specific invariants\n"                       \
+          "  1000: verify Node::Identity did not miss opportunities\n"      \
+          "   100: verify Node::Ideal did not miss opportunities\n"         \
+          "    10: verify that type(n) == n->Value() after IGVN\n"          \
+          "     1: verify Def-Use modifications during IGVN\n"              \
+          "Example: -XX:VerifyIterativeGVN=101 enables Node::Ideal and "    \
+          "Def-Use checks.")                                                \
           constraint(VerifyIterativeGVNConstraintFunc, AtParse)             \
                                                                             \
   develop(bool, TraceCISCSpill, false,                                      \
@@ -659,6 +768,16 @@
                                                                             \
   develop(bool, VerifyAliases, false,                                       \
           "perform extra checks on the results of alias analysis")          \
+                                                                            \
+  product(uint, VerifyConstraintCasts, 0, DIAGNOSTIC,                       \
+          "Perform runtime checks to verify the value of a "                \
+          "ConstraintCast lies inside its type"                             \
+          "0 = does not perform any verification, "                         \
+          "1 = perform verification on ConstraintCastNodes that are "       \
+              "present during code emission, "                              \
+          "2 = Do not do widening of ConstraintCastNodes so that we can "   \
+              "have more verification coverage")                            \
+          range(0, 2)                                                       \
                                                                             \
   product(intx, MaxInlineLevel, 15,                                         \
           "maximum number of nested calls that are inlined by high tier "   \
@@ -689,6 +808,11 @@
           "high tier compiler")                                             \
           range(0, max_jint)                                                \
                                                                             \
+  product(bool, InlineColdMethods, false, DIAGNOSTIC,                       \
+          "Inline cold methods that would otherwise be rejected due to "    \
+          "cold profile counters. Useful for compiler testing to expose "   \
+          "more code to compilers.")                                        \
+                                                                            \
   product(bool, IncrementalInline, true,                                    \
           "do post parse inlining")                                         \
                                                                             \
@@ -703,6 +827,9 @@
                                                                             \
   product(bool, IncrementalInlineForceCleanup, false, DIAGNOSTIC,           \
           "do cleanup after every iteration of incremental inlining")       \
+                                                                            \
+  product(bool, IncrementalInlineVector, true, DIAGNOSTIC,                  \
+          "Inline fallback implementation of failed vector intrinsics")     \
                                                                             \
   product(intx, LiveNodeCountInliningCutoff, 40000,                         \
           "max number of live nodes in a method")                           \
@@ -741,9 +868,6 @@
   product(bool, EnableVectorAggressiveReboxing, false, EXPERIMENTAL,        \
           "Enables aggressive reboxing of vectors")                         \
                                                                             \
-  product(bool, UseVectorStubs, false, EXPERIMENTAL,                        \
-          "Use stubs for vector transcendental operations")                 \
-                                                                            \
   product(bool, UseTypeSpeculation, true,                                   \
           "Speculatively propagate types from profiles")                    \
                                                                             \
@@ -776,7 +900,15 @@
           range(0, max_juint)                                               \
                                                                             \
   product(bool, UseProfiledLoopPredicate, true,                             \
-          "Move predicates out of loops based on profiling data")           \
+          "Move checks with an uncommon trap out of loops based on "        \
+          "profiling data. "                                                \
+          "Requires UseLoopPredicate to be turned on (default).")           \
+                                                                            \
+  product(bool, UseArrayLoadStoreProfile, true, DIAGNOSTIC,                 \
+          "Take advantage of profiling at array load/store")                \
+                                                                            \
+  product(bool, UseACmpProfile, true, DIAGNOSTIC,                           \
+          "Take advantage of profiling at if_acmp<cond>")                   \
                                                                             \
   develop(uintx, StressLongCountedLoop, 0,                                  \
           "if > 0, convert int counted loops to long counted loops"         \
@@ -809,6 +941,65 @@
   product(bool, UseStoreStoreForCtor, true, DIAGNOSTIC,                     \
           "Use StoreStore barrier instead of Release barrier at the end "   \
           "of constructors")                                                \
+                                                                            \
+  develop(bool, KillPathsReachableByDeadTypeNode, true,                     \
+          "When a Type node becomes top, make paths where the node is "     \
+          "used dead by replacing them with a Halt node. Turning this off " \
+          "could corrupt the graph in rare cases and should be used with "  \
+          "care.")                                                          \
+                                                                            \
+  product(bool, ShortRunningLongLoop, true, DIAGNOSTIC,                     \
+          "long counted loop/long range checks: don't create loop nest if " \
+          "loop runs for small enough number of iterations. Long loop is "  \
+          "converted to a single int loop.")                                \
+                                                                            \
+  develop(bool, StressShortRunningLongLoop, false,                          \
+          "Speculate all long counted loops are short running when bounds " \
+          "are unknown even if profile data doesn't say so.")               \
+                                                                            \
+  develop(bool, StressLoopPeeling, false,                                   \
+          "Randomize loop peeling decision")                                \
+                                                                            \
+  develop(bool, StressCountedLoop, false,                                   \
+          "Randomly delay conversion to counted loops")                     \
+                                                                            \
+  product(bool, HotCodeHeap, false, EXPERIMENTAL,                           \
+          "Enable the code heap for hot C2 nmethods")                       \
+                                                                            \
+  product(double, HotCodeSamplePercent, 80, EXPERIMENTAL,                   \
+          "Minimum percentage of profiling samples that must be in "        \
+          "the MethodHot heap before stopping hot code collection")         \
+          range(0, 100)                                                     \
+                                                                            \
+  product(double, HotCodeStablePercent, 5, EXPERIMENTAL,                    \
+          "Maximum percentage of newly compiled to total C2 nmethods "      \
+          "to treat nmethod count as stable. "                              \
+          "Values less than zero disable the stable check")                 \
+          range(-1, DBL_MAX)                                                \
+                                                                            \
+  product(uint, HotCodeIntervalSeconds, 300, EXPERIMENTAL,                  \
+          "Seconds between hot code grouping attempts")                     \
+          range(0, max_juint)                                               \
+                                                                            \
+  product(uint, HotCodeSampleSeconds, 120, EXPERIMENTAL,                    \
+          "Seconds to sample application threads per grouping attempt")     \
+          range(0, max_juint)                                               \
+                                                                            \
+  product(uint, HotCodeStartupDelaySeconds, 120, EXPERIMENTAL,              \
+          "Seconds to delay before starting hot code grouping thread")      \
+          range(0, max_juint)                                               \
+                                                                            \
+  product(uint, HotCodeMinSamplingMs, 5, EXPERIMENTAL,                      \
+          "Minimum sampling interval in milliseconds")                      \
+          range(0, max_juint)                                               \
+                                                                            \
+  product(uint, HotCodeMaxSamplingMs, 15, EXPERIMENTAL,                     \
+          "Maximum sampling interval in milliseconds")                      \
+          range(1, max_juint)                                               \
+                                                                            \
+  product(uint, HotCodeCallLevel, 1, EXPERIMENTAL,                          \
+          "Number of levels of callees to relocate per candidate")          \
+          range(0, max_juint)                                               \
 
 // end of C2_FLAGS
 

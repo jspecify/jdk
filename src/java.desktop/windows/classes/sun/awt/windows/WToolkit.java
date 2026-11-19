@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,7 +123,6 @@ import javax.swing.text.JTextComponent;
 
 import sun.awt.AWTAccessor;
 import sun.awt.AWTAutoShutdown;
-import sun.awt.AppContext;
 import sun.awt.DisplayChangedListener;
 import sun.awt.LightweightFrame;
 import sun.awt.SunToolkit;
@@ -174,19 +173,17 @@ public final class WToolkit extends SunToolkit implements Runnable {
         }
     }
 
-    private static native String getWindowsVersion();
-
     static {
         loadLibraries();
         initIDs();
 
         // Print out which version of Windows is running
         if (log.isLoggable(PlatformLogger.Level.FINE)) {
-            log.fine("Win version: " + getWindowsVersion());
+            log.fine("Win version: " + System.getProperty("os.version"));
         }
     }
 
-    static class ToolkitDisposer implements sun.java2d.DisposerRecord {
+    static final class ToolkitDisposer implements sun.java2d.DisposerRecord {
         @Override
         public void dispose() {
             WToolkit.postDispose();
@@ -593,22 +590,20 @@ public final class WToolkit extends SunToolkit implements Runnable {
 
     @Override
     public FontPeer getFontPeer(String name, int style) {
-        FontPeer retval = null;
         String lcName = name.toLowerCase();
         if (null != cacheFontPeer) {
-            retval = cacheFontPeer.get(lcName + style);
-            if (null != retval) {
-                return retval;
+            FontPeer cachedVal = cacheFontPeer.get(lcName + style);
+            if (null != cachedVal) {
+                return cachedVal;
             }
         }
-        retval = new WFontPeer(name, style);
-        if (retval != null) {
-            if (null == cacheFontPeer) {
-                cacheFontPeer = new Hashtable<>(5, 0.9f);
-            }
-            if (null != cacheFontPeer) {
-                cacheFontPeer.put(lcName + style, retval);
-            }
+
+        FontPeer retval = new WFontPeer(name, style);
+        if (null == cacheFontPeer) {
+            cacheFontPeer = new Hashtable<>(5, 0.9f);
+        }
+        if (null != cacheFontPeer) {
+            cacheFontPeer.put(lcName + style, retval);
         }
         return retval;
     }
@@ -779,20 +774,7 @@ public final class WToolkit extends SunToolkit implements Runnable {
                 ((DisplayChangedListener) lge).displayChanged();
             }
         };
-        if (AppContext.getAppContext() != null) {
-            // Common case, standalone application
-            EventQueue.invokeLater(runnable);
-        } else {
-            if (displayChangeExecutor == null) {
-                // No synchronization, called on the Toolkit thread only
-                displayChangeExecutor = Executors.newFixedThreadPool(1, r -> {
-                    Thread t = Executors.defaultThreadFactory().newThread(r);
-                    t.setDaemon(true);
-                    return t;
-                });
-            }
-            displayChangeExecutor.submit(runnable);
-        }
+        EventQueue.invokeLater(runnable);
     }
 
     /**
@@ -912,17 +894,7 @@ public final class WToolkit extends SunToolkit implements Runnable {
         }
 
         updateXPStyleEnabled(props.get(XPSTYLE_THEME_ACTIVE));
-
-        if (AppContext.getAppContext() == null) {
-            // We cannot post the update to any EventQueue. Listeners will
-            // be called on EDTs by DesktopPropertyChangeSupport
-            updateProperties(props);
-        } else {
-            // Cannot update on Toolkit thread.
-            // DesktopPropertyChangeSupport will call listeners on Toolkit
-            // thread if it has AppContext (standalone mode)
-            EventQueue.invokeLater(() -> updateProperties(props));
-        }
+        EventQueue.invokeLater(() -> updateProperties(props));
     }
 
     private synchronized void updateProperties(final Map<String, Object> props) {

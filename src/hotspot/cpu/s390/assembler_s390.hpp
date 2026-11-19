@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -122,14 +122,14 @@ class RelAddr {
     return is_in_range_of_RelAddr(target, pc, true);
   }
   static bool is_in_range_of_RelAddr16(ptrdiff_t distance) {
-    return is_in_range_of_RelAddr((address)distance, 0, true);
+    return is_in_range_of_RelAddr((address)distance, nullptr, true);
   }
 
   static bool is_in_range_of_RelAddr32(address target, address pc) {
     return is_in_range_of_RelAddr(target, pc, false);
   }
   static bool is_in_range_of_RelAddr32(ptrdiff_t distance) {
-    return is_in_range_of_RelAddr((address)distance, 0, false);
+    return is_in_range_of_RelAddr((address)distance, nullptr, false);
   }
 
   static int pcrel_off(address target, address pc, bool shortForm) {
@@ -140,7 +140,7 @@ class RelAddr {
       return 0;  // Yet unknown branch destination.
     } else {
       guarantee(is_in_range_of_RelAddr(target, pc, shortForm),
-                "target not within reach at " INTPTR_FORMAT ", distance = " INTX_FORMAT, p2i(pc), (target - pc) );
+                "target not within reach at " INTPTR_FORMAT ", distance = %zd", p2i(pc), (target - pc) );
       return (int)((target - pc)>>1);
     }
   }
@@ -149,14 +149,14 @@ class RelAddr {
     return pcrel_off(target, pc, true);
   }
   static int pcrel_off16(ptrdiff_t distance) {
-    return pcrel_off((address)distance, 0, true);
+    return pcrel_off((address)distance, nullptr, true);
   }
 
   static int pcrel_off32(address target, address pc) {
     return pcrel_off(target, pc, false);
   }
   static int pcrel_off32(ptrdiff_t distance) {
-    return pcrel_off((address)distance, 0, false);
+    return pcrel_off((address)distance, nullptr, false);
   }
 
   static ptrdiff_t inv_pcrel_off16(int offset) {
@@ -637,6 +637,11 @@ class Assembler : public AbstractAssembler {
 #define LCDBR_ZOPC  (unsigned  int)(179 << 24 | 19 << 16)
 #define LCXBR_ZOPC  (unsigned  int)(179 << 24 | 67 << 16)
 
+ // Load Halfword Immediate on Condition
+ #define LOCHI_ZOPC   (unsigned long)(0xECL << 40 | 0x42L)
+ #define LOCHHI_ZOPC  (unsigned long)(0xECL << 40 | 0x4EL)
+ #define LOCGHI_ZOPC  (unsigned long)(0xECL << 40 | 0x46L)
+
 // Add
 // RR, signed
 #define AR_ZOPC     (unsigned  int)(26 << 8)
@@ -987,8 +992,8 @@ class Assembler : public AbstractAssembler {
 #define BASR_ZOPC   (unsigned  int)(13 << 8)
 #define BCT_ZOPC    (unsigned  int)(70 << 24)
 #define BCTR_ZOPC   (unsigned  int)(6 << 8)
-#define BCTG_ZOPC   (unsigned  int)(227L << 40 | 70)
-#define BCTGR_ZOPC  (unsigned long)(0xb946 << 16)
+#define BCTG_ZOPC   (unsigned long)(227L << 40 | 70)
+#define BCTGR_ZOPC  (unsigned  int)(0xb946 << 16)
 // Absolute
 #define BC_ZOPC     (unsigned  int)(71 << 24)
 #define BAL_ZOPC    (unsigned  int)(69 << 24)
@@ -2075,6 +2080,11 @@ class Assembler : public AbstractAssembler {
   inline void z_llilh(Register r1, int64_t i2);                 // r1 = i2_imm16    ; uint64 <- (uint16<<16)
   inline void z_llill(Register r1, int64_t i2);                 // r1 = i2_imm16    ; uint64 <- uint16
 
+  // load halfword immediate on condition
+  inline void z_lochi( Register r1, int64_t i2, branch_condition m3);  // load immediate r1[32-63] = i2_simm16   ; int32 <- int16
+  inline void z_lochhi(Register r1, int64_t i2, branch_condition m3);  // load immediate r1[ 0-31] = i2_simm16   ; int32 <- int16
+  inline void z_locghi(Register r1, int64_t i2, branch_condition m3);  // load immediate r1[ 0-63] = i2_simm16   ; int64 <- int16
+
   // insert immediate
   inline void z_ic(  Register r1, int64_t d2, Register x2, Register b2); // insert character
   inline void z_icy( Register r1, int64_t d2, Register x2, Register b2); // insert character
@@ -3145,8 +3155,10 @@ class Assembler : public AbstractAssembler {
 
   inline void z_basr(Register r1, Register r2);
   inline void z_brasl(Register r1, address a);
-  inline void z_brct(Register r1, address a);
-  inline void z_brct(Register r1, Label& L);
+  inline void z_brct( Register r1, address a);
+  inline void z_brct( Register r1, Label& L);
+  inline void z_brctg(Register r1, address a);
+  inline void z_brctg(Register r1, Label& L);
 
   inline void z_brxh(Register r1, Register r3, address a);
   inline void z_brxh(Register r1, Register r3, Label& L);
@@ -3268,6 +3280,9 @@ class Assembler : public AbstractAssembler {
   }
   static bool is_z_nop(address x) {
     return is_z_nop(* (short *) x);
+  }
+  static bool is_z_illtrap(address x) {
+    return *(uint8_t*)x == 0u;
   }
   static bool is_z_br(long x) {
     return is_z_bcr(x) && ((x & 0x00f0) == 0x00f0);

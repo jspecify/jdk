@@ -262,8 +262,6 @@ public class CardPermission extends Permission {
      * @return true if and only if the specified object is equal to this
      *   CardPermission
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

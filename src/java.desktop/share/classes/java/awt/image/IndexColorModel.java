@@ -1537,8 +1537,6 @@ public class IndexColorModel extends ColorModel {
      * equals this {@code IndexColorModel}; {@code false} otherwise.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
 
         if (!(obj instanceof IndexColorModel)) {
