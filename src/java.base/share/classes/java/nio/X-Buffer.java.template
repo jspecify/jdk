@@ -27,6 +27,9 @@
 
 package java.nio;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 #if[char]
 import java.io.IOException;
 #end[char]
@@ -289,6 +292,7 @@ import jdk.internal.util.ArraysSupport;
  * @since 1.4
  */
 
+@NullMarked
 public abstract sealed class $Type$Buffer
     extends Buffer
     implements Comparable<$Type$Buffer>{#if[char]?, Appendable, CharSequence, Readable}
@@ -1801,7 +1805,7 @@ public abstract sealed class $Type$Buffer
      * @return  {@code true} if, and only if, this buffer is equal to the
      *           given object
      */
-    public boolean equals(Object ob) {
+    public boolean equals(@Nullable Object ob) {
         if (this == ob)
             return true;
         if (!(ob instanceof $Type$Buffer))
@@ -2092,7 +2096,7 @@ public abstract sealed class $Type$Buffer
      *
      * @since  1.5
      */
-    public $Type$Buffer append(CharSequence csq) {
+    public $Type$Buffer append(@Nullable CharSequence csq) {
         if (csq == null)
             return put("null");
         else if (csq instanceof CharBuffer cb)
@@ -2134,7 +2138,7 @@ public abstract sealed class $Type$Buffer
      *
      * @since  1.5
      */
-    public $Type$Buffer append(CharSequence csq, int start, int end) {
+    public $Type$Buffer append(@Nullable CharSequence csq, int start, int end) {
         if (csq instanceof CharBuffer cb) {
             Objects.checkFromToIndex(start, end, csq.length());
 
