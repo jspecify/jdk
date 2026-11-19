@@ -324,7 +324,7 @@ public interface CompletionStage<T extends @Nullable Object> {
      * @param <V> the function's return type
      * @return the new CompletionStage
      */
-    public <U extends @Nullable Object, V extends @Nullable Object> CompletionStage<V> thenCombine
+    public <U extends @Nullable Object,V extends @Nullable Object> CompletionStage<V> thenCombine
         (CompletionStage<? extends U> other,
          BiFunction<? super T,? super U,? extends V> fn);
 
@@ -344,7 +344,7 @@ public interface CompletionStage<T extends @Nullable Object> {
      * @param <V> the function's return type
      * @return the new CompletionStage
      */
-    public <U extends @Nullable Object, V extends @Nullable Object> CompletionStage<V> thenCombineAsync
+    public <U extends @Nullable Object,V extends @Nullable Object> CompletionStage<V> thenCombineAsync
         (CompletionStage<? extends U> other,
          BiFunction<? super T,? super U,? extends V> fn);
 
@@ -365,7 +365,7 @@ public interface CompletionStage<T extends @Nullable Object> {
      * @param <V> the function's return type
      * @return the new CompletionStage
      */
-    public <U extends @Nullable Object, V extends @Nullable Object> CompletionStage<V> thenCombineAsync
+    public <U extends @Nullable Object,V extends @Nullable Object> CompletionStage<V> thenCombineAsync
         (CompletionStage<? extends U> other,
          BiFunction<? super T,? super U,? extends V> fn,
          Executor executor);

@@ -421,7 +421,7 @@ public class ZipEntry implements ZipConstants, Cloneable {
      *         or is less than 0 when ZIP64 is supported
      * @see #getSize()
      */
-    public void setSize( long size) {
+    public void setSize(long size) {
         if (size < 0) {
             throw new IllegalArgumentException("invalid entry size");
         }
@@ -434,7 +434,7 @@ public class ZipEntry implements ZipConstants, Cloneable {
      * @return the uncompressed size of the entry data, or -1 if not known
      * @see #setSize(long)
      */
-    public  long getSize() {
+    public long getSize() {
         return size;
     }
 
@@ -649,7 +649,6 @@ public class ZipEntry implements ZipConstants, Cloneable {
      *
      * @see #setExtra(byte[])
      */
-    
     public byte @Nullable [] getExtra() {
         return extra;
     }

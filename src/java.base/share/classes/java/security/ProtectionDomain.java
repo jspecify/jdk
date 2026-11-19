@@ -48,6 +48,7 @@ import org.jspecify.annotations.Nullable;
  * @author Gary Ellison
  * @since 1.2
  */
+
 @NullMarked
 public class ProtectionDomain {
 
@@ -154,7 +155,6 @@ public class ProtectionDomain {
      * @return the {@code CodeSource} of this domain which may be {@code null}.
      * @since 1.2
      */
-    
     public final @Nullable CodeSource getCodeSource() {
         return this.codesource;
     }

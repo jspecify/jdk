@@ -53,7 +53,6 @@ public interface XMLResolver {
    * @return The resource requested or null.
    * @throws XMLStreamException if there was a failure attempting to resolve the resource.
    */
-  
   public @Nullable Object resolveEntity(@Nullable String publicID,
                               String systemID,
                               @Nullable String baseURI,

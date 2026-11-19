@@ -654,8 +654,6 @@ public final class WeekFields implements Serializable {
      * @return true if this is equal to the specified rules
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object object) {
         if (this == object) {
             return true;

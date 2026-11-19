@@ -602,8 +602,6 @@ public abstract sealed class ZoneId implements Serializable permits ZoneOffset, 
      * @return true if this is equal to the other time-zone ID
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
            return true;

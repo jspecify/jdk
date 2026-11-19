@@ -680,8 +680,6 @@ public class JMXServiceURL implements Serializable {
      * @return <code>true</code> if this object is the same as the
      * <code>obj</code> argument; <code>false</code> otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof JMXServiceURL))
             return false;

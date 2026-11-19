@@ -51,7 +51,6 @@ public class AssertionError extends Error {
     /**
      * Constructs an AssertionError with no detail message.
      */
-    
     public AssertionError() {
     }
 
@@ -60,7 +59,6 @@ public class AssertionError extends Error {
      * even if it is a null reference.  The public constructors will
      * never call this constructor with a null argument.
      */
-    
     private AssertionError(String detailMessage) {
         super(detailMessage);
     }
@@ -92,7 +90,6 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
-    
     public AssertionError(boolean detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -105,7 +102,6 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
-    
     public AssertionError(char detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -118,7 +114,6 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
-    
     public AssertionError(int detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -131,7 +126,6 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
-    
     public AssertionError(long detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -144,7 +138,6 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
-    
     public AssertionError(float detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -157,7 +150,6 @@ public class AssertionError extends Error {
      *
      * @param detailMessage value to be used in constructing detail message
      */
-    
     public AssertionError(double detailMessage) {
         this(String.valueOf(detailMessage));
     }
@@ -175,7 +167,6 @@ public class AssertionError extends Error {
      *
      * @since 1.7
      */
-    
     public AssertionError(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }

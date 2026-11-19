@@ -90,7 +90,6 @@ import java.util.stream.Stream;
  * @param <E> the type of elements held in this collection
  */
 
-
 @NullMarked
 public class LinkedList<E extends @Nullable Object>
     extends AbstractSequentialList<E>
@@ -330,7 +329,6 @@ public class LinkedList<E extends @Nullable Object>
      * @param o element whose presence in this list is to be tested
      * @return {@code true} if this list contains the specified element
      */
-    
     public boolean contains(@Nullable Object o) {
         return indexOf(o) >= 0;
     }
@@ -340,8 +338,7 @@ public class LinkedList<E extends @Nullable Object>
      *
      * @return the number of elements in this list
      */
-    
-    public  int size() {
+    public int size() {
         return size;
     }
 
@@ -353,7 +350,6 @@ public class LinkedList<E extends @Nullable Object>
      * @param e element to be appended to this list
      * @return {@code true} (as specified by {@link Collection#add})
      */
-    
     public boolean add(E e) {
         linkLast(e);
         return true;
@@ -372,7 +368,6 @@ public class LinkedList<E extends @Nullable Object>
      * @param o element to be removed from this list, if present
      * @return {@code true} if this list contained the specified element
      */
-    
     public boolean remove(@Nullable Object o) {
         if (o == null) {
             for (Node<E> x = first; x != null; x = x.next) {
@@ -423,7 +418,7 @@ public class LinkedList<E extends @Nullable Object>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      * @throws NullPointerException if the specified collection is null
      */
-    public boolean addAll( int index, Collection<? extends E> c) {
+    public boolean addAll(int index, Collection<? extends E> c) {
         checkPositionIndex(index);
 
         Object[] a = c.toArray();
@@ -493,8 +488,7 @@ public class LinkedList<E extends @Nullable Object>
      * @return the element at the specified position in this list
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    
-    public E get( int index) {
+    public E get(int index) {
         checkElementIndex(index);
         return node(index).item;
     }
@@ -508,7 +502,7 @@ public class LinkedList<E extends @Nullable Object>
      * @return the element previously at the specified position
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public E set( int index, E element) {
+    public E set(int index, E element) {
         checkElementIndex(index);
         Node<E> x = node(index);
         E oldVal = x.item;
@@ -525,7 +519,7 @@ public class LinkedList<E extends @Nullable Object>
      * @param element element to be inserted
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public void add( int index, E element) {
+    public void add(int index, E element) {
         checkPositionIndex(index);
 
         if (index == size)
@@ -543,7 +537,7 @@ public class LinkedList<E extends @Nullable Object>
      * @return the element previously at the specified position
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    public E remove( int index) {
+    public E remove(int index) {
         checkElementIndex(index);
         return unlink(node(index));
     }
@@ -551,7 +545,7 @@ public class LinkedList<E extends @Nullable Object>
     /**
      * Tells if the argument is the index of an existing element.
      */
-    private boolean isElementIndex( int index) {
+    private boolean isElementIndex(int index) {
         return index >= 0 && index < size;
     }
 
@@ -559,7 +553,7 @@ public class LinkedList<E extends @Nullable Object>
      * Tells if the argument is the index of a valid position for an
      * iterator or an add operation.
      */
-    private boolean isPositionIndex( int index) {
+    private boolean isPositionIndex(int index) {
         return index >= 0 && index <= size;
     }
 
@@ -568,16 +562,16 @@ public class LinkedList<E extends @Nullable Object>
      * Of the many possible refactorings of the error handling code,
      * this "outlining" performs best with both server and client VMs.
      */
-    private String outOfBoundsMsg( int index) {
+    private String outOfBoundsMsg(int index) {
         return "Index: "+index+", Size: "+size;
     }
 
-    private void checkElementIndex( int index) {
+    private void checkElementIndex(int index) {
         if (!isElementIndex(index))
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
     }
 
-    private void checkPositionIndex( int index) {
+    private void checkPositionIndex(int index) {
         if (!isPositionIndex(index))
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
     }
@@ -585,7 +579,7 @@ public class LinkedList<E extends @Nullable Object>
     /**
      * Returns the (non-null) Node at the specified element index.
      */
-    Node<E> node( int index) {
+    Node<E> node(int index) {
         // assert isElementIndex(index);
 
         if (index < (size >> 1)) {
@@ -614,8 +608,7 @@ public class LinkedList<E extends @Nullable Object>
      * @return the index of the first occurrence of the specified element in
      *         this list, or -1 if this list does not contain the element
      */
-    
-    public  int indexOf(@Nullable Object o) {
+    public int indexOf(@Nullable Object o) {
         int index = 0;
         if (o == null) {
             for (Node<E> x = first; x != null; x = x.next) {
@@ -644,8 +637,7 @@ public class LinkedList<E extends @Nullable Object>
      * @return the index of the last occurrence of the specified element in
      *         this list, or -1 if this list does not contain the element
      */
-    
-    public  int lastIndexOf(@Nullable Object o) {
+    public int lastIndexOf(@Nullable Object o) {
         int index = size;
         if (o == null) {
             for (Node<E> x = last; x != null; x = x.prev) {
@@ -887,7 +879,7 @@ public class LinkedList<E extends @Nullable Object>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      * @see List#listIterator(int)
      */
-    public ListIterator<E> listIterator( int index) {
+    public ListIterator<E> listIterator(int index) {
         checkPositionIndex(index);
         return new ListItr(index);
     }
@@ -1041,7 +1033,6 @@ public class LinkedList<E extends @Nullable Object>
      *
      * @return a shallow copy of this {@code LinkedList} instance
      */
-    
     public Object clone() {
         LinkedList<E> clone = superClone();
 
@@ -1071,7 +1062,6 @@ public class LinkedList<E extends @Nullable Object>
      * @return an array containing all of the elements in this list
      *         in proper sequence
      */
-    
     public @Nullable Object[] toArray() {
         Object[] result = new Object[size];
         int i = 0;
@@ -1118,7 +1108,6 @@ public class LinkedList<E extends @Nullable Object>
      *         this list
      * @throws NullPointerException if the specified array is null
      */
-    
     @SuppressWarnings("unchecked")
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         if (a.length < size)
@@ -1195,7 +1184,6 @@ public class LinkedList<E extends @Nullable Object>
      * @return a {@code Spliterator} over the elements in this list
      * @since 1.8
      */
-    
     @Override
     public Spliterator<E> spliterator() {
         return new LLSpliterator<>(this, -1, 0);

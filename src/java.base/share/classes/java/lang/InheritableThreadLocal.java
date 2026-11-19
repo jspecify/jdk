@@ -28,8 +28,6 @@ package java.lang;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.lang.ref.*;
-
 /**
  * This class extends {@code ThreadLocal} to provide inheritance of values
  * from parent thread to child thread: when a child thread is created, the
@@ -56,9 +54,8 @@ import java.lang.ref.*;
  * @see Thread.Builder#inheritInheritableThreadLocals(boolean)
  */
 
-
 @NullMarked
-public class InheritableThreadLocal< T extends @Nullable Object> extends ThreadLocal<T> {
+public class InheritableThreadLocal<T extends @Nullable Object> extends ThreadLocal<T> {
     /**
      * Creates an inheritable thread local variable.
      */

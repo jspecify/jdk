@@ -67,7 +67,6 @@ public interface NamedNodeMap {
      *   <code>nodeName</code>, or <code>null</code> if it does not identify
      *   any node in this map.
      */
-    
     public @Nullable Node getNamedItem(String name);
 
     /**
@@ -126,14 +125,12 @@ public interface NamedNodeMap {
      * @return The node at the <code>index</code>th position in the map, or
      *   <code>null</code> if that is not a valid index.
      */
-    
     public @Nullable Node item(int index);
 
     /**
      * The number of nodes in this map. The range of valid child node indices
      * is <code>0</code> to <code>length-1</code> inclusive.
      */
-    
     public int getLength();
 
     /**
@@ -152,7 +149,6 @@ public interface NamedNodeMap {
      *   Document does not support XML Namespaces (such as [<a href='http://www.w3.org/TR/1999/REC-html401-19991224/'>HTML 4.01</a>]).
      * @since 1.4, DOM Level 2
      */
-    
     public @Nullable Node getNamedItemNS(@Nullable String namespaceURI,
                                String localName)
                                throws DOMException;

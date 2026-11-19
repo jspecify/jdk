@@ -34,6 +34,7 @@ import org.jspecify.annotations.NullMarked;
  *
  * @since 1.4
  */
+
 @NullMarked
 public class MalformedInputException
     extends CharacterCodingException

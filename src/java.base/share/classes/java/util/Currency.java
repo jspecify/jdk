@@ -118,7 +118,7 @@ import sun.util.logging.PlatformLogger;
  * @since 1.4
  */
 @NullMarked
-public final  class Currency implements Serializable {
+public final class Currency implements Serializable {
 
     @java.io.Serial
     private static final long serialVersionUID = -158308464356906721L;
@@ -684,7 +684,6 @@ public final  class Currency implements Serializable {
      *
      * @return the ISO 4217 currency code of this currency
      */
-    
     @Override
     public String toString() {
         return currencyCode;

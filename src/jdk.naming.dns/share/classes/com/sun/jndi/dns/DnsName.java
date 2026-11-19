@@ -208,8 +208,6 @@ public final class DnsName implements Name {
         return h;
     }
 
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof Name) || (obj instanceof CompositeName)) {
             return false;

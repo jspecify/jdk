@@ -1300,7 +1300,7 @@ public final class URL implements java.io.Serializable {
     /**
      * The URLStreamHandler factory.
      */
-    private static volatile  URLStreamHandlerFactory factory;
+    private static volatile URLStreamHandlerFactory factory;
 
     /**
      * Sets an application's {@code URLStreamHandlerFactory}.

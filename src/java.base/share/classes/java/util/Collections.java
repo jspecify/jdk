@@ -3067,7 +3067,7 @@ public final class Collections {
             synchronized (mutex) {return m.putIfAbsent(key, value);}
         }
         @Override
-        public boolean remove(Object key,  Object value) {
+        public boolean remove(Object key, Object value) {
             synchronized (mutex) {return m.remove(key, value);}
         }
         @Override
@@ -3475,7 +3475,7 @@ public final class Collections {
 
         public int size()                          { return c.size(); }
         public boolean isEmpty()                   { return c.isEmpty(); }
-        public boolean contains( Object o)          { return c.contains(o); }
+        public boolean contains(Object o)          { return c.contains(o); }
         public Object[] toArray()                  { return c.toArray(); }
         public <T> T[] toArray(T[] a)              { return c.toArray(a); }
         public <T> T[] toArray(IntFunction<T[]> f) { return c.toArray(f); }
@@ -5052,7 +5052,7 @@ public final class Collections {
         public void clear()                        {}
         public boolean containsKey(Object key)     {return false;}
         public boolean containsValue(Object value) {return false;}
-        public V get( Object key)                   {return null;}
+        public V get(Object key)                   {return null;}
         public Set<K> keySet()                     {return emptySet();}
         public Collection<V> values()              {return emptySet();}
         public Set<Map.Entry<K,V>> entrySet()      {return emptySet();}
@@ -5283,7 +5283,7 @@ public final class Collections {
      * @return an immutable list containing only the specified object.
      * @since 1.3
      */
-    public static <T extends @Nullable Object>  List<T> singletonList(T o) {
+    public static <T extends @Nullable Object> List<T> singletonList(T o) {
         return new SingletonList<>(o);
     }
 
@@ -5423,7 +5423,7 @@ public final class Collections {
 
         // Override default methods in Map
         @Override
-        public V getOrDefault( Object key, V defaultValue) {
+        public V getOrDefault(Object key, V defaultValue) {
             return eq(key, k) ? v : defaultValue;
         }
 
@@ -5506,7 +5506,7 @@ public final class Collections {
      * @see    List#addAll(Collection)
      * @see    List#addAll(int, Collection)
      */
-    public static <T extends @Nullable Object> List<T> nCopies( int n, T o) {
+    public static <T extends @Nullable Object> List<T> nCopies(int n, T o) {
         if (n < 0)
             throw new IllegalArgumentException("List length = " + n);
         return new CopiesList<>(n, o);

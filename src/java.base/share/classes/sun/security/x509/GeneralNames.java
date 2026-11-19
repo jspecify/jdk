@@ -130,8 +130,6 @@ public class GeneralNames {
      *
      * @return true if this equals obj
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

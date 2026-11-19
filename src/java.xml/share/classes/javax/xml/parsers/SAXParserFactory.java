@@ -42,7 +42,6 @@ import org.xml.sax.SAXNotSupportedException;
  *
  * @since 1.4
  */
-
 public abstract class SAXParserFactory {
     private static final String DEFAULT_IMPL =
             "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl";
@@ -389,8 +388,6 @@ public abstract class SAXParserFactory {
      *
      * @since 1.5
      */
-    
-    @SuppressWarnings({"nullness"})
     public @Nullable Schema getSchema() {
         throw new UnsupportedOperationException(
             "This parser does not support specification \""
@@ -447,8 +444,6 @@ public abstract class SAXParserFactory {
      *
      * @since 1.5
      */
-    
-    @SuppressWarnings({"nullness"})
     public void setSchema(@Nullable Schema schema) {
         throw new UnsupportedOperationException(
             "This parser does not support specification \""
@@ -494,8 +489,6 @@ public abstract class SAXParserFactory {
      *
      * @since 1.5
      */
-    
-    @SuppressWarnings({"nullness"})
     public boolean isXIncludeAware() {
         throw new UnsupportedOperationException(
             "This parser does not support specification \""

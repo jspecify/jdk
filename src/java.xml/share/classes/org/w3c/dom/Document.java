@@ -81,21 +81,18 @@ public interface Document extends Node {
      *
      * @since 1.4, DOM Level 3
      */
-    
     public @Nullable DocumentType getDoctype();
 
     /**
      * The <code>DOMImplementation</code> object that handles this document. A
      * DOM application may use objects from multiple implementations.
      */
-    
     public DOMImplementation getImplementation();
 
     /**
      * This is a convenience attribute that allows direct access to the child
      * node that is the document element of the document.
      */
-    
     public Element getDocumentElement();
 
     /**
@@ -235,7 +232,6 @@ public interface Document extends Node {
      * @return A new <code>NodeList</code> object containing all the matched
      *   <code>Elements</code>.
      */
-    
     public NodeList getElementsByTagName(String tagname);
 
     /**
@@ -507,7 +503,6 @@ public interface Document extends Node {
      *   <code>Elements</code>.
      * @since 1.4, DOM Level 2
      */
-    
     public NodeList getElementsByTagNameNS(@Nullable String namespaceURI,
                                            String localName);
 
@@ -524,7 +519,6 @@ public interface Document extends Node {
      * @return The matching element or <code>null</code> if there is none.
      * @since 1.4, DOM Level 2
      */
-    
     public @Nullable Element getElementById(String elementId);
 
     /**
@@ -533,7 +527,6 @@ public interface Document extends Node {
      * as when the <code>Document</code> was created in memory.
      * @since 1.5, DOM Level 3
      */
-    
     public @Nullable String getInputEncoding();
 
     /**
@@ -542,7 +535,6 @@ public interface Document extends Node {
      * <code>Document</code> was created in memory.
      * @since 1.5, DOM Level 3
      */
-    
     public @Nullable String getXmlEncoding();
 
     /**
@@ -555,7 +547,6 @@ public interface Document extends Node {
      * constraint for standalone document declaration</a> as defined in [<a href='http://www.w3.org/TR/2004/REC-xml-20040204'>XML 1.0</a>].
      * @since 1.5, DOM Level 3
      */
-    
     public boolean getXmlStandalone();
     /**
      * An attribute specifying, as part of the <a href='http://www.w3.org/TR/2004/REC-xml-20040204#NT-XMLDecl'>XML declaration</a>, whether this document is standalone. This is <code>false</code> when
@@ -597,7 +588,6 @@ public interface Document extends Node {
      * number when using <code>Document.xmlVersion</code>.
      * @since 1.5, DOM Level 3
      */
-    
     public @Nullable String getXmlVersion();
     /**
      *  An attribute specifying, as part of the <a href='http://www.w3.org/TR/2004/REC-xml-20040204#NT-XMLDecl'>XML declaration</a>, the version number of this document. If there is no declaration and if
@@ -640,7 +630,6 @@ public interface Document extends Node {
      * <code>true</code> by default.
      * @since 1.5, DOM Level 3
      */
-    
     public boolean getStrictErrorChecking();
     /**
      * An attribute specifying whether error checking is enforced or not. When
@@ -667,7 +656,6 @@ public interface Document extends Node {
      * this attribute when computing <code>Node.baseURI</code>.
      * @since 1.5, DOM Level 3
      */
-    
     public @Nullable String getDocumentURI();
     /**
      *  The location of the document or <code>null</code> if undefined or if
@@ -761,7 +749,6 @@ public interface Document extends Node {
      * is invoked.
      * @since 1.5, DOM Level 3
      */
-    
     public DOMConfiguration getDomConfig();
 
     /**

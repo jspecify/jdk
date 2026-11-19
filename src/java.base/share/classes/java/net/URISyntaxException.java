@@ -35,6 +35,7 @@ import org.jspecify.annotations.NullMarked;
  * @see URI
  * @since 1.4
  */
+
 @NullMarked
 public class URISyntaxException
     extends Exception

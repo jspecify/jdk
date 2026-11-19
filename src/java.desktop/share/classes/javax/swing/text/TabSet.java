@@ -164,8 +164,6 @@ public class TabSet implements Serializable
      *
      * @since 1.5
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this) {
             return true;

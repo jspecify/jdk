@@ -283,8 +283,6 @@ public class CMStateSet
     int         fBits2;
     byte[]      fByteArray;
     /* Optimization(Jan, 2001) */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (!(o instanceof CMStateSet)) return false;
         return isSameSet((CMStateSet)o);

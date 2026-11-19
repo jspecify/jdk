@@ -691,7 +691,7 @@ public abstract class AbstractPreferences extends Preferences {
      * @throws IllegalArgumentException if key contains the null control
      *         character, code point U+0000.
      */
-    public byte @Nullable[] getByteArray(String key, byte @Nullable[] def) {
+    public byte @Nullable [] getByteArray(String key, byte @Nullable [] def) {
         byte[] result = def;
         String value = get(key, null);
         try {

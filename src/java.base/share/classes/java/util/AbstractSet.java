@@ -58,7 +58,6 @@ import org.jspecify.annotations.Nullable;
  * @since 1.2
  */
 
-
 @NullMarked
 public abstract class AbstractSet<E extends @Nullable Object> extends AbstractCollection<E> implements Set<E> {
     /**
@@ -87,8 +86,7 @@ public abstract class AbstractSet<E extends @Nullable Object> extends AbstractCo
      * @param o object to be compared for equality with this set
      * @return {@code true} if the specified object is equal to this set
      */
-    
-    public boolean equals( @Nullable Object o) {
+    public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;
 
@@ -121,7 +119,6 @@ public abstract class AbstractSet<E extends @Nullable Object> extends AbstractCo
      * @see Object#equals(Object)
      * @see Set#equals(Object)
      */
-    
     public int hashCode() {
         int h = 0;
         Iterator<E> i = iterator();

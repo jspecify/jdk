@@ -29,8 +29,6 @@ package javax.swing;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import javax.swing.plaf.ComponentUI;
-
-
 import javax.swing.border.*;
 import javax.swing.event.SwingPropertyChangeSupport;
 

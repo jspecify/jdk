@@ -1057,7 +1057,7 @@ public class ObjectInputStream
      * @throws  EOFException If end of file is reached.
      * @throws  IOException If other I/O error has occurred.
      */
-    public  int readUnsignedByte()  throws IOException {
+    public int readUnsignedByte()  throws IOException {
         return bin.readUnsignedByte();
     }
 
@@ -1090,7 +1090,7 @@ public class ObjectInputStream
      * @throws  EOFException If end of file is reached.
      * @throws  IOException If other I/O error has occurred.
      */
-    public  int readUnsignedShort() throws IOException {
+    public int readUnsignedShort() throws IOException {
         return bin.readUnsignedShort();
     }
 
@@ -3241,11 +3241,11 @@ public class ObjectInputStream
             readFully(b, 0, b.length, false);
         }
 
-        public void readFully(byte[] b,  int off,   int len) throws IOException {
+        public void readFully(byte[] b, int off, int len) throws IOException {
             readFully(b, off, len, false);
         }
 
-        public void readFully(byte[] b,  int off,   int len, boolean copy)
+        public void readFully(byte[] b, int off, int len, boolean copy)
             throws IOException
         {
             while (len > 0) {

@@ -258,7 +258,6 @@ import java.util.stream.StreamSupport;
  * @since 1.2
  */
 
-
 @NullMarked
 public interface Collection<E extends @Nullable Object> extends Iterable<E> {
     // Query Operations
@@ -270,15 +269,13 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      *
      * @return the number of elements in this collection
      */
-    
-     int size();
+    int size();
 
     /**
      * Returns {@code true} if this collection contains no elements.
      *
      * @return {@code true} if this collection contains no elements
      */
-    
     boolean isEmpty();
 
     /**
@@ -297,8 +294,6 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      *         collection does not permit null elements
      *         ({@linkplain Collection##optional-restrictions optional})
      */
-    
-    
     boolean contains(@Nullable Object o);
 
     /**
@@ -309,7 +304,6 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      *
      * @return an {@code Iterator} over the elements in this collection
      */
-    
     Iterator<E> iterator();
 
     /**
@@ -334,8 +328,6 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      * @return an array, whose {@linkplain Class#getComponentType runtime component
      * type} is {@code Object}, containing all of the elements in this collection
      */
-    
-    
     @Nullable Object[] toArray();
 
     /**
@@ -389,7 +381,6 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      *         runtime component type} of the specified array
      * @throws NullPointerException if the specified array is null
      */
-    
     <T extends @Nullable Object> T[] toArray(T[] a);
 
     /**
@@ -511,7 +502,6 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      *         or if the specified collection is null.
      * @see    #contains(Object)
      */
-    
     boolean containsAll(Collection<?> c);
 
     /**
@@ -669,8 +659,7 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      * @see Set#equals(Object)
      * @see List#equals(Object)
      */
-    
-    boolean equals( @Nullable Object o);
+    boolean equals(@Nullable Object o);
 
     /**
      * Returns the hash code value for this collection.  While the
@@ -687,7 +676,6 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      * @see Object#hashCode()
      * @see Object#equals(Object)
      */
-    
     int hashCode();
 
     /**
@@ -740,7 +728,6 @@ public interface Collection<E extends @Nullable Object> extends Iterable<E> {
      * @return a {@code Spliterator} over the elements in this collection
      * @since 1.8
      */
-    
     @Override
     default Spliterator<E> spliterator() {
         return Spliterators.spliterator(this, 0);

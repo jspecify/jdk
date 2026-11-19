@@ -143,8 +143,6 @@ public final class LdapName implements Name {
         return unparsed;
     }
 
-    
-    
     public boolean equals(@Nullable Object obj) {
         return ((obj instanceof LdapName) &&
                 (compareTo(obj) == 0));

@@ -515,8 +515,6 @@ public class SerialBlob implements Blob, Serializable, Cloneable {
      *          equivalent to this SerialBlob, {@code false} otherwise
      *
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

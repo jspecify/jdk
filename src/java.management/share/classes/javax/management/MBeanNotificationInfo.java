@@ -190,8 +190,6 @@ public class MBeanNotificationInfo extends MBeanFeatureInfo implements Cloneable
      * elements are equal.  They are not equal if they have the same
      * elements but in a different order.
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;

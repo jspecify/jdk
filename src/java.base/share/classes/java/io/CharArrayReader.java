@@ -103,7 +103,7 @@ public class CharArrayReader extends Reader {
      *
      * @throws      IOException  If an I/O error occurs
      */
-    public  int read() throws IOException {
+    public int read() throws IOException {
         synchronized (lock) {
             ensureOpen();
             if (pos >= count)
@@ -188,7 +188,7 @@ public class CharArrayReader extends Reader {
      *
      * @throws IOException {@inheritDoc}
      */
-    public  long skip(long n) throws IOException {
+    public long skip(long n) throws IOException {
         synchronized (lock) {
             ensureOpen();
 
@@ -236,7 +236,7 @@ public class CharArrayReader extends Reader {
      *
      * @throws     IOException  If an I/O error occurs
      */
-    public void mark( int readAheadLimit) throws IOException {
+    public void mark(int readAheadLimit) throws IOException {
         synchronized (lock) {
             ensureOpen();
             markedPos = pos;

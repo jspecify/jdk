@@ -1603,8 +1603,6 @@ public final /*value*/ class LocalTime
      * @return true if this is equal to the other time
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

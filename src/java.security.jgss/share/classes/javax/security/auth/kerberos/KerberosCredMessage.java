@@ -171,8 +171,6 @@ public final class KerberosCredMessage implements Destroyable {
      * {@code KerberosCredMessage}, false otherwise.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object other) {
         if (other == this) {
             return true;

@@ -2310,8 +2310,6 @@ public final class ModuleDescriptor
      *          descriptor that is equal to this module descriptor
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object ob) {
         if (ob == this)
             return true;

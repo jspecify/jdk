@@ -235,8 +235,6 @@ public final class JdpJmxPacket
      * @return either packet equals or not
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object o) {
 
         if (o == null || ! (o instanceof JdpJmxPacket) ){

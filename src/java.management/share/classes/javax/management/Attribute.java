@@ -100,8 +100,6 @@ public class Attribute implements Serializable   {
      */
 
 
-    
-    
     public boolean equals(@Nullable Object object)  {
         if (!(object instanceof Attribute)) {
             return false;

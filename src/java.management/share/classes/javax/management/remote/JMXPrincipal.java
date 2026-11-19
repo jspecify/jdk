@@ -103,8 +103,6 @@ public class JMXPrincipal implements Principal, Serializable {
      * @return true if the specified Object is equal to this
      * <code>JMXPrincipal</code>.
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == null)
             return false;

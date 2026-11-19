@@ -28,7 +28,6 @@ package java.util;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.function.BiConsumer;
@@ -224,7 +223,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
      * @throws IllegalArgumentException if the initial capacity is negative,
      *         or if the load factor is nonpositive.
      */
-    public WeakHashMap( int initialCapacity, float loadFactor) {
+    public WeakHashMap(int initialCapacity, float loadFactor) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal Initial Capacity: "+
                                                initialCapacity);
@@ -251,7 +250,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
      * @param  initialCapacity The initial capacity of the {@code WeakHashMap}
      * @throws IllegalArgumentException if the initial capacity is negative
      */
-    public WeakHashMap( int initialCapacity) {
+    public WeakHashMap(int initialCapacity) {
         this(initialCapacity, DEFAULT_LOAD_FACTOR);
     }
 
@@ -390,8 +389,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
      * entries that will be removed before next attempted access
      * because they are no longer referenced.
      */
-    
-    public  int size() {
+    public int size() {
         if (size == 0)
             return 0;
         expungeStaleEntries();
@@ -404,7 +402,6 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
      * entries that will be removed before next attempted access
      * because they are no longer referenced.
      */
-    
     public boolean isEmpty() {
         return size() == 0;
     }
@@ -427,7 +424,6 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
      *
      * @see #put(Object, Object)
      */
-    
     public @Nullable V get(@Nullable Object key) {
         Object k = maskNull(key);
         int h = hash(k);
@@ -450,8 +446,6 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
      * @return {@code true} if there is a mapping for {@code key};
      *         {@code false} otherwise
      */
-    
-    
     public boolean containsKey(@Nullable Object key) {
         return getEntry(key) != null;
     }
@@ -718,7 +712,6 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
      * @return {@code true} if this map maps one or more keys to the
      *         specified value
      */
-    
     public boolean containsValue(@Nullable Object value) {
         if (value==null)
             return containsNullValue();
@@ -910,8 +903,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
      * operations.  It does not support the {@code add} or {@code addAll}
      * operations.
      */
-    
-    public Set< K> keySet() {
+    public Set<K> keySet() {
         Set<K> ks = keySet;
         if (ks == null) {
             ks = new KeySet();
@@ -921,13 +913,11 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
     }
 
     private class KeySet extends AbstractSet<K> {
-        
         public Iterator<K> iterator() {
             return new KeyIterator();
         }
 
-        
-        public  int size() {
+        public int size() {
             return WeakHashMap.this.size();
         }
 
@@ -948,7 +938,6 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
             WeakHashMap.this.clear();
         }
 
-        
         public Spliterator<K> spliterator() {
             return new KeySpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }
@@ -967,7 +956,6 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
      * {@code retainAll} and {@code clear} operations.  It does not
      * support the {@code add} or {@code addAll} operations.
      */
-    
     public Collection<V> values() {
         Collection<V> vs = values;
         if (vs == null) {
@@ -978,13 +966,11 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
     }
 
     private class Values extends AbstractCollection<V> {
-        
         public Iterator<V> iterator() {
             return new ValueIterator();
         }
 
-        
-        public  int size() {
+        public int size() {
             return WeakHashMap.this.size();
         }
 
@@ -996,7 +982,6 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
             WeakHashMap.this.clear();
         }
 
-        
         public Spliterator<V> spliterator() {
             return new ValueSpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }
@@ -1016,14 +1001,12 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
      * {@code clear} operations.  It does not support the
      * {@code add} or {@code addAll} operations.
      */
-    
-    public Set<Map.Entry< K,V>> entrySet() {
+    public Set<Map.Entry<K,V>> entrySet() {
         Set<Map.Entry<K,V>> es = entrySet;
         return es != null ? es : (entrySet = new EntrySet());
     }
 
     private class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        
         public Iterator<Map.Entry<K,V>> iterator() {
             return new EntryIterator();
         }
@@ -1038,8 +1021,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
             return removeMapping(o);
         }
 
-        
-        public  int size() {
+        public int size() {
             return WeakHashMap.this.size();
         }
 
@@ -1054,17 +1036,14 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K extends @Nullable Obje
             return list;
         }
 
-        
         public Object[] toArray() {
             return deepCopy().toArray();
         }
 
-        
         public <T> T[] toArray(T[] a) {
             return deepCopy().toArray(a);
         }
 
-        
         public Spliterator<Map.Entry<K,V>> spliterator() {
             return new EntrySpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }

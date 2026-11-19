@@ -398,8 +398,6 @@ public abstract class PackedColorModel extends ColorModel {
      * {@code PackedColorModel}; {@code false} otherwise.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof PackedColorModel)) {
             return false;

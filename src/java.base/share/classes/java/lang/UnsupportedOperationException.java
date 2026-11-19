@@ -45,7 +45,6 @@ public class UnsupportedOperationException extends RuntimeException {
      * as its detail message. The cause is not initialized, and may subsequently
      * be initialized by a call to {@link #initCause(Throwable)}.
      */
-    
     public UnsupportedOperationException() {
     }
 
@@ -56,7 +55,6 @@ public class UnsupportedOperationException extends RuntimeException {
      *
      * @param message the detail message
      */
-    
     public UnsupportedOperationException(@Nullable String message) {
         super(message);
     }
@@ -77,7 +75,6 @@ public class UnsupportedOperationException extends RuntimeException {
      *         unknown.)
      * @since 1.5
      */
-    
     public UnsupportedOperationException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
@@ -97,7 +94,6 @@ public class UnsupportedOperationException extends RuntimeException {
      *         unknown.)
      * @since  1.5
      */
-    
     public UnsupportedOperationException(@Nullable Throwable cause) {
         super(cause);
     }

@@ -28,7 +28,6 @@ package java.lang.ref;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import jdk.internal.vm.annotation.AOTRuntimeSetup;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
@@ -212,7 +211,6 @@ public abstract sealed class Reference<@jdk.internal.RequiresIdentity T>
             super(g, null, name, 0, false);
         }
 
-        @SuppressWarnings({"unchecked"})
         public void run() {
             while (true) {
                 processPendingReferences();
@@ -544,7 +542,6 @@ public abstract sealed class Reference<@jdk.internal.RequiresIdentity T>
         this(referent, null);
     }
 
-    @SuppressWarnings({"unchecked"})
     Reference(T referent, ReferenceQueue<? super T> queue) {
         if (referent != null) {
             Objects.requireIdentity(referent);

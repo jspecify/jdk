@@ -428,7 +428,7 @@ public class Dialog extends Window {
      * @since 1.4
      */
      public Dialog(@Nullable Frame owner, @Nullable String title, boolean modal,
-    		 @Nullable GraphicsConfiguration gc) {
+                   @Nullable GraphicsConfiguration gc) {
          this(owner, title, modal ? DEFAULT_MODALITY_TYPE : ModalityType.MODELESS, gc);
      }
 
@@ -696,7 +696,7 @@ public class Dialog extends Window {
      * @since 1.6
      */
     public Dialog(@Nullable Window owner, @Nullable String title, @Nullable ModalityType modalityType,
-    		@Nullable GraphicsConfiguration gc) {
+                  @Nullable GraphicsConfiguration gc) {
         super(owner, gc);
 
         if ((owner != null) &&

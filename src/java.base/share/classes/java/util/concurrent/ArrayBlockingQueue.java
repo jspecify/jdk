@@ -462,7 +462,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
      *
      * @return the number of elements in this queue
      */
-    
     public int size() {
         final ReentrantLock lock = this.lock;
         lock.lock();

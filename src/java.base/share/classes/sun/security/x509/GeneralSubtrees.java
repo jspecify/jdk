@@ -152,8 +152,6 @@ public class GeneralSubtrees implements Cloneable, DerEncoder {
      * @param obj GeneralSubtrees to compare to this
      * @return true if match
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

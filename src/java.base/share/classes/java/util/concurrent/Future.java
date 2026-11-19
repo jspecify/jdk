@@ -143,7 +143,6 @@ public interface Future<V extends @Nullable Object> {
      *
      * @return {@code true} if this task was cancelled before it completed
      */
-    
     boolean isCancelled();
 
     /**
@@ -155,7 +154,6 @@ public interface Future<V extends @Nullable Object> {
      *
      * @return {@code true} if this task completed
      */
-    
     boolean isDone();
 
     /**

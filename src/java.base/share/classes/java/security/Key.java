@@ -104,6 +104,7 @@ import org.jspecify.annotations.Nullable;
  * @author Benjamin Renaud
  * @since 1.1
  */
+
 @NullMarked
 public interface Key extends java.io.Serializable {
 

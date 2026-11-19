@@ -749,8 +749,6 @@ public final class HttpCookie implements Cloneable {
      *          otherwise, {@code false}
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;

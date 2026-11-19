@@ -61,8 +61,6 @@
  */
 package java.time.chrono;
 
-import org.jspecify.annotations.Nullable;
-
 import static java.time.temporal.ChronoField.ALIGNED_DAY_OF_WEEK_IN_MONTH;
 import static java.time.temporal.ChronoField.ALIGNED_DAY_OF_WEEK_IN_YEAR;
 import static java.time.temporal.ChronoField.ALIGNED_WEEK_OF_MONTH;

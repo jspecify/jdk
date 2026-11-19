@@ -255,8 +255,6 @@ public class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @param      pri   the new priority of the thread group.
      * @see        #getMaxPriority
      */
-    
-    @SuppressWarnings("index:array.access.unsafe.high")
     public final void setMaxPriority(int pri) {
         if (pri >= Thread.MIN_PRIORITY && pri <= Thread.MAX_PRIORITY) {
             synchronized (this) {
@@ -487,8 +485,6 @@ public class ThreadGroup implements Thread.UncaughtExceptionHandler {
      * @see        java.lang.Thread#interrupt()
      * @since      1.2
      */
-    
-    @SuppressWarnings("index:array.access.unsafe.high")
     public final void interrupt() {
         for (Thread thread : Thread.getAllThreads()) {
             ThreadGroup g = thread.getThreadGroup();
@@ -501,14 +497,20 @@ public class ThreadGroup implements Thread.UncaughtExceptionHandler {
     /**
      * Does nothing.
      *
+     * @deprecated This method was originally specified to destroy an empty
+     *             thread group. The ability to explicitly destroy a thread group
+     *             no longer exists. A thread group is eligible to be GC'ed when
+     *             there are no live threads in the group and it is otherwise
+     *             unreachable.
+     */
+    @Deprecated(since="16", forRemoval=true)
+    public final void destroy() {
     }
 
     /**
      * Prints information about this thread group to the standard
      * output. This method is useful only for debugging.
      */
-    
-    @SuppressWarnings("index:array.access.unsafe.high")
     public void list() {
         Map<ThreadGroup, List<Thread>> map = new HashMap<>();
         for (Thread thread : Thread.getAllThreads()) {
@@ -588,7 +590,6 @@ public class ThreadGroup implements Thread.UncaughtExceptionHandler {
      *
      * @return  a string representation of this thread group.
      */
-    
     public String toString() {
         return getClass().getName()
                 + "[name=" + getName()

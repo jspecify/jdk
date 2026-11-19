@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.util.Random;
@@ -130,7 +129,7 @@ import static java.lang.Double.*;
  */
 
 @NullMarked
-public final  class Math {
+public final class Math {
 
     /**
      * Don't let anyone instantiate this class.
@@ -243,7 +242,6 @@ public final  class Math {
      * @param   a   the value whose arc sine is to be returned.
      * @return  the arc sine of the argument.
      */
-    
     public static double asin(double a) {
         return StrictMath.asin(a); // default impl. delegates to StrictMath
     }
@@ -262,7 +260,6 @@ public final  class Math {
      * @param   a   the value whose arc cosine is to be returned.
      * @return  the arc cosine of the argument.
      */
-    
     public static double acos(double a) {
         return StrictMath.acos(a); // default impl. delegates to StrictMath
     }
@@ -284,7 +281,6 @@ public final  class Math {
      * @param   a   the value whose arc tangent is to be returned.
      * @return  the arc tangent of the argument.
      */
-    
     public static double atan(double a) {
         return StrictMath.atan(a); // default impl. delegates to StrictMath
     }
@@ -299,7 +295,6 @@ public final  class Math {
      *          in radians.
      * @since   1.2
      */
-    
     public static double toRadians(double angdeg) {
         return angdeg * DEGREES_TO_RADIANS;
     }
@@ -316,7 +311,6 @@ public final  class Math {
      *          in degrees.
      * @since   1.2
      */
-    
     public static double toDegrees(double angrad) {
         return angrad * RADIANS_TO_DEGREES;
     }
@@ -481,7 +475,6 @@ public final  class Math {
      * @return  the remainder when {@code f1} is divided by
      *          {@code f2}.
      */
-    
     public static double IEEEremainder(double f1, double f2) {
         return StrictMath.IEEEremainder(f1, f2); // delegate to StrictMath
     }
@@ -903,7 +896,6 @@ public final  class Math {
      * @see #nextDown(double)
      * @see Random#nextDouble()
      */
-    
     public static double random() {
         return RandomNumberGeneratorHolder.randomNumberGenerator.nextDouble();
     }
@@ -2558,7 +2550,6 @@ public final  class Math {
      * @return the size of an ulp of the argument
      * @since 1.5
      */
-    
     public static double ulp(double d) {
         int exp = getExponent(d);
 
@@ -2605,7 +2596,6 @@ public final  class Math {
      * @return the size of an ulp of the argument
      * @since 1.5
      */
-    
     public static float ulp(float f) {
         int exp = getExponent(f);
 
@@ -2726,7 +2716,6 @@ public final  class Math {
      * @return  The hyperbolic cosine of {@code x}.
      * @since 1.5
      */
-    
     public static double cosh(double x) {
         return StrictMath.cosh(x);
     }
@@ -2886,7 +2875,6 @@ public final  class Math {
      * without intermediate overflow or underflow
      * @since 1.5
      */
-    
     public static double hypot(double x, double y) {
         return StrictMath.hypot(x, y);
     }
@@ -2925,7 +2913,6 @@ public final  class Math {
      * @return  the value <i>e</i><sup>{@code x}</sup>&nbsp;-&nbsp;1.
      * @since 1.5
      */
-    
     public static double expm1(double x) {
         return StrictMath.expm1(x);
     }
@@ -2963,7 +2950,6 @@ public final  class Math {
      * log of {@code x}&nbsp;+&nbsp;1
      * @since 1.5
      */
-    
     public static double log1p(double x) {
         return StrictMath.log1p(x);
     }
@@ -3042,7 +3028,6 @@ public final  class Math {
      * @return the unbiased exponent of the argument
      * @since 1.6
      */
-    
     public static int getExponent(float f) {
         /*
          * Bitwise convert f to integer, mask out exponent bits, shift
@@ -3071,7 +3056,6 @@ public final  class Math {
      * @return the unbiased exponent of the argument
      * @since 1.6
      */
-    
     public static int getExponent(double d) {
         /*
          * Bitwise convert d to long, mask out exponent bits, shift
@@ -3122,7 +3106,6 @@ public final  class Math {
      * direction of {@code direction}.
      * @since 1.6
      */
-    
     public static double nextAfter(double start, double direction) {
         /*
          * The cases:
@@ -3207,7 +3190,6 @@ public final  class Math {
      * direction of {@code direction}.
      * @since 1.6
      */
-    
     public static float nextAfter(float start, double direction) {
         /*
          * The cases:
@@ -3281,7 +3263,6 @@ public final  class Math {
      * infinity.
      * @since 1.6
      */
-    
     public static double nextUp(double d) {
         // Use a single conditional and handle the likely cases first.
         if (d < Double.POSITIVE_INFINITY) {
@@ -3321,7 +3302,6 @@ public final  class Math {
      * infinity.
      * @since 1.6
      */
-    
     public static float nextUp(float f) {
         // Use a single conditional and handle the likely cases first.
         if (f < Float.POSITIVE_INFINITY) {
@@ -3446,7 +3426,6 @@ public final  class Math {
      * @return {@code d} &times; 2<sup>{@code scaleFactor}</sup>
      * @since 1.6
      */
-    
     public static double scalb(double d, int scaleFactor) {
         if (scaleFactor > -DoubleConsts.EXP_BIAS) {
             if (scaleFactor <= DoubleConsts.EXP_BIAS) {
@@ -3499,7 +3478,6 @@ public final  class Math {
      * @return {@code f} &times; 2<sup>{@code scaleFactor}</sup>
      * @since 1.6
      */
-    
     public static float scalb(float f, int scaleFactor) {
         // magnitude of a power of two so large that scaling a finite
         // nonzero value by it would be guaranteed to over or

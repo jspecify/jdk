@@ -119,7 +119,6 @@ public interface SortedSet<E extends @Nullable Object> extends Set<E>, Sequenced
      *         or {@code null} if this set uses the natural ordering
      *         of its elements
      */
-    
     @Nullable Comparator<? super E> comparator();
 
     /**
@@ -153,8 +152,7 @@ public interface SortedSet<E extends @Nullable Object> extends Set<E>, Sequenced
      *         has a restricted range, and {@code fromElement} or
      *         {@code toElement} lies outside the bounds of the range
      */
-    
-    SortedSet<E> subSet( E fromElement,  E toElement);
+    SortedSet<E> subSet(E fromElement, E toElement);
 
     /**
      * Returns a view of the portion of this set whose elements are
@@ -181,7 +179,6 @@ public interface SortedSet<E extends @Nullable Object> extends Set<E>, Sequenced
      *         restricted range, and {@code toElement} lies outside the
      *         bounds of the range
      */
-    
     SortedSet<E> headSet(E toElement);
 
     /**
@@ -209,7 +206,6 @@ public interface SortedSet<E extends @Nullable Object> extends Set<E>, Sequenced
      *         restricted range, and {@code fromElement} lies outside the
      *         bounds of the range
      */
-    
     SortedSet<E> tailSet(E fromElement);
 
     /**
@@ -218,7 +214,6 @@ public interface SortedSet<E extends @Nullable Object> extends Set<E>, Sequenced
      * @return the first (lowest) element currently in this set
      * @throws NoSuchElementException if this set is empty
      */
-    
     E first();
 
     /**
@@ -227,7 +222,6 @@ public interface SortedSet<E extends @Nullable Object> extends Set<E>, Sequenced
      * @return the last (highest) element currently in this set
      * @throws NoSuchElementException if this set is empty
      */
-    
     E last();
 
     /**

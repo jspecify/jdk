@@ -33,7 +33,6 @@ import javax.swing.plaf.RootPaneUI;
 import java.io.Serializable;
 
 
-
 /**
  * A lightweight container used behind the scenes by
  * <code>JFrame</code>, <code>JDialog</code>, <code>JWindow</code>,
@@ -293,7 +292,7 @@ public class JRootPane extends JComponent implements Accessible {
     private int windowDecorationStyle;
 
     /** The menu bar. */
-    protected  JMenuBar menuBar;
+    protected JMenuBar menuBar;
 
     /** The content pane. */
     protected Container contentPane;

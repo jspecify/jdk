@@ -1843,8 +1843,6 @@ public final class NumericShaper implements java.io.Serializable {
      *         {@code false} otherwise.
      * @see java.lang.Object#equals(java.lang.Object)
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o != null) {
             try {

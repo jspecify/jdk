@@ -448,7 +448,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      * @param len the number of bytes to use, starting at
      * {@code offset}.
      */
-    public void update( byte[] input, int offset, int len) {
+    public void update(byte[] input, int offset, int len) {
         if (input == null) {
             throw new IllegalArgumentException("No input buffer given");
         }
@@ -464,7 +464,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      *
      * @param input the array of bytes.
      */
-    public void update( byte[] input) {
+    public void update(byte[] input) {
         engineUpdate(input, 0, input.length);
         state = IN_PROGRESS;
     }
@@ -493,7 +493,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      *
      * @return the array of bytes for the resulting hash value.
      */
-    public  byte[] digest() {
+    public byte[] digest() {
         /* Resetting is the responsibility of implementors. */
         byte[] result = engineDigest();
         state = INITIAL;
@@ -514,7 +514,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      *
      * @throws    DigestException if an error occurs.
      */
-    public int digest( byte[] buf, int offset, int len) throws DigestException {
+    public int digest(byte[] buf, int offset, int len) throws DigestException {
         if (buf == null) {
             throw new IllegalArgumentException("No output buffer given");
         }
@@ -539,7 +539,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      *
      * @return the array of bytes for the resulting hash value.
      */
-    public  byte[] digest( byte[] input) {
+    public byte[] digest(byte[] input) {
         update(input);
         return digest();
     }

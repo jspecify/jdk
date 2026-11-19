@@ -41,7 +41,6 @@ import java.util.Objects;
  * @since 1.8
  */
 @NullMarked
-
 @FunctionalInterface
 public interface Function<T extends @Nullable Object, R extends @Nullable Object> {
 

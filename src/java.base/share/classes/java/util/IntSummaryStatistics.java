@@ -25,7 +25,6 @@
 package java.util;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.util.function.IntConsumer;
 import java.util.stream.Collector;

@@ -674,8 +674,6 @@ public class ZoneInfo extends TimeZone {
      * @return true if given object is same as this ZoneInfo object,
      * false otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

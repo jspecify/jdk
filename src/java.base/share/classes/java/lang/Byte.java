@@ -82,13 +82,13 @@ public final /*value*/ class Byte extends Number
      * A constant holding the minimum value a {@code byte} can
      * have, -2<sup>7</sup>.
      */
-    public static final  byte   MIN_VALUE = -128;
+    public static final byte   MIN_VALUE = -128;
 
     /**
      * A constant holding the maximum value a {@code byte} can
      * have, 2<sup>7</sup>-1.
      */
-    public static final   byte   MAX_VALUE = 127;
+    public static final byte   MAX_VALUE = 127;
 
     /**
      * The {@code Class} instance representing the primitive type
@@ -229,9 +229,7 @@ public final /*value*/ class Byte extends Number
      * @throws          NumberFormatException If the string does
      *                  not contain a parsable {@code byte}.
      */
-    
-    
-    public static byte parseByte(String s,   int radix)
+    public static byte parseByte(String s, int radix)
         throws NumberFormatException {
         int i = Integer.parseInt(s, radix);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -258,8 +256,6 @@ public final /*value*/ class Byte extends Number
      * @throws          NumberFormatException if the string does not
      *                  contain a parsable {@code byte}.
      */
-    
-    
     public static byte parseByte(String s) throws NumberFormatException {
         return parseByte(s, 10);
     }
@@ -289,9 +285,7 @@ public final /*value*/ class Byte extends Number
      * @throws          NumberFormatException If the {@code String} does
      *                  not contain a parsable {@code byte}.
      */
-    
-    
-    public static  Byte valueOf(String s,   int radix)
+    public static Byte valueOf(String s, int radix)
         throws NumberFormatException {
         return valueOf(parseByte(s, radix));
     }
@@ -318,9 +312,7 @@ public final /*value*/ class Byte extends Number
      * @throws          NumberFormatException If the {@code String} does
      *                  not contain a parsable {@code byte}.
      */
-    
-    
-    public static  Byte valueOf(String s) throws NumberFormatException {
+    public static Byte valueOf(String s) throws NumberFormatException {
         return valueOf(s, 10);
     }
 
@@ -366,8 +358,6 @@ public final /*value*/ class Byte extends Number
      *            contain a parsable {@code byte}.
      * @see java.lang.Byte#parseByte(java.lang.String, int)
      */
-    
-    
     public static Byte decode(String nm) throws NumberFormatException {
         int i = Integer.decode(nm);
         if (i < MIN_VALUE || i > MAX_VALUE)
@@ -438,9 +428,7 @@ public final /*value*/ class Byte extends Number
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public   short shortValue() {
+    public short shortValue() {
         return (short)value;
     }
 
@@ -449,9 +437,7 @@ public final /*value*/ class Byte extends Number
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public   int intValue() {
+    public int intValue() {
         return (int)value;
     }
 
@@ -460,9 +446,7 @@ public final /*value*/ class Byte extends Number
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public   long longValue() {
+    public long longValue() {
         return (long)value;
     }
 
@@ -471,9 +455,7 @@ public final /*value*/ class Byte extends Number
      * a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  float floatValue() {
+    public float floatValue() {
         return (float)value;
     }
 
@@ -482,9 +464,7 @@ public final /*value*/ class Byte extends Number
      * after a widening primitive conversion.
      * @jls 5.1.2 Widening Primitive Conversion
      */
-    
-    
-    public  double doubleValue() {
+    public double doubleValue() {
         return (double)value;
     }
 
@@ -509,8 +489,6 @@ public final /*value*/ class Byte extends Number
      *
      * @return a hash code value for this {@code Byte}
      */
-    
-    
     @Override
     public int hashCode() {
         return Byte.hashCode(value);
@@ -524,8 +502,6 @@ public final /*value*/ class Byte extends Number
      * @return a hash code value for a {@code byte} value.
      * @since 1.8
      */
-    
-    
     public static int hashCode(byte value) {
         return (int)value;
     }
@@ -560,8 +536,6 @@ public final /*value*/ class Byte extends Number
      *           comparison).
      * @since   1.2
      */
-    
-    
     public int compareTo(Byte anotherByte) {
         return compare(this.value, anotherByte.value);
     }
@@ -580,8 +554,6 @@ public final /*value*/ class Byte extends Number
      *         a value greater than {@code 0} if {@code x > y}
      * @since 1.7
      */
-    
-    
     public static int compare(byte x, byte y) {
         return x - y;
     }
@@ -598,8 +570,6 @@ public final /*value*/ class Byte extends Number
      *         unsigned values
      * @since 9
      */
-    
-    
     public static int compareUnsigned(byte x, byte y) {
         return Byte.toUnsignedInt(x) - Byte.toUnsignedInt(y);
     }
@@ -620,8 +590,6 @@ public final /*value*/ class Byte extends Number
      *         conversion
      * @since 1.8
      */
-    
-    
     public static int toUnsignedInt(byte x) {
         return ((int) x) & 0xff;
     }
@@ -642,8 +610,6 @@ public final /*value*/ class Byte extends Number
      *         conversion
      * @since 1.8
      */
-    
-    
     public static long toUnsignedLong(byte x) {
         return ((long) x) & 0xffL;
     }
@@ -655,7 +621,7 @@ public final /*value*/ class Byte extends Number
      *
      * @since 1.5
      */
-    public static final   int SIZE = 8;
+    public static final int SIZE = 8;
 
     /**
      * The number of bytes used to represent a {@code byte} value in two's
@@ -663,7 +629,7 @@ public final /*value*/ class Byte extends Number
      *
      * @since 1.8
      */
-    public static final   int BYTES = SIZE / Byte.SIZE;
+    public static final int BYTES = SIZE / Byte.SIZE;
 
     /** use serialVersionUID from JDK 1.1. for interoperability */
     @java.io.Serial

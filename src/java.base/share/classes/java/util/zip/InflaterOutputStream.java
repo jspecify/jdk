@@ -55,6 +55,7 @@ import org.jspecify.annotations.NullMarked;
  * @see DeflaterInputStream
  * @see DeflaterOutputStream
  */
+
 @NullMarked
 public class InflaterOutputStream extends FilterOutputStream {
     /** Decompressor for this stream. */

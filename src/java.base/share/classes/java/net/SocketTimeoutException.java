@@ -33,6 +33,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @since   1.4
  */
+
 @NullMarked
 public class SocketTimeoutException extends java.io.InterruptedIOException {
     @java.io.Serial

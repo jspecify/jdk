@@ -299,7 +299,6 @@ public class LinkedBlockingQueue<E> extends AbstractQueue<E>
      *
      * @return the number of elements in this queue
      */
-    
     public int size() {
         return count.get();
     }

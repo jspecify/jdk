@@ -1732,7 +1732,7 @@ public class ObjectOutputStream
             write(b, 0, b.length, false);
         }
 
-        public void write(byte[] b,  int off,   int len) throws IOException {
+        public void write(byte[] b, int off, int len) throws IOException {
             write(b, off, len, false);
         }
 
@@ -1752,7 +1752,7 @@ public class ObjectOutputStream
          * them to underlying stream (to avoid exposing a reference to the
          * original byte array).
          */
-        void write(byte[] b,  int off,   int len, boolean copy)
+        void write(byte[] b, int off, int len, boolean copy)
             throws IOException
         {
             if (!(copy || blkmode)) {           // write directly

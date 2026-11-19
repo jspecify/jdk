@@ -60,7 +60,6 @@ public class ClassNotFoundException extends ReflectiveOperationException {
     /**
      * Constructs a {@code ClassNotFoundException} with no detail message.
      */
-    
     public ClassNotFoundException() {
         super((Throwable)null);  // Disallow initCause
     }
@@ -71,7 +70,6 @@ public class ClassNotFoundException extends ReflectiveOperationException {
      *
      * @param   s   the detail message.
      */
-    
     public ClassNotFoundException(@Nullable String s) {
         super(s, null);  //  Disallow initCause
     }

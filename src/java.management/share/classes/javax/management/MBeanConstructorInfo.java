@@ -187,8 +187,6 @@ public class MBeanConstructorInfo extends MBeanFeatureInfo implements Cloneable 
      * signature arrays are equal if their elements are pairwise
      * equal.
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;

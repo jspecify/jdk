@@ -1668,8 +1668,6 @@ public class ObjectName implements Comparable<ObjectName>, QueryExp {
      * canonical form is equal to that of this ObjectName.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object object)  {
 
         // same object case

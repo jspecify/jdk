@@ -47,7 +47,6 @@ public class ArrayStoreException extends RuntimeException {
     /**
      * Constructs an {@code ArrayStoreException} with no detail message.
      */
-    
     public ArrayStoreException() {
         super();
     }
@@ -58,7 +57,6 @@ public class ArrayStoreException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    
     public ArrayStoreException(@Nullable String s) {
         super(s);
     }

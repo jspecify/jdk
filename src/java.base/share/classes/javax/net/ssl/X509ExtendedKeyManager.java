@@ -46,7 +46,6 @@ public abstract class X509ExtendedKeyManager implements X509KeyManager {
     /**
      * Constructor used by subclasses only.
      */
-    
     protected X509ExtendedKeyManager() {
     }
 

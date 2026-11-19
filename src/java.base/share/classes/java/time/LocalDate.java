@@ -2146,8 +2146,6 @@ public final /*value*/ class LocalDate
      * @return true if this is equal to the other date
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

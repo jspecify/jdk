@@ -52,7 +52,6 @@ public class CloneNotSupportedException extends Exception {
      * Constructs a {@code CloneNotSupportedException} with no
      * detail message.
      */
-    
     public CloneNotSupportedException() {
         super();
     }
@@ -63,7 +62,6 @@ public class CloneNotSupportedException extends Exception {
      *
      * @param   s   the detail message.
      */
-    
     public CloneNotSupportedException(@Nullable String s) {
         super(s);
     }

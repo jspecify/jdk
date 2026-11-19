@@ -617,7 +617,6 @@ public interface BlockingDeque<E> extends BlockingQueue<E>, Deque<E> {
      * @throws NullPointerException if the specified element is null
      * (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
-    
     boolean contains(@Nullable Object o);
 
     /**
@@ -625,7 +624,6 @@ public interface BlockingDeque<E> extends BlockingQueue<E>, Deque<E> {
      *
      * @return the number of elements in this deque
      */
-    
     int size();
 
     /**
@@ -634,7 +632,6 @@ public interface BlockingDeque<E> extends BlockingQueue<E>, Deque<E> {
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
-    
     Iterator<E> iterator();
 
     // *** Stack methods ***

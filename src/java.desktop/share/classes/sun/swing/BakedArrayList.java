@@ -79,8 +79,6 @@ public class BakedArrayList<E> extends ArrayList<E> {
         return _hashCode;
     }
 
-    
-    
     public boolean equals(@Nullable Object o) {
         @SuppressWarnings("unchecked")
         BakedArrayList<E> list = (BakedArrayList)o;

@@ -335,7 +335,7 @@ public class StringTokenizer implements Enumeration<Object> {
      * @throws     NoSuchElementException  if there are no more tokens in this
      *               tokenizer's string.
      */
-    public  String nextToken() {
+    public String nextToken() {
         /*
          * If next position already computed in hasMoreElements() and
          * delimiters have changed between the computation and this invocation,
@@ -422,7 +422,7 @@ public class StringTokenizer implements Enumeration<Object> {
      *          delimiter set.
      * @see     java.util.StringTokenizer#nextToken()
      */
-    public  int countTokens() {
+    public int countTokens() {
         int count = 0;
         int currpos = currentPosition;
         while (currpos < maxPosition) {

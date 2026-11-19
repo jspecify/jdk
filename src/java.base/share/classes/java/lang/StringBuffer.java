@@ -112,7 +112,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * @see     java.lang.String
  * @since   1.0
  */
-@NullMarked
+ @NullMarked
  public final class StringBuffer
     extends AbstractStringBuilder
     implements Appendable, Serializable, Comparable<StringBuffer>, CharSequence
@@ -204,14 +204,13 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
         return super.compareTo(another);
     }
 
-    
     @Override
-    public synchronized  int length() {
+    public synchronized int length() {
         return count;
     }
 
     @Override
-    public synchronized  int capacity() {
+    public synchronized int capacity() {
         return super.capacity();
     }
 
@@ -234,7 +233,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
      * @see        #length()
      */
     @Override
-    public synchronized void setLength( int newLength) {
+    public synchronized void setLength(int newLength) {
         toStringCache = null;
         super.setLength(newLength);
     }
@@ -286,7 +285,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
 
     @Override
     public synchronized void getChars(int srcBegin, int srcEnd, char[] dst,
-                                       int dstBegin)
+                                      int dstBegin)
     {
         super.getChars(srcBegin, srcEnd, dst, dstBegin);
     }
@@ -302,7 +301,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
     }
 
     @Override
-    public synchronized StringBuffer append( @Nullable Object obj) {
+    public synchronized StringBuffer append(@Nullable Object obj) {
         toStringCache = null;
         super.append(String.valueOf(obj));
         return this;
@@ -340,7 +339,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
      * @return  a reference to this object.
      * @since 1.4
      */
-    public synchronized StringBuffer append( @Nullable StringBuffer sb) {
+    public synchronized StringBuffer append(@Nullable StringBuffer sb) {
         toStringCache = null;
         super.append(sb);
         return this;
@@ -350,7 +349,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
      * @since 1.8
      */
     @Override
-    synchronized StringBuffer append( AbstractStringBuilder asb) {
+    synchronized StringBuffer append(AbstractStringBuilder asb) {
         toStringCache = null;
         super.append(asb);
         return this;
@@ -378,7 +377,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
      * @since 1.5
      */
     @Override
-    public synchronized StringBuffer append( @Nullable CharSequence s) {
+    public synchronized StringBuffer append(@Nullable CharSequence s) {
         toStringCache = null;
         super.append(s);
         return this;
@@ -389,7 +388,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
      * @since      1.5
      */
     @Override
-    public synchronized StringBuffer append( @Nullable CharSequence s,  int start,  int end)
+    public synchronized StringBuffer append(@Nullable CharSequence s, int start, int end)
     {
         toStringCache = null;
         super.append(s, start, end);
@@ -397,7 +396,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
     }
 
     @Override
-    public synchronized StringBuffer append( char[] str) {
+    public synchronized StringBuffer append(char[] str) {
         toStringCache = null;
         super.append(str);
         return this;
@@ -407,14 +406,14 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public synchronized StringBuffer append( char[] str,  int offset,  int len) {
+    public synchronized StringBuffer append(char[] str, int offset, int len) {
         toStringCache = null;
         super.append(str, offset, len);
         return this;
     }
 
     @Override
-    public synchronized StringBuffer append( boolean b) {
+    public synchronized StringBuffer append(boolean b) {
         toStringCache = null;
         super.append(b);
         return this;
@@ -447,21 +446,21 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
     }
 
     @Override
-    public synchronized StringBuffer append( long lng) {
+    public synchronized StringBuffer append(long lng) {
         toStringCache = null;
         super.append(lng);
         return this;
     }
 
     @Override
-    public synchronized StringBuffer append( float f) {
+    public synchronized StringBuffer append(float f) {
         toStringCache = null;
         super.append(f);
         return this;
     }
 
     @Override
-    public synchronized StringBuffer append( double d) {
+    public synchronized StringBuffer append(double d) {
         toStringCache = null;
         super.append(d);
         return this;
@@ -532,8 +531,8 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
      * @since      1.2
      */
     @Override
-    public synchronized StringBuffer insert(int index, char[] str,  int offset,
-                                             int len)
+    public synchronized StringBuffer insert(int index, char[] str, int offset,
+                                            int len)
     {
         toStringCache = null;
         super.insert(index, str, offset, len);
@@ -589,7 +588,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
      */
     @Override
     public synchronized StringBuffer insert(int dstOffset, @Nullable CharSequence s,
-             int start,  int end)
+            int start, int end)
     {
         toStringCache = null;
         super.insert(dstOffset, s, start, end);
@@ -669,9 +668,8 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
     /**
      * @since      1.4
      */
-    
     @Override
-    public  int indexOf(String str) {
+    public int indexOf(String str) {
         // Note, synchronization achieved via invocations of other StringBuffer methods
         return super.indexOf(str);
     }
@@ -679,18 +677,16 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
     /**
      * @since      1.4
      */
-    
     @Override
-    public synchronized  int indexOf(String str, int fromIndex) {
+    public synchronized int indexOf(String str, int fromIndex) {
         return super.indexOf(str, fromIndex);
     }
 
     /**
      * @since      1.4
      */
-    
     @Override
-    public  int lastIndexOf(String str) {
+    public int lastIndexOf(String str) {
         // Note, synchronization achieved via invocations of other StringBuffer methods
         return lastIndexOf(str, count);
     }
@@ -698,9 +694,8 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
     /**
      * @since      1.4
      */
-    
     @Override
-    public synchronized  int lastIndexOf(String str, int fromIndex) {
+    public synchronized int lastIndexOf(String str, int fromIndex) {
         return super.lastIndexOf(str, fromIndex);
     }
 

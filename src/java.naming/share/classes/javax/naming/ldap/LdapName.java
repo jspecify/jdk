@@ -653,8 +653,6 @@ public class LdapName implements Name {
      *                  false otherwise.
      * @see #hashCode
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         // check possible shortcuts
         if (obj == this) {

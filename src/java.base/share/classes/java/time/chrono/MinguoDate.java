@@ -462,8 +462,6 @@ public final /*value*/ class MinguoDate
      * @return true if this is equal to the other date
      */
     @Override  // override for performance
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

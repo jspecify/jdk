@@ -527,8 +527,6 @@ public class HostIdentifier {
      *
      * @see URI#equals(Object)
      */
-    
-    
     public boolean equals(@Nullable Object object) {
         if (object == this) {
             return true;

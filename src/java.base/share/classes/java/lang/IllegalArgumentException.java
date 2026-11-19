@@ -40,7 +40,6 @@ public class IllegalArgumentException extends RuntimeException {
      * Constructs an {@code IllegalArgumentException} with no
      * detail message.
      */
-    
     public IllegalArgumentException() {
         super();
     }
@@ -51,7 +50,6 @@ public class IllegalArgumentException extends RuntimeException {
      *
      * @param   s   the detail message.
      */
-    
     public IllegalArgumentException(@Nullable String s) {
         super(s);
     }
@@ -72,7 +70,6 @@ public class IllegalArgumentException extends RuntimeException {
      *         unknown.)
      * @since 1.5
      */
-    
     public IllegalArgumentException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
@@ -91,7 +88,6 @@ public class IllegalArgumentException extends RuntimeException {
      *         unknown.)
      * @since  1.5
      */
-    
     public IllegalArgumentException(@Nullable Throwable cause) {
         super(cause);
     }

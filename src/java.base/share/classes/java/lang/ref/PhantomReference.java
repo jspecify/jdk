@@ -73,7 +73,6 @@ public non-sealed class PhantomReference<@jdk.internal.RequiresIdentity T> exten
      *
      * @return {@code null}
      */
-    
     public @Nullable T get() {
         return null;
     }

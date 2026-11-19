@@ -2922,8 +2922,6 @@ public class ComponentColorModel extends ColorModel {
      * {@code ComponentColorModel}; {@code false} otherwise.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof ComponentColorModel)) {
             return false;

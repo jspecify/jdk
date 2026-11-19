@@ -26,7 +26,6 @@
 package java.lang;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * The {@code Void} class is an uninstantiable placeholder class to hold a
@@ -37,7 +36,7 @@ import org.jspecify.annotations.Nullable;
  */
 @NullMarked
 public final
- class Void {
+class Void {
 
     /**
      * The {@code Class} object representing the pseudo-type corresponding to

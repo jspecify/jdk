@@ -45,7 +45,6 @@ public class IndexOutOfBoundsException extends RuntimeException {
     /**
      * Constructs an {@code IndexOutOfBoundsException} with no detail message.
      */
-    
     public IndexOutOfBoundsException() {
         super();
     }
@@ -56,7 +55,6 @@ public class IndexOutOfBoundsException extends RuntimeException {
      *
      * @param s the detail message
      */
-    
     public IndexOutOfBoundsException(@Nullable String s) {
         super(s);
     }

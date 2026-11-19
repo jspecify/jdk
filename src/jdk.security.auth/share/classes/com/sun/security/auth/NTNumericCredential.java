@@ -83,8 +83,6 @@ public class NTNumericCredential {
      * @return true if the specified Object is equal to this
      *          {@code NTNumericCredential}.
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == null)
             return false;

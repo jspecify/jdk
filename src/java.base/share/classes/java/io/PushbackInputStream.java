@@ -92,7 +92,7 @@ public class PushbackInputStream extends FilterInputStream {
      * @throws IllegalArgumentException if {@code size <= 0}
      * @since  1.1
      */
-    public PushbackInputStream(InputStream in,  int size) {
+    public PushbackInputStream(InputStream in, int size) {
         super(in);
         if (size <= 0) {
             throw new IllegalArgumentException("size <= 0");
@@ -133,7 +133,7 @@ public class PushbackInputStream extends FilterInputStream {
      *             or an I/O error occurs.
      * @see        java.io.InputStream#read()
      */
-    public  int read() throws IOException {
+    public int read() throws IOException {
         ensureOpen();
         if (pos < buf.length) {
             return buf[pos++] & 0xff;
@@ -164,7 +164,7 @@ public class PushbackInputStream extends FilterInputStream {
      *             or an I/O error occurs.
      * @see        java.io.InputStream#read(byte[], int, int)
      */
-    public   int read(byte[] b,  int off,   int len) throws IOException {
+    public int read(byte[] b, int off, int len) throws IOException {
         ensureOpen();
         if (b == null) {
             throw new NullPointerException();
@@ -229,7 +229,7 @@ public class PushbackInputStream extends FilterInputStream {
      *            invoking its {@link #close()} method.
      * @since     1.1
      */
-    public void unread(byte[] b,  int off,   int len) throws IOException {
+    public void unread(byte[] b, int off, int len) throws IOException {
         ensureOpen();
         if (len > pos) {
             throw new IOException("Push back buffer is full");
@@ -275,7 +275,7 @@ public class PushbackInputStream extends FilterInputStream {
      * @see        java.io.FilterInputStream#in
      * @see        java.io.InputStream#available()
      */
-    public  int available() throws IOException {
+    public int available() throws IOException {
         ensureOpen();
         int n = buf.length - pos;
         int avail = super.available();
@@ -306,7 +306,7 @@ public class PushbackInputStream extends FilterInputStream {
      * @see        java.io.InputStream#skip(long n)
      * @since      1.2
      */
-    public  long skip(long n) throws IOException {
+    public long skip(long n) throws IOException {
         ensureOpen();
         if (n <= 0) {
             return 0;

@@ -62,7 +62,6 @@
 package java.time.temporal;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.time.DateTimeException;
 import java.time.Duration;

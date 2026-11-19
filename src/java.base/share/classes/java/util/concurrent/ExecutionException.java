@@ -56,7 +56,6 @@ public class ExecutionException extends Exception {
      * The cause is not initialized, and may subsequently be
      * initialized by a call to {@link #initCause(Throwable) initCause}.
      */
-    
     protected ExecutionException() { }
 
     /**
@@ -66,7 +65,6 @@ public class ExecutionException extends Exception {
      *
      * @param message the detail message
      */
-    
     protected ExecutionException(@Nullable String message) {
         super(message);
     }
@@ -79,7 +77,6 @@ public class ExecutionException extends Exception {
      * @param  cause the cause (which is saved for later retrieval by the
      *         {@link #getCause()} method)
      */
-    
     public ExecutionException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
@@ -93,7 +90,6 @@ public class ExecutionException extends Exception {
      * @param  cause the cause (which is saved for later retrieval by the
      *         {@link #getCause()} method)
      */
-    
     public ExecutionException(@Nullable Throwable cause) {
         super(cause);
     }

@@ -73,7 +73,6 @@ public interface BaseStream<T extends @Nullable Object, S extends BaseStream<T, 
      *
      * @return the element iterator for this stream
      */
-    
     Iterator<T> iterator();
 
     /**
@@ -97,7 +96,6 @@ public interface BaseStream<T extends @Nullable Object, S extends BaseStream<T, 
      *
      * @return the element spliterator for this stream
      */
-    
     Spliterator<T> spliterator();
 
     /**

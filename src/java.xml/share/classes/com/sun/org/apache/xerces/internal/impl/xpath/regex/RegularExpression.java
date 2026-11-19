@@ -2350,8 +2350,6 @@ public class RegularExpression implements java.io.Serializable {
     /**
      *  Return true if patterns are the same and the options are equivalent.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == null)  return false;
         if (!(obj instanceof RegularExpression))

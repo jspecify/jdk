@@ -37,7 +37,6 @@ import java.util.Enumeration;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-
 /** A Permission to perform actions related to MBeanServers.
     The <em>name</em> of the permission specifies the operation requested
     or granted by the permission.  For a granted permission, it can be
@@ -192,7 +191,7 @@ public class MBeanServerPermission extends BasicPermission {
         return mask;
     }
 
-    static  String getCanonicalName(int mask) {
+    static String getCanonicalName(int mask) {
         if (mask == ALL_MASK)
             return "*";
 
@@ -301,8 +300,6 @@ public class MBeanServerPermission extends BasicPermission {
      * @param obj the object we are testing for equality with this object.
      * @return true if the objects are equal.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;

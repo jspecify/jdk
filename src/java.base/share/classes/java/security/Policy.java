@@ -343,7 +343,7 @@ public abstract class Policy {
      *
      * @since 1.6
      */
-    public Policy. @Nullable Parameters getParameters() {
+    public Policy.@Nullable Parameters getParameters() {
         return null;
     }
 

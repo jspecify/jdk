@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.nio.channels.FileChannel;
 import jdk.internal.access.SharedSecrets;

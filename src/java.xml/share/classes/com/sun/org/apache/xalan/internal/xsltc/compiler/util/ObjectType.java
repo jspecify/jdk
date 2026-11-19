@@ -74,8 +74,6 @@ public final class ObjectType extends Type {
         return java.lang.Object.class.hashCode();
     }
 
-    
-    
     public boolean equals(@Nullable Object obj) {
         return (obj instanceof ObjectType);
     }

@@ -84,8 +84,6 @@ public class NTSidUserPrincipal extends NTSid {
      * @return true if the specified Object is equal to this
      *          {@code NTSidUserPrincipal}.
      */
-    
-    
     public boolean equals(@Nullable Object o) {
             if (o == null)
                 return false;

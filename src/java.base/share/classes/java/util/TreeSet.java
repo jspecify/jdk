@@ -96,7 +96,6 @@ import org.jspecify.annotations.Nullable;
  * @since   1.2
  */
 
-
 @NullMarked
 public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
     implements NavigableSet<E>, Cloneable, java.io.Serializable
@@ -188,7 +187,6 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      *
      * @return an iterator over the elements in this set in ascending order
      */
-    
     public Iterator<E> iterator() {
         return m.navigableKeySet().iterator();
     }
@@ -215,8 +213,7 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      *
      * @return the number of elements in this set (its cardinality)
      */
-    
-    public  int size() {
+    public int size() {
         return m.size();
     }
 
@@ -225,8 +222,6 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      *
      * @return {@code true} if this set contains no elements
      */
-    
-    
     public boolean isEmpty() {
         return m.isEmpty();
     }
@@ -245,7 +240,6 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      *         and this set uses natural ordering, or its comparator
      *         does not permit null elements
      */
-    
     public boolean contains(@Nullable Object o) {
         return m.containsKey(o);
     }
@@ -333,9 +327,8 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      * @throws IllegalArgumentException {@inheritDoc}
      * @since 1.6
      */
-    
-    public NavigableSet<E> subSet( E fromElement, boolean fromInclusive,
-                                   E toElement,   boolean toInclusive) {
+    public NavigableSet<E> subSet(E fromElement, boolean fromInclusive,
+                                  E toElement,   boolean toInclusive) {
         return new TreeSet<>(m.subMap(fromElement, fromInclusive,
                                        toElement,   toInclusive));
     }
@@ -348,8 +341,7 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      * @throws IllegalArgumentException {@inheritDoc}
      * @since 1.6
      */
-    
-    public NavigableSet<E> headSet( E toElement, boolean inclusive) {
+    public NavigableSet<E> headSet(E toElement, boolean inclusive) {
         return new TreeSet<>(m.headMap(toElement, inclusive));
     }
 
@@ -361,8 +353,7 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      * @throws IllegalArgumentException {@inheritDoc}
      * @since 1.6
      */
-    
-    public NavigableSet<E> tailSet( E fromElement, boolean inclusive) {
+    public NavigableSet<E> tailSet(E fromElement, boolean inclusive) {
         return new TreeSet<>(m.tailMap(fromElement, inclusive));
     }
 
@@ -373,8 +364,7 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      *         or its comparator does not permit null elements
      * @throws IllegalArgumentException {@inheritDoc}
      */
-    
-    public SortedSet<E> subSet( E fromElement,  E toElement) {
+    public SortedSet<E> subSet(E fromElement, E toElement) {
         return subSet(fromElement, true, toElement, false);
     }
 
@@ -385,7 +375,6 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      *         not permit null elements
      * @throws IllegalArgumentException {@inheritDoc}
      */
-    
     public SortedSet<E> headSet(E toElement) {
         return headSet(toElement, false);
     }
@@ -397,12 +386,10 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      *         not permit null elements
      * @throws IllegalArgumentException {@inheritDoc}
      */
-    
     public SortedSet<E> tailSet(E fromElement) {
         return tailSet(fromElement, true);
     }
 
-    
     public @Nullable Comparator<? super E> comparator() {
         return m.comparator();
     }
@@ -410,7 +397,6 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
     /**
      * @throws NoSuchElementException {@inheritDoc}
      */
-    
     public E first() {
         return m.firstKey();
     }
@@ -418,7 +404,6 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
     /**
      * @throws NoSuchElementException {@inheritDoc}
      */
-    
     public E last() {
         return m.lastKey();
     }
@@ -515,7 +500,6 @@ public class TreeSet<E extends @Nullable Object> extends AbstractSet<E>
      *
      * @return a shallow copy of this set
      */
-    
     @SuppressWarnings("unchecked")
     public Object clone() {
         TreeSet<E> clone;

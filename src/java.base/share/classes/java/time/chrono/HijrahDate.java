@@ -633,8 +633,6 @@ public final /*value*/ class HijrahDate
      * @return true if this is equal to the other date and the Chronologies are equal
      */
     @Override  // override for performance
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

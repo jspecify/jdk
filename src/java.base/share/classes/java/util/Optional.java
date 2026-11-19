@@ -155,7 +155,7 @@ public final /*value*/ class Optional<T> {
      * @return the non-{@code null} value described by this {@code Optional}
      * @throws NoSuchElementException if no value is present
      */
-    public  T get() {
+    public T get() {
         if (value == null) {
             throw new NoSuchElementException("No value present");
         }
@@ -167,7 +167,6 @@ public final /*value*/ class Optional<T> {
      *
      * @return {@code true} if a value is present, otherwise {@code false}
      */
-    
     public boolean isPresent() {
         return value != null;
     }
@@ -179,7 +178,6 @@ public final /*value*/ class Optional<T> {
      * @return  {@code true} if a value is not present, otherwise {@code false}
      * @since   11
      */
-    
     public boolean isEmpty() {
         return value == null;
     }
@@ -439,8 +437,6 @@ public final /*value*/ class Optional<T> {
      *         otherwise {@code false}
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

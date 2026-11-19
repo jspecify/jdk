@@ -258,7 +258,7 @@ public class DefaultListCellRenderer extends JLabel
     * for more information.
     */
     @Override
-    protected void firePropertyChange( String propertyName, Object oldValue, Object newValue) {
+    protected void firePropertyChange(String propertyName, Object oldValue, Object newValue) {
         // Strings get interned...
         if (propertyName == "text"
             || ((SwingUtilities2.isScaleChanged(propertyName, oldValue, newValue)

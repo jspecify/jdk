@@ -25,7 +25,6 @@
 package java.util.function;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a supplier of {@code int}-valued results.  This is the

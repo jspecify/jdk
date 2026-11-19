@@ -130,7 +130,7 @@ import java.util.Objects;
 
 @NullMarked
 public final
- class Inet4Address extends InetAddress {
+class Inet4Address extends InetAddress {
     static final int INADDRSZ = 4;
 
     /** use serialVersionUID from InetAddress, but Inet4Address instance

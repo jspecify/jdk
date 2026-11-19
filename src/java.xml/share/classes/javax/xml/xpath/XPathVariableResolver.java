@@ -58,6 +58,5 @@ public interface XPathVariableResolver {
    *
    * @throws NullPointerException If <code>variableName</code> is <code>null</code>.
    */
-  
   public @Nullable Object resolveVariable(QName variableName);
 }

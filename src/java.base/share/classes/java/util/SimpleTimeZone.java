@@ -861,7 +861,6 @@ public class SimpleTimeZone extends TimeZone {
      * Returns a clone of this {@code SimpleTimeZone} instance.
      * @return a clone of this instance.
      */
-    
     public Object clone()
     {
         return super.clone();
@@ -871,7 +870,6 @@ public class SimpleTimeZone extends TimeZone {
      * Generates the hash code for the SimpleTimeZone object.
      * @return the hash code for this object
      */
-    
     public int hashCode()
     {
         int hash = 31 * getID().hashCode() + rawOffset;
@@ -943,7 +941,6 @@ public class SimpleTimeZone extends TimeZone {
      * Returns a string representation of this time zone.
      * @return a string representation of this time zone.
      */
-    
     public String toString() {
         return getClass().getName() +
             "[id=" + getID() +

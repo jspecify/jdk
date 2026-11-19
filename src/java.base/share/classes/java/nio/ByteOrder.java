@@ -26,7 +26,6 @@
 package java.nio;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import jdk.internal.misc.Unsafe;
 

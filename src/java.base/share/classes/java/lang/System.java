@@ -102,7 +102,7 @@ import sun.nio.cs.UTF_8;
  * @since   1.0
  */
 @NullMarked
-public final  class System {
+public final class System {
     /* Register the natives via the static initializer.
      *
      * The VM will invoke the initPhase1 method to complete the initialization
@@ -757,7 +757,6 @@ public final  class System {
      * @see        #setProperty
      * @see        java.lang.System#getProperties()
      */
-    
     public static @Nullable String getProperty(String key) {
         checkKey(key);
         return props.getProperty(key);
@@ -780,7 +779,6 @@ public final  class System {
      * @see        #setProperty
      * @see        java.lang.System#getProperties()
      */
-    
     public static @Nullable String getProperty(String key, @Nullable String def) {
         checkKey(key);
         return props.getProperty(key, def);
@@ -1557,7 +1555,6 @@ public final  class System {
      * @param  status exit status.
      * @see    java.lang.Runtime#exit(int)
      */
-    
     public static void exit(int status) {
         Runtime.getRuntime().exit(status);
     }

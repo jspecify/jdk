@@ -347,8 +347,6 @@ public class ImmutableDescriptor implements Descriptor {
     }
 
     @Override
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;

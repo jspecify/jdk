@@ -42,7 +42,6 @@ package java.awt.font;
 import org.jspecify.annotations.Nullable;
 import java.lang.String;
 
-
 /**
  * The {@code TextHitInfo} class represents a character position in a
  * text model, and a <b>bias</b>, or "side," of the character.  Biases are
@@ -146,8 +145,6 @@ public final class TextHitInfo {
      * @return {@code true} if the specified {@code Object}
      * equals this {@code TextHitInfo}; {@code false} otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         return (obj instanceof TextHitInfo) && equals((TextHitInfo)obj);
     }

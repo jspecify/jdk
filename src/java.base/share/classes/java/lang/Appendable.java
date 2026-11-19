@@ -116,7 +116,7 @@ public interface Appendable {
      * @throws  IOException
      *          If an I/O error occurs
      */
-    Appendable append(@Nullable CharSequence csq,   int start,  int end) throws IOException;
+    Appendable append(@Nullable CharSequence csq, int start, int end) throws IOException;
 
     /**
      * Appends the specified character to this {@code Appendable}.

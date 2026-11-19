@@ -26,7 +26,6 @@
 package java.util;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * FormattableFlags are passed to the {@link Formattable#formatTo

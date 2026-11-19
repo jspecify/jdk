@@ -40,6 +40,7 @@ import org.jspecify.annotations.NullMarked;
  * @author JSR-51 Expert Group
  * @since 1.4
  */
+
 @NullMarked
 public final class CodingErrorAction {
 

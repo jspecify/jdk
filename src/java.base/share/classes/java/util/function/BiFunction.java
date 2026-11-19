@@ -44,7 +44,6 @@ import java.util.Objects;
  * @since 1.8
  */
 @NullMarked
-
 @FunctionalInterface
 public interface BiFunction<T extends @Nullable Object, U extends @Nullable Object, R extends @Nullable Object> {
 

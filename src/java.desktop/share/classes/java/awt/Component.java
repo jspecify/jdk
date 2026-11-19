@@ -213,7 +213,7 @@ import static sun.java2d.pipe.hw.ExtendedBufferCapabilities.VSyncType.VSYNC_ON;
  * @author      Sami Shaio
  */
 @NullMarked
-public abstract   class Component implements ImageObserver, MenuContainer,
+public abstract class Component implements ImageObserver, MenuContainer,
                                            Serializable
 {
 
@@ -398,7 +398,7 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see #setDropTarget
      * @see #getDropTarget
      */
-     DropTarget dropTarget;
+    DropTarget dropTarget;
 
     /**
      * @serial
@@ -3342,7 +3342,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see       #update(Graphics)
      * @since     1.0
      */
-    
     public void repaint() {
         repaint(0, 0, 0, width, height);
     }
@@ -3362,7 +3361,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see #update(Graphics)
      * @since 1.0
      */
-    
     public void repaint(long tm) {
         repaint(tm, 0, 0, width, height);
     }
@@ -3387,7 +3385,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see       #update(Graphics)
      * @since     1.0
      */
-    
     public void repaint(int x, int y, int width, int height) {
         repaint(0, x, y, width, height);
     }
@@ -3414,7 +3411,6 @@ public abstract   class Component implements ImageObserver, MenuContainer,
      * @see       #update(Graphics)
      * @since     1.0
      */
-    
     public void repaint(long tm, int x, int y, int width, int height) {
         if (this.peer instanceof LightweightPeer) {
             // Needs to be translated to parent coordinates since

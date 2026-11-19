@@ -1898,8 +1898,6 @@ public final /*value*/ class OffsetDateTime
      * @return true if this is equal to the other date-time
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

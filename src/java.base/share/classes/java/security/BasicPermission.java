@@ -205,8 +205,6 @@ public abstract class BasicPermission extends Permission
      * object, {@code false} otherwise.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;

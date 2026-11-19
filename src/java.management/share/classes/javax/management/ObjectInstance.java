@@ -111,8 +111,6 @@ public class ObjectInstance implements Serializable   {
      *
      * @return  True if the two object instances are equal, otherwise false.
      */
-    
-    
     public boolean equals(@Nullable Object object)  {
         if (!(object instanceof ObjectInstance)) {
             return false;

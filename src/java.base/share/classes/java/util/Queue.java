@@ -138,7 +138,6 @@ import org.jspecify.annotations.Nullable;
  * @author Doug Lea
  * @param <E> the type of elements held in this queue
  */
-
 @NullMarked
 public interface Queue<E extends @Nullable Object> extends Collection<E> {
     /**

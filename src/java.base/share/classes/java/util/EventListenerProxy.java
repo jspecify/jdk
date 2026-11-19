@@ -26,7 +26,6 @@
 package java.util;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * An abstract wrapper class for an {@code EventListener} class
@@ -56,7 +55,7 @@ import org.jspecify.annotations.Nullable;
  * @since 1.4
  */
 @NullMarked
-public abstract  class EventListenerProxy<T extends EventListener>
+public abstract class EventListenerProxy<T extends EventListener>
         implements EventListener {
 
     private final T listener;

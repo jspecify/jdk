@@ -192,9 +192,8 @@ public final class PropertyPermission extends BasicPermission {
      * @return true if obj is a PropertyPermission, and has the same name and
      * actions as this PropertyPermission object.
      */
-    
     @Override
-    public boolean equals( @Nullable Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;
 
@@ -211,7 +210,6 @@ public final class PropertyPermission extends BasicPermission {
      *
      * @return a hash code value for this object.
      */
-    
     @Override
     public int hashCode() {
         return this.getName().hashCode();

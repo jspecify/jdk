@@ -189,7 +189,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *
      * @param numElements lower bound on initial capacity of the deque
      */
-    public ArrayDeque( int numElements) {
+    public ArrayDeque(int numElements) {
         elements =
             new Object[(numElements < 1) ? 1 :
                        (numElements == Integer.MAX_VALUE) ? Integer.MAX_VALUE :
@@ -647,8 +647,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *
      * @return the number of elements in this deque
      */
-    
-    public  int size() {
+    public int size() {
         return sub(tail, head, elements.length);
     }
 
@@ -657,8 +656,6 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *
      * @return {@code true} if this deque contains no elements
      */
-    
-    
     public boolean isEmpty() {
         return head == tail;
     }
@@ -671,7 +668,6 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *
      * @return an iterator over the elements in this deque
      */
-    
     public Iterator<E> iterator() {
         return new DeqIterator();
     }
@@ -1005,7 +1001,6 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * @param o object to be checked for containment in this deque
      * @return {@code true} if this deque contains the specified element
      */
-    
     public boolean contains(@Nullable Object o) {
         if (o != null) {
             final Object[] es = elements;
@@ -1073,7 +1068,6 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *
      * @return an array containing all of the elements in this deque
      */
-    
     public Object[] toArray() {
         return toArray(Object[].class);
     }
@@ -1131,7 +1125,6 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *         this deque
      * @throws NullPointerException if the specified array is null
      */
-    
     @SuppressWarnings("unchecked")
     public <T extends @Nullable Object> T[] toArray(T[] a) {
         final int size;
@@ -1155,7 +1148,6 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *
      * @return a copy of this deque
      */
-    
     public ArrayDeque<E> clone() {
         try {
             @SuppressWarnings("unchecked")

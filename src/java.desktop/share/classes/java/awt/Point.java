@@ -215,8 +215,6 @@ public class Point extends Point2D implements java.io.Serializable {
      *         an instance of {@code Point2D} and has
      *         the same values; {@code false} otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof Point) {
             Point pt = (Point)obj;

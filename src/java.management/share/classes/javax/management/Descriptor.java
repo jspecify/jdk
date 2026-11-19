@@ -624,8 +624,6 @@ public interface Descriptor extends Serializable, Cloneable
      *
      * @since 1.6
      */
-    
-    
     public boolean equals(@Nullable Object obj);
 
     /**

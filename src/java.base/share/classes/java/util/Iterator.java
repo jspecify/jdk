@@ -58,9 +58,7 @@ import java.util.function.Consumer;
  * @see Iterable
  * @since 1.2
  */
-
 @NullMarked
-
 public interface Iterator<E extends @Nullable Object> {
     /**
      * Returns {@code true} if the iteration has more elements.
@@ -69,7 +67,6 @@ public interface Iterator<E extends @Nullable Object> {
      *
      * @return {@code true} if the iteration has more elements
      */
-    
     boolean hasNext();
 
     /**

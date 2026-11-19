@@ -26,7 +26,6 @@
 package java.io;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -84,7 +83,7 @@ public abstract class FilterReader extends Reader {
      *             contained {@code Reader}'s {@code skip} method throws an
      *             IllegalArgumentException for a negative parameter
      */
-    public  long skip( long n) throws IOException {
+    public long skip(long n) throws IOException {
         return in.skip(n);
     }
 
@@ -109,7 +108,7 @@ public abstract class FilterReader extends Reader {
      *
      * @throws     IOException  If an I/O error occurs
      */
-    public void mark( int readAheadLimit) throws IOException {
+    public void mark(int readAheadLimit) throws IOException {
         in.mark(readAheadLimit);
     }
 

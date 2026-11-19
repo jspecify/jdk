@@ -1002,8 +1002,6 @@ public final class SocketPermission extends Permission
      *  in the comparison if <i>obj</i> only contains the action, 'resolve'.
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;

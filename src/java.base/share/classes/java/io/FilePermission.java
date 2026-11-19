@@ -775,9 +775,8 @@ public final class FilePermission extends Permission implements Serializable {
      *          pathname and actions as this FilePermission object,
      *          {@code false} otherwise.
      */
-    
     @Override
-    public boolean equals( @Nullable Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (obj == this)
             return true;
 
@@ -808,7 +807,6 @@ public final class FilePermission extends Permission implements Serializable {
      *
      * @return a hash code value for this object.
      */
-    
     @Override
     public int hashCode() {
         if (nb) {

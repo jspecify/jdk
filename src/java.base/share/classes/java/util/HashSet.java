@@ -139,7 +139,7 @@ public class HashSet<E extends @Nullable Object>
      * @throws     IllegalArgumentException if the initial capacity is less
      *             than zero, or if the load factor is nonpositive
      */
-    public HashSet( int initialCapacity, float loadFactor) {
+    public HashSet(int initialCapacity, float loadFactor) {
         map = new HashMap<>(initialCapacity, loadFactor);
     }
 
@@ -155,7 +155,7 @@ public class HashSet<E extends @Nullable Object>
      * @throws     IllegalArgumentException if the initial capacity is less
      *             than zero
      */
-    public HashSet( int initialCapacity) {
+    public HashSet(int initialCapacity) {
         map = new HashMap<>(initialCapacity);
     }
 
@@ -183,7 +183,6 @@ public class HashSet<E extends @Nullable Object>
      * @return an Iterator over the elements in this set
      * @see ConcurrentModificationException
      */
-    
     public Iterator<E> iterator() {
         return map.keySet().iterator();
     }
@@ -193,8 +192,7 @@ public class HashSet<E extends @Nullable Object>
      *
      * @return the number of elements in this set (its cardinality)
      */
-    
-    public  int size() {
+    public int size() {
         return map.size();
     }
 
@@ -203,7 +201,6 @@ public class HashSet<E extends @Nullable Object>
      *
      * @return {@code true} if this set contains no elements
      */
-    
     public boolean isEmpty() {
         return map.isEmpty();
     }
@@ -217,7 +214,6 @@ public class HashSet<E extends @Nullable Object>
      * @param o element whose presence in this set is to be tested
      * @return {@code true} if this set contains the specified element
      */
-    
     public boolean contains(@Nullable Object o) {
         return map.containsKey(o);
     }
@@ -268,7 +264,6 @@ public class HashSet<E extends @Nullable Object>
      *
      * @return a shallow copy of this set
      */
-    
     @SuppressWarnings("unchecked")
     public Object clone() {
         try {

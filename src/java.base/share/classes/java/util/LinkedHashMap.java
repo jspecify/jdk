@@ -439,7 +439,7 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
      * @throws IllegalArgumentException if the initial capacity is negative
      *         or the load factor is nonpositive
      */
-    public LinkedHashMap( int initialCapacity, float loadFactor) {
+    public LinkedHashMap(int initialCapacity, float loadFactor) {
         super(initialCapacity, loadFactor);
         accessOrder = false;
     }
@@ -455,7 +455,7 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
      * @param  initialCapacity the initial capacity
      * @throws IllegalArgumentException if the initial capacity is negative
      */
-    public LinkedHashMap( int initialCapacity) {
+    public LinkedHashMap(int initialCapacity) {
         super(initialCapacity);
         accessOrder = false;
     }
@@ -496,7 +496,7 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
      * @throws IllegalArgumentException if the initial capacity is negative
      *         or the load factor is nonpositive
      */
-    public LinkedHashMap( int initialCapacity,
+    public LinkedHashMap(int initialCapacity,
                          float loadFactor,
                          boolean accessOrder) {
         super(initialCapacity, loadFactor);
@@ -512,7 +512,6 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
      * @return {@code true} if this map maps one or more keys to the
      *         specified value
      */
-    
     public boolean containsValue(@Nullable Object value) {
         for (LinkedHashMap.Entry<K,V> e = head; e != null; e = e.after) {
             V v = e.value;
@@ -537,7 +536,6 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
      * The {@link #containsKey containsKey} operation may be used to
      * distinguish these two cases.
      */
-    
     public @Nullable V get(@Nullable Object key) {
         Node<K,V> e;
         if ((e = getNode(key)) == null)
@@ -703,7 +701,6 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
         LinkedKeySet(boolean reversed)          { this.reversed = reversed; }
         public final int size()                 { return size; }
         public final void clear()               { LinkedHashMap.this.clear(); }
-        
         public final Iterator<K> iterator() {
             return new LinkedKeyIterator(reversed);
         }
@@ -711,7 +708,6 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
         public final boolean remove(Object key) {
             return removeNode(hash(key), key, null, false, true) != null;
         }
-        
         public final Spliterator<K> spliterator()  {
             return Spliterators.spliterator(this, Spliterator.SIZED |
                                             Spliterator.ORDERED |
@@ -813,12 +809,10 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
         LinkedValues(boolean reversed)          { this.reversed = reversed; }
         public final int size()                 { return size; }
         public final void clear()               { LinkedHashMap.this.clear(); }
-        
         public final Iterator<V> iterator() {
             return new LinkedValueIterator(reversed);
         }
         public final boolean contains(Object o) { return containsValue(o); }
-        
         public final Spliterator<V> spliterator() {
             return Spliterators.spliterator(this, Spliterator.SIZED |
                                             Spliterator.ORDERED);
@@ -921,7 +915,6 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
         LinkedEntrySet(boolean reversed)        { this.reversed = reversed; }
         public final int size()                 { return size; }
         public final void clear()               { LinkedHashMap.this.clear(); }
-        
         public final Iterator<Map.Entry<K,V>> iterator() {
             return new LinkedEntryIterator(reversed);
         }
@@ -940,7 +933,6 @@ public class LinkedHashMap<K extends @Nullable Object,V extends @Nullable Object
             }
             return false;
         }
-        
         public final Spliterator<Map.Entry<K,V>> spliterator() {
             return Spliterators.spliterator(this, Spliterator.SIZED |
                                             Spliterator.ORDERED |

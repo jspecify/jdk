@@ -97,7 +97,7 @@ public interface InvocationHandler {
      *
      * @see     UndeclaredThrowableException
      */
-    public @Nullable Object invoke(Object proxy, Method method, @Nullable Object @Nullable[] args)
+    public @Nullable Object invoke(Object proxy, Method method, @Nullable Object @Nullable [] args)
         throws Throwable;
 
     /**

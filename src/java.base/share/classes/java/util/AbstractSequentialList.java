@@ -71,7 +71,6 @@ import org.jspecify.annotations.Nullable;
  * @since 1.2
  */
 
-
 @NullMarked
 public abstract class AbstractSequentialList<E extends @Nullable Object> extends AbstractList<E> {
     /**
@@ -90,7 +89,6 @@ public abstract class AbstractSequentialList<E extends @Nullable Object> extends
      *
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
-    
     public E get(int index) {
         try {
             return listIterator(index).next();
@@ -242,7 +240,6 @@ public abstract class AbstractSequentialList<E extends @Nullable Object> extends
      *
      * @return an iterator over the elements in this list (in proper sequence)
      */
-    
     public Iterator<E> iterator() {
         return listIterator();
     }

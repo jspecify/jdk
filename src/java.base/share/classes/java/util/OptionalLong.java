@@ -161,7 +161,6 @@ public final /*value*/ class OptionalLong {
      * @return  {@code true} if a value is not present, otherwise {@code false}
      * @since   11
      */
-    
     public boolean isEmpty() {
         return !isPresent;
     }
@@ -302,8 +301,6 @@ public final /*value*/ class OptionalLong {
      *         otherwise {@code false}
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

@@ -158,7 +158,6 @@ import jdk.internal.access.SharedSecrets;
  * @since   1.4
  */
 
-
 @NullMarked
 public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Object>
     extends AbstractMap<K,V>
@@ -244,7 +243,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      * @param expectedMaxSize the expected maximum size of the map
      * @throws IllegalArgumentException if {@code expectedMaxSize} is negative
      */
-    public IdentityHashMap( int expectedMaxSize) {
+    public IdentityHashMap(int expectedMaxSize) {
         if (expectedMaxSize < 0)
             throw new IllegalArgumentException("expectedMaxSize is negative: "
                                                + expectedMaxSize);
@@ -298,8 +297,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      *
      * @return the number of key-value mappings in this map
      */
-    
-    public  int size() {
+    public int size() {
         return size;
     }
 
@@ -310,7 +308,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      * @return {@code true} if this identity hash map contains no key-value
      *         mappings
      */
-    
     public boolean isEmpty() {
         return size == 0;
     }
@@ -348,7 +345,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      *
      * @see #put(Object, Object)
      */
-    
     @SuppressWarnings("unchecked")
     public @Nullable V get(@Nullable Object key) {
         Object k = maskNull(key);
@@ -375,8 +371,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      *          in this map
      * @see     #containsValue(Object)
      */
-    
-    
     public boolean containsKey(@Nullable Object key) {
         Object k = maskNull(key);
         Object[] tab = table;
@@ -402,7 +396,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      *         specified object reference
      * @see     #containsKey(Object)
      */
-    
     public boolean containsValue(@Nullable Object value) {
         Object[] tab = table;
         for (int i = 1; i < tab.length; i += 2)
@@ -451,7 +444,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      * @see     #get(Object)
      * @see     #containsKey(Object)
      */
-    
     public @Nullable V put(K key, V value) {
         final Object k = maskNull(key);
 
@@ -678,7 +670,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      * @return {@code true} if the specified object is equal to this map
      * @see Object#equals(Object)
      */
-    
     public boolean equals(@Nullable Object o) {
         if (o == this) {
             return true;
@@ -722,7 +713,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      * @see Object#equals(Object)
      * @see #equals(Object)
      */
-    
     public int hashCode() {
         int result = 0;
         Object[] tab = table;
@@ -743,7 +733,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      *
      * @return a shallow copy of this map
      */
-    
     public Object clone() {
         try {
             IdentityHashMap<?,?> m = (IdentityHashMap<?,?>) super.clone();
@@ -1006,8 +995,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      * @see Object#equals(Object)
      * @see System#identityHashCode(Object)
      */
-    
-    public Set< K> keySet() {
+    public Set<K> keySet() {
         Set<K> ks = keySet;
         if (ks == null) {
             ks = new KeySet();
@@ -1017,12 +1005,10 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
     }
 
     private class KeySet extends AbstractSet<K> {
-        
         public Iterator<K> iterator() {
             return new KeyIterator();
         }
-        
-        public  int size() {
+        public int size() {
             return size;
         }
         public boolean contains(Object o) {
@@ -1058,12 +1044,10 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
                 result += System.identityHashCode(key);
             return result;
         }
-        
         public Object[] toArray() {
             return toArray(new Object[0]);
         }
         @SuppressWarnings("unchecked")
-        
         public <T> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
@@ -1092,7 +1076,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
             return a;
         }
 
-        
         public Spliterator<K> spliterator() {
             return new KeySpliterator<>(IdentityHashMap.this, 0, -1, 0, 0);
         }
@@ -1118,7 +1101,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      * behavior of its {@code contains}, {@code remove} and
      * {@code containsAll} methods.</b>
      */
-    
     public Collection<V> values() {
         Collection<V> vs = values;
         if (vs == null) {
@@ -1129,12 +1111,10 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
     }
 
     private class Values extends AbstractCollection<V> {
-        
         public Iterator<V> iterator() {
             return new ValueIterator();
         }
-        
-        public  int size() {
+        public int size() {
             return size;
         }
         public boolean contains(Object o) {
@@ -1152,12 +1132,10 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
         public void clear() {
             IdentityHashMap.this.clear();
         }
-        
         public Object[] toArray() {
             return toArray(new Object[0]);
         }
         @SuppressWarnings("unchecked")
-        
         public <T> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
@@ -1185,7 +1163,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
             return a;
         }
 
-        
         public Spliterator<V> spliterator() {
             return new ValueSpliterator<>(IdentityHashMap.this, 0, -1, 0, 0);
         }
@@ -1231,8 +1208,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
      *
      * @return a set view of the identity-mappings contained in this map
      */
-    
-    public Set<Map.Entry< K,V>> entrySet() {
+    public Set<Map.Entry<K,V>> entrySet() {
         Set<Map.Entry<K,V>> es = entrySet;
         if (es != null)
             return es;
@@ -1241,7 +1217,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
     }
 
     private class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        
         public Iterator<Map.Entry<K,V>> iterator() {
             return new EntryIterator();
         }
@@ -1253,8 +1228,7 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
             return o instanceof Entry<?, ?> entry
                     && removeMapping(entry.getKey(), entry.getValue());
         }
-        
-        public  int size() {
+        public int size() {
             return size;
         }
         public void clear() {
@@ -1277,13 +1251,11 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
             return modified;
         }
 
-        
         public Object[] toArray() {
             return toArray(new Object[0]);
         }
 
         @SuppressWarnings("unchecked")
-        
         public <T> T[] toArray(T[] a) {
             int expectedModCount = modCount;
             int size = size();
@@ -1312,7 +1284,6 @@ public class IdentityHashMap<K extends @Nullable Object,V extends @Nullable Obje
             return a;
         }
 
-        
         public Spliterator<Map.Entry<K,V>> spliterator() {
             return new EntrySpliterator<>(IdentityHashMap.this, 0, -1, 0, 0);
         }

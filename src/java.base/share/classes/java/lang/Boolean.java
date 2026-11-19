@@ -75,13 +75,13 @@ public final /*value*/ class Boolean
      * The {@code Boolean} object corresponding to the primitive
      * value {@code true}.
      */
-    public static final  Boolean TRUE = new Boolean(true);
+    public static final Boolean TRUE = new Boolean(true);
 
     /**
      * The {@code Boolean} object corresponding to the primitive
      * value {@code false}.
      */
-    public static final  Boolean FALSE = new Boolean(false);
+    public static final Boolean FALSE = new Boolean(false);
 
     /**
      * The Class object representing the primitive type boolean.
@@ -155,9 +155,6 @@ public final /*value*/ class Boolean
      * @return     the boolean represented by the string argument
      * @since 1.5
      */
-    
-    
-    
     public static boolean parseBoolean(@Nullable String s) {
         return "true".equalsIgnoreCase(s);
     }
@@ -216,9 +213,7 @@ public final /*value*/ class Boolean
      * @param   s   a string.
      * @return  the {@code Boolean} value represented by the string.
      */
-    
-    
-    public static   Boolean valueOf(@Nullable  String s) {
+    public static Boolean valueOf(@Nullable String s) {
         return parseBoolean(s) ? TRUE : FALSE;
     }
 
@@ -256,8 +251,6 @@ public final /*value*/ class Boolean
      * {@code true}; returns the integer {@code 1237} if this
      * object represents {@code false}.
      */
-    
-    
     @Override
     public int hashCode() {
         return Boolean.hashCode(value);
@@ -271,8 +264,6 @@ public final /*value*/ class Boolean
      * @return a hash code value for a {@code boolean} value.
      * @since 1.8
      */
-    
-    
     public static int hashCode(boolean value) {
         return value ? 1231 : 1237;
     }
@@ -323,8 +314,6 @@ public final /*value*/ class Boolean
      * @see     Comparable
      * @since  1.5
      */
-    
-    
     public int compareTo(Boolean b) {
         return compare(this.value, b.value);
     }
@@ -343,8 +332,6 @@ public final /*value*/ class Boolean
      *         a value greater than {@code 0} if {@code x && !y}
      * @since 1.7
      */
-    
-    
     public static int compare(boolean x, boolean y) {
         return (x == y) ? 0 : (x ? 1 : -1);
     }
@@ -359,8 +346,6 @@ public final /*value*/ class Boolean
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static boolean logicalAnd(boolean a, boolean b) {
         return a && b;
     }
@@ -375,8 +360,6 @@ public final /*value*/ class Boolean
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static boolean logicalOr(boolean a, boolean b) {
         return a || b;
     }
@@ -391,8 +374,6 @@ public final /*value*/ class Boolean
      * @see java.util.function.BinaryOperator
      * @since 1.8
      */
-    
-    
     public static boolean logicalXor(boolean a, boolean b) {
         return a ^ b;
     }

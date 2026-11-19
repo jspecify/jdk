@@ -1346,7 +1346,6 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      *
      * @return {@code true} if this queue contains no elements
      */
-    
     public boolean isEmpty() {
         return firstDataNode() == null;
     }
@@ -1380,7 +1379,6 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      *
      * @return the number of elements in this queue
      */
-    
     public int size() {
         return countOfMode(true);
     }

@@ -252,8 +252,6 @@ public final class SNIHostName extends SNIServerName {
      *      RFC 6066: Transport Layer Security (TLS) Extensions: Extension Definitions
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object other) {
         if (this == other) {
             return true;

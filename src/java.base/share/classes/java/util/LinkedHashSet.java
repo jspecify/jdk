@@ -122,7 +122,6 @@ import org.jspecify.annotations.Nullable;
  * @since   1.4
  */
 
-
 @NullMarked
 public class LinkedHashSet<E extends @Nullable Object>
     extends HashSet<E>

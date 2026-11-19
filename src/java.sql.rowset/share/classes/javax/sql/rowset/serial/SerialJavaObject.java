@@ -159,8 +159,6 @@ public class SerialJavaObject implements Serializable, Cloneable {
      *          equivalent to this SerialJavaObject, {@code false} otherwise
      *
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (this == o) {
             return true;

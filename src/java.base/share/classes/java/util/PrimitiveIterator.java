@@ -114,7 +114,6 @@ public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @N
          *         action.accept(nextInt());
          * }</pre>
          */
-        @Override
         default void forEachRemaining(IntConsumer action) {
             Objects.requireNonNull(action);
             while (hasNext())
@@ -183,7 +182,6 @@ public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @N
          *         action.accept(nextLong());
          * }</pre>
          */
-        @Override
         default void forEachRemaining(LongConsumer action) {
             Objects.requireNonNull(action);
             while (hasNext())
@@ -251,7 +249,6 @@ public interface PrimitiveIterator<T extends @Nullable Object, T_CONS extends @N
          *         action.accept(nextDouble());
          * }</pre>
          */
-        @Override
         default void forEachRemaining(DoubleConsumer action) {
             Objects.requireNonNull(action);
             while (hasNext())

@@ -75,7 +75,6 @@ import org.jspecify.annotations.Nullable;
  * For reactive streams style programming, see the
  * {@link java.util.concurrent.Flow} API.
  */
-
 @NullMarked
 @Deprecated(since="9")
 @SuppressWarnings("doclint:reference") // cross-module links
@@ -227,7 +226,7 @@ public class Observable {
      *
      * @return  the number of observers of this object.
      */
-    public synchronized  int countObservers() {
+    public synchronized int countObservers() {
         return obs.size();
     }
 }

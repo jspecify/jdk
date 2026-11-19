@@ -64,8 +64,7 @@ public class TypeNotPresentException extends RuntimeException {
      * @param cause the exception that was thrown when the system attempted to
      *    load the named type, or {@code null} if unavailable or inapplicable
      */
-    
-    public TypeNotPresentException( String typeName, @Nullable Throwable cause) {
+    public TypeNotPresentException(String typeName, @Nullable Throwable cause) {
         super("Type " + typeName + " not present", cause);
         this.typeName = typeName;
     }
@@ -75,5 +74,5 @@ public class TypeNotPresentException extends RuntimeException {
      *
      * @return the fully qualified name of the unavailable type or type variable name
      */
-    public  String typeName() { return typeName;}
+    public String typeName() { return typeName;}
 }

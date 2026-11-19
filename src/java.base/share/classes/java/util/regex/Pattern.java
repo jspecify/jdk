@@ -26,7 +26,6 @@
 package java.util.regex;
 
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
@@ -806,7 +805,7 @@ import jdk.internal.util.regex.Grapheme;
  */
 
 @NullMarked
-public final  class Pattern
+public final class Pattern
     implements java.io.Serializable
 {
 
@@ -1103,9 +1102,7 @@ public final  class Pattern
      * @throws  PatternSyntaxException
      *          If the expression's syntax is invalid
      */
-    
-    
-    public static Pattern compile( String regex) {
+    public static Pattern compile(String regex) {
         return new Pattern(regex, 0);
     }
 
@@ -1138,9 +1135,7 @@ public final  class Pattern
      * marks for any character is too large, an {@link java.lang.OutOfMemoryError}
      * is thrown.
      */
-    
-    
-    public static Pattern compile( String regex, int flags) {
+    public static Pattern compile(String regex, int flags) {
         return new Pattern(regex, flags);
     }
 
@@ -1161,7 +1156,6 @@ public final  class Pattern
      * @return  The string representation of this pattern
      * @since 1.5
      */
-    
     public String toString() {
         return pattern;
     }
@@ -1181,7 +1175,7 @@ public final  class Pattern
      * {@link java.lang.OutOfMemoryError} is thrown,
      * as in {@link #compile(String, int)}.
      */
-    public  Matcher matcher(CharSequence input) {
+    public Matcher matcher(CharSequence input) {
         if (!compiled) {
             synchronized(this) {
                 if (!compiled)
@@ -1227,7 +1221,7 @@ public final  class Pattern
      * @throws  PatternSyntaxException
      *          If the expression's syntax is invalid
      */
-    public static boolean matches( String regex, CharSequence input) {
+    public static boolean matches(String regex, CharSequence input) {
         Pattern p = Pattern.compile(regex);
         Matcher m = p.matcher(input);
         return m.matches();
@@ -1506,9 +1500,7 @@ public final  class Pattern
      * @return  A literal string replacement
      * @since 1.5
      */
-    
-    
-    public static  String quote(String s) {
+    public static String quote(String s) {
         int slashEIndex = s.indexOf("\\E");
         if (slashEIndex == -1)
             return "\\Q" + s + "\\E";

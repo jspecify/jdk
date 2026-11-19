@@ -202,7 +202,6 @@ public class Attributes implements Map<Object,Object>, Cloneable {
      * @return true if this Map maps one or more attribute names to
      *         the specified value
      */
-    
     public boolean containsValue(@Nullable Object value) {
         return map.containsValue(value);
     }
@@ -213,7 +212,6 @@ public class Attributes implements Map<Object,Object>, Cloneable {
      * @param name the attribute name
      * @return true if this Map contains the specified attribute name
      */
-    
     public boolean containsKey(@Nullable Object name) {
         return map.containsKey(name);
     }
@@ -243,7 +241,6 @@ public class Attributes implements Map<Object,Object>, Cloneable {
     /**
      * Returns the number of attributes in this Map.
      */
-    
     public int size() {
         return map.size();
     }
@@ -251,7 +248,6 @@ public class Attributes implements Map<Object,Object>, Cloneable {
     /**
      * Returns true if this Map contains no attributes.
      */
-    
     public boolean isEmpty() {
         return map.isEmpty();
     }
@@ -274,7 +270,6 @@ public class Attributes implements Map<Object,Object>, Cloneable {
      * Returns a Collection view of the attribute name-value mappings
      * contained in this Map.
      */
-    
     public Set<Map.Entry<Object,Object>> entrySet() {
         return map.entrySet();
     }
@@ -288,8 +283,6 @@ public class Attributes implements Map<Object,Object>, Cloneable {
      * @param o the Object to be compared
      * @return true if the specified Object is equal to this Map
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         return map.equals(o);
     }

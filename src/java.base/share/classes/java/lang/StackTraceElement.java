@@ -123,7 +123,7 @@ public final class StackTraceElement implements java.io.Serializable {
      *         {@code methodName} is null
      * @since 1.5
      */
-    public StackTraceElement( String declaringClass, String methodName,
+    public StackTraceElement(String declaringClass, String methodName,
                              @Nullable String fileName, int lineNumber) {
         this(null, null, null, declaringClass, methodName, fileName, lineNumber);
     }
@@ -258,7 +258,7 @@ public final class StackTraceElement implements java.io.Serializable {
      * of the {@code Class} containing the execution point represented
      * by this stack trace element}
      */
-    public  String getClassName() {
+    public String getClassName() {
         return declaringClass;
     }
 
@@ -284,7 +284,6 @@ public final class StackTraceElement implements java.io.Serializable {
      * @return {@code true} if the method containing the execution point
      *         represented by this stack trace element is a native method.
      */
-    
     public boolean isNativeMethod() {
         return lineNumber == -2;
     }
@@ -430,8 +429,7 @@ public final class StackTraceElement implements java.io.Serializable {
      *         {@code StackTraceElement} instance representing the same
      *         execution point as this instance.
      */
-    
-    public boolean equals( @Nullable Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (obj==this)
             return true;
         return (obj instanceof StackTraceElement e)
@@ -447,7 +445,6 @@ public final class StackTraceElement implements java.io.Serializable {
     /**
      * Returns a hash code value for this stack trace element.
      */
-    
     public int hashCode() {
         int result = 31*declaringClass.hashCode() + methodName.hashCode();
         result = 31*result + Objects.hashCode(classLoaderName);

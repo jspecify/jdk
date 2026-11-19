@@ -158,7 +158,6 @@ import jdk.internal.util.StaticProperty;
  * @since   1.0
  */
 
-
 @NullMarked
 public class File
     implements Serializable, Comparable<File>
@@ -486,7 +485,6 @@ public class File
      *          abstract pathname, or {@code null} if this pathname
      *          does not name a parent
      */
-    
     public @Nullable String getParent() {
         int index = path.lastIndexOf(separatorChar);
         if (index < prefixLength) {
@@ -513,7 +511,6 @@ public class File
      *
      * @since 1.2
      */
-    
     public @Nullable File getParentFile() {
         String p = this.getParent();
         if (p == null) return null;
@@ -547,7 +544,6 @@ public class File
      * @return  {@code true} if this abstract pathname is absolute,
      *          {@code false} otherwise
      */
-    
     public boolean isAbsolute() {
         return FS.isAbsolute(this);
     }
@@ -817,7 +813,6 @@ public class File
      *          abstract pathname exists <em>and</em> is a directory;
      *          {@code false} otherwise
      */
-    
     public boolean isDirectory() {
         if (isInvalid()) {
             return false;
@@ -841,7 +836,6 @@ public class File
      *          abstract pathname exists <em>and</em> is a normal file;
      *          {@code false} otherwise
      */
-    
     public boolean isFile() {
         if (isInvalid()) {
             return false;
@@ -870,7 +864,6 @@ public class File
      *
      * @since 1.2
      */
-    
     public boolean isHidden() {
         if (isInvalid()) {
             return false;
@@ -2015,7 +2008,6 @@ public class File
      *
      * @return  A hash code for this abstract pathname
      */
-    
     public int hashCode() {
         return FS.hashCode(this);
     }
@@ -2026,7 +2018,6 @@ public class File
      *
      * @return  The string form of this abstract pathname
      */
-    
     public String toString() {
         return getPath();
     }

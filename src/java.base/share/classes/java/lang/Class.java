@@ -274,7 +274,6 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return a string representation of this {@code Class} object.
      */
-    
     public String toString() {
         String kind = isInterface() ? "interface " : isPrimitive() ? "" : "class ";
         return kind.concat(getName());
@@ -475,7 +474,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 12.4 Initialization of Classes and Interfaces
      */
     @CallerSensitive
-    public static Class<?> forName( String className)
+    public static Class<?> forName(String className)
                 throws ClassNotFoundException {
         Class<?> caller = Reflection.getCallerClass();
         return forName(className, caller);
@@ -738,7 +737,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     @Deprecated(since="9")
-    public  T newInstance()
+    public T newInstance()
         throws InstantiationException, IllegalAccessException
     {
         // Constructor lookup
@@ -912,7 +911,6 @@ public final class Class<T> implements java.io.Serializable,
      *      interface; {@code false} otherwise
      * @since 1.5
      */
-    
     public boolean isAnnotation() {
         return (getModifiers() & ClassFile.ACC_ANNOTATION) != 0;
     }
@@ -928,7 +926,6 @@ public final class Class<T> implements java.io.Serializable,
      * programming language and JVM modeling in core reflection</a>
      * @since 1.5
      */
-    
     public boolean isSynthetic() {
         return (getModifiers() & ClassFile.ACC_SYNTHETIC) != 0;
     }
@@ -1000,9 +997,7 @@ public final class Class<T> implements java.io.Serializable,
      *          represented by this {@code Class} object.
      * @jls 13.1 The Form of a Binary
      */
-    
-    
-    public   String getName() {
+    public String getName() {
         String name = this.name;
         return name != null ? name : initClassName();
     }
@@ -1166,7 +1161,6 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return the package of this class.
      */
-    
     public @Nullable Package getPackage() {
         if (isPrimitive() || isArray()) {
             return null;
@@ -1202,7 +1196,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 9
      * @jls 6.7 Fully Qualified Names and Canonical Names
      */
-    public  String getPackageName() {
+    public String getPackageName() {
         String pn = this.packageName;
         if (pn == null) {
             Class<?> c = isArray() ? elementType() : this;
@@ -1265,7 +1259,6 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return an array of interfaces directly implemented by this class
      */
-    
     public Class<?>[] getInterfaces() {
         // defensively copy before handing over to user code
         return getInterfaces(true);
@@ -1783,7 +1776,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the simple name of the underlying class
      * @since 1.5
      */
-    public  String getSimpleName() {
+    public String getSimpleName() {
         ReflectionData<T> rd = reflectionData();
         String simpleName = rd.simpleName;
         if (simpleName == null) {
@@ -1851,7 +1844,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 6.7 Fully Qualified Names and Canonical Names
      * @since 1.5
      */
-    public @Nullable  String getCanonicalName() {
+    public @Nullable String getCanonicalName() {
         ReflectionData<T> rd = reflectionData();
         String canonicalName = rd.canonicalName;
         if (canonicalName == null) {
@@ -1860,7 +1853,6 @@ public final class Class<T> implements java.io.Serializable,
         return canonicalName == ReflectionData.NULL_SENTINEL? null : canonicalName;
     }
 
-    
     private String getCanonicalName0() {
         if (isArray()) {
             String canonicalName = getComponentType().getCanonicalName();
@@ -1898,7 +1890,6 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      * @jls 15.9.5 Anonymous Class Declarations
      */
-    
     public boolean isAnonymousClass() {
         return !isArray() && isLocalOrAnonymousClass() &&
                 getSimpleBinaryName0() == null;
@@ -1912,7 +1903,6 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      * @jls 14.3 Local Class and Interface Declarations
      */
-    
     public boolean isLocalClass() {
         return isLocalOrAnonymousClass() &&
                 (isArray() || getSimpleBinaryName0() != null);
@@ -1926,7 +1916,6 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      * @jls 8.5 Member Class and Interface Declarations
      */
-    
     public boolean isMemberClass() {
         return !isLocalOrAnonymousClass() && getDeclaringClass0() != null;
     }
@@ -2933,7 +2922,6 @@ public final class Class<T> implements java.io.Serializable,
 
         // Cached names
         String simpleName;
-        
         String canonicalName;
         static final String NULL_SENTINEL = new String();
 
@@ -3485,7 +3473,6 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      * @jls 8.9.1 Enum Constants
      */
-    
     public boolean isEnum() {
         // An enum must both directly extend java.lang.Enum and have
         // the ENUM bit set; classes for specialized enum constants
@@ -3529,7 +3516,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      * @jls 8.9.1 Enum Constants
      */
-    public  T @Nullable [] getEnumConstants() {
+    public T @Nullable [] getEnumConstants() {
         T[] values = getEnumConstantsShared();
         return (values != null) ? values.clone() : null;
     }
@@ -3568,7 +3555,7 @@ public final class Class<T> implements java.io.Serializable,
      * efficiently.  Note that the map is returned by this method is
      * created lazily on first use.  Typically it won't ever get created.
      */
-    Map<String,  T> enumConstantDirectory() {
+    Map<String, T> enumConstantDirectory() {
         Map<String, T> directory = enumConstantDirectory;
         if (directory == null) {
             T[] universe = getEnumConstantsShared();
@@ -3658,9 +3645,8 @@ public final class Class<T> implements java.io.Serializable,
      * {@inheritDoc}
      * @since 1.5
      */
-    
     @Override
-    public boolean isAnnotationPresent( Class<? extends Annotation> annotationClass) {
+    public boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
         return GenericDeclaration.super.isAnnotationPresent(annotationClass);
     }
 

@@ -606,8 +606,6 @@ public class SerialClob implements Clob, Serializable, Cloneable {
      *          equivalent to this SerialClob, {@code false} otherwise
      *
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

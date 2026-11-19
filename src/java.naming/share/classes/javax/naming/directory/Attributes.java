@@ -78,7 +78,6 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       * attribute identifiers when retrieving or adding attributes.
       * @return true if case is ignored; false otherwise.
       */
-    
     boolean isCaseIgnored();
 
     /**
@@ -86,7 +85,6 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *
       * @return The nonnegative number of attributes in this attribute set.
       */
-    
     int size();
 
     /**
@@ -101,8 +99,7 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       * @see #put
       * @see #remove
       */
-    @Nullable 
-    Attribute get(String attrID);
+    @Nullable Attribute get(String attrID);
 
     /**
       * Retrieves an enumeration of the attributes in the attribute set.
@@ -114,7 +111,6 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *         If attribute set has zero attributes, an empty enumeration
       *         is returned.
       */
-    
     NamingEnumeration<? extends Attribute> getAll();
 
     /**
@@ -129,7 +125,6 @@ public interface Attributes extends Cloneable, java.io.Serializable {
       *         If attribute set has zero attributes, an empty enumeration
       *         is returned.
       */
-    
     NamingEnumeration<String> getIDs();
 
     /**

@@ -391,8 +391,6 @@ public final class ValueRange implements Serializable {
      * @return true if this is equal to the other range
      */
     @Override
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj == this) {
             return true;

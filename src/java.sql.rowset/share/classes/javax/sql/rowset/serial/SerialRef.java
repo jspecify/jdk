@@ -186,8 +186,6 @@ public class SerialRef implements Ref, Serializable, Cloneable {
      *          equivalent to this SerialRef, {@code false} otherwise
      *
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
             return true;

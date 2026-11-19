@@ -101,6 +101,7 @@ import org.jspecify.annotations.Nullable;
  * @see Class#getModule()
  * @jls 7.7 Module Declarations
  */
+
 @NullMarked
 public final class Module implements AnnotatedElement {
 

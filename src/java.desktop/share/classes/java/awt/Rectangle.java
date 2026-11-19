@@ -1183,8 +1183,6 @@ public class Rectangle extends Rectangle2D
      * @return    {@code true} if the objects are equal;
      *            {@code false} otherwise.
      */
-    
-    
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof Rectangle) {
             Rectangle r = (Rectangle)obj;

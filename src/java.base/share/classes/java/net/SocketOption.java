@@ -44,6 +44,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @see StandardSocketOptions
  */
+
 @NullMarked
 public interface SocketOption<T extends @Nullable Object> {
 

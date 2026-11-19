@@ -134,8 +134,6 @@ public class MBeanParameterInfo extends MBeanFeatureInfo implements Cloneable {
      * #getDescription()} values are equal (not necessarily identical)
      * to those of this MBeanParameterInfo.
      */
-    
-    
     public boolean equals(@Nullable Object o) {
         if (o == this)
             return true;

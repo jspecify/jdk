@@ -196,9 +196,7 @@ public class Object {
      * @see     #hashCode()
      * @see     java.util.HashMap
      */
-    
-    
-    public boolean equals( @Nullable Object obj) {
+    public boolean equals(@Nullable Object obj) {
         return (this == obj);
     }
 
@@ -314,8 +312,6 @@ public class Object {
      * the {@code toString} nor {@code hashCode} methods were
      * overridden by the object's class.
      */
-    
-    
     public String toString() {
         return getClass().getName() + "@" + Integer.toHexString(hashCode());
     }
@@ -582,7 +578,7 @@ public class Object {
      * @see    #wait()
      * @see    #wait(long)
      */
-    public final void wait(long timeoutMillis,  int nanos) throws InterruptedException {
+    public final void wait(long timeoutMillis, int nanos) throws InterruptedException {
         if (timeoutMillis < 0) {
             throw new IllegalArgumentException("timeoutMillis value is negative");
         }
