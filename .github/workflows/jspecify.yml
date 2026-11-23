@@ -28,12 +28,8 @@ jobs:
         sudo apt-get install --only-upgrade apt
         sudo apt-get install libcups2-dev libasound2-dev libfontconfig1-dev \
             libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev
-    - name: Install jtreg
-      run: |
-        wget https://builds.shipilev.net/jtreg/jtreg-8.3%2B1.zip -O /tmp/jtreg.zip
-        unzip /tmp/jtreg.zip -d /tmp/
     - name: Configure the JDK
-      run: bash ./configure --with-jtreg=/tmp/jtreg --disable-warnings-as-errors
+      run: bash ./configure --disable-warnings-as-errors
     - name: Build the JDK
       run: make jdk
 
