@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
 import java.util.List;
 import java.util.function.BiFunction;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -465,7 +466,7 @@ public abstract class SSLEngine {
      * @return  the host name of the peer, or null if nothing is
      *          available.
      */
-    public String getPeerHost() {
+    public @Nullable String getPeerHost() {
         return peerHost;
     }
 
@@ -818,7 +819,7 @@ public abstract class SSLEngine {
      * @return  a delegated {@code Runnable} task, or null
      *          if none are available.
      */
-    public abstract Runnable getDelegatedTask();
+    public abstract @Nullable Runnable getDelegatedTask();
 
 
     /**
@@ -1082,7 +1083,7 @@ public abstract class SSLEngine {
      *
      * @since 1.7
      */
-    public SSLSession getHandshakeSession() {
+    public @Nullable SSLSession getHandshakeSession() {
         throw new UnsupportedOperationException();
     }
 
@@ -1369,7 +1370,7 @@ public abstract class SSLEngine {
      *         does not implement the operation.
      * @since 9
      */
-    public String getApplicationProtocol() {
+    public @Nullable String getApplicationProtocol() {
         throw new UnsupportedOperationException();
     }
 
@@ -1394,7 +1395,7 @@ public abstract class SSLEngine {
      *         does not implement the operation.
      * @since 9
      */
-    public String getHandshakeApplicationProtocol() {
+    public @Nullable String getHandshakeApplicationProtocol() {
         throw new UnsupportedOperationException();
     }
 
@@ -1480,7 +1481,7 @@ public abstract class SSLEngine {
      *         does not implement the operation.
      * @since 9
      */
-    public BiFunction<SSLEngine, List<String>, String>
+    public @Nullable BiFunction<SSLEngine, List<String>, String>
             getHandshakeApplicationProtocolSelector() {
         throw new UnsupportedOperationException();
     }

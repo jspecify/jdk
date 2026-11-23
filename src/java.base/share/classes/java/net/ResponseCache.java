@@ -28,6 +28,7 @@ package java.net;
 import java.io.IOException;
 import java.util.Map;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents implementations of URLConnection caches. An instance of
@@ -125,7 +126,7 @@ public abstract class ResponseCache {
      * @see     java.net.URLConnection#setDefaultUseCaches(boolean)
      * @see     java.net.URLConnection#getDefaultUseCaches()
      */
-    public abstract CacheResponse
+    public abstract @Nullable CacheResponse
         get(URI uri, String rqstMethod, Map<String, List<String>> rqstHeaders)
         throws IOException;
 
@@ -149,5 +150,5 @@ public abstract class ResponseCache {
      * @throws IllegalArgumentException if any one of the arguments is
      *            null
      */
-    public abstract CacheRequest put(URI uri, URLConnection conn)  throws IOException;
+    public abstract @Nullable CacheRequest put(URI uri, URLConnection conn)  throws IOException;
 }

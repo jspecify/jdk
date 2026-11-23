@@ -26,6 +26,7 @@
 package java.net;
 
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class represents a Network Interface address. In the case of
@@ -69,7 +70,7 @@ public final class InterfaceAddress {
      * @return the {@code InetAddress} representing the broadcast
      *         address or {@code null} if there is no broadcast address.
      */
-    public InetAddress getBroadcast() {
+    public @Nullable InetAddress getBroadcast() {
         return broadcast;
     }
 
