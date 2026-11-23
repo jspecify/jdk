@@ -25,6 +25,8 @@
 
 package java.security;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * {@code DomainCombiner} was used to dynamically update
  * {@code ProtectionDomain}s for access control operations and decisions. This
@@ -60,6 +62,6 @@ public interface DomainCombiner {
      * @return a new array consisting of the updated ProtectionDomains,
      *          or {@code null}.
      */
-    ProtectionDomain[] combine(ProtectionDomain[] currentDomains,
+    ProtectionDomain @Nullable [] combine(ProtectionDomain[] currentDomains,
                                 ProtectionDomain[] assignedDomains);
 }

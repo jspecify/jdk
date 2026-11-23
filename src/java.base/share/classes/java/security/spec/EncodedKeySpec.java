@@ -29,6 +29,8 @@ import jdk.internal.access.SharedSecrets;
 
 import java.util.Arrays;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * This class represents a public or private key in encoded format.
  *
@@ -105,7 +107,7 @@ public abstract class EncodedKeySpec implements KeySpec {
      * @return the name of the algorithm, or null if not specified
      * @since 9
      */
-    public String getAlgorithm() {
+    public @Nullable String getAlgorithm() {
         return algorithmName;
     }
 

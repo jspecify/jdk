@@ -361,7 +361,7 @@ public class ConfirmationCallback implements Callback, java.io.Serializable {
      * @return the prompt, or null if this {@code ConfirmationCallback}
      *          was instantiated without a {@code prompt}.
      */
-    public String getPrompt() {
+    public @Nullable String getPrompt() {
         return prompt;
     }
 

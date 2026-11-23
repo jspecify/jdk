@@ -26,6 +26,7 @@
 package java.security.cert;
 
 import java.security.PublicKey;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class represents the successful result of the PKIX certification
@@ -112,7 +113,7 @@ public class PKIXCertPathValidatorResult implements CertPathValidatorResult {
      * @return the root node of the valid policy tree, or {@code null}
      * if there are no valid policies
      */
-    public PolicyNode getPolicyTree() {
+    public @Nullable PolicyNode getPolicyTree() {
         return policyTree;
     }
 

@@ -28,6 +28,7 @@ package java.security;
 import java.io.Serializable;
 import java.util.Enumeration;
 import java.util.Properties;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <p>This class represents a scope for identities. It is an Identity
@@ -131,7 +132,7 @@ class IdentityScope extends Identity {
      *
      * @see #setSystemScope
      */
-    public static IdentityScope getSystemScope() {
+    public static @Nullable IdentityScope getSystemScope() {
         if (scope == null) {
             initializeSystemScope();
         }
@@ -166,7 +167,7 @@ class IdentityScope extends Identity {
      * @return the {@code Identity} named {@code name}, or {@code null}
      * if there are no identities named {@code name} in this scope.
      */
-    public abstract Identity getIdentity(String name);
+    public abstract @Nullable Identity getIdentity(String name);
 
     /**
      * Retrieves the {@code Identity} whose name is the same as that of the
@@ -180,7 +181,7 @@ class IdentityScope extends Identity {
      * principal, or {@code null} if there are no identities of the same name
      * in this scope.
      */
-    public Identity getIdentity(Principal principal) {
+    public @Nullable Identity getIdentity(Principal principal) {
         return getIdentity(principal.getName());
     }
 
@@ -192,7 +193,7 @@ class IdentityScope extends Identity {
      * @return the identity with the given key, or {@code null} if there are
      * no identities in this scope with that key.
      */
-    public abstract Identity getIdentity(PublicKey key);
+    public abstract @Nullable Identity getIdentity(PublicKey key);
 
     /**
      * Adds an {@code Identity} to this identity scope.
