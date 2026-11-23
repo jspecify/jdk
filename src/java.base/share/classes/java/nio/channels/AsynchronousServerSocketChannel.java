@@ -309,5 +309,5 @@ public abstract class AsynchronousServerSocketChannel
      * @throws  IOException                {@inheritDoc}
      */
     @Override
-    public abstract SocketAddress getLocalAddress() throws IOException;
+    public abstract @Nullable SocketAddress getLocalAddress() throws IOException;
 }

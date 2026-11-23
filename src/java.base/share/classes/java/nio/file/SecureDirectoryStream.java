@@ -28,6 +28,7 @@ import java.nio.file.attribute.*;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Set;
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@code DirectoryStream} that defines operations on files that are located
@@ -244,7 +245,7 @@ public interface SecureDirectoryStream<T>
      *          this directory stream, or {@code null} if the attribute view
      *          type is not available
      */
-    <V extends FileAttributeView> V getFileAttributeView(Class<V> type);
+    <V extends FileAttributeView> @Nullable V getFileAttributeView(Class<V> type);
 
     /**
      * Returns a new file attribute view to access the file attributes of a file
@@ -279,7 +280,7 @@ public interface SecureDirectoryStream<T>
      *          type is not available
      *
      */
-    <V extends FileAttributeView> V getFileAttributeView(T path,
+    <V extends FileAttributeView> @Nullable V getFileAttributeView(T path,
                                                          Class<V> type,
                                                          LinkOption... options);
 }
