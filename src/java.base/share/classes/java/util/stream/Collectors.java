@@ -479,7 +479,7 @@ public final class Collectors {
      * @since 9
      */
     public static <T extends @Nullable Object, U extends @Nullable Object, A extends @Nullable Object, R extends @Nullable Object>
-    Collector<T, ?, R> flatMapping(Function<? super T, ? extends Stream<? extends U>> mapper,
+    Collector<T, ?, R> flatMapping(Function<? super T, ? extends @Nullable Stream<? extends U>> mapper,
                                    Collector<? super U, A, R> downstream) {
         BiConsumer<A, ? super U> downstreamAccumulator = downstream.accumulator();
         return new CollectorImpl<>(downstream.supplier(),
@@ -1005,7 +1005,7 @@ public final class Collectors {
      * @see #groupingBy(Function, Supplier, Collector)
      * @see #groupingByConcurrent(Function)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object> Collector<T, ?, Map<K, List<T>>>
+    public static <T extends @Nullable Object, K> Collector<T, ?, Map<K, List<T>>>
     groupingBy(Function<? super T, ? extends K> classifier) {
         return groupingBy(classifier, toList());
     }
@@ -1054,7 +1054,7 @@ public final class Collectors {
      * @see #groupingBy(Function, Supplier, Collector)
      * @see #groupingByConcurrent(Function, Collector)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object, A extends @Nullable Object, D extends @Nullable Object>
+    public static <T extends @Nullable Object, K, A extends @Nullable Object, D extends @Nullable Object>
     Collector<T, ?, Map<K, D>> groupingBy(Function<? super T, ? extends K> classifier,
                                           Collector<? super T, A, D> downstream) {
         return groupingBy(classifier, HashMap::new, downstream);
@@ -1107,7 +1107,7 @@ public final class Collectors {
      * @see #groupingBy(Function)
      * @see #groupingByConcurrent(Function, Supplier, Collector)
      */
-    public static <T extends @Nullable Object, K extends @Nullable Object, D extends @Nullable Object, A extends @Nullable Object, M extends Map<K, D>>
+    public static <T extends @Nullable Object, K, D extends @Nullable Object, A extends @Nullable Object, M extends Map<K, D>>
     Collector<T, ?, M> groupingBy(Function<? super T, ? extends K> classifier,
                                   Supplier<M> mapFactory,
                                   Collector<? super T, A, D> downstream) {
