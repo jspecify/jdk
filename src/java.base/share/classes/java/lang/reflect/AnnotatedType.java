@@ -96,7 +96,7 @@ public interface AnnotatedType extends AnnotatedElement {
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    <T extends Annotation> T getAnnotation(Class<T> annotationClass);
+    <T extends Annotation> @Nullable T getAnnotation(Class<T> annotationClass);
 
     /**
      * {@inheritDoc}

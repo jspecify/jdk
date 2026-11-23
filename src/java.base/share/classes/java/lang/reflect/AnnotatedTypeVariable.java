@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * {@code AnnotatedTypeVariable} represents the potentially annotated use of a
  * type variable, whose declaration may have bounds which themselves represent
@@ -58,5 +60,5 @@ public interface AnnotatedTypeVariable extends AnnotatedType {
      * @since 9
      */
     @Override
-    AnnotatedType getAnnotatedOwnerType();
+    @Nullable AnnotatedType getAnnotatedOwnerType();
 }

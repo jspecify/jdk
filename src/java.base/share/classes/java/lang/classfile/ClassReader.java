@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import jdk.internal.classfile.impl.ClassReaderImpl;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Advanced {@code class} file reading support for {@link AttributeMapper}s.
@@ -129,7 +130,7 @@ public sealed interface ClassReader extends ConstantPool
      * @throws ConstantPoolException if the index is out of range of the
      *         constant pool size
      */
-    PoolEntry readEntryOrNull(int offset);
+    @Nullable PoolEntry readEntryOrNull(int offset);
 
     /**
      * {@return the constant pool entry of a given type whose index is given
@@ -142,7 +143,7 @@ public sealed interface ClassReader extends ConstantPool
      * @throws ConstantPoolException if the index is out of range of the
      *         constant pool size, or zero, or the entry is not of the given type
      */
-    <T extends PoolEntry> T readEntryOrNull(int offset, Class<T> cls);
+    <T extends PoolEntry> @Nullable T readEntryOrNull(int offset, Class<T> cls);
 
     /**
      * {@return the unsigned byte at the specified offset within the {@code

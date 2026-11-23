@@ -38,6 +38,7 @@ package java.util.concurrent.locks;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import jdk.internal.vm.annotation.ReservedStackAccess;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An implementation of {@link ReadWriteLock} supporting similar
@@ -1276,7 +1277,7 @@ public class ReentrantReadWriteLock
      *
      * @return the owner, or {@code null} if not owned
      */
-    protected Thread getOwner() {
+    protected @Nullable Thread getOwner() {
         return sync.getOwner();
     }
 

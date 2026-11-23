@@ -938,7 +938,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      *
      * @return the exception, or {@code null} if none
      */
-    public final Throwable getException() {
+    public final @Nullable Throwable getException() {
         return getException(false);
     }
 

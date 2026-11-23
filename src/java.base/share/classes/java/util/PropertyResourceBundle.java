@@ -45,6 +45,7 @@ import java.io.Reader;
 import java.io.IOException;
 import java.nio.charset.MalformedInputException;
 import java.nio.charset.UnmappableCharacterException;
+import org.jspecify.annotations.Nullable;
 import sun.nio.cs.ISO_8859_1;
 import sun.util.PropertyResourceBundleCharset;
 import sun.util.ResourceBundleEnumeration;
@@ -192,7 +193,7 @@ public class PropertyResourceBundle extends ResourceBundle {
     }
 
     // Implements java.util.ResourceBundle.handleGetObject; inherits javadoc specification.
-    public Object handleGetObject(String key) {
+    public @Nullable Object handleGetObject(String key) {
         if (key == null) {
             throw new NullPointerException();
         }
