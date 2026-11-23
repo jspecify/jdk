@@ -86,6 +86,7 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 import sun.util.calendar.CalendarSystem;
 import sun.util.calendar.LocalGregorianCalendar;
@@ -421,7 +422,7 @@ public final class JapaneseChronology extends AbstractChronology implements Seri
 
     //-----------------------------------------------------------------------
     @Override  // override for return type
-    public JapaneseDate resolveDate(Map <TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
+    public @Nullable JapaneseDate resolveDate(Map <TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
         return (JapaneseDate) super.resolveDate(fieldValues, resolverStyle);
     }
 

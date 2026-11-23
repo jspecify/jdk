@@ -85,6 +85,7 @@ import java.util.Properties;
 import java.util.stream.Stream;
 
 import jdk.internal.util.StaticProperty;
+import org.jspecify.annotations.Nullable;
 import sun.util.logging.PlatformLogger;
 
 /**
@@ -357,7 +358,7 @@ public final class HijrahChronology extends AbstractChronology implements Serial
      * @see #getId()
      */
     @Override
-    public String getCalendarType() {
+    public @Nullable String getCalendarType() {
         return calendarType;
     }
 
@@ -540,7 +541,7 @@ public final class HijrahChronology extends AbstractChronology implements Serial
 
     //-----------------------------------------------------------------------
     @Override  // override for return type
-    public HijrahDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
+    public @Nullable HijrahDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
         return (HijrahDate) super.resolveDate(fieldValues, resolverStyle);
     }
 

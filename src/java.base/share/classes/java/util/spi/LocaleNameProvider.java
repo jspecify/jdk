@@ -68,7 +68,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
      *     getAvailableLocales()}.
      * @see java.util.Locale#getDisplayLanguage(java.util.Locale)
      */
-    public abstract String getDisplayLanguage(String languageCode, Locale locale);
+    public abstract @Nullable String getDisplayLanguage(String languageCode, Locale locale);
 
     /**
      * Returns a localized name for the given <a href="https://www.rfc-editor.org/info/bcp47/">
@@ -124,7 +124,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
      *     getAvailableLocales()}.
      * @see java.util.Locale#getDisplayCountry(java.util.Locale)
      */
-    public abstract String getDisplayCountry(String countryCode, Locale locale);
+    public abstract @Nullable String getDisplayCountry(String countryCode, Locale locale);
 
     /**
      * Returns a localized name for the given variant code and the given locale that
@@ -142,7 +142,7 @@ public abstract class LocaleNameProvider extends LocaleServiceProvider {
      *     getAvailableLocales()}.
      * @see java.util.Locale#getDisplayVariant(java.util.Locale)
      */
-    public abstract String getDisplayVariant(String variant, Locale locale);
+    public abstract @Nullable String getDisplayVariant(String variant, Locale locale);
 
     /**
      * Returns a localized name for the given

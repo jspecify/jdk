@@ -76,6 +76,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.Collections;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provider of time-zone rules to the system.
@@ -222,7 +223,7 @@ public abstract class ZoneRulesProvider {
      * otherwise not null
      * @throws ZoneRulesException if rules cannot be obtained for the zone ID
      */
-    public static ZoneRules getRules(String zoneId, boolean forCaching) {
+    public static @Nullable ZoneRules getRules(String zoneId, boolean forCaching) {
         Objects.requireNonNull(zoneId, "zoneId");
         return getProvider(zoneId).provideRules(zoneId, forCaching);
     }
@@ -399,7 +400,7 @@ public abstract class ZoneRulesProvider {
      * otherwise not null
      * @throws ZoneRulesException if rules cannot be obtained for the zone ID
      */
-    protected abstract ZoneRules provideRules(String zoneId, boolean forCaching);
+    protected abstract @Nullable ZoneRules provideRules(String zoneId, boolean forCaching);
 
     /**
      * SPI method to get the history of rules for the zone ID.

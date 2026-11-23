@@ -26,6 +26,7 @@
 package java.util.spi;
 
 import java.util.ResourceBundle;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An interface for service providers that provide implementations of {@link
@@ -61,5 +62,5 @@ public interface ResourceBundleControlProvider {
      *         applicable to this provider.
      * @throws NullPointerException if {@code baseName} is {@code null}
      */
-    public ResourceBundle.Control getControl(String baseName);
+    public ResourceBundle.@Nullable Control getControl(String baseName);
 }
