@@ -199,7 +199,7 @@ public final class KDF {
      * @see <a href="#DelayedProviderSelection">Delayed Provider
      *         Selection</a>
      */
-    public KDFParameters getParameters() {
+    public @Nullable KDFParameters getParameters() {
         useFirstSpi();
         return theOne.spi().engineGetParameters();
     }

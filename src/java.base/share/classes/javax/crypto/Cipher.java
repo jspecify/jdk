@@ -1157,7 +1157,7 @@ public class Cipher {
      * this cipher does not use an IV, or if the IV has not yet
      * been set.
      */
-    public final byte[] getIV() {
+    public final byte @Nullable [] getIV() {
         chooseFirstProvider();
         return spi.engineGetIV();
     }
@@ -1173,7 +1173,7 @@ public class Cipher {
      *
      * @return the parameters used with this cipher, or {@code null}
      */
-    public final AlgorithmParameters getParameters() {
+    public final @Nullable AlgorithmParameters getParameters() {
         chooseFirstProvider();
         return spi.engineGetParameters();
     }
@@ -1186,7 +1186,7 @@ public class Cipher {
      * object, or {@code null} if this {@code Cipher} object does not use any
      * exemption mechanism.
      */
-    public final ExemptionMechanism getExemptionMechanism() {
+    public final @Nullable ExemptionMechanism getExemptionMechanism() {
         chooseFirstProvider();
         return exmech;
     }
@@ -2770,7 +2770,7 @@ public class Cipher {
      * "algorithm/mode/padding"
      * @since 1.5
      */
-    public static final AlgorithmParameterSpec getMaxAllowedParameterSpec(
+    public static final @Nullable AlgorithmParameterSpec getMaxAllowedParameterSpec(
             String transformation) throws NoSuchAlgorithmException {
         CryptoPermission cp = getConfiguredPermission(transformation);
         return cp.getAlgorithmParameterSpec();

@@ -26,6 +26,7 @@
 package javax.crypto.spec;
 
 import java.security.spec.AlgorithmParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class specifies the set of parameters used with password-based
@@ -105,7 +106,7 @@ public class PBEParameterSpec implements AlgorithmParameterSpec {
      *
      * @since 1.8
      */
-    public AlgorithmParameterSpec getParameterSpec() {
+    public @Nullable AlgorithmParameterSpec getParameterSpec() {
         return this.paramSpec;
     }
 }
