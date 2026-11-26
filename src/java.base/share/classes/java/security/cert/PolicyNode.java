@@ -27,6 +27,7 @@ package java.security.cert;
 
 import java.util.Iterator;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An immutable valid policy tree node as defined by the PKIX certification
@@ -71,7 +72,7 @@ public interface PolicyNode {
      * @return the parent of this node, or {@code null} if this is the
      * root node
      */
-    PolicyNode getParent();
+    @Nullable PolicyNode getParent();
 
     /**
      * Returns an iterator over the children of this node. Any attempts to

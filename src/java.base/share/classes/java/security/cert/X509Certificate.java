@@ -414,7 +414,7 @@ public abstract non-sealed class X509Certificate extends Certificate
      * @return the DER-encoded signature algorithm parameters, or
      *         null if no parameters are present.
      */
-    public abstract byte[] getSigAlgParams();
+    public abstract byte @Nullable [] getSigAlgParams();
 
     /**
      * Gets the {@code issuerUniqueID} value from the certificate.
@@ -435,7 +435,7 @@ public abstract non-sealed class X509Certificate extends Certificate
      * @return the issuer unique identifier or null if it is not
      * present in the certificate.
      */
-    public abstract boolean[] getIssuerUniqueID();
+    public abstract boolean @Nullable [] getIssuerUniqueID();
 
     /**
      * Gets the {@code subjectUniqueID} value from the certificate.
@@ -450,7 +450,7 @@ public abstract non-sealed class X509Certificate extends Certificate
      * @return the subject unique identifier or null if it is not
      * present in the certificate.
      */
-    public abstract boolean[] getSubjectUniqueID();
+    public abstract boolean @Nullable [] getSubjectUniqueID();
 
     /**
      * Gets a boolean array representing bits of
@@ -482,7 +482,7 @@ public abstract non-sealed class X509Certificate extends Certificate
      * truncated. Returns null if this certificate does not
      * contain a KeyUsage extension.
      */
-    public abstract boolean[] getKeyUsage();
+    public abstract boolean @Nullable [] getKeyUsage();
 
     /**
      * Gets an unmodifiable list of Strings representing the OBJECT
@@ -516,7 +516,7 @@ public abstract non-sealed class X509Certificate extends Certificate
      * @throws CertificateParsingException if the extension cannot be decoded
      * @since 1.4
      */
-    public List<String> getExtendedKeyUsage() throws CertificateParsingException {
+    public @Nullable List<String> getExtendedKeyUsage() throws CertificateParsingException {
         return X509CertImpl.getExtendedKeyUsage(this);
     }
 
@@ -631,7 +631,7 @@ public abstract non-sealed class X509Certificate extends Certificate
      *      RFC 822: STANDARD FOR THE FORMAT OF ARPA INTERNET TEXT MESSAGES
      * @since 1.4
      */
-    public Collection<List<?>> getSubjectAlternativeNames()
+    public @Nullable Collection<List<?>> getSubjectAlternativeNames()
         throws CertificateParsingException {
         return X509CertImpl.getSubjectAlternativeNames(this);
     }
@@ -674,7 +674,7 @@ public abstract non-sealed class X509Certificate extends Certificate
      * @throws CertificateParsingException if the extension cannot be decoded
      * @since 1.4
      */
-    public Collection<List<?>> getIssuerAlternativeNames()
+    public @Nullable Collection<List<?>> getIssuerAlternativeNames()
         throws CertificateParsingException {
         return X509CertImpl.getIssuerAlternativeNames(this);
     }

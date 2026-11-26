@@ -26,6 +26,7 @@
 package java.security.cert;
 
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Interface for an X.509 extension.
@@ -105,7 +106,7 @@ public interface X509Extension {
      * If there are no extensions present at all, then this method returns
      * null.
      */
-    Set<String> getCriticalExtensionOIDs();
+    @Nullable Set<String> getCriticalExtensionOIDs();
 
     /**
      * Gets a Set of the OID strings for the extension(s) marked
@@ -142,7 +143,7 @@ public interface X509Extension {
      * If there are no extensions present at all, then this method returns
      * null.
      */
-    Set<String> getNonCriticalExtensionOIDs();
+    @Nullable Set<String> getNonCriticalExtensionOIDs();
 
     /**
      * Gets the DER-encoded OCTET string for the extension value
@@ -194,5 +195,5 @@ public interface X509Extension {
      * @return the DER-encoded octet string of the extension value or
      * null if it is not present.
      */
-    byte[] getExtensionValue(String oid);
+    byte @Nullable [] getExtensionValue(String oid);
 }

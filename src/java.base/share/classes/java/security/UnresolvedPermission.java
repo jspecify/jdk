@@ -394,7 +394,7 @@ implements java.io.Serializable
      *
      * @since 1.5
      */
-    public String getUnresolvedName() {
+    public @Nullable String getUnresolvedName() {
         return name;
     }
 
@@ -408,7 +408,7 @@ implements java.io.Serializable
      *
      * @since 1.5
      */
-    public String getUnresolvedActions() {
+    public @Nullable String getUnresolvedActions() {
         return actions;
     }
 

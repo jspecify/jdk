@@ -37,6 +37,8 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * This class provides a cryptographically strong random number
  * generator (RNG).
@@ -702,7 +704,7 @@ public class SecureRandom extends java.util.Random {
      * @since 9
      * @see SecureRandomSpi
      */
-    public SecureRandomParameters getParameters() {
+    public @Nullable SecureRandomParameters getParameters() {
         return secureRandomSpi.engineGetParameters();
     }
 

@@ -27,6 +27,7 @@ package java.security.cert;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This interface represents an X.509 extension.
@@ -86,7 +87,7 @@ public interface Extension {
      * @return a copy of the extension's value, or {@code null} if no
      *    extension value is present.
      */
-    byte[] getValue();
+    byte @Nullable [] getValue();
 
     /**
      * Generates the extension's DER encoding and writes it to the output

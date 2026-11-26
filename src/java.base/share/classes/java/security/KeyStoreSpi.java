@@ -79,7 +79,7 @@ public abstract class KeyStoreSpi {
      * @throws    UnrecoverableKeyException if the key cannot be recovered
      * (e.g., the given password is wrong).
      */
-    public abstract Key engineGetKey(String alias, char[] password)
+    public abstract @Nullable Key engineGetKey(String alias, char[] password)
         throws NoSuchAlgorithmException, UnrecoverableKeyException;
 
     /**
@@ -95,7 +95,7 @@ public abstract class KeyStoreSpi {
      * and the root certificate authority last), or {@code null} if the
      * given alias * does not exist or does not contain a certificate chain
      */
-    public abstract Certificate[] engineGetCertificateChain(String alias);
+    public abstract Certificate @Nullable [] engineGetCertificateChain(String alias);
 
     /**
      * Returns the certificate associated with the given alias.
@@ -118,7 +118,7 @@ public abstract class KeyStoreSpi {
      * @return the certificate, or {@code null} if the given alias does not
      * exist or does not contain a certificate.
      */
-    public abstract Certificate engineGetCertificate(String alias);
+    public abstract @Nullable Certificate engineGetCertificate(String alias);
 
     /**
      * Returns the creation date of the entry identified by the given alias.
@@ -128,7 +128,7 @@ public abstract class KeyStoreSpi {
      * @return the creation date of this entry, or {@code null}
      * if the given alias does not exist
      */
-    public abstract Date engineGetCreationDate(String alias);
+    public abstract @Nullable Date engineGetCreationDate(String alias);
 
     /**
      * Returns the instant that the entry identified by the given alias was
@@ -308,7 +308,7 @@ public abstract class KeyStoreSpi {
      * @return the alias name of the first entry with matching certificate,
      * or {@code null} if no such entry exists in this keystore.
      */
-    public abstract String engineGetCertificateAlias(Certificate cert);
+    public abstract @Nullable String engineGetCertificateAlias(Certificate cert);
 
     /**
      * Stores this keystore to the given output stream, and protects its

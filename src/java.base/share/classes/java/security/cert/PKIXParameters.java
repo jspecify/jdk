@@ -607,7 +607,7 @@ public class PKIXParameters implements CertPathParameters {
      * @return the signature provider's name (or {@code null})
      * @see #setSigProvider
      */
-    public String getSigProvider() {
+    public @Nullable String getSigProvider() {
         return this.sigProvider;
     }
 

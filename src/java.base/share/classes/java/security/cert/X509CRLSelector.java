@@ -525,7 +525,7 @@ public class X509CRLSelector implements CRLSelector {
      *
      * @return the minimum CRL number accepted (or {@code null})
      */
-    public BigInteger getMinCRL() {
+    public @Nullable BigInteger getMinCRL() {
         return minCRL;
     }
 
@@ -537,7 +537,7 @@ public class X509CRLSelector implements CRLSelector {
      *
      * @return the maximum CRL number accepted (or {@code null})
      */
-    public BigInteger getMaxCRL() {
+    public @Nullable BigInteger getMaxCRL() {
         return maxCRL;
     }
 
@@ -571,7 +571,7 @@ public class X509CRLSelector implements CRLSelector {
      * @return the certificate being checked (or {@code null})
      * @see #setCertificateChecking
      */
-    public X509Certificate getCertificateChecking() {
+    public @Nullable X509Certificate getCertificateChecking() {
         return certChecking;
     }
 

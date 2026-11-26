@@ -123,7 +123,7 @@ public abstract class PKIXRevocationChecker extends PKIXCertPathChecker {
      *
      * @return the responder URI, or {@code null} if not set
      */
-    public URI getOcspResponder() {
+    public @Nullable URI getOcspResponder() {
         return ocspResponder;
     }
 
@@ -149,7 +149,7 @@ public abstract class PKIXRevocationChecker extends PKIXCertPathChecker {
      *
      * @return the responder's certificate, or {@code null} if not set
      */
-    public X509Certificate getOcspResponderCert() {
+    public @Nullable X509Certificate getOcspResponderCert() {
         return ocspResponderCert;
     }
 

@@ -33,6 +33,7 @@ import java.math.BigInteger;
 import java.security.Principal;
 import java.security.Security;
 import java.util.Date;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Abstract class for X.509 v1 certificates. This provides a standard
@@ -440,5 +441,5 @@ public abstract class X509Certificate extends Certificate {
      * @return the DER-encoded signature algorithm parameters, or
      *         null if no parameters are present.
      */
-    public abstract byte[] getSigAlgParams();
+    public abstract byte @Nullable [] getSigAlgParams();
 }
