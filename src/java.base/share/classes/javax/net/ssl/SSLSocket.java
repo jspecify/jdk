@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.net.*;
 import java.util.List;
 import java.util.function.BiFunction;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class extends <code>Socket</code> and provides secure
@@ -471,7 +472,7 @@ public abstract class SSLSocket extends Socket
      *
      * @since 1.7
      */
-    public SSLSession getHandshakeSession() {
+    public @Nullable SSLSession getHandshakeSession() {
         throw new UnsupportedOperationException();
     }
 
@@ -757,7 +758,7 @@ public abstract class SSLSocket extends Socket
      *      RFC 7301: Transport Layer Security (TLS) Application-Layer Protocol Negotiation Extension
      * @since 9
      */
-    public String getApplicationProtocol() {
+    public @Nullable String getApplicationProtocol() {
         throw new UnsupportedOperationException();
     }
 
@@ -782,7 +783,7 @@ public abstract class SSLSocket extends Socket
      *         does not implement the operation.
      * @since 9
      */
-    public String getHandshakeApplicationProtocol() {
+    public @Nullable String getHandshakeApplicationProtocol() {
         throw new UnsupportedOperationException();
     }
 
@@ -868,7 +869,7 @@ public abstract class SSLSocket extends Socket
      *         does not implement the operation.
      * @since 9
      */
-    public BiFunction<SSLSocket, List<String>, String>
+    public @Nullable BiFunction<SSLSocket, List<String>, String>
             getHandshakeApplicationProtocolSelector() {
         throw new UnsupportedOperationException();
     }
