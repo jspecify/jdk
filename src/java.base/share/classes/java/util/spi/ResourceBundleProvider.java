@@ -27,6 +27,7 @@ package java.util.spi;
 
 import java.util.Locale;
 import java.util.ResourceBundle;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@code ResourceBundleProvider} is a service provider interface for
@@ -157,5 +158,5 @@ public interface ResourceBundleProvider {
      * @return the ResourceBundle created for the given parameters, or null if no
      *         {@code ResourceBundle} for the given parameters is found
      */
-    public ResourceBundle getBundle(String baseName, Locale locale);
+    public @Nullable ResourceBundle getBundle(String baseName, Locale locale);
 }

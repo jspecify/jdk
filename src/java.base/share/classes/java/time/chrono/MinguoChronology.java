@@ -76,6 +76,7 @@ import java.time.temporal.ValueRange;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The Minguo calendar system.
@@ -332,7 +333,7 @@ public final class MinguoChronology extends AbstractChronology implements Serial
 
     //-----------------------------------------------------------------------
     @Override  // override for return type
-    public MinguoDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
+    public @Nullable MinguoDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
         return (MinguoDate) super.resolveDate(fieldValues, resolverStyle);
     }
 

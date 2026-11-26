@@ -95,6 +95,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The ISO calendar system.
@@ -583,7 +584,7 @@ public final class IsoChronology extends AbstractChronology implements Serializa
      *  because of a conflict in the input data
      */
     @Override  // override for performance
-    public LocalDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
+    public @Nullable LocalDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
         return (LocalDate) super.resolveDate(fieldValues, resolverStyle);
     }
 

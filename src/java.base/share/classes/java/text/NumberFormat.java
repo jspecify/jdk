@@ -353,7 +353,7 @@ public abstract class NumberFormat extends Format  {
      * @throws NullPointerException if {@code source} or {@code pos} is null.
      */
     @Override
-    public final Object parseObject(String source, ParsePosition pos) {
+    public final @Nullable Object parseObject(String source, ParsePosition pos) {
         return parse(source, pos);
     }
 
@@ -490,7 +490,7 @@ public abstract class NumberFormat extends Format  {
      *         is {@code null}.
      * @see #isStrict()
      */
-    public abstract Number parse(String source, ParsePosition parsePosition);
+    public abstract @Nullable Number parse(String source, ParsePosition parsePosition);
 
     /**
      * Parses text from the beginning of the given string to produce a {@code Number}.
@@ -1063,7 +1063,7 @@ public abstract class NumberFormat extends Format  {
      *            method does not support this operation
      * @since 1.4
      */
-    public Currency getCurrency() {
+    public @Nullable Currency getCurrency() {
         throw new UnsupportedOperationException();
     }
 
