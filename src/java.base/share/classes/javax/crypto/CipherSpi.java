@@ -28,6 +28,7 @@ package javax.crypto;
 import java.nio.ByteBuffer;
 import java.security.*;
 import java.security.spec.AlgorithmParameterSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class defines the <i>Service Provider Interface</i> (<b>SPI</b>)
@@ -282,7 +283,7 @@ public abstract class CipherSpi {
      * algorithm does not use an IV, or if the IV has not yet
      * been set
      */
-    protected abstract byte[] engineGetIV();
+    protected abstract byte @Nullable [] engineGetIV();
 
     /**
      * Returns the parameters used with this cipher.
@@ -295,7 +296,7 @@ public abstract class CipherSpi {
      *
      * @return the parameters used with this cipher, or {@code null}
      */
-    protected abstract AlgorithmParameters engineGetParameters();
+    protected abstract @Nullable AlgorithmParameters engineGetParameters();
 
     /**
      * Initializes this {@code CipherSpi} object with a key and a source
@@ -481,7 +482,7 @@ public abstract class CipherSpi {
      * cipher is a block cipher and the input data is too short to result in a
      * new block
      */
-    protected abstract byte[] engineUpdate(byte[] input, int inputOffset,
+    protected abstract byte @Nullable [] engineUpdate(byte[] input, int inputOffset,
                                            int inputLen);
 
     /**

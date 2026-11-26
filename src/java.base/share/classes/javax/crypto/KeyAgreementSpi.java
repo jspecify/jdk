@@ -27,6 +27,7 @@ package javax.crypto;
 
 import java.security.*;
 import java.security.spec.*;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class defines the <i>Service Provider Interface</i> (<b>SPI</b>)
@@ -129,7 +130,7 @@ public abstract class KeyAgreementSpi {
      * @exception IllegalStateException if this key agreement has not been
      * initialized.
      */
-    protected abstract Key engineDoPhase(Key key, boolean lastPhase)
+    protected abstract @Nullable Key engineDoPhase(Key key, boolean lastPhase)
         throws InvalidKeyException, IllegalStateException;
 
     /**
