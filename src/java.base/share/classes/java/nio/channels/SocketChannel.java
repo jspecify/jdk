@@ -37,6 +37,7 @@ import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.spi.AbstractSelectableChannel;
 import java.nio.channels.spi.SelectorProvider;
+import org.jspecify.annotations.Nullable;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -569,7 +570,7 @@ public abstract class SocketChannel
      *
      * @since 1.7
      */
-    public abstract SocketAddress getRemoteAddress() throws IOException;
+    public abstract @Nullable SocketAddress getRemoteAddress() throws IOException;
 
     // -- ByteChannel operations --
 
@@ -646,5 +647,5 @@ public abstract class SocketChannel
      * @throws  IOException                {@inheritDoc}
      */
     @Override
-    public abstract SocketAddress getLocalAddress() throws IOException;
+    public abstract @Nullable SocketAddress getLocalAddress() throws IOException;
 }

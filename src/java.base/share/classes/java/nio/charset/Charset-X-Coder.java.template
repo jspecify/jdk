@@ -35,6 +35,7 @@ import java.nio.BufferUnderflowException;
 import java.lang.ref.WeakReference;
 import java.nio.charset.CoderMalfunctionError;                  // javadoc
 import java.util.Arrays;
+import org.jspecify.annotations.Nullable;
 import jdk.internal.util.ArraysSupport;
 
 
@@ -930,7 +931,7 @@ public abstract class Charset$Coder$ {
      * @throws  UnsupportedOperationException
      *          If this decoder does not implement an auto-detecting charset
      */
-    public Charset detectedCharset() {
+    public @Nullable Charset detectedCharset() {
         throw new UnsupportedOperationException();
     }
 

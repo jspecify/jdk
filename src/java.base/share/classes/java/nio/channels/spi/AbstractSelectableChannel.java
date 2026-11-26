@@ -36,6 +36,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Arrays;
 import java.util.function.Consumer;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -169,7 +170,7 @@ public abstract class AbstractSelectableChannel
         }
     }
 
-    public final SelectionKey keyFor(Selector sel) {
+    public final @Nullable SelectionKey keyFor(Selector sel) {
         synchronized (keyLock) {
             return findKey(sel);
         }

@@ -25,6 +25,8 @@
 
 package java.nio.file.attribute;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Basic attributes associated with a file in a file system.
  *
@@ -151,5 +153,5 @@ public interface BasicFileAttributes {
      *
      * @see java.nio.file.Files#walkFileTree
      */
-    Object fileKey();
+    @Nullable Object fileKey();
 }

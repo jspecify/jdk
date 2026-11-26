@@ -28,6 +28,7 @@ package java.nio.channels;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A token representing the membership of an Internet Protocol (IP) multicast
@@ -173,5 +174,5 @@ public abstract class MembershipKey {
      * @return  The source address if this membership key is source-specific,
      *          otherwise {@code null}
      */
-    public abstract InetAddress sourceAddress();
+    public abstract @Nullable InetAddress sourceAddress();
 }

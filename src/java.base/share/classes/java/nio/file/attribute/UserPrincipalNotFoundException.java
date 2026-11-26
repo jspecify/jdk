@@ -26,6 +26,7 @@
 package java.nio.file.attribute;
 
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Checked exception thrown when a lookup of {@link UserPrincipal} fails because
@@ -62,7 +63,7 @@ public class UserPrincipalNotFoundException
      *
      * @return  the user principal name or {@code null}
      */
-    public String getName() {
+    public @Nullable String getName() {
         return name;
     }
 }

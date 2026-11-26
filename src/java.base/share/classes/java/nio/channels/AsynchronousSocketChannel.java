@@ -281,7 +281,7 @@ public abstract class AsynchronousSocketChannel
      * @throws  IOException
      *          If an I/O error occurs
      */
-    public abstract SocketAddress getRemoteAddress() throws IOException;
+    public abstract @Nullable SocketAddress getRemoteAddress() throws IOException;
 
     // -- asynchronous operations --
 
@@ -678,5 +678,5 @@ public abstract class AsynchronousSocketChannel
      * @throws  ClosedChannelException     {@inheritDoc}
      * @throws  IOException                {@inheritDoc}
      */
-    public abstract SocketAddress getLocalAddress() throws IOException;
+    public abstract @Nullable SocketAddress getLocalAddress() throws IOException;
 }
