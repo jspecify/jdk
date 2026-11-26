@@ -872,7 +872,7 @@ public class Phaser {
      *
      * @return the parent of this phaser, or {@code null} if none
      */
-    public Phaser getParent() {
+    public @Nullable Phaser getParent() {
         return parent;
     }
 

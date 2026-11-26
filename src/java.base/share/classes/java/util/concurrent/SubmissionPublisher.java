@@ -684,7 +684,7 @@ public class SubmissionPublisher<T> implements Publisher<T>,
      *
      * @return the exception, or null if none
      */
-    public Throwable getClosedException() {
+    public @Nullable Throwable getClosedException() {
         return closedException;
     }
 

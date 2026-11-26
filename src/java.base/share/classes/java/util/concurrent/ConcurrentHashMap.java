@@ -4651,6 +4651,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
          * @return the default mapped value for additions, or {@code null}
          * if not supported
          */
+        // JSpecify: We don't use @Nullable here; we use a nullable type for V itself.
         public V getMappedValue() { return value; }
 
         /**
